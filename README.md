@@ -29,6 +29,20 @@ git lfs track "*.cubemap" "*.unity3d"
 위 명령으로 생성되는 `.gitattributes` 파일을 반드시 함께 커밋 (팀 전체 적용)
 사운드(`wav`/`ogg`)도 포함 — 클립 파일이 곧 쌓입니다
 합류한 팀원도 각자 PC에서 `git lfs install`을 한 번은 실행해야 LFS 파일이 정상으로 받아집니다
+### LFS 용량 확인 (선택)
+LFS 저장 공간이 얼마나 찼는지 궁금할 때 사용합니다. (무료 한도: 계정 전체 합산 1GB)
+
+```bash
+# 파일별 용량 보기
+git lfs ls-files --size
+
+# 확장자별 총합 보기 (더 간편)
+git lfs migrate info
+```
+
+> 한도는 레포별이 아니라 **계정 전체 합산**이며, 바이너리(LFS 추적 파일)만 계산됩니다.
+> 무거운 에셋을 추가할 때는 정말 필요한 것만 넣어 용량을 아껴 주세요.
+
 3) Asset Serialization 설정 (씬 머지 대비)
 `Edit > Project Settings > Editor`에서:
 Version Control → Mode: `Visible Meta Files` (메타 파일 노출)
