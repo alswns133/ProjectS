@@ -41,6 +41,29 @@ git lfs migrate info
 
 # 적용 확인 하는 용도 
 git lfs track
+# 결과( 이렇게 나와야함 )
+Listing tracked patterns
+    *.png (.gitattributes)
+    *.jpg (.gitattributes)
+    *.jpeg (.gitattributes)
+    *.psd (.gitattributes)
+    *.tga (.gitattributes)
+    *.tif (.gitattributes)
+    *.exr (.gitattributes)
+    *.fbx (.gitattributes)
+    *.obj (.gitattributes)
+    *.blend (.gitattributes)
+    *.wav (.gitattributes)
+    *.mp3 (.gitattributes)
+    *.ogg (.gitattributes)
+    *.aiff (.gitattributes)
+    *.mp4 (.gitattributes)
+    *.mov (.gitattributes)
+    *.ttf (.gitattributes)
+    *.otf (.gitattributes)
+    *.cubemap (.gitattributes)
+    *.unity3d (.gitattributes)
+Listing excluded patterns
 ```
 
 > 한도는 레포별이 아니라 **계정 전체 합산**이며, 바이너리(LFS 추적 파일)만 계산됩니다.
