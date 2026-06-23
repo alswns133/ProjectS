@@ -101,7 +101,8 @@ public class GameSceneManager : MonoBehaviour
         // 아래 진행도 루프는 건드릴 필요가 없다. (작업 추가를 깜빡해 바가 거짓말하는 일을 구조로 차단)
         var preloadTasks = new List<Task>
         {
-            SoundManager.Instance.PreloadSceneSounds<T>(),
+            //SoundManager.Instance.PreloadSceneSounds<T>(),
+
             // 예: PrefabManager.Instance.PreloadSceneObjects<T>(),
             // 예: EffectManager.Instance.PreloadSceneEffects<T>(),
         };

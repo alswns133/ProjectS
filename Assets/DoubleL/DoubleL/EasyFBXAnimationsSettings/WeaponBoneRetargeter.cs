@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -122,3 +123,4 @@ namespace DoubleL
         Transform FindRecursive(Transform p, string n) { if (p.name == n) return p; foreach (Transform c in p) { var r = FindRecursive(c, n); if (r) return r; } return null; }
     }
 }
+#endif

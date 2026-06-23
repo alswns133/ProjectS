@@ -26,6 +26,7 @@ public class BootstrapTest : MonoBehaviour
 
         // 3) 모든 준비 완료 → 게임 씬으로 전환
         Debug.Log("[BootstrapTest] 초기화 완료, 다음 씬으로 이동");
-        GameSceneManager.Instance.RequestSceneChange<InGame>();
+        //GameSceneManager.Instance.RequestSceneChange<InGame>();
+        GameSceneManager.Instance.RequestSceneChange<Tutorial>();
     }
 }
