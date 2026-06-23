@@ -4,7 +4,7 @@ public class Tutorial : Scene
 {
     public override void Enter()
     {
-        UIManager.Instance.ShowPanel<HUD>();
+        UIManager.Instance.ShowPanel<HUDPanel>();
 
         PlayerEvents.FireHpChanged(100, 100);
         PlayerEvents.FireSgChanged(50, 50);
