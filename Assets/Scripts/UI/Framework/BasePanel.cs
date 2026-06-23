@@ -4,20 +4,36 @@ using UnityEngine;
 // ex) HUD, 인벤토리, 상점
 public abstract class BasePanel : MonoBehaviour
 {
-    // 현재 패널이 열려있는지 외부에서 확인용
+    /// <summary>
+    /// 현재 패널이 열려있는지 외부에서 확인용
+    /// </summary>
     public bool IsVisible { get; private set; }
 
     // 팀원들이 필요하면 override해서 쓰는 것들
-    protected virtual void OnShow() { } // 열릴때 연출
-    protected virtual void OnHide() { } // 닫힐때 연출
 
-    // 처음 한 번만 실행 (초기화)
+    /// <summary>
+    /// 열릴때 연출
+    /// </summary>
+    protected virtual void OnShow() { }
+
+    /// <summary>
+    /// 닫힐때 연출
+    /// </summary>
+    protected virtual void OnHide() { } 
+
+    /// <summary>
+    /// 처음 한 번만 실행 (초기화)
+    /// </summary>
     protected virtual void OnInit() { }
 
-    // 스택에서 다시 올라올 때 (인벤토리 → 뒤로가기 → HUD 다시 보일 때)
+    /// <summary>
+    /// 스택에서 다시 올라올 때 (인벤토리 → 뒤로가기 → HUD 다시 보일 때)
+    /// </summary>
     protected virtual void OnResume() { }
 
-    // 스택에서 잠깐 가려질 때
+    /// <summary>
+    /// 스택에서 잠깐 가려질 때
+    /// </summary>
     protected virtual void OnPause() { }
 
     // UIManager만 호출하는 메서드들 ( UIManager에서만 호출하기 때문에 아래에 있는 메서드들은 따로 호출하지 않음)
