@@ -38,6 +38,9 @@ git lfs ls-files --size
 
 # 확장자별 총합 보기 (더 간편)
 git lfs migrate info
+
+# 적용 확인 하는 용도 
+git lfs track
 ```
 
 > 한도는 레포별이 아니라 **계정 전체 합산**이며, 바이너리(LFS 추적 파일)만 계산됩니다.
