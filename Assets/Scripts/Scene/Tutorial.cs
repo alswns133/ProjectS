@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Tutorial : Scene
+public class Tutorial : BaseScene
 {
     public override void Enter()
     {
