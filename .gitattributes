@@ -30,3 +30,8 @@
 
 # === 텍스트 파일 ===
 *.cs text diff=csharp
+
+# === 바이너리 .asset 예외 (라이팅/네비메시 등) ===
+LightingData.asset binary
+*.lighting -text merge=binary
+NavMesh.asset binary
