@@ -1,26 +1,29 @@
 using TMPro;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class HUDPanel : BasePanel
 {
-    [SerializeField] private Slider hpSlider;
-    [SerializeField] private Slider mpSlider;
-    [SerializeField] private TMP_Text levelText;
-    [SerializeField] private TMP_Text goldText;
+    [SerializeField] private FillGauge _hp;
+    [SerializeField] private FillGauge _sg;
+    [SerializeField] private TMP_Text expText;
+    [SerializeField] private Image expBar;
+
 
     protected override void OnInit()
     {
-        if(hpSlider == null) hpSlider = transform.Find("HpSlider").GetComponent<Slider>();
-        if(mpSlider == null) mpSlider = transform.Find("MpSlider").GetComponent<Slider>();
-        if(levelText == null) levelText = transform.Find("LevelText").GetComponent<TMP_Text>();
-        if(goldText == null) goldText = transform.Find("GoldText").GetComponent<TMP_Text>();
+        _hp.Init(this);
+        _sg.Init(this);
     }
 
-    // Presenter가 호출하는 메서드들
-    // 화면에 값 꽂아주는 것만 담당!
-    public void SetHp(float ratio) => hpSlider.value = ratio;
-    public void SetMp(float ratio) => mpSlider.value = ratio;
-    public void SetLevel(int level) => levelText.text = $"Lv.{level}";
-    public void SetGold(int gold) => goldText.text = $"{gold}G";
+    public void SetHp(float ratio) => _hp.SetRatio(ratio);
+    public void SetSg(float ratio) => _sg.SetRatio(ratio);
+
+    public void SetExp(float ratio)
+    { 
+        expText.text = $"{ratio * 100}%";
+        expBar.fillAmount = ratio ;
+    }
 }
