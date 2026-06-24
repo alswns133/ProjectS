@@ -19,7 +19,7 @@ public class GameSceneManager : MonoBehaviour
     // 로드되고 있는 상태를 가리키는 변수
     [SerializeField] private bool loading = false;
     // 신을 등록하기 위한 변수
-    private Dictionary<string, Scene> sceneDic = new Dictionary<string, Scene>();
+    private Dictionary<string, BaseScene> sceneDic = new Dictionary<string, BaseScene>();
     // 현재 신을 가리키는 변수
     private string current = string.Empty;
 
@@ -40,7 +40,7 @@ public class GameSceneManager : MonoBehaviour
     }
 
     // 사용자가 지정한 클래스만 기능을 켜두는 메서드입니다.
-    private void EnableOnlyScene<T>() where T : Scene
+    private void EnableOnlyScene<T>() where T : BaseScene
     {
         string sceneName = typeof(T).Name;
         foreach (var scene in sceneDic)
@@ -57,7 +57,7 @@ public class GameSceneManager : MonoBehaviour
     /// 씬 변경을 요청합니다. (외부에서 호출하는 진입점)
     /// </summary>
     /// <typeparam name="T">Scene을 상속받은 씬 클래스</typeparam>
-    public void RequestSceneChange<T>() where T : Scene
+    public void RequestSceneChange<T>() where T : BaseScene
     {
         // 이미 로딩 중이면 중복 요청 무시
         if (loading) return;
@@ -77,7 +77,7 @@ public class GameSceneManager : MonoBehaviour
     /// 1단계(프리로드)를 씬 막기 전에 모두 끝낸 뒤 2단계(씬 로드/활성화)로 넘어간다.
     /// 로드할 씬은 Build Settings에 등록되어 있어야 한다.
     /// </summary>
-    private IEnumerator LoadSceneAsyncRoutine<T>() where T : Scene
+    private IEnumerator LoadSceneAsyncRoutine<T>() where T : BaseScene
     {
         loading = true;
         string next = typeof(T).Name;   // T의 타입 이름 = 씬 이름 = 어드레서블 키로 사용
@@ -176,7 +176,7 @@ public class GameSceneManager : MonoBehaviour
         loading = false;
     }
 
-    private IEnumerator SceneChangeDelayRoutine<T>(float delayTime) where T : Scene
+    private IEnumerator SceneChangeDelayRoutine<T>(float delayTime) where T : BaseScene
     {
         yield return new WaitForSeconds(delayTime);
         RequestSceneChange<T>();
@@ -187,7 +187,7 @@ public class GameSceneManager : MonoBehaviour
     /// </summary>
     /// <typeparam name="T">Scene을 상속받은 씬 클래스</typeparam>
     /// <param name="delayTime">다음 씬으로 넘어가기전 시간</param>
-    public void RequestSceneChangeWithDelay<T>(float delayTime) where T : Scene
+    public void RequestSceneChangeWithDelay<T>(float delayTime) where T : BaseScene
     {
         if (loading) return;
 
@@ -200,7 +200,7 @@ public class GameSceneManager : MonoBehaviour
     /// <typeparam name="T">Scene를 상속받은 씬 클래스</typeparam>
     /// <param name="state">씬 클래스의 활성/비활성 여부 </param>
     /// <returns>생성되거나 이미 등록된 씬 인스턴스</returns>
-    public T RegisterScene<T>(bool state) where T : Scene
+    public T RegisterScene<T>(bool state) where T : BaseScene
     {
         string sceneName = typeof(T).Name;
         if (!sceneDic.ContainsKey(sceneName))
@@ -221,7 +221,7 @@ public class GameSceneManager : MonoBehaviour
         return sceneDic[sceneName] as T;
     }
 
-    private void BeginSceneLoad<T>() where T : Scene
+    private void BeginSceneLoad<T>() where T : BaseScene
     {
         // 게임 신 매니저가 MonoBehaviour를 상속받은 이유는 코루틴을 자체적으로 실행하기 위함입니다.
         StartCoroutine(LoadSceneAsyncRoutine<T>());

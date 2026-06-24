@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public abstract class Scene : MonoBehaviour
+public abstract class BaseScene : MonoBehaviour
 {
     /// <summary>
     /// 초기화 메서드

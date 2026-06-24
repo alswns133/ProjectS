@@ -130,7 +130,7 @@ public class SoundManager : MonoBehaviour
     /// </summary>
     /// <typeparam name="T">Scene를 상속받은 씬 클래스</typeparam>
     /// <returns>해당 씬 사운드 전체의 프리로드 완료 Task</returns>
-    public async Task PreloadSceneSounds<T>() where T : Scene
+    public async Task PreloadSceneSounds<T>() where T : BaseScene
     {
         string sceneName  = typeof(T).Name;
 
