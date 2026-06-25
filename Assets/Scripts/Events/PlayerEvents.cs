@@ -1,6 +1,7 @@
 using System;
+using UnityEngine;
 
-public class PlayerEvents
+public static class PlayerEvents
 {
     /// <summary>
     /// HP 변경 (현재HP, 최대HP)
@@ -24,6 +25,11 @@ public class PlayerEvents
 
     /// 골드 변경 (현재골드)
     public static event Action<int> OnGoldChanged;
+
+    /// <summary>
+    /// 플레이어 사망. 구독자(상태머신·UI·사운드·게임매니저 등)가 각자 반응한다.
+    /// </summary>
+    public static event Action OnPlayerDied;
 
     // Fire 메서드 (Player쪽에서 호출)
 
@@ -64,4 +70,25 @@ public class PlayerEvents
     /// <param name="gold">현재 보유 골드</param>
     public static void FireGoldChanged(int gold)
         => OnGoldChanged?.Invoke(gold);
+
+    /// <summary>
+    /// 플레이어 사망 이벤트 발행. HP가 0에 도달한 순간 1회 호출된다.
+    /// </summary>
+    public static void FirePlayerDied()
+        => OnPlayerDied?.Invoke();
+
+    /// <summary>
+    /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다.
+    /// (static 이벤트가 이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지)
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        OnHpChanged = null;
+        OnSGChanged = null;
+        OnLevelUp = null;
+        OnExpChanged = null;
+        OnGoldChanged = null;
+        OnPlayerDied = null;   // ★ 새 이벤트는 여기에도 반드시 추가
+    }
 }
