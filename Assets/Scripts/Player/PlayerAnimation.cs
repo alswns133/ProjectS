@@ -26,8 +26,6 @@ public class PlayerAnimation : MonoBehaviour
         Animator.StringToHash("Skill4"),
     };
 
-    private static readonly int Attack = Animator.StringToHash("Attack");
-
     private const float Damp = 0.1f;   // SetFloat 감쇠 시간. 값이 즉시 안 튀고 부드럽게 따라감
     private Animator animator;
     private void Awake() => animator = GetComponent<Animator>();
@@ -44,13 +42,6 @@ public class PlayerAnimation : MonoBehaviour
         if (n >= 1 && n < Skill.Length)
             animator.SetTrigger(Skill[n]);
     }
-
-    public void PlayAttackTrigger()
-    {
-        animator.SetTrigger(Attack);
-    }
-
-    public void ResetAttackTrigger() => animator.ResetTrigger(Attack);
 
     public void PlayDie() => animator.SetTrigger(DoDie);
 }
