@@ -77,4 +77,13 @@ public class PlayerMovement : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation,
             Quaternion.LookRotation(dir), rotationDamping * Time.deltaTime);
     }
+
+    // PlayerMovement에 "즉시 그 방향 보기"가 없으면 추가 (기존 FaceDirection 활용)
+    public void SnapToCameraForward()
+    {
+        Vector3 fwd = cam.forward;
+        fwd.y = 0;
+        if (fwd.sqrMagnitude > 0.0001f)
+            transform.rotation = Quaternion.LookRotation(fwd);   // 즉시 정렬 (공격 순간엔 보통 즉시)
+    }
 }
