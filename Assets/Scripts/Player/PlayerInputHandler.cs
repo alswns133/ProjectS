@@ -18,17 +18,13 @@ public class PlayerInputHandler : MonoBehaviour
     [Header("Discrete")]
     [SerializeField] private InputAction jumpAction;
     [SerializeField] private InputAction skillAction;
-    [SerializeField] private InputAction attackAction;
 
     // 연속 입력은 프로퍼티로 노출. 호출 시점에 즉시 읽으므로 Update 실행 순서에 안 휘둘림.
     public Vector2 MoveInput => moveAction.ReadValue<Vector2>();
     public float ZoomDelta => zoomAction.ReadValue<Vector2>().y;
 
-    public bool AttackHeld => attackAction.IsPressed();   // 지금 공격 버튼이 눌려있나
-
     // 이산 입력은 이벤트로 노출. 구독자(Player·CameraRig)는 입력 출처를 몰라도 됨.
     public event Action Jumped;
-    public event Action Attacked;
     public event Action<int> SkillPressed;   // 인자 = 눌린 스킬 번호
 
     private void OnEnable()
@@ -38,11 +34,9 @@ public class PlayerInputHandler : MonoBehaviour
         zoomAction.Enable();
         jumpAction.Enable();
         skillAction.Enable();
-        attackAction.Enable();
 
         jumpAction.started += OnJump;
         skillAction.started += OnSkill;
-        attackAction.started += OnAttack;
     }
 
     // 구독/활성화의 정확한 짝. OnEnable에서 +=/Enable 했으면 여기서 -=/Disable.
@@ -51,13 +45,11 @@ public class PlayerInputHandler : MonoBehaviour
     {
         jumpAction.started -= OnJump;
         skillAction.started -= OnSkill;
-        attackAction.started -= OnAttack;
 
         moveAction.Disable();
         zoomAction.Disable();
         jumpAction.Disable();
         skillAction.Disable();
-        attackAction.Disable();
     }
 
     private void OnJump(InputAction.CallbackContext _) => Jumped?.Invoke();
@@ -70,6 +62,4 @@ public class PlayerInputHandler : MonoBehaviour
         if (int.TryParse(ctx.control.name, out int n))
             SkillPressed?.Invoke(n);
     }
-
-    private void OnAttack(InputAction.CallbackContext _) => Attacked?.Invoke();
 }
