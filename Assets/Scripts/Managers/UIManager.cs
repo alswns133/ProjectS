@@ -76,9 +76,10 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 패널 관리
+    /// T 타입 패널을 스택에 쌓아 표시한다. 기존 최상단 패널은 Pause시켜,
+    /// 뒤로가기(Back) 시 되살릴 수 있게 한다. 등록되지 않은 패널이면 경고만 남기고 무시한다.
     /// </summary>
-    /// <typeparam name="T">BasePanel를 상속받은 클래스만 사용</typeparam>
+    /// <typeparam name="T">BasePanel을 상속받은 클래스</typeparam>
     public void ShowPanel<T>() where T : BasePanel
     {
         if (!_panelMap.TryGetValue(typeof(T), out var panel))
@@ -96,7 +97,8 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 씬 전환할 때 스택 초기화
+    /// 씬 전환 시 호출. 열려 있던 모든 패널과 팝업을 닫아 UI 상태를 깨끗이 초기화한다.
+    /// (이전 씬의 UI가 다음 씬에 남는 것을 방지)
     /// </summary>
     public void ClearPanelStack()
     {
@@ -111,7 +113,8 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 닫기
+    /// 뒤로가기 처리(Esc/뒤로 버튼). 팝업이 열려 있으면 팝업부터 하나 닫고,
+    /// 없으면 패널 스택을 한 단계 되돌린다. 마지막 패널 1개는 닫지 않는다(빈 화면 방지).
     /// </summary>
     public void Back()
     {
@@ -130,9 +133,10 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 팝업 관리
+    /// T 타입 팝업을 표시한다. 팝업은 스택이 아닌 리스트로 관리해 여러 개가 동시에 떠 있을 수 있다.
+    /// 등록되지 않은 팝업이면 경고만 남기고 무시한다.
     /// </summary>
-    /// /// <typeparam name="T">BasePopup 상속받은 클래스만 사용</typeparam>
+    /// <typeparam name="T">BasePopup을 상속받은 클래스</typeparam>
     public void ShowPopup<T>() where T : BasePopup
     {
         if (!_popupMap.TryGetValue(typeof(T), out var popup))
@@ -146,8 +150,9 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 팝업 전체 닫기
+    /// 지정한 팝업 하나를 닫고 활성 목록에서 제거한다. 목록에 없는 팝업이면 아무것도 하지 않는다.
     /// </summary>
+    /// <param name="popup">닫을 팝업</param>
     internal void ClosePopup(BasePopup popup)
     {
         if (!_activePopups.Contains(popup)) return;
@@ -157,7 +162,7 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 팝업 닫기
+    /// 가장 최근에 연(맨 위) 팝업을 닫는다. 뒤로가기가 팝업을 한 번에 하나씩 닫을 때 사용.
     /// </summary>
     private void CloseTopPopup()
     {
