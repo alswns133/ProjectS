@@ -67,7 +67,7 @@ public class GameSceneManager : MonoBehaviour
         {
             // 현재 지정한 데이터 타입만 기능을 활성화 합니다.
             EnableOnlyScene<T>();
-            /// 신을 비동기로 로드합니다.
+            // 신을 비동기로 로드합니다.
             BeginSceneLoad<T>();
         }
     }

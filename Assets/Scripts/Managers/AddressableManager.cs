@@ -10,7 +10,7 @@ public class AddressableManager : MonoBehaviour
 
     [SerializeField] private List<GameObject> gameObjects;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    // 다른 매니저가 에셋을 요청하기 전에 어드레서블 시스템을 먼저 초기화해 둔다.
     void Awake()
     {
         StartCoroutine(InitAddressable());

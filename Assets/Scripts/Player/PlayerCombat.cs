@@ -21,16 +21,56 @@ public class PlayerCombat : MonoBehaviour
     private PlayerInputHandler input;
     private bool attackBuffered;   // 최근 클릭을 기억
     [SerializeField] private float radius;  //임시 범위
+
+    // ── 스킬 쿨타임 ──────────────────────────────────────────────
+    // 인덱스 = 스킬 번호(1~). [0]은 더미 → PlayerAnimation.Skill 배열과 동일한 규칙.
+    // 인스펙터에서 스킬별 쿨타임(초)을 설정. 배열 길이가 유효 스킬 개수를 결정한다.
+    [Header("Skill Cooldown")]
+    [SerializeField] private float[] skillCooldowns = { 0f, 5f, 5f, 8f, 10f };
+    private float[] skillReadyTime;   // 각 스킬이 다시 사용 가능해지는 시각(Time.time 기준)
+
     private void Awake()
-    { 
+    {
         anim = GetComponent<PlayerAnimation>();
         input = GetComponent<PlayerInputHandler>();
+        skillReadyTime = new float[skillCooldowns.Length];   // 시작 시 전부 0 → 즉시 사용 가능
     }
 
-    /// <summary>n번 스킬 실행. 지금은 애니 트리거만, 추후 쿨다운·데미지 판정이 여기 붙는다.</summary>
-    public void UseSkill(int n)
+    /// <summary>
+    /// n번 스킬이 지금 사용 가능한지 여부(유효 번호 + 쿨타임 종료).
+    /// </summary>
+    /// <param name="n">스킬 번호(1~)</param>
+    /// <returns>사용 가능하면 true</returns>
+    public bool CanUseSkill(int n)
     {
+        if (n < 1 || n >= skillCooldowns.Length) return false;   // 정의되지 않은 스킬 번호
+        return Time.time >= skillReadyTime[n];                   // 쿨타임이 지났나
+    }
+
+    /// <summary>
+    /// 남은 쿨타임(초). 사용 가능하면 0. HUD 표시 등에 사용.
+    /// </summary>
+    /// <param name="n">스킬 번호(1~)</param>
+    /// <returns>남은 쿨타임(초), 사용 가능하면 0</returns>
+    public float GetRemainingCooldown(int n)
+    {
+        if (n < 1 || n >= skillCooldowns.Length) return 0f;
+        return Mathf.Max(0f, skillReadyTime[n] - Time.time);
+    }
+
+    /// <summary>
+    /// n번 스킬 실행. 실제로 발동했으면 true, 쿨타임 중이거나 없는 스킬이면 false.
+    /// 호출측(Player)은 이 반환값으로 이동 잠금 여부를 결정한다
+    /// → 쿨타임 중엔 잠그지 않아 "스킬도 안 나가고 못 움직이는" 상황을 막는다.
+    /// </summary>
+    /// <param name="n">스킬 번호(1~)</param>
+    /// <returns>실제로 발동했으면 true</returns>
+    public bool UseSkill(int n)
+    {
+        if (!CanUseSkill(n)) return false;                  // 쿨타임 중/없는 스킬 → 발동 실패
+        skillReadyTime[n] = Time.time + skillCooldowns[n];  // 쿨타임 시작
         anim.PlaySkill(n);
+        return true;
     }
 
     // ★ 애니메이션 이벤트가 임팩트 프레임에 호출 (인스펙터에서 클립에 연결)
