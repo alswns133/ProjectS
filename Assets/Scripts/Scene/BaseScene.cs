@@ -3,7 +3,8 @@ using UnityEngine;
 public abstract class BaseScene : MonoBehaviour
 {
     /// <summary>
-    /// 초기화 메서드
+    /// 씬 오브젝트가 생성된 직후 1회 호출되는 초기화 훅(GameSceneManager.RegisterScene에서 호출).
+    /// Enter보다 먼저, 씬이 화면에 뜨기 전에 필요한 준비를 여기서 한다.
     /// </summary>
     public abstract void Initialize();
     /// <summary>

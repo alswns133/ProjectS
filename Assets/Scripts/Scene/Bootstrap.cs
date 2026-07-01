@@ -20,7 +20,7 @@ public class Bootstrap : MonoBehaviour
         
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    // 게임 진입점. 씬 등록·로컬 파일·테이블 로드·씬 세팅을 순서대로 끝낸 뒤 첫 게임 씬으로 전환한다.
     void Start()
     {
         RegisterScene();
