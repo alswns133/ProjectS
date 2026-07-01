@@ -91,6 +91,7 @@ public class Player : MonoBehaviour
     {
         if (Stats.IsDead) return;
         Combat.UseSkill(n);
+        Movement.SnapToCameraForward();
     }
 
     private void OnAttack()
@@ -98,7 +99,11 @@ public class Player : MonoBehaviour
         if (Stats.IsDead) return;        // 죽었으면 공격 무시(아까 패턴과 동일)
         if (!Movement.IsGrounded) return;  // 접지 상태에서만 점프(공중 점프 방지)
         Combat.OnAttackInput();
+        Movement.SnapToCameraForward();
     }
 
-    private void OnDied() => sm.ChangeState(DeadState);
+    private void OnDied()
+    {
+        sm.ChangeState(DeadState);
+    }
 }

@@ -15,9 +15,11 @@ public class PlayerCombat : MonoBehaviour
     private readonly Collider[] buffer = new Collider[64];   // 미리 할당(GC 0)
 
     [SerializeField] private int comboStep = 0;        // 현재 콤보 단계 (0=아직 시작 안 함)
+    const int comboMax = 4;
 
     private PlayerAnimation anim;
     private PlayerInputHandler input;
+    private bool attackBuffered;   // 최근 클릭을 기억
     [SerializeField] private float radius;  //임시 범위
     private void Awake()
     { 
@@ -80,7 +82,10 @@ public class PlayerCombat : MonoBehaviour
 
     public void OnAttackInput()
     {
-        anim.PlayAttackTrigger();
+        attackBuffered = true;   // 즉시 발동 대신 "눌렀다" 기록
+                                 // (단, 콤보 시작 전 첫 타는 즉시 나가야 하니 그 분기는 따로)
+        if (comboStep == 0 || comboStep == comboMax)
+            anim.PlayAttackTrigger();
     }
 
     // ★ 각 공격 클립 '시작' 프레임에 Animation Event로 호출. 클립마다 인자 1,2,3,4,5
@@ -97,15 +102,13 @@ public class PlayerCombat : MonoBehaviour
 
     public void OnComboWindowOpen()   // 각 공격 클립의 "다음 타 받기 시작" 프레임에 Animation Event
     {
-        // 이 순간 버튼이 눌려있으면 자동으로 다음 타로 이어감
-        if (input.AttackHeld)
+        // 꾹 누름(Held) 또는 최근 클릭(buffered) 둘 다 같은 게이트로 처리
+        if (input.AttackHeld || attackBuffered)
             anim.PlayAttackTrigger();
+        attackBuffered = false;   // 소비
     }
+
+    public void ResetCombo() => comboStep = 0;
     // TODO: 쿨다운(스킬별 타이머), 히트박스 활성/판정, 데미지 계산,
     //       스킬 데이터 테이블 조회(ID로 계수·쿨타임 등 로드)
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        
-    }
 }
