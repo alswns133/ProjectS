@@ -12,6 +12,15 @@ public class PlayerFreeState : BaseState
 
     public override void Update()
     {
+        // 공격·스킬 중이면 수평 이동을 막는다.
+        // 단, Move(zero)로 중력·접지 처리는 유지 → 제자리에서 공격/낙하는 정상 동작.
+        if (player.IsMovementLocked)
+        {
+            player.Movement.Move(Vector2.zero);
+            player.Animation.SetForward(0f);
+            return;
+        }
+
         Vector2 input = player.Input.MoveInput;
         // 이동 + 진행 방향으로의 회전까지 Movement가 함께 처리한다.
         player.Movement.Move(input);
