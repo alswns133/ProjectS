@@ -4,14 +4,12 @@ Shader "UI/Hologram"
     {
         _MainTex ("Texture", 2D) = "white" {}
 
-        // ── 스캔 (프로시저럴 + 선택적 텍스처) ────────────
-        _ScanTex        ("Scan Texture (optional)", 2D)         = "white" {} // 비워두면 프로시저럴만
-        _ScanSpeed      ("Scan Speed",            Range(-5, 5)) = 1.0        // +면 아래로, -면 위로
-        _ScanTiling     ("Scan Tiling (X,Y)",     Vector)       = (1, 8, 0, 0)
-        _ScanSharpness  ("Scan Sharpness",        Range(1, 12)) = 3.0        // 클수록 라인이 날카로움
-        _ScanStrength   ("Scan Strength (Darken)",Range(0, 1))  = 0.4        // 어두운 라인 세기
-        _ScanGlow       ("Scan Glow (Add)",       Range(0, 3))  = 0.0        // 빛나는 밴드 세기
-        _ScanColor      ("Scan Color",            Color)        = (1, 1, 1, 1)
+        // ── CRT 스캔라인 (일정 간격의 어두운 가로줄) ──────
+        _ScanLineCount  ("Scan Line Count",   Range(1, 400)) = 180  // 화면(UV)에 박히는 라인 개수 — 클수록 촘촘
+        _ScanLineWidth  ("Scan Line Width",   Range(0, 1))   = 0.5  // 어두운 선 두께 (셀 대비 비율)
+        _ScanLineSoft   ("Scan Line Soft",    Range(0, 0.5)) = 0.05 // 선 가장자리 부드러움 (0이면 하드엣지, 앨리어싱 방지용)
+        _ScanStrength   ("Scan Strength",     Range(0, 1))   = 0.5  // 어두운 정도
+        _ScanRollSpeed  ("Scan Roll Speed",   Range(-5, 5))  = 0.0  // 롤링 속도 (0이면 고정 / CRT는 보통 0~살짝)
 
         // 글리치 (가로로 밀림)
         _GlitchSpeed    ("Glitch Speed",    Range(0, 20))   = 5.0
@@ -92,13 +90,11 @@ Shader "UI/Hologram"
             float4    _ClipRect;
 
             // 스캔
-            sampler2D _ScanTex;
-            float  _ScanSpeed;
-            float4 _ScanTiling;
-            float  _ScanSharpness;
+            float  _ScanLineCount;
+            float  _ScanLineWidth;
+            float  _ScanLineSoft;
             float  _ScanStrength;
-            float  _ScanGlow;
-            float4 _ScanColor;
+            float  _ScanRollSpeed;
 
             float  _GlitchSpeed;
             float  _GlitchStrength;
@@ -133,21 +129,24 @@ Shader "UI/Hologram"
                 float2 uv = i.uv;
 
                 // ── 글리치: 특정 행만 옆으로 밀기 ───────────
+                // 시간을 낮은 해상도로 끊어서 "툭툭" 튀는 느낌
                 float timeStep   = floor(_Time.y * _GlitchSpeed) / _GlitchSpeed;
-                float rowSeed    = floor(uv.y * 30.0);
+                float rowSeed    = floor(uv.y * 30.0);           // 30개 행 단위
                 float glitchRand = rand(float2(rowSeed, timeStep));
 
                 float glitchX = 0;
                 if (glitchRand > _GlitchThreshold)
                 {
+                    // 임계값 넘는 행만 밀기
                     glitchX = (glitchRand - _GlitchThreshold)
                               / (1.0 - _GlitchThreshold)
                               * _GlitchStrength;
+                    // 방향 랜덤
                     glitchX *= (rand(float2(rowSeed + 1.0, timeStep)) > 0.5) ? 1 : -1;
                 }
                 uv.x += glitchX;
 
-                // ── RGB 색수차 ───────────────────────────────
+                // ── RGB 색수차: 채널별로 UV를 살짝 다르게 ───
                 float2 uvR = uv + float2( _ChromaOffset, 0);
                 float2 uvG = uv;
                 float2 uvB = uv + float2(-_ChromaOffset, 0);
@@ -159,32 +158,26 @@ Shader "UI/Hologram"
 
                 fixed4 col = fixed4(r, g, b, a);
 
-                // ── 스캔: 프로시저럴 + 선택적 텍스처 ─────────
-                // 위에서 아래로 흐르는 세로 좌표 (uv.y=0이 아래, +면 아래로 흐름)
-                float scanCoord = uv.y * _ScanTiling.y + _Time.y * _ScanSpeed;
+                // ── CRT 스캔라인: 일정 간격 어두운 가로줄 ────
+                // uv.y에 라인 개수를 곱해 "셀" 반복 좌표를 만든다.
+                // frac로 각 셀을 0~1로 쪼개고, 셀 중앙(0.5)에 어두운 선을 박는다.
+                float coord = uv.y * _ScanLineCount + _Time.y * _ScanRollSpeed;
+                float f     = frac(coord);            // 0~1, 셀 하나당 한 주기
+                float dist  = abs(f - 0.5);           // 0(셀 중앙) ~ 0.5(셀 경계)
+                float halfW = _ScanLineWidth * 0.5;   // 선 반폭
 
-                // (A) 프로시저럴 라인 — 텍스처 없어도 무조건 보임
-                float band = frac(scanCoord);          // 0~1 톱니파
-                band = abs(band * 2.0 - 1.0);          // 0→1→0 삼각파 (라인 중심 뚜렷)
-                band = pow(band, _ScanSharpness);      // 지수로 라인 날카롭게
+                // dist < halfW → 선 내부(어두움=1), dist > halfW+soft → 밝음(0)
+                float scanLine = 1.0 - smoothstep(halfW, halfW + _ScanLineSoft, dist);
 
-                // (B) 선택적 텍스처 — 슬롯 비면 white(=1)라 프로시저럴만 남음
-                float2 texUV = float2(uv.x * _ScanTiling.x, scanCoord);
-                float  scanTexVal = tex2D(_ScanTex, texUV).r;
-
-                float scanVal = band * scanTexVal;
-
-                // (1) 어두운 스캔라인
-                col.rgb *= 1.0 - scanVal * _ScanStrength;
-                // (2) 빛나는 스캔 밴드 (선택, _ScanGlow > 0일 때)
-                col.rgb += _ScanColor.rgb * scanVal * _ScanGlow;
+                col.rgb *= 1.0 - scanLine * _ScanStrength;
 
                 // ── 홀로그램 색상 틴트 ───────────────────────
                 col.rgb = lerp(col.rgb, col.rgb * _HoloColor.rgb, _HoloIntensity);
 
-                // ── 깜빡임 ───────────────────────────────────
+                // ── 깜빡임: 알파를 불규칙하게 ───────────────
                 float flickerTime = floor(_Time.y * _FlickerSpeed);
                 float flicker     = rand(float2(flickerTime, 0.0));
+                // 대부분은 안정적, 가끔만 확 튀게
                 flicker = 1.0 - _FlickerStrength * step(0.85, flicker);
                 col.a *= flicker;
 
