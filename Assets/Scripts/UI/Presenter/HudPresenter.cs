@@ -56,5 +56,5 @@ public class HUDPresenter : BasePresenter
         => _view.SetSg(cur / max);
 
     private void OnExpChanged(int cur, int max)
-        => _view.SetExp(cur/max);
+        => _view.SetExp((float)cur / max);
 }

@@ -7,11 +7,8 @@ public class ComboResetBehaviour : StateMachineBehaviour
     public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
     {
         animator.GetComponent<Player>()?.UnlockMovement();
-    }
-
-    public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
-    {
         animator.GetComponent<PlayerCombat>()?.ResetCombo();
+
     }
 
 }
