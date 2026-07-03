@@ -1,94 +1,132 @@
-# ProjectS — Code 작업 가이드
+﻿# ProjectS Code Guide
 
-Unity 3D 액션 RPG 프로젝트. 모든 스크립트는 `Assets/Scripts/` 아래에 있다.
-이 문서는 코드를 작성/수정할 때 지켜야 할 아키텍처 패턴과 코딩 컨벤션을 정의한다.
+Unity 3D 액션 RPG 프로젝트의 코드 작업 가이드입니다. 런타임 스크립트는 주로 `Assets/Scripts` 아래에 있습니다.
+이 문서는 새 기능을 추가하거나 기존 코드를 수정할 때 유지해야 할 아키텍처 규칙을 기록합니다.
 
----
+## 아키텍처 규칙
 
-## 아키텍처 핵심 패턴
+### Player: 중앙 컨텍스트 + 기능 컴포넌트 + 상태 머신
 
-### 플레이어 — 중앙 컨텍스트 + 상태 머신
-- `Player`가 중앙 컨텍스트("뇌"). 기능은 컴포넌트로 분리한다:
-  `PlayerInputHandler`(입력) / `PlayerMovement`(이동) / `PlayerAnimation`(애니) /
-  `PlayerCombat`(전투) / `PlayerStats`(스탯).
-- 컴포넌트 참조는 `{ get; private set; }`로 노출(읽기 허용, 교체 금지). `Awake`에서 1회 캐싱.
-- 상태는 `IState` / `BaseState` / `PlayerStateMachine` 패턴. 전환은 반드시 `ChangeState`를 거친다(Exit→Enter 보장).
-- **기능을 넣을 위치**: 입력→`PlayerInputHandler`, 이동→`PlayerMovement`, 전투/쿨타임/판정→`PlayerCombat`,
-  Animator 제어→`PlayerAnimation`. `Player`는 이들을 중재만 한다.
+- `Player`는 플레이어의 중앙 컨텍스트입니다. 모든 로직을 직접 처리하지 않고, 역할별 컴포넌트를 연결하고 중재합니다.
+- 기능은 다음 컴포넌트로 분리합니다.
+  - `PlayerInputHandler`: Unity Input System 입력을 게임 로직이 쓰기 쉬운 값과 이벤트로 변환합니다.
+  - `PlayerMovement`: CharacterController 기반 이동, 카메라 기준 방향, 중력, 점프, 회전을 담당합니다.
+  - `PlayerAnimation`: Animator 파라미터와 트리거를 제어하는 유일한 통로입니다.
+  - `PlayerCombat`: 공격 콤보, 입력 버퍼, 스킬 쿨다운, 히트 판정, 데미지 호출을 담당합니다.
+  - `PlayerStats`: HP, 사망 판정, 플레이어 스탯 이벤트 발행을 담당합니다.
+- 컴포넌트 참조는 `{ get; private set; }` 형태의 읽기 전용 프로퍼티로 공개하고 `Awake`에서 한 번만 캐싱합니다.
+- `Player`는 기능을 조율할 수 있지만, 세부 구현은 각 기능 컴포넌트 안에 둡니다.
+- 공격/스킬 중 이동 제한은 `Player.LockMovement()` / `UnlockMovement()`로 조율합니다. 애니메이션 규칙이 이동 코드 안으로 새어 들어가지 않게 하기 위한 규칙입니다.
 
-### 이벤트 — static 이벤트 + Fire 메서드
-- `PlayerEvents` 같은 전역 이벤트는 `static event` + `FireXxx()` 발행 메서드 쌍으로 구성.
-- ★ **새 static 이벤트를 추가하면 `ResetStatics()`에 반드시 `= null`을 추가**한다
-  (도메인 리로드를 꺼도 이전 플레이 세션의 죽은 구독자가 남지 않도록).
-- 구독/해제는 `OnEnable` ↔ `OnDisable` 짝으로 맞춘다.
+### 상태 머신
 
-### 매니저 — 싱글톤
-- `public static XxxManager Instance { get; private set; }`, `Awake`에서 중복 인스턴스 `Destroy`.
-- 씬을 넘겨 유지할 것은 `DontDestroyOnLoad`.
+- 플레이어 상태는 `IState` -> `BaseState` -> 구체 상태 클래스 구조를 따릅니다.
+- 상태 전환은 반드시 `PlayerStateMachine.ChangeState()`를 거쳐야 합니다. 그래야 이전 상태의 `Exit()`와 새 상태의 `Enter()` 호출 순서가 보장됩니다.
+- 상태 클래스는 생성자에서 `Player` 컨텍스트를 받고, 필요한 기능은 `player.Movement`, `player.Animation`처럼 컨텍스트를 통해 접근합니다.
+- 현재 상태:
+  - `PlayerFreeState`: 일반 이동과 이동 애니메이션 갱신.
+  - `PlayerDeadState`: 사망 애니메이션 실행 및 조작 차단.
+- 대시, 피격, 상호작용, 컷신 제어 같은 기능은 `Player.Update()`에 조건문을 늘리기보다 새 상태 클래스로 추가합니다.
 
-### 리소스 — Addressables
-- 에셋 로드는 Addressables 사용. 핸들을 보관했다가 씬 전환 시 `Release`로 해제.
+### 입력 경계
 
----
+- 플레이어 게임플레이 입력은 `PlayerInputHandler`만 직접 `InputAction`을 읽습니다.
+- 지속 입력은 `MoveInput`, `ZoomDelta`, `JumpHeld`, `AttackHeld` 같은 프로퍼티로 노출합니다.
+- 순간 입력은 `Attacked`, `SkillPressed` 같은 C# 이벤트로 노출합니다.
+- 입력 이벤트 구독은 `OnEnable`, 해제는 `OnDisable`에서 짝을 맞춥니다.
+
+### 전투와 데미지
+
+- 전투 판정은 미리 할당한 Collider 버퍼를 사용해 런타임 할당을 줄입니다.
+- 데미지를 받는 대상은 구체 클래스가 아니라 `IDamageable` 인터페이스에 의존합니다.
+- 히트 프레임, 콤보 입력 가능 구간, 콤보 리셋처럼 타이밍이 중요한 로직은 Animation Event로 연결합니다.
+- 현재 히트 판정은 인스펙터에서 조정하는 히트 박스를 기준으로 `Physics.OverlapBoxNonAlloc`을 사용합니다.
+
+### 이벤트 시스템
+
+- 시스템 간 알림은 `PlayerEvents`, `InventoryEvents`, `QuestEvents` 같은 static 이벤트 허브를 사용합니다.
+- 이벤트는 외부에서 직접 Invoke하지 않고 `FireXxx()` 메서드를 통해 발행합니다.
+- 플레이 모드 리로드 후에도 남을 수 있는 static 이벤트는 `RuntimeInitializeOnLoadMethod` 같은 초기화 경로에서 null로 리셋합니다.
+- UI와 Presenter는 구독/해제를 항상 대칭으로 작성합니다.
+
+### UI: Panel, Popup, Presenter
+
+- `UIManager`는 싱글톤이며, 자식 오브젝트의 `BasePanel`, `BasePopup`을 찾아 타입별 Dictionary로 관리합니다.
+- Panel은 스택 구조입니다. 새 패널을 열면 기존 최상단 패널은 Pause되고, 뒤로가기는 현재 패널을 닫고 이전 패널을 Resume합니다.
+- Popup은 여러 개가 동시에 열릴 수 있으므로 리스트로 관리합니다.
+- `BasePanel`과 `BasePopup`은 `OnInit`, `OnShow`, `OnHide` 생명주기를 제공합니다. Panel은 추가로 `OnPause`, `OnResume`을 가집니다.
+- Presenter는 `BasePresenter`를 상속하고, 게임 이벤트를 받아 View 메서드 호출로 변환합니다.
+- HUD 흐름 예시: `PlayerEvents.FireHpChanged()` -> `HUDPresenter.OnHpChanged()` -> `HUDPanel.SetHp()` -> `FillGauge.SetRatio()`.
+
+### 씬 흐름
+
+- 씬 로직은 `BaseScene`을 상속하고 `Initialize`, `Enter`, `Exit`, `Progress`를 구현합니다.
+- `GameSceneManager`는 씬 등록, 활성 씬 선택, 비동기 로딩, 로딩 UI 갱신을 담당합니다.
+- 씬 변경은 `RequestSceneChange<T>()` 또는 `RequestSceneChangeWithDelay<T>()`를 통해 요청합니다.
+- 씬 전환 중 이전 씬 리소스, UI 패널/팝업, 사운드 클립을 정리하고 다음 씬을 활성화합니다.
+- 씬 고유 동작은 각 씬 클래스에, 공통 전환 규칙은 `GameSceneManager`에 둡니다.
+
+### 데이터와 Addressables
+
+- JSON 테이블 행은 `IDataRow`를 구현하고 `Index`, `Validate(out string error)`를 제공합니다.
+- `JsonManager`는 Addressables의 `TextAsset` JSON을 비동기로 로드하고, 행 검증 후 타입별 Dictionary로 저장합니다.
+- 데이터 접근은 `JsonManager.IsReady` 확인 후 또는 `JsonManager.ReadyTask` await 이후에 수행합니다.
+- Addressables 핸들은 파싱 완료 후 또는 캐시된 런타임 에셋이 더 필요 없을 때 Release합니다.
+
+### 사운드
+
+- `SoundManager`는 BGM/SFX 재생, AudioMixer 볼륨 제어, 클립 캐싱, Addressables Release를 담당합니다.
+- 사운드 메타데이터는 `SoundTable`에서 가져오며, 코드에서는 가능하면 `SoundID` 상수를 사용합니다.
+- SFX는 AudioSource 풀을 사용해 반복 생성 비용을 줄입니다.
+- 씬 전환 시 씬 단위로 로드한 사운드는 `ReleaseAllClips()`로 정리합니다.
+
+### 매니저 규칙
+
+- 매니저는 `public static XxxManager Instance { get; private set; }` 형태의 싱글톤을 사용합니다.
+- 중복 인스턴스는 `Awake`에서 제거합니다.
+- 씬을 넘어 유지되어야 하는 매니저만 `DontDestroyOnLoad(gameObject)`를 사용합니다.
+- 매니저는 공통 흐름만 담당하고, 플레이어/적/UI View의 세부 로직을 가져가지 않습니다.
 
 ## 코딩 컨벤션
 
-### 네이밍
-- 클래스 / 메서드 / 프로퍼티 / 상수: `PascalCase`
-- 지역변수 / 매개변수 / private 필드: `camelCase` (예: `moveSpeed`, `controller`)
-  - 일부 매니저 파일은 `_camelCase`(예: `_bgmSource`)를 쓴다 → **그 파일 안에서는 기존 스타일 유지**.
-- 상수: `PascalCase`. 단 믹서/셰이더 문자열 키는 `ALL_CAPS` 허용(예: `BGM_VOLUME_PARAM`).
-- 이벤트: `OnXxx`, 발행 메서드: `FireXxx`.
-- bool: `IsXxx` / `HasXxx` / `CanXxx` (예: `IsGrounded`, `CanUseSkill`).
+### 이름 규칙
 
-### XML 문서 주석 (public 필수)
-- **모든 public 멤버**(클래스/메서드/프로퍼티/이벤트)에 `/// <summary>`를 단다. 형식:
-  ```csharp
-  /// <summary>
-  /// 레벨업 이벤트 발행. 구독자에게 도달한 레벨을 알림.
-  /// </summary>
-  /// <param name="level">새로 도달한 레벨</param>
-  public static void FireLevelUp(int level) => OnLevelUp?.Invoke(level);
-  ```
-- 매개변수가 있으면 `<param>`, 반환값이 있으면 `<returns>`를 함께 적는다.
-- 사용법/주의가 필요하면 `<remarks>`로 보강(예: `SoundManager`).
+- 클래스, 메서드, 프로퍼티, 상수: `PascalCase`.
+- 지역 변수, 매개변수, private 필드: 기존 파일 스타일을 우선하되 기본은 `camelCase`.
+- 이벤트: `OnXxx`.
+- 이벤트 발행 메서드: `FireXxx`.
+- bool 값: `IsXxx`, `HasXxx`, `CanXxx` 형태를 우선합니다.
 
-### 일반 주석
-- 한국어로 작성. **"코드가 무엇을 하는지"를 반복하지 말 것** — 그런 주석은 금방 낡고 소음이 된다.
-  나쁜 예: `// 이동 잠금 해제 메서드` (메서드 이름만 봐도 아는 내용)
-- 대신 **왜 / 언제 / 누가 호출하는지 / 빠지면 어떤 문제가 생기는지**를 쓴다. 초보자일수록 이게 도움이 크다.
-  좋은 예:
-  ```csharp
-  /// <summary>
-  /// 공격/스킬 애니메이션이 끝나 로코모션 상태로 돌아왔을 때 이동 제한을 해제한다.
-  /// 주로 ComboResetBehaviour가 호출하며, 놓치면 안전장치 타이머가 대신 푼다.
-  /// </summary>
-  public void UnlockMovement() => IsMovementLocked = false;
-  ```
-- 치명적이거나 놓치기 쉬운 부분은 `★`로 강조한다.
-- private/지역 로직 설명은 `//` 인라인으로.
+### Unity 규칙
 
-### 포맷팅
-- 들여쓰기 4칸(스페이스).
-- 중괄호는 Allman 스타일(여는 `{`를 새 줄에).
-- 멤버 사이에는 빈 줄 1개.
-- 키워드 뒤 공백: `if (cond)`, `for (int i = 0; ...)`.
-- **가드절은 한 줄 허용**: `if (IsDead) return;`
-  단, 본문이 2줄 이상이면 반드시 중괄호 블록으로 감싼다.
-- 우변에서 타입이 자명하면 `var` 사용(예: `var go = new GameObject();`).
+- `GetComponent`는 `Awake`에서 한 번 캐싱합니다.
+- 구조적으로 필요한 컴포넌트는 `[RequireComponent]`로 명시합니다.
+- 인스펙터 조정 값은 `[SerializeField] private`로 둡니다.
+- 설정 그룹이 많으면 `[Header("...")]`로 묶습니다.
+- Animator 파라미터는 `Animator.StringToHash`로 캐싱합니다.
+- Animation Event가 참조하는 메서드 이름은 Unity가 문자열로 참조하므로 변경에 주의합니다.
 
-### 인스펙터 필드
-- `[SerializeField] private` + 뒤에 `//` 로 역할 설명.
-- 관련 필드는 `[Header("...")]`로 그룹화.
+### 주석 규칙
 
----
+- public 클래스, public 메서드, public 프로퍼티, public 이벤트에는 XML summary 주석을 작성합니다.
+- 필요한 경우 `<param>`, `<returns>`를 추가합니다.
+- 주석은 코드가 “무엇을 하는지”보다 “왜 이렇게 하는지”, “언제 호출되는지”, “빠지면 어떤 문제가 생기는지”를 설명합니다.
 
-## Unity 특성상 주의
-- `GetComponent`는 `Awake`에서 1회 캐싱. 매 프레임 호출 금지.
-- Animator 파라미터는 `Animator.StringToHash`로 캐싱해서 int로 사용(`PlayerAnimation` 참고).
-- 코드만으로 끝나지 않는 작업(애니메이터 상태/태그 설정, 인스펙터 값 세팅, StateMachineBehaviour 부착 등)은
-  구현 후 **사용자에게 해당 에디터 작업을 명확히 안내**한다.
+### 포맷
 
-## 작업 원칙
-- 기존 파일을 수정할 때는 위 규칙보다 **그 파일의 기존 스타일을 우선** 따른다(국소적 일관성).
-- 새 파일/기능은 이 문서의 패턴과 컨벤션에 맞춘다.
+- 들여쓰기는 4칸 스페이스를 사용합니다.
+- 여러 줄 블록은 Allman brace 스타일을 우선합니다.
+- 짧은 guard clause는 한 줄 허용, 본문이 길어지면 중괄호를 사용합니다.
+- 논리적으로 다른 멤버 그룹 사이에는 빈 줄을 둡니다.
+
+## 기능 추가 체크리스트
+
+- 플레이어 입력이면 `PlayerInputHandler`.
+- 이동, 회전, 중력, 점프면 `PlayerMovement`.
+- Animator 파라미터와 트리거면 `PlayerAnimation`.
+- 공격, 스킬, 히트, 쿨다운, 데미지 타이밍이면 `PlayerCombat`.
+- HP, 사망, 스탯 변화면 `PlayerStats`와 `PlayerEvents`.
+- UI 화면 생명주기면 `BasePanel` 또는 `BasePopup` 하위 클래스.
+- UI 데이터 바인딩이면 `BasePresenter` 하위 클래스.
+- 씬 고유 로직이면 `BaseScene` 하위 클래스.
+- 공용 데이터 테이블이면 `IDataRow` 행 클래스와 `JsonManager` 등록.
