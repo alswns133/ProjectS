@@ -1,4 +1,4 @@
-Shader "UI/Hologram"
+Shader "UI/Hologram7"
 {
     Properties
     {
