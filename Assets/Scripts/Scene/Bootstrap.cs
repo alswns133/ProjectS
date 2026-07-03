@@ -4,7 +4,7 @@ public class Bootstrap : MonoBehaviour
 {
     public void RegisterScene()
     {
-        //GameSceneManager.Instance.RegisterScene<InGame>(false);
+        GameSceneManager.Instance.RegisterScene<InGame>(false);
     }
     public void LoadLocalFile()
     {
