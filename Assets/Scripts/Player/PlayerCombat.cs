@@ -133,6 +133,7 @@ public class PlayerCombat : MonoBehaviour
     {
         // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
         comboStep = step;
+        Debug.Log(comboStep);
     }
 
     public void ClearAttackBuffer()
@@ -154,5 +155,6 @@ public class PlayerCombat : MonoBehaviour
         // Locomotion 복귀 시 호출된다. 콤보와 스킬 시전 상태를 모두 정리한다.
         comboStep = 0;
         EndSkillCast();
+        Debug.Log(comboStep);
     }
 }

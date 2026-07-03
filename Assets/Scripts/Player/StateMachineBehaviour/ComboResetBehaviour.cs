@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class ComboResetBehaviour : StateMachineBehaviour
 {
@@ -8,7 +8,7 @@ public class ComboResetBehaviour : StateMachineBehaviour
     {
         animator.GetComponent<Player>()?.UnlockMovement();
         animator.GetComponent<PlayerCombat>()?.ResetCombo();
-
+        animator.GetComponent<PlayerCombat>()?.OnComboWindowOpen();
     }
 
 }
