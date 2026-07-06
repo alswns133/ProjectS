@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// 플레이어의 중앙 컨텍스트(뇌). 각 기능 컴포넌트를 한곳에서 보유하고,
@@ -28,7 +28,15 @@ public class Player : MonoBehaviour
 
     public PlayerDeadState DeadState { get; private set; }
 
+    public PlayerRollState RollState { get; private set; }
+
     private PlayerStateMachine sm; // 전환(Exit→Enter)을 책임지는 머신. 내부 전용
+
+    /// <summary>
+    /// 구르기 중 여부. 구르는 동안 점프·공격·스킬·재구르기 입력을 차단하는 게이트.
+    /// 별도 플래그 대신 상태 머신의 현재 상태로 판정 → 플래그 동기화 실수가 원천 차단된다.
+    /// </summary>
+    public bool IsRolling => sm.Current == RollState;
 
     // ── 이동 잠금(공격·스킬 중 이동 차단) ────────────────────────────
     // 해제는 동작이 끝나 로코모션으로 돌아올 때 ComboResetBehaviour가 담당한다.
@@ -81,6 +89,7 @@ public class Player : MonoBehaviour
         // 상태를 미리 생성해 보관 → 전환할 때마다 new 하지 않으므로 GC 부담이 없다.
         FreeState = new PlayerFreeState(this);
         DeadState = new PlayerDeadState(this);
+        RollState = new PlayerRollState(this);
     }
 
     // 이벤트 구독/해제는 OnEnable↔OnDisable 짝으로. 짝을 안 맞추면 중복 구독이 쌓인다.
@@ -88,12 +97,14 @@ public class Player : MonoBehaviour
     {
         Input.SkillPressed += OnSkill;
         Input.Attacked += OnAttack;
+        Input.RollPressed += OnRoll;
         PlayerEvents.OnPlayerDied += OnDied;   // 죽음 구독
     }
     private void OnDisable()
     {
         Input.SkillPressed -= OnSkill;
         Input.Attacked -= OnAttack;
+        Input.RollPressed -= OnRoll;
         PlayerEvents.OnPlayerDied -= OnDied;   // 죽음 구독 해제
     }
 
@@ -132,6 +143,7 @@ public class Player : MonoBehaviour
     {
         if (!Input.JumpHeld) return;       // 버튼을 안 누르고 있으면 점프 안 함
         if (Stats.IsDead) return;          // ★ 죽었으면 무시
+        if (IsRolling) return;             // 구르기 중 점프 금지(회피 커밋 유지)
         if (IsMovementLocked) return;      // 이동 잠금 상태면 점프 무시(공격/스킬 중 점프 방지)
 
         // 접지/상승 판정은 Movement가 단일 소유(CanJump). 실패하면 여기서 끝
@@ -142,6 +154,7 @@ public class Player : MonoBehaviour
     private void OnSkill(int n)
     {
         if (Stats.IsDead) return;
+        if (IsRolling) return;             // 구르기 중 스킬 금지(회피 커밋 유지)
 
         // 동작 중(스킬 시전·공격 콤보 = 이동 잠금 중)에는 새 스킬을 받지 않는다.
         // 막지 않으면 시전 중 누른 스킬의 트리거가 래치되어 현재 스킬이 끝나자마자
@@ -160,6 +173,7 @@ public class Player : MonoBehaviour
     private void OnAttack()
     {
         if (Stats.IsDead) return;        // 죽었으면 공격 무시(아까 패턴과 동일)
+        if (IsRolling) return;           // 구르기 중 공격 금지(회피 커밋 유지)
 
         // 스킬 시전 중 클릭 차단. 막지 않으면 Attack 트리거가 래치된 채 대기하다가
         // 스킬이 끝나는 순간 1타가 자동 발동한다.
@@ -170,6 +184,19 @@ public class Player : MonoBehaviour
         Combat.OnAttackInput();
         Movement.SnapToCameraForward();
         LockMovement();                    // 공격(콤보 포함) 동안 이동 잠금
+    }
+
+    // 구르기 입력 중재. 조건을 통과하면 상태 전환만 하고,
+    // 방향 계산·무적·이동·캔슬 처리는 전부 RollState 안에 있다(세부 구현은 상태가 소유).
+    // 이동 잠금을 확인하지 않는 이유: 구르기는 공격/스킬을 캔슬하는 최우선 회피 동작(기획).
+    private void OnRoll()
+    {
+        if (Stats.IsDead) return;
+        if (IsRolling) return;             // 구르는 중 재입력 무시(연속 구르기 방지)
+        if (!Movement.IsGrounded) return;  // 공중 구르기 방지
+        if (Input.MoveInput.sqrMagnitude < 0.0001f) return;  // 무입력(Idle) 구르기 금지(기획)
+
+        ChangeState(RollState);
     }
 
     private void OnDied()

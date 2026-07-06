@@ -19,6 +19,7 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private InputAction jumpAction;
     [SerializeField] private InputAction skillAction;
     [SerializeField] private InputAction attackAction;
+    [SerializeField] private InputAction rollAction;   // 구르기(기본 바인딩: Left Shift)
 
     // 연속 입력은 프로퍼티로 노출. 호출 시점에 즉시 읽으므로 Update 실행 순서에 안 휘둘림.
     public Vector2 MoveInput => moveAction.ReadValue<Vector2>();
@@ -32,6 +33,12 @@ public class PlayerInputHandler : MonoBehaviour
     public event Action Attacked;
     public event Action<int> SkillPressed;   // 인자 = 눌린 스킬 번호
 
+    /// <summary>
+    /// 구르기 키(Shift)를 누른 순간 발행. 방향은 이벤트에 싣지 않는다
+    /// → 수신측(구르기 상태)이 진입 시점의 MoveInput을 직접 읽어 확정한다.
+    /// </summary>
+    public event Action RollPressed;
+
     private void OnEnable()
     {
         // InputAction은 Enable해야 입력을 받기 시작한다. (에셋이 아닌 직접 필드 방식)
@@ -40,9 +47,11 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction.Enable();
         skillAction.Enable();
         attackAction.Enable();
+        rollAction.Enable();
 
         skillAction.started += OnSkill;
         attackAction.started += OnAttack;
+        rollAction.started += OnRoll;
     }
 
     // 구독/활성화의 정확한 짝. OnEnable에서 +=/Enable 했으면 여기서 -=/Disable.
@@ -51,12 +60,14 @@ public class PlayerInputHandler : MonoBehaviour
     {
         skillAction.started -= OnSkill;
         attackAction.started -= OnAttack;
+        rollAction.started -= OnRoll;
 
         moveAction.Disable();
         zoomAction.Disable();
         jumpAction.Disable();
         skillAction.Disable();
         attackAction.Disable();
+        rollAction.Disable();
     }
 
     private void OnSkill(InputAction.CallbackContext ctx)
@@ -71,5 +82,10 @@ public class PlayerInputHandler : MonoBehaviour
     private void OnAttack(InputAction.CallbackContext _)
     {
         Attacked?.Invoke();
+    }
+
+    private void OnRoll(InputAction.CallbackContext _)
+    {
+        RollPressed?.Invoke();
     }
 }

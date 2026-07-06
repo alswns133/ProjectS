@@ -14,6 +14,7 @@ public class PlayerAnimation : MonoBehaviour
     private static readonly int Grounded = Animator.StringToHash("isGrounded");
     private static readonly int DoJump = Animator.StringToHash("doJump");
     private static readonly int DoDie = Animator.StringToHash("doDie");
+    private static readonly int DoRoll = Animator.StringToHash("doRoll");
 
     // 스킬 트리거 해시 테이블. [0]은 더미 — 스킬 번호(1~)를 인덱스로 바로 쓰기 위함.
     // 따라서 유효 번호는 1..Length-1. 스킬을 늘리면 여기에 추가.
@@ -40,6 +41,13 @@ public class PlayerAnimation : MonoBehaviour
 
     public void SetGrounded(bool v) => animator.SetBool(Grounded, v);
     public void PlayJump() => animator.SetTrigger(DoJump);
+
+    /// <summary>
+    /// 구르기 트리거. 구르기 상태 진입 시 1회 호출된다.
+    /// 방향 파라미터가 없는 이유: 캐릭터가 구를 방향을 먼저 바라보고(FaceInstantly)
+    /// 앞구르기 클립 하나만 재생하는 설계라, 애니메이터는 방향을 몰라도 된다.
+    /// </summary>
+    public void PlayRoll() => animator.SetTrigger(DoRoll);
 
     /// <summary>n번 스킬 트리거. 범위를 벗어난 n은 조용히 무시(예외 대신 안전).</summary>
     public void PlaySkill(int n)

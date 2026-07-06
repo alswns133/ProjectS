@@ -15,6 +15,12 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float checkRadius = 0.25f;
     [SerializeField] private LayerMask floorLayer;
 
+    // 구르기 튜닝. 상태 클래스(PlayerRollState)는 MonoBehaviour가 아니라
+    // 인스펙터 값을 못 가지므로, 이동 소관인 여기에 두고 프로퍼티로 노출한다.
+    // 이동 속도는 따로 없다: 구르기 전진은 클립의 루트 모션이 담당한다.
+    [Header("Roll")]
+    [SerializeField] private float rollDuration = 0.6f; // 구르기 지속 시간(초). 클립 길이와 맞출 것
+
     private CharacterController controller;
     private Transform cam;
 
@@ -25,6 +31,9 @@ public class PlayerMovement : MonoBehaviour
 
     // 점프 직후 몇 프레임 동안 접지 체크가 true로 남을 수 있어 verticalVelocity도 함께 본다.
     public bool CanJump => IsGrounded && verticalVelocity <= 0f;
+
+    /// <summary>구르기 지속 시간(초). PlayerRollState가 상태 종료 판정에 쓴다.</summary>
+    public float RollDuration => rollDuration;
 
     private void Awake()
     {
@@ -52,16 +61,30 @@ public class PlayerMovement : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// 입력(x=좌우, y=앞뒤)을 카메라 기준 월드 방향으로 변환해 돌려준다.
+    /// 구르기 상태가 진입 시점에 방향을 1회 확정할 때 쓴다.
+    /// </summary>
+    public Vector3 CameraRelativeDirection(Vector2 input) => CameraRelative(input);
+
+    /// <summary>
+    /// 지정한 월드 방향을 즉시 바라본다(수평 성분만).
+    /// 구르기 시작처럼 보간(FaceDirection) 없이 한 프레임에 방향이 확정되어야 할 때 쓴다.
+    /// </summary>
+    public void FaceInstantly(Vector3 worldDirection)
+    {
+        worldDirection.y = 0;
+        if (worldDirection.sqrMagnitude < 0.0001f) return;   // 0벡터 방향은 정의 불가 → 무시
+
+        transform.rotation = Quaternion.LookRotation(worldDirection);
+    }
+
     public void SnapToCameraForward()
     {
         // 공격/스킬 시작 순간에는 부드러운 회전보다 카메라 방향 정렬이 우선이다.
         if (!TryCacheMainCamera()) return;
 
-        Vector3 fwd = cam.forward;
-        fwd.y = 0;
-
-        if (fwd.sqrMagnitude > 0.0001f)
-            transform.rotation = Quaternion.LookRotation(fwd);
+        FaceInstantly(cam.forward);
     }
 
     private void FixedUpdate()
