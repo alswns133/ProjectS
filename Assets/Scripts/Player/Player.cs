@@ -58,14 +58,8 @@ public class Player : MonoBehaviour
     /// <summary>
     /// 공격/스킬 애니메이션이 끝나 로코모션 상태로 돌아왔을 때 이동 제한을 해제한다.
     /// 주로 ComboResetBehaviour(로코모션 진입 시)가 호출하며, 이 호출을 놓치면 안전장치 타이머가 대신 푼다.
-    /// 스킬 시전 플래그도 함께 정리한다 → 안전장치 경로로 풀릴 때도
-    /// 시전 상태가 남아 공격 입력이 영영 막히는 일이 없게 한다.
     /// </summary>
-    public void UnlockMovement()
-    {
-        IsMovementLocked = false;
-        Combat.EndSkillCast();
-    }
+    public void UnlockMovement() => IsMovementLocked = false;
 
 
     private void Awake()
@@ -133,23 +127,13 @@ public class Player : MonoBehaviour
         if (!Input.JumpHeld) return;       // 버튼을 안 누르고 있으면 점프 안 함
         if (Stats.IsDead) return;          // ★ 죽었으면 무시
         if (IsMovementLocked) return;      // 이동 잠금 상태면 점프 무시(공격/스킬 중 점프 방지)
-
-        // 접지/상승 판정은 Movement가 단일 소유(CanJump). 실패하면 여기서 끝
-        // → 트리거가 래치된 채 남아 착지 후 점프 모션이 한 번 더 재생되는 것을 막는다.
-        if (!Movement.Jump()) return;
-        Animation.PlayJump();              // 실제로 점프했을 때만 모션 트리거
+        if (!Movement.IsGrounded) return;  // 접지 상태에서만 점프(공중 점프 방지)
+        Movement.Jump();
+        Animation.PlayJump();
     }
     private void OnSkill(int n)
     {
         if (Stats.IsDead) return;
-
-        // 동작 중(스킬 시전·공격 콤보 = 이동 잠금 중)에는 새 스킬을 받지 않는다.
-        // 막지 않으면 시전 중 누른 스킬의 트리거가 래치되어 현재 스킬이 끝나자마자
-        // 연달아 발동하고, 그 순간 쿨타임도 이미 소모된 상태가 된다.
-        // 해제는 로코모션 복귀(ComboResetBehaviour) 또는 안전장치 타이머가 이미 담당하므로
-        // 별도의 '시전 중' 플래그를 새로 만들지 않고 이동 잠금을 게이트로 재사용한다.
-        if (IsMovementLocked) return;
-
         // ★ 쿨타임 판정을 이동 잠금보다 먼저.
         //   스킬이 실제로 나갔을 때만 방향 정렬 + 이동 잠금 → 쿨타임 중엔 그냥 계속 움직인다.
         if (!Combat.UseSkill(n)) return;   // 쿨타임 중/없는 스킬이면 여기서 종료(잠금 X)
@@ -160,13 +144,7 @@ public class Player : MonoBehaviour
     private void OnAttack()
     {
         if (Stats.IsDead) return;        // 죽었으면 공격 무시(아까 패턴과 동일)
-
-        // 스킬 시전 중 클릭 차단. 막지 않으면 Attack 트리거가 래치된 채 대기하다가
-        // 스킬이 끝나는 순간 1타가 자동 발동한다.
-        // (IsMovementLocked가 아닌 전용 플래그인 이유: 콤보 연타는 잠금 중에도 허용해야 함)
-        if (Combat.IsCastingSkill) return;
         if (!Movement.IsGrounded) return;  // 접지 상태에서만 점프(공중 점프 방지)
-
         Combat.OnAttackInput();
         Movement.SnapToCameraForward();
         LockMovement();                    // 공격(콤보 포함) 동안 이동 잠금

@@ -15,19 +15,19 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 1
-  m_FogColor: {r: 1, g: 1, b: 1, a: 1}
+  m_FogColor: {r: 0.9009434, g: 0.9062365, b: 1, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.004
+  m_FogDensity: 0.005
   m_LinearFogStart: 0
-  m_LinearFogEnd: 300
+  m_LinearFogEnd: 500
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
-  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
-  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
+  m_AmbientEquatorColor: {r: 0.03776446, g: 0.03604485, b: 0.509434, a: 1}
+  m_AmbientGroundColor: {r: 0.0021101348, g: 0, b: 0.122641504, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 2100000, guid: b0b6d67f4e1e82f40a48388da48b9d31, type: 2}
-  m_HaloStrength: 0.5
+  m_HaloStrength: 0
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
   m_HaloTexture: {fileID: 0}
@@ -35972,6 +35972,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 738120914}
     m_Modifications:
+    - target: {fileID: 3211170344708735649, guid: c7a86ff177d83794fb72487de38f642b, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 0cb44352831fc1a439a0ecff245686a4, type: 2}
+    - target: {fileID: 5598688684461110559, guid: c7a86ff177d83794fb72487de38f642b, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5598688684461110559, guid: c7a86ff177d83794fb72487de38f642b, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -109888,13 +109896,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1187225743}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.87803805, y: 0.08235298, z: -0.16352734, w: 0.44218323}
-  m_LocalPosition: {x: 1.95, y: 4.9, z: 1.98}
+  m_LocalRotation: {x: 0.8252124, y: 0.13451938, z: -0.22111505, w: 0.50203305}
+  m_LocalPosition: {x: 1.1, y: 4.9, z: 1.98}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2035824139}
-  m_LocalEulerAnglesHint: {x: 126.54, y: 21.1, z: 0}
+  m_LocalEulerAnglesHint: {x: 117.37, y: 30, z: 0}
 --- !u!114 &1187225745
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -109935,10 +109943,10 @@ Light:
   serializedVersion: 12
   m_Type: 0
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 30
-  m_Range: 13.03
-  m_SpotAngle: 58.63793
-  m_InnerSpotAngle: 0
+  m_Intensity: 20
+  m_Range: 8
+  m_SpotAngle: 77.155174
+  m_InnerSpotAngle: 9.258643
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
     m_Type: 1
@@ -121635,6 +121643,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 2565163325355280794, guid: b7f015e935ce9d94691594f99bec0b4a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 10d59c8500dbe1e4f9796c31ac7c1612, type: 2}
     - target: {fileID: 3734159915782419189, guid: b7f015e935ce9d94691594f99bec0b4a, type: 3}
       propertyPath: m_LocalScale.x
       value: 1.5
@@ -136033,6 +136045,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 8377832313053945632, guid: 665e46db2c65c9848a9bb6d2e62c85f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 0cb44352831fc1a439a0ecff245686a4, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -174007,6 +174023,10 @@ PrefabInstance:
     - target: {fileID: 8279200242016112487, guid: 294d81aedf916bd42b2c147177e98c8d, type: 3}
       propertyPath: m_Name
       value: SM_Prop_Lamp_03
+      objectReference: {fileID: 0}
+    - target: {fileID: 8279200242016112487, guid: 294d81aedf916bd42b2c147177e98c8d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8768069141530842589, guid: 294d81aedf916bd42b2c147177e98c8d, type: 3}
       propertyPath: m_LocalScale.x

@@ -68,8 +68,5 @@ public class PlayerInputHandler : MonoBehaviour
             SkillPressed?.Invoke(n);
     }
 
-    private void OnAttack(InputAction.CallbackContext _)
-    {
-        Attacked?.Invoke();
-    }
+    private void OnAttack(InputAction.CallbackContext _) => Attacked?.Invoke();
 }

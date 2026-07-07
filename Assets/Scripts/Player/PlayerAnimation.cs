@@ -30,10 +30,7 @@ public class PlayerAnimation : MonoBehaviour
 
     private const float Damp = 0.1f;   // SetFloat 감쇠 시간. 값이 즉시 안 튀고 부드럽게 따라감
     private Animator animator;
-    private void Awake()
-    {
-        animator = GetComponent<Animator>();
-    }
+    private void Awake() => animator = GetComponent<Animator>();
 
     /// <summary>전진량(Z)을 부드럽게 갱신. 자유 시점은 진행 방향 회전이라 Z만 쓴다.</summary>
     public void SetForward(float z) => animator.SetFloat(Z, z, Damp, Time.deltaTime);
