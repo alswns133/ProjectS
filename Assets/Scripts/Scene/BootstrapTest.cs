@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 // 게임 시작 시 가장 먼저 켜지는 씬
 // 역할: 데이터 / 시스템 초기화를 전부 끝낸다.로딩 화면을 보여줄 수도 있음.
@@ -8,8 +8,7 @@ public class BootstrapTest : MonoBehaviour
 
     private void RequsetScene()
     {
-        GameSceneManager.Instance.RegisterScene<InGame>(false);
-        GameSceneManager.Instance.RegisterScene<Tutorial>(false);
+        GameSceneManager.Instance.RegisterScene<Tutorial1>(false);
     }
 
     private async void Start()
@@ -27,6 +26,6 @@ public class BootstrapTest : MonoBehaviour
         // 3) 모든 준비 완료 → 게임 씬으로 전환
         Debug.Log("[BootstrapTest] 초기화 완료, 다음 씬으로 이동");
         //GameSceneManager.Instance.RequestSceneChange<InGame>();
-        GameSceneManager.Instance.RequestSceneChange<Tutorial>();
+        GameSceneManager.Instance.RequestSceneChange<Tutorial1>();
     }
 }

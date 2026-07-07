@@ -30,18 +30,25 @@ public class Player : MonoBehaviour
 
     public PlayerRollState RollState { get; private set; }
 
+    public PlayerAirRollState AirRollState { get; private set; }
+
     private PlayerStateMachine sm; // 전환(Exit→Enter)을 책임지는 머신. 내부 전용
 
     /// <summary>
-    /// 구르기 중 여부. 구르는 동안 점프·공격·스킬·재구르기 입력을 차단하는 게이트.
+    /// 구르기(지상·공중) 중 여부. 구르는 동안 점프·공격·스킬·재구르기 입력을 차단하는 게이트.
     /// 별도 플래그 대신 상태 머신의 현재 상태로 판정 → 플래그 동기화 실수가 원천 차단된다.
     /// </summary>
-    public bool IsRolling => sm.Current == RollState;
+    public bool IsRolling => sm.Current == RollState || sm.Current == AirRollState;
 
     // ── 이동 잠금(공격·스킬 중 이동 차단) ────────────────────────────
     // 해제는 동작이 끝나 로코모션으로 돌아올 때 ComboResetBehaviour가 담당한다.
     // 안전장치: 해제 신호를 놓쳐도 이 시간 뒤 자동 해제
-    [SerializeField] private float maxActionLockTime = 3f; 
+    [SerializeField] private float maxActionLockTime = 3f;
+
+    // 회피(구르기·공중 대시) 1회당 스태미나 소모량. 잔량 판정·차감은 PlayerStats가 담당하고,
+    // 여기는 '얼마를 쓸지'만 안다(입력 중재자가 비용을 소유).
+    [Header("Roll")]
+    [SerializeField] private float rollStaminaCost = 20f;
 
     // 이동 잠금이 시작된 뒤 흐른 시간. 해제 신호(로코모션 복귀)를 놓쳐도
     // 안전장치로 잠금을 풀기 위해 잰다.
@@ -90,6 +97,7 @@ public class Player : MonoBehaviour
         FreeState = new PlayerFreeState(this);
         DeadState = new PlayerDeadState(this);
         RollState = new PlayerRollState(this);
+        AirRollState = new PlayerAirRollState(this);
     }
 
     // 이벤트 구독/해제는 OnEnable↔OnDisable 짝으로. 짝을 안 맞추면 중복 구독이 쌓인다.
@@ -97,14 +105,12 @@ public class Player : MonoBehaviour
     {
         Input.SkillPressed += OnSkill;
         Input.Attacked += OnAttack;
-        Input.RollPressed += OnRoll;
         PlayerEvents.OnPlayerDied += OnDied;   // 죽음 구독
     }
     private void OnDisable()
     {
         Input.SkillPressed -= OnSkill;
         Input.Attacked -= OnAttack;
-        Input.RollPressed -= OnRoll;
         PlayerEvents.OnPlayerDied -= OnDied;   // 죽음 구독 해제
     }
 
@@ -126,6 +132,9 @@ public class Player : MonoBehaviour
 
         // 점프 버튼을 누르고 있으면 착지할 때마다 자동으로 다시 점프(꾹 누르면 연속 점프)
         TryJump();
+
+        // 회피 버튼을 누르고 있으면 회피가 끝날 때마다 자동으로 다시 회피(꾹 누르면 연속 회피)
+        TryRoll();
 
         sm.Update(); // 현재 상태의 Update 위임 실행
 
@@ -186,16 +195,39 @@ public class Player : MonoBehaviour
         LockMovement();                    // 공격(콤보 포함) 동안 이동 잠금
     }
 
-    // 구르기 입력 중재. 조건을 통과하면 상태 전환만 하고,
-    // 방향 계산·무적·이동·캔슬 처리는 전부 RollState 안에 있다(세부 구현은 상태가 소유).
+    // 구르기 입력 중재. TryJump처럼 Update에서 매 프레임 폴링한다(꾹 누르면 연속 회피 기획).
+    // 조건을 통과하면 상태 전환만 하고, 방향 계산·무적·이동·캔슬 처리는
+    // 전부 각 상태 안에 있다(세부 구현은 상태가 소유).
     // 이동 잠금을 확인하지 않는 이유: 구르기는 공격/스킬을 캔슬하는 최우선 회피 동작(기획).
-    private void OnRoll()
+    private void TryRoll()
     {
+        if (!Input.RollHeld) return;       // 버튼을 안 누르고 있으면 회피 안 함
         if (Stats.IsDead) return;
-        if (IsRolling) return;             // 구르는 중 재입력 무시(연속 구르기 방지)
-        if (!Movement.IsGrounded) return;  // 공중 구르기 방지
+        if (IsRolling) return;             // 회피 중 재입력 무시 → 끝나는 프레임부터 다음 회피 발동
+
+        // 점프 직후 '상승 중인데 접지 체크는 아직 true'인 잔존 구간에는 회피를 미룬다.
+        // 이 구간에 공중 대시를 허용하면 AirDash가 상승을 죽여 접지 판정이 풀리지 않고,
+        // 애니메이터가 isGrounded=true에 묶여 공중 스테이트로 못 가 doAirRoll을 소비하지 못한다
+        // (스태미나만 소모되고 모션이 안 나가는 증상). 몇 프레임 뒤 진짜 공중이 되면 발동된다.
+        if (Movement.IsGrounded && !Movement.IsStablyGrounded) return;
+
+        // 공중이면 공중 대시로 분기. 횟수 제한은 없고 스태미나가 실질적 제한이다(기획).
+        if (!Movement.IsStablyGrounded)
+        {
+            // 접지 체크 플리커(경사·이음새에서 1프레임 false) 오판 방지:
+            // 발밑 여유 높이가 확보된 '진짜 공중'에서만 대시를 허용한다.
+            // 미달이면 발동을 미룬다 → 꾹 누르고 있으면 충분히 뜬 프레임에 자동 발동.
+            if (!Movement.HasAirRollClearance) return;
+
+            // 스태미나 판정은 모든 조건 통과 후 마지막에 → 발동 못 하는 상황에서 소모되는 일이 없다.
+            if (!Stats.TryUseStamina(rollStaminaCost)) return;
+            ChangeState(AirRollState);
+            return;
+        }
+
         if (Input.MoveInput.sqrMagnitude < 0.0001f) return;  // 무입력(Idle) 구르기 금지(기획)
 
+        if (!Stats.TryUseStamina(rollStaminaCost)) return;
         ChangeState(RollState);
     }
 

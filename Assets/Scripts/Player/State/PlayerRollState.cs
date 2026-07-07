@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 구르기(회피) 상태. 진입 시점의 이동 입력 방향을 바라보게 한 뒤 앞구르기를 재생한다.
 /// 실제 전진은 구르기 클립의 루트 모션이 담당하므로 상태는 방향 정렬과 중력만 처리한다.
-/// 무입력(Idle) 진입은 Player.OnRoll에서 차단된다.
+/// 무입력(Idle) 진입은 Player.TryRoll에서 차단된다.
 /// 회피 컨셉: 구르는 동안 일반 공격은 전부 무시하고 즉사기만 맞는다(PlayerStats 참조).
 /// 공격/스킬 도중에도 진입 가능한 최우선 동작(회피 캔슬)이라, 진입하며 진행 중이던
 /// 전투 동작을 정리한다. 도중에 방향을 꺾을 수 없는 '커밋형' 회피다.
@@ -23,7 +23,7 @@ public class PlayerRollState : BaseState
         player.Combat.CancelAction();
         player.UnlockMovement();
 
-        // 입력 방향(카메라 기준)으로 구른다. 무입력 진입은 Player.OnRoll에서 막히지만,
+        // 입력 방향(카메라 기준)으로 구른다. 무입력 진입은 Player.TryRoll에서 막히지만,
         // 진입과 키 해제가 같은 프레임에 겹치는 경우를 대비해 전방 폴백을 남겨둔다.
         Vector2 input = player.Input.MoveInput;
         Vector3 rollDirection = input.sqrMagnitude > 0.0001f
@@ -59,5 +59,9 @@ public class PlayerRollState : BaseState
         // 어떤 경로로 상태를 떠나든(정상 종료·사망 전환) 무적이 남지 않게 여기서 해제.
         // ChangeState가 Exit 호출을 보장하므로 이 한 곳이면 충분하다.
         player.Stats.SetInvincible(false);
+
+        // 애니메이터가 소비하지 못한 doRoll이 래치된 채 남으면
+        // 나중에 조건이 맞는 순간 유령 구르기가 재생된다 → 상태를 떠날 때 반드시 정리.
+        player.Animation.ResetRollTrigger();
     }
 }

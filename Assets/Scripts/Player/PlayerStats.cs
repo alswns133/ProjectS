@@ -8,6 +8,13 @@ public class PlayerStats : MonoBehaviour, IDamageable
     [SerializeField] private int currentHp;
     [SerializeField] private int defense;
 
+    // 회피(구르기·공중 대시)의 자원. 소모는 TryUseStamina, 회복은 Update의 자동 재생이 담당한다.
+    [Header("Stamina")]
+    [SerializeField] private float maxStamina = 100f;
+    [SerializeField] private float staminaRegenPerSecond = 15f;
+
+    private float currentStamina;
+
     public bool IsDead => currentHp <= 0;
 
     /// <summary>
@@ -29,6 +36,35 @@ public class PlayerStats : MonoBehaviour, IDamageable
         // maxHp = row.MaxHp; defense = row.Defense;
         currentHp = maxHp;
         PlayerEvents.FireHpChanged(currentHp, maxHp);
+
+        currentStamina = maxStamina;
+        PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
+    }
+
+    private void Update()
+    {
+        // 스태미나 자동 회복. 가득 차 있으면 이벤트 발행도 없이 조용히 지나간다
+        // (매 프레임 무의미한 UI 갱신을 피하기 위함).
+        if (IsDead) return;
+        if (currentStamina >= maxStamina) return;
+
+        currentStamina = Mathf.Min(maxStamina, currentStamina + staminaRegenPerSecond * Time.deltaTime);
+        PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
+    }
+
+    /// <summary>
+    /// 스태미나 소모를 시도한다. 잔량이 부족하면 아무것도 소모하지 않고 false를 반환하므로,
+    /// 호출측(Player.TryRoll)은 반환값으로 동작 발동 여부를 함께 결정하면 된다.
+    /// </summary>
+    /// <param name="amount">소모할 양</param>
+    /// <returns>소모에 성공했으면 true</returns>
+    public bool TryUseStamina(float amount)
+    {
+        if (currentStamina < amount) return false;
+
+        currentStamina -= amount;
+        PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
+        return true;
     }
 
     /// <summary>

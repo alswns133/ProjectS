@@ -22,12 +22,16 @@ public class PlayerFreeState : BaseState
         }
 
         Vector2 input = player.Input.MoveInput;
+        bool isRunning = player.Input.IsRunning;
+
         // 이동 + 진행 방향으로의 회전까지 Movement가 함께 처리한다.
-        player.Movement.Move(input);
+        player.Movement.Move(input, isRunning);
 
         // 입력 크기로 이동 여부를 판단해 애니메이터 전진량(Z)에 전달.
         // sqrMagnitude 사용: 실제 거리(magnitude)는 제곱근 연산이라,
         // "움직이는가?"만 볼 때는 제곱값 비교가 더 싸다.
-        player.Animation.SetForward(input.sqrMagnitude > 0.0001f ? 1f : 0f);
+        // Z 규약: 정지 0 / 걷기 0.5 / 달리기 1. 컨트롤러 블렌드 트리 임계값과 맞춘 값이다.
+        bool isMoving = input.sqrMagnitude > 0.0001f;
+        player.Animation.SetForward(isMoving ? (isRunning ? 1f : 0.5f) : 0f);
     }
 }
