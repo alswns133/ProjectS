@@ -1,154 +1,174 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// 플레이어 전투. 스킬 실행의 진입점이다.
-/// 현재는 애니메이션 트리거만 넘기지만, 전투 로직(쿨다운·히트박스·데미지)이
-/// 자라날 자리. Player는 이 진입점만 알고 내부 구현은 여기에 가둔다.
+/// 플레이어의 전투 진입점.
+/// 입력을 직접 받지는 않고 Player가 호출하며, 이 클래스는 스킬 쿨타임,
+/// 콤보 입력 버퍼, 애니메이션 이벤트 기반 히트 판정을 맡는다.
 /// </summary>
 [RequireComponent(typeof(PlayerAnimation))]
 public class PlayerCombat : MonoBehaviour
 {
-    [SerializeField] private Transform hitOrigin;   // 판정 기준점(보통 무기 끝/캐릭터 앞)
-    [SerializeField] private Transform hitBox;   // 칼에 맞게 늘린 큐브
+    // 공격 클립의 Animation Event가 넘기는 인덱스로 사용할 히트 박스 목록.
+    // 모션마다 판정 위치와 크기가 다르므로 Transform 단위로 분리한다.
+    [SerializeField] private Transform[] attackHitBoxes;
+    [SerializeField] private LayerMask enemyMask;
 
-    [SerializeField] private LayerMask enemyMask;   // "적" 레이어만 검사 → 불필요한 충돌 배제
-    private readonly Collider[] buffer = new Collider[64];   // 미리 할당(GC 0)
+    // 현재 재생 중인 콤보 단계. 0이면 콤보가 시작되지 않은 상태다.
+    // 실제 단계 확정은 OnAttackStart Animation Event에서 한다.
+    [SerializeField] private int comboStep = 0;
 
-    [SerializeField] private int comboStep = 0;        // 현재 콤보 단계 (0=아직 시작 안 함)
-    const int comboMax = 4;
+    [Header("Skill Cooldown")]
+    // 인덱스는 스킬 번호와 맞춘다. [0]은 사용하지 않는 더미 슬롯.
+    [SerializeField] private float[] skillCooldowns = { 0f, 5f, 5f, 8f, 10f };
 
+    // 매 타격마다 할당이 생기지 않도록 NonAlloc 쿼리용 버퍼를 재사용한다.
+    private readonly Collider[] buffer = new Collider[64];
     private PlayerAnimation anim;
     private PlayerInputHandler input;
-    private bool attackBuffered;   // 최근 클릭을 기억
-    [SerializeField] private float radius;  //임시 범위
 
-    // ── 스킬 쿨타임 ──────────────────────────────────────────────
-    // 인덱스 = 스킬 번호(1~). [0]은 더미 → PlayerAnimation.Skill 배열과 동일한 규칙.
-    // 인스펙터에서 스킬별 쿨타임(초)을 설정. 배열 길이가 유효 스킬 개수를 결정한다.
-    [Header("Skill Cooldown")]
-    [SerializeField] private float[] skillCooldowns = { 0f, 5f, 5f, 8f, 10f };
-    private float[] skillReadyTime;   // 각 스킬이 다시 사용 가능해지는 시각(Time.time 기준)
+    // 콤보 창이 열리기 전에 들어온 공격 입력을 기억해 다음 타로 넘긴다.
+    private bool attackBuffered;
+    private float[] skillReadyTime;
+
+    // 스킬 시전 중에는 일반 공격 입력을 막기 위해 Player가 확인하는 플래그.
+    public bool IsCastingSkill { get; private set; }
 
     private void Awake()
     {
         anim = GetComponent<PlayerAnimation>();
         input = GetComponent<PlayerInputHandler>();
-        skillReadyTime = new float[skillCooldowns.Length];   // 시작 시 전부 0 → 즉시 사용 가능
+        skillReadyTime = new float[skillCooldowns.Length];
     }
 
-    /// <summary>
-    /// n번 스킬이 지금 사용 가능한지 여부(유효 번호 + 쿨타임 종료).
-    /// </summary>
-    /// <param name="n">스킬 번호(1~)</param>
-    /// <returns>사용 가능하면 true</returns>
     public bool CanUseSkill(int n)
     {
-        if (n < 1 || n >= skillCooldowns.Length) return false;   // 정의되지 않은 스킬 번호
-        return Time.time >= skillReadyTime[n];                   // 쿨타임이 지났나
+        if (n < 1 || n >= skillCooldowns.Length) return false;
+        return Time.time >= skillReadyTime[n];
     }
 
-    /// <summary>
-    /// 남은 쿨타임(초). 사용 가능하면 0. HUD 표시 등에 사용.
-    /// </summary>
-    /// <param name="n">스킬 번호(1~)</param>
-    /// <returns>남은 쿨타임(초), 사용 가능하면 0</returns>
     public float GetRemainingCooldown(int n)
     {
         if (n < 1 || n >= skillCooldowns.Length) return 0f;
         return Mathf.Max(0f, skillReadyTime[n] - Time.time);
     }
 
-    /// <summary>
-    /// n번 스킬 실행. 실제로 발동했으면 true, 쿨타임 중이거나 없는 스킬이면 false.
-    /// 호출측(Player)은 이 반환값으로 이동 잠금 여부를 결정한다
-    /// → 쿨타임 중엔 잠그지 않아 "스킬도 안 나가고 못 움직이는" 상황을 막는다.
-    /// </summary>
-    /// <param name="n">스킬 번호(1~)</param>
-    /// <returns>실제로 발동했으면 true</returns>
     public bool UseSkill(int n)
     {
-        if (!CanUseSkill(n)) return false;                  // 쿨타임 중/없는 스킬 → 발동 실패
-        skillReadyTime[n] = Time.time + skillCooldowns[n];  // 쿨타임 시작
+        if (!CanUseSkill(n)) return false;
+
+        // 실제 발동에 성공했을 때만 쿨타임과 시전 상태를 시작한다.
+        // 실패한 스킬 입력은 이동 잠금으로 이어지면 안 된다.
+        skillReadyTime[n] = Time.time + skillCooldowns[n];
+        IsCastingSkill = true;
         anim.PlaySkill(n);
         return true;
     }
 
-    // ★ 애니메이션 이벤트가 임팩트 프레임에 호출 (인스펙터에서 클립에 연결)
-    public void OnHitFrame()
+    public void EndSkillCast() => IsCastingSkill = false;
+
+    public void OnHitFrame(int hitBoxIndex)
     {
-        // 스킬 데이터에서 반경·데미지를 읽어오는 게 이상적(여기선 상수로 단순화)
-        float radius = this.radius;
-
-        // 구 형태 판정
-        //int count = Physics.OverlapSphereNonAlloc(hitOrigin.position, radius, buffer, enemyMask);
-
-        // 칼 크기에 맞게 큐브 형태 판정
-        int count = Physics.OverlapBoxNonAlloc(
-        hitBox.position,
-        hitBox.lossyScale * 0.5f,   // 부모 1이라 지금은 localScale과 동일, 그래도 안전하게 lossy
-        buffer,
-        hitBox.rotation,
-        enemyMask);
-
-        // ★ 버퍼가 꽉 찼다 = 더 있었을 수도 있다 → 개발 중에 알아채게
-        if (count == buffer.Length)
+        // Animation Event의 인자 실수는 플레이를 멈추지 않고 경고만 남긴다.
+        if (attackHitBoxes == null || hitBoxIndex < 0 || hitBoxIndex >= attackHitBoxes.Length)
         {
-            Debug.LogWarning($"히트 버퍼 가득참({count}). 누락 가능 → 버퍼 확대 검토", this);
-            // 필요하면 여기서 버퍼를 2배로 키워 한 번 더 쿼리(아래 C 방식)
+            Debug.LogWarning($"Hit box index out of range ({hitBoxIndex}). Check the Animation Event value.", this);
+            return;
         }
+
+        Transform box = attackHitBoxes[hitBoxIndex];
+        if (box == null)
+        {
+            Debug.LogWarning($"Hit box transform is missing ({hitBoxIndex}).", this);
+            return;
+        }
+
+        int count = Physics.OverlapBoxNonAlloc(
+            box.position,
+            box.lossyScale * 0.5f,
+            buffer,
+            box.rotation,
+            enemyMask);
+
+        if (count == buffer.Length)
+            Debug.LogWarning($"Hit buffer is full ({count}). Some targets may have been skipped.", this);
 
         for (int i = 0; i < count; i++)
-            if (buffer[i].TryGetComponent<IDamageable>(out var t))
-                t.TakeDamage(10);
+        {
+            // 대상 쪽은 IDamageable 계약만 알면 된다. 적 종류별 HP 구현은 여기서 몰라도 된다.
+            if (buffer[i].TryGetComponent<IDamageable>(out var target))
+                target.TakeDamage(10);
+        }
     }
 
-    // 선택했을 때만 그림 → 씬에 플레이어 많아도 안 지저분함
     private void OnDrawGizmosSelected()
     {
-        if (hitOrigin != null)
+        if (attackHitBoxes == null) return;
+
+        Gizmos.color = Color.red;
+        foreach (Transform box in attackHitBoxes)
         {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(hitOrigin.position, radius);
+            if (box == null) continue;
+
+            Gizmos.matrix = Matrix4x4.TRS(box.position, box.rotation, box.lossyScale);
+            Gizmos.DrawWireCube(Vector3.zero, Vector3.one);
         }
-        if (hitBox != null) 
-        {
-            Gizmos.matrix = Matrix4x4.TRS(hitBox.position, hitBox.rotation, hitBox.lossyScale);
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireCube(Vector3.zero, Vector3.one);  // matrix가 위치·회전·크기 다 처리
-            Gizmos.matrix = Matrix4x4.identity;
-        }
-       
+
+        Gizmos.matrix = Matrix4x4.identity;
     }
 
     public void OnAttackInput()
     {
-        attackBuffered = true;   // 즉시 발동 대신 "눌렀다" 기록
-                                 // (단, 콤보 시작 전 첫 타는 즉시 나가야 하니 그 분기는 따로)
-        if (comboStep == 0 || comboStep == comboMax)
+        attackBuffered = true;
+
+        // 첫 타는 콤보 창을 기다릴 필요가 없으므로 즉시 트리거한다.
+        // 이후 타수는 OnComboWindowOpen에서 버퍼/홀드 입력을 보고 이어간다.
+        if (comboStep == 0)
+        {
             anim.PlayAttackTrigger();
+            attackBuffered = false;
+        }
     }
 
-    // ★ 각 공격 클립 '시작' 프레임에 Animation Event로 호출. 클립마다 인자 1,2,3,4,5
     public void OnAttackStart(int step)
     {
-        comboStep = step;   // 화면이 실제 그 타를 재생할 때 단계 확정 → 화면과 100% 일치
+        // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
+        comboStep = step;
+        Debug.Log(comboStep);
     }
 
-    // Animation Event가 부를 진입점
     public void ClearAttackBuffer()
     {
         anim.ResetAttackTrigger();
     }
 
-    public void OnComboWindowOpen()   // 각 공격 클립의 "다음 타 받기 시작" 프레임에 Animation Event
+    public void OnComboWindowOpen()
     {
-        // 꾹 누름(Held) 또는 최근 클릭(buffered) 둘 다 같은 게이트로 처리
+        // 짧게 누른 입력과 계속 누르고 있는 입력을 같은 규칙으로 처리한다.
         if (input.AttackHeld || attackBuffered)
             anim.PlayAttackTrigger();
-        attackBuffered = false;   // 소비
+
+        attackBuffered = false;
     }
 
-    public void ResetCombo() => comboStep = 0;
-    // TODO: 쿨다운(스킬별 타이머), 히트박스 활성/판정, 데미지 계산,
-    //       스킬 데이터 테이블 조회(ID로 계수·쿨타임 등 로드)
+    public void ResetCombo()
+    {
+        // Locomotion 복귀 시 호출된다. 콤보와 스킬 시전 상태를 모두 정리한다.
+        comboStep = 0;
+        EndSkillCast();
+        Debug.Log(comboStep);
+    }
+
+    /// <summary>
+    /// 진행 중인 공격/스킬을 강제 중단한다. 구르기(회피 캔슬)처럼
+    /// 애니메이션이 끝나기 전에 다른 동작이 끼어들 때 호출된다.
+    /// ResetCombo와 달리 입력 버퍼와 래치된 Attack 트리거까지 비운다
+    /// → 캔슬 직전의 클릭이 캔슬 후 엉뚱한 타이밍에 발동하는 것을 막는다.
+    /// </summary>
+    public void CancelAction()
+    {
+        comboStep = 0;
+        attackBuffered = false;
+        EndSkillCast();
+        anim.ResetAttackTrigger();
+    }
 }

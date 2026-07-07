@@ -14,6 +14,8 @@ public class PlayerAnimation : MonoBehaviour
     private static readonly int Grounded = Animator.StringToHash("isGrounded");
     private static readonly int DoJump = Animator.StringToHash("doJump");
     private static readonly int DoDie = Animator.StringToHash("doDie");
+    private static readonly int DoRoll = Animator.StringToHash("doRoll");
+    private static readonly int DoAirRoll = Animator.StringToHash("doAirRoll");
 
     // 스킬 트리거 해시 테이블. [0]은 더미 — 스킬 번호(1~)를 인덱스로 바로 쓰기 위함.
     // 따라서 유효 번호는 1..Length-1. 스킬을 늘리면 여기에 추가.
@@ -37,6 +39,38 @@ public class PlayerAnimation : MonoBehaviour
 
     public void SetGrounded(bool v) => animator.SetBool(Grounded, v);
     public void PlayJump() => animator.SetTrigger(DoJump);
+
+    /// <summary>
+    /// 구르기 트리거. 구르기 상태 진입 시 1회 호출된다.
+    /// 방향 파라미터가 없는 이유: 캐릭터가 구를 방향을 먼저 바라보고(FaceInstantly)
+    /// 앞구르기 클립 하나만 재생하는 설계라, 애니메이터는 방향을 몰라도 된다.
+    /// </summary>
+    public void PlayRoll() => animator.SetTrigger(DoRoll);
+
+    /// <summary>
+    /// 공중 회피 트리거. 공중 회피 상태 진입 시 1회 호출된다.
+    /// 컨트롤러에서는 점프 계열 스테이트에서 체인으로 이어지는 별도 클립을 재생한다.
+    /// </summary>
+    public void PlayAirRoll() => animator.SetTrigger(DoAirRoll);
+
+    /// <summary>
+    /// 구르기 트리거 해제. 구르기 상태 Exit에서 호출된다.
+    /// 연속 회피 중 애니메이터가 트리거를 소비하지 못한 채(블렌드 중 등) 상태가 끝나면
+    /// 래치된 트리거가 남아 나중에 유령 구르기가 재생되는 것을 막는다.
+    /// </summary>
+    public void ResetRollTrigger() => animator.ResetTrigger(DoRoll);
+
+    /// <summary>
+    /// 공중 회피 트리거 해제. 공중 회피 상태 Exit에서 호출된다. 이유는 ResetRollTrigger와 동일.
+    /// </summary>
+    public void ResetAirRollTrigger() => animator.ResetTrigger(DoAirRoll);
+
+    /// <summary>
+    /// 디버그용: doAirRoll 트리거가 아직 소비되지 않고 래치되어 있는지.
+    /// 상태 종료 시점에 이 값이 true면 애니메이터가 전환을 한 번도 못 탔다는 뜻
+    /// (= 대시 모션이 재생되지 않았다는 증거). 원인 확인 후 삭제해도 되는 멤버.
+    /// </summary>
+    public bool IsAirRollTriggerPending => animator.GetBool(DoAirRoll);
 
     /// <summary>n번 스킬 트리거. 범위를 벗어난 n은 조용히 무시(예외 대신 안전).</summary>
     public void PlaySkill(int n)
