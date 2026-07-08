@@ -157,4 +157,18 @@ public class PlayerCombat : MonoBehaviour
         EndSkillCast();
         Debug.Log(comboStep);
     }
+
+    /// <summary>
+    /// 진행 중인 공격/스킬을 강제 중단한다. 구르기(회피 캔슬)처럼
+    /// 애니메이션이 끝나기 전에 다른 동작이 끼어들 때 호출된다.
+    /// ResetCombo와 달리 입력 버퍼와 래치된 Attack 트리거까지 비운다
+    /// → 캔슬 직전의 클릭이 캔슬 후 엉뚱한 타이밍에 발동하는 것을 막는다.
+    /// </summary>
+    public void CancelAction()
+    {
+        comboStep = 0;
+        attackBuffered = false;
+        EndSkillCast();
+        anim.ResetAttackTrigger();
+    }
 }

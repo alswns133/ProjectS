@@ -14,6 +14,11 @@ public static class PlayerEvents
     public static event Action<float, float> OnSGChanged;
 
     /// <summary>
+    /// 스태미나 변경 (현재 스태미나, 최대 스태미나). 구르기/공중 대시 소모와 자동 회복 시 발행된다.
+    /// </summary>
+    public static event Action<float, float> OnStaminaChanged;
+
+    /// <summary>
     /// 레벨업 (레벨)
     /// </summary>
     public static event Action<int> OnLevelUp;
@@ -48,6 +53,14 @@ public static class PlayerEvents
     /// <param name="max">최대 SG</param>
     public static void FireSgChanged(float cur, float max)
         => OnSGChanged?.Invoke(cur, max);
+
+    /// <summary>
+    /// 스태미나 변경 이벤트 발행. 구독자(스태미나 UI 등)에게 현재/최대 스태미나를 알림.
+    /// </summary>
+    /// <param name="cur">현재 스태미나</param>
+    /// <param name="max">최대 스태미나</param>
+    public static void FireStaminaChanged(float cur, float max)
+        => OnStaminaChanged?.Invoke(cur, max);
 
     /// <summary>
     /// 레벨업 이벤트 발행. 구독자에게 도달한 레벨을 알림.
@@ -86,6 +99,7 @@ public static class PlayerEvents
     {
         OnHpChanged = null;
         OnSGChanged = null;
+        OnStaminaChanged = null;
         OnLevelUp = null;
         OnExpChanged = null;
         OnGoldChanged = null;

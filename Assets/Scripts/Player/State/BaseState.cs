@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// 모든 플레이어 상태의 공통 베이스. Player 컨텍스트 참조를 보유하고,
 /// 생명주기 메서드(Enter/Update/Exit)의 빈 기본 구현을 제공한다.
 /// 자식 상태는 필요한 메서드만 override 한다.
