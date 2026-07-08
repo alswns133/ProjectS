@@ -80,6 +80,35 @@ MonoBehaviour:
   - {fileID: -8360194633237804150}
   - {fileID: 7654551118043254955}
   - {fileID: 5355831316643377018}
+  - {fileID: 4208288523075116504}
+--- !u!114 &4208288523075116504
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c87ff93a90145e495f4ea994d8f730d, type: 3}
+  m_Name: AVLVolumeComponent
+  m_EditorClassIdentifier: Assembly-CSharp::AkiDevCat.AVL.Rendering.AVLVolumeComponent
+  active: 1
+  airDensity:
+    m_OverrideState: 1
+    m_Value: 0.02
+  fogDensityGlobal:
+    m_OverrideState: 0
+    m_Value: 0
+  fogDensityPerLightModifier:
+    m_OverrideState: 1
+    m_Value: 0
+  fogScattering:
+    m_OverrideState: 1
+    m_Value: 0.525
+  fogColor:
+    m_OverrideState: 1
+    m_Value: {r: 0, g: 0, b: 0, a: 1}
 --- !u!114 &4416438657370271556
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -98,10 +127,10 @@ MonoBehaviour:
     m_Value: 1
   threshold:
     m_OverrideState: 1
-    m_Value: 0.5
+    m_Value: 0.7
   intensity:
     m_OverrideState: 1
-    m_Value: 6
+    m_Value: 3
   scatter:
     m_OverrideState: 1
     m_Value: 0.6
@@ -110,7 +139,7 @@ MonoBehaviour:
     m_Value: 65472
   tint:
     m_OverrideState: 1
-    m_Value: {r: 0.29535615, g: 0.28568888, b: 0.5660378, a: 1}
+    m_Value: {r: 0.5613208, g: 0.63128984, b: 1, a: 1}
   highQualityFiltering:
     m_OverrideState: 0
     m_Value: 0
