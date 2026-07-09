@@ -9,7 +9,9 @@ public class PlayerStateMachine
     // 전환은 반드시 ChangeState를 거치게 해서 Exit/Enter 순서를 강제한다.
     public IState Current { get; private set; }
 
-    /// <summary>현재 상태를 next로 전환한다(Exit→Enter 순서 보장).</summary>
+    /// <summary>
+    /// 현재 상태를 next로 전환한다(Exit→Enter 순서 보장).
+    /// </summary>
     public void ChangeState(IState next)
     {
         // 가드 두 가지:

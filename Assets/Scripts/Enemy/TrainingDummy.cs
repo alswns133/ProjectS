@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// 트레이닝 더미. 공격 판정·데미지 검증용 최소 대상.
