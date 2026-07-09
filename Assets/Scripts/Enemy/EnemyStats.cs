@@ -1,18 +1,20 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// 트레이닝 더미. 공격 판정·데미지 검증용 최소 대상.
-/// 이동·AI 없이 IDamageable만 구현해 "맞고 죽는" 것만 한다.
+/// 몬스터 HP와 사망 판정. 피격 진입점(IDamageable)을 구현한다.
 /// </summary>
-public class TrainingDummy : MonoBehaviour, IDamageable
+public class EnemyStats : MonoBehaviour, IDamageable
 {
     [SerializeField] private int maxHp = 100;
-    [SerializeField] private float damageTextHeight = 1.8f;   // 데미지 텍스트가 뜨는 높이(머리 위). 적 크기에 맞춰 조정
+    [SerializeField] private float damageTextHeight = 0.5f;
     private int currentHp;
 
     public bool IsDead => currentHp <= 0;
 
-    private void Awake() => currentHp = maxHp;
+    private void Awake()
+    {
+        currentHp = maxHp;
+    }
 
     public void TakeDamage(int amount)
     {
