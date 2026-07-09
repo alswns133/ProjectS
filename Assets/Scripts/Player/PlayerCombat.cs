@@ -139,6 +139,7 @@ public class PlayerCombat : MonoBehaviour
     public void ClearAttackBuffer()
     {
         anim.ResetAttackTrigger();
+        attackBuffered = false;
     }
 
     public void OnComboWindowOpen()
@@ -169,6 +170,6 @@ public class PlayerCombat : MonoBehaviour
         comboStep = 0;
         attackBuffered = false;
         EndSkillCast();
-        anim.ResetAttackTrigger();
+        ClearAttackBuffer();
     }
 }
