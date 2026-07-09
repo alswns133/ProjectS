@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Animator 파라미터 브릿지. 다른 컴포넌트가 Animator를 직접 만지지 않고
@@ -29,11 +29,15 @@ public class PlayerAnimation : MonoBehaviour
 
     private static readonly int Attack = Animator.StringToHash("Attack");
 
+    [SerializeField] private RuntimeAnimatorController villageController;  // 원본
+    [SerializeField] private AnimatorOverrideController dungeonController; // 오버라이드
+
     private const float Damp = 0.1f;   // SetFloat 감쇠 시간. 값이 즉시 안 튀고 부드럽게 따라감
     private Animator animator;
     private void Awake()
     {
         animator = GetComponent<Animator>();
+        villageController = animator.runtimeAnimatorController;
     }
 
     /// <summary>전진량(Z)을 부드럽게 갱신. 자유 시점은 진행 방향 회전이라 Z만 쓴다.</summary>
