@@ -8,7 +8,7 @@ public class PlayerStats : MonoBehaviour, IDamageable
     [SerializeField] private int currentHp;
     [SerializeField] private int defense;
 
-    // 회피(구르기·공중 대시)의 자원. 소모는 TryUseStamina, 회복은 Update의 자동 재생이 담당한다.
+    // 회피(구르기)의 자원. 소모는 TryUseStamina, 회복은 Update의 자동 재생이 담당한다.
     [Header("Stamina")]
     [SerializeField] private float maxStamina = 100f;
     [SerializeField] private float staminaRegenPerSecond = 15f;
