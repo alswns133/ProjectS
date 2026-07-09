@@ -8,31 +8,38 @@ public class Test : MonoBehaviour
     [SerializeField] private int hp = 100;
     [SerializeField] private int mp = 50;
 
-    private void Start()
+    private void OnEnable()
     {
         if(a != null)
         {
             a.started += TakeDamage;
             a.canceled += TakeDamage;
+            a.Enable();
         }
 
         if (s != null)
         {
             s.started += Mp;
             s.canceled += Mp;
+            s.Enable();
         }
-    }
-
-    private void OnEnable()
-    {
-        a?.Enable();
-        s?.Enable();
     }
 
     private void OnDisable()
     {
-        a?.Disable();
-        s?.Disable();
+        if (a != null)
+        {
+            a.started -= TakeDamage;
+            a.canceled -= TakeDamage;
+            a.Disable();
+        }
+
+        if (s != null)
+        {
+            s.started -= Mp;
+            s.canceled -= Mp;
+            s.Disable();
+        }
     }
 
     private void TakeDamage(InputAction.CallbackContext context)

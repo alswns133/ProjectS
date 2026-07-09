@@ -38,5 +38,5 @@ public class HUDPresenter : BasePresenter
         => _view.SetStamina(cur / max);
 
     private void OnExpChanged(int cur, int max)
-        => _view.SetExp(cur/max);
+        => _view.SetExp((float)cur / max);
 }
