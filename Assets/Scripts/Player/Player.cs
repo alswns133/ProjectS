@@ -11,7 +11,8 @@
 [RequireComponent(typeof(PlayerMovement))]
 [RequireComponent(typeof(PlayerAnimation))]
 [RequireComponent(typeof(PlayerCombat))]
-[RequireComponent(typeof(PlayerStats))]      
+[RequireComponent(typeof(PlayerStats))]
+[RequireComponent(typeof(PlayerEffects))]
 
 public class Player : MonoBehaviour
 {
@@ -29,6 +30,7 @@ public class Player : MonoBehaviour
     public PlayerDeadState DeadState { get; private set; }
 
     public PlayerRollState RollState { get; private set; }
+    public PlayerEffects Effect { get; private set; }
 
     private PlayerStateMachine sm; // 전환(Exit→Enter)을 책임지는 머신. 내부 전용
 
@@ -89,6 +91,7 @@ public class Player : MonoBehaviour
         Animation = GetComponent<PlayerAnimation>();
         Combat = GetComponent<PlayerCombat>();
         Stats = GetComponent<PlayerStats>();
+        Effect = GetComponent<PlayerEffects>();
 
         sm = new PlayerStateMachine();
         // 상태를 미리 생성해 보관 → 전환할 때마다 new 하지 않으므로 GC 부담이 없다.
@@ -102,12 +105,14 @@ public class Player : MonoBehaviour
     {
         Input.SkillPressed += OnSkill;
         Input.Attacked += OnAttack;
+        Combat.ComboStepStarted += OnComboStepStarted;
         PlayerEvents.OnPlayerDied += OnDied;   // 죽음 구독
     }
     private void OnDisable()
     {
         Input.SkillPressed -= OnSkill;
         Input.Attacked -= OnAttack;
+        Combat.ComboStepStarted -= OnComboStepStarted;
         PlayerEvents.OnPlayerDied -= OnDied;   // 죽음 구독 해제
     }
 
@@ -208,6 +213,17 @@ public class Player : MonoBehaviour
 
         if (!Stats.TryUseStamina(rollStaminaCost)) return;
         ChangeState(RollState);
+    }
+
+    // 콤보 타수가 실제 시작될 때마다 잠금을 갱신한다(OnAttackStart Animation Event 경유).
+    // 꾹 누르기 콤보는 OnAttack(클릭)을 거치지 않으므로, 이 갱신이 없으면
+    // ① 안전장치 타이머가 콤보 도중 잠금을 풀고
+    // ② 콤보 루프(로코모션 복귀→재공격) 후에는 아예 잠기지 않은 채 공격한다.
+    private void OnComboStepStarted()
+    {
+        // 클릭 콤보와 동일하게, 홀드 콤보도 타수마다 카메라 방향으로 다시 정렬한다(기획).
+        Movement.SnapToCameraForward();
+        LockMovement();
     }
 
     private void OnDied()

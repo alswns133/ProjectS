@@ -28,6 +28,23 @@ Unity 3D 액션 RPG 프로젝트의 코드 작업 가이드입니다. 런타임 
   - `PlayerDeadState`: 사망 애니메이션 실행 및 조작 차단.
 - 대시, 피격, 상호작용, 컷신 제어 같은 기능은 `Player.Update()`에 조건문을 늘리기보다 새 상태 클래스로 추가합니다.
 
+### Enemy: 플레이어와 동일한 패턴의 몬스터 구조
+
+- `Enemy`는 몬스터의 중앙 컨텍스트입니다. Player와 같은 방식으로 역할별 컴포넌트를 `Awake`에서 캐싱하고 읽기 전용 프로퍼티로 공개합니다.
+- 기능은 다음 컴포넌트로 분리합니다.
+  - `EnemyStats`: HP, 사망 판정, `IDamageable` 구현(피격 진입점), `CombatEvents` 발행.
+  - `EnemyMovement`: NavMeshAgent 기반 이동과 추적. 플레이어(CharacterController)와 달리 길 찾기가 필요해 NavMesh를 사용합니다.
+  - `EnemyAnimation`: 몬스터 Animator 파라미터와 트리거를 제어하는 유일한 통로.
+  - `EnemyCombat`: 공격 판정(미리 할당한 Collider 버퍼)과 공격 쿨다운. 히트 프레임은 Animation Event로 연결합니다.
+- 상태 머신은 `IState` 인터페이스를 플레이어와 공유하고, `EnemyBaseState` -> 구체 상태 클래스 구조를 따릅니다. 전환은 반드시 `EnemyStateMachine.ChangeState()`를 거칩니다.
+- 현재 상태:
+  - `EnemyIdleState`: 대기. 감지 반경 안에 플레이어가 들어오면 Chase로 전환.
+  - `EnemyChaseState`: 추적. 공격 사거리에 들어오면 Attack, 추적 범위를 벗어나면 Idle로 전환.
+  - `EnemyAttackState`: 공격 재생. 종료 후 거리에 따라 Chase 또는 Idle로 전환.
+  - `EnemyDeadState`: 사망 연출과 AI/충돌 비활성화. 다른 상태로 전환되지 않습니다.
+- 순찰, 피격 경직, 그로기 같은 새 AI 행동은 `Enemy.Update()`에 조건문을 늘리기보다 새 상태 클래스로 추가합니다.
+- `TrainingDummy`는 공격 판정·데미지 검증용 최소 구현으로 별도 유지합니다.
+
 ### 입력 경계
 
 - 플레이어 게임플레이 입력은 `PlayerInputHandler`만 직접 `InputAction`을 읽습니다.
@@ -126,6 +143,8 @@ Unity 3D 액션 RPG 프로젝트의 코드 작업 가이드입니다. 런타임 
 - Animator 파라미터와 트리거면 `PlayerAnimation`.
 - 공격, 스킬, 히트, 쿨다운, 데미지 타이밍이면 `PlayerCombat`.
 - HP, 사망, 스탯 변화면 `PlayerStats`와 `PlayerEvents`.
+- 몬스터 HP·피격이면 `EnemyStats`, 추적·이동이면 `EnemyMovement`, 공격 판정·쿨다운이면 `EnemyCombat`, Animator 제어면 `EnemyAnimation`.
+- 몬스터 AI 행동 추가면 `EnemyBaseState`를 상속한 새 상태 클래스.
 - UI 화면 생명주기면 `BasePanel` 또는 `BasePopup` 하위 클래스.
 - UI 데이터 바인딩이면 `BasePresenter` 하위 클래스.
 - 씬 고유 로직이면 `BaseScene` 하위 클래스.
