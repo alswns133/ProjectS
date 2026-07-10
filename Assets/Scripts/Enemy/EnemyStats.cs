@@ -30,6 +30,8 @@ public class EnemyStats : MonoBehaviour, IDamageable
         if (IsDead)
         {
             //Debug.Log($"{name} 사망", this);
+            // 비활성화 '전에' 발행해야 구독자(처치 이펙트 등)가 위치를 신뢰할 수 있다.
+            CombatEvents.FireEnemyDied(transform.position);
             // 지금은 그냥 비활성. 나중에 사망 연출·드롭으로 확장
             gameObject.SetActive(false);
         }

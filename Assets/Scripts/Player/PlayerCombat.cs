@@ -22,6 +22,12 @@ public class PlayerCombat : MonoBehaviour
     // 인덱스는 스킬 번호와 맞춘다. [0]은 사용하지 않는 더미 슬롯.
     [SerializeField] private float[] skillCooldowns = { 0f, 5f, 5f, 8f, 10f };
 
+    [Header("Strong Attack")]
+    // 우클릭 강공격 쿨타임. 스킬과 달리 단일 동작이라 배열 대신 단일 값으로 둔다.
+    [SerializeField] private float strongAttackCooldown = 3f;
+
+    private float strongAttackReadyTime;
+
     // 매 타격마다 할당이 생기지 않도록 NonAlloc 쿼리용 버퍼를 재사용한다.
     private readonly Collider[] buffer = new Collider[64];
     private PlayerAnimation anim;
@@ -75,6 +81,32 @@ public class PlayerCombat : MonoBehaviour
 
     public void EndSkillCast() => IsCastingSkill = false;
 
+    /// <summary>우클릭 강공격이 쿨타임을 벗어나 사용 가능한지 여부.</summary>
+    public bool CanUseStrongAttack => Time.time >= strongAttackReadyTime;
+
+    /// <summary>강공격의 남은 쿨타임(초). HUD 표시용.</summary>
+    public float GetStrongAttackRemainingCooldown() => Mathf.Max(0f, strongAttackReadyTime - Time.time);
+
+    /// <summary>
+    /// 우클릭 강공격을 발동한다. 좌클릭 콤보 도중이면 콤보를 캔슬하고 우선 발동한다(기획).
+    /// 스킬과 마찬가지로 실제 발동에 성공했을 때만 쿨타임을 소모한다.
+    /// </summary>
+    public bool UseStrongAttack()
+    {
+        if (!CanUseStrongAttack) return false;
+
+        // 진행 중이던 콤보/입력 버퍼/래치된 Attack 트리거를 정리하고 발동한다.
+        // 안 하면 캔슬된 콤보의 트리거가 남아 강공격 직후 일반 공격이 저절로 나간다.
+        CancelAction();
+
+        strongAttackReadyTime = Time.time + strongAttackCooldown;
+        // 시전 중 좌클릭 차단은 스킬과 같은 규칙(IsCastingSkill)을 재사용한다.
+        // 해제는 로코모션 복귀(ComboResetBehaviour→ResetCombo) 또는 안전장치 경로가 담당.
+        IsCastingSkill = true;
+        anim.PlayStrongAttack();
+        return true;
+    }
+
     public void OnHitFrame(int hitBoxIndex)
     {
         // Animation Event의 인자 실수는 플레이를 멈추지 않고 경고만 남긴다.
@@ -105,7 +137,13 @@ public class PlayerCombat : MonoBehaviour
         {
             // 대상 쪽은 IDamageable 계약만 알면 된다. 적 종류별 HP 구현은 여기서 몰라도 된다.
             if (buffer[i].TryGetComponent<IDamageable>(out var target))
+            {
                 target.TakeDamage(10);
+
+                // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
+                // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
+                CombatEvents.FireHitLanded(buffer[i].ClosestPoint(box.position));
+            }
         }
     }
 
@@ -154,6 +192,11 @@ public class PlayerCombat : MonoBehaviour
 
     public void OnComboWindowOpen()
     {
+        // 강공격/스킬이 콤보를 캔슬한 직후, 밀려나는 공격 클립의 이벤트가 블렌드 중에
+        // 뒤늦게 도착할 수 있다. 시전 중 좌클릭 홀드로 Attack 트리거가 래치되어
+        // 시전 종료 직후 일반 공격이 저절로 나가는 것을 막는다.
+        if (IsCastingSkill) return;
+
         // 짧게 누른 입력과 계속 누르고 있는 입력을 같은 규칙으로 처리한다.
         if (input.AttackHeld || attackBuffered)
             anim.PlayAttackTrigger();
