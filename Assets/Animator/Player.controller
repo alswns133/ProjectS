@@ -56,7 +56,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Roll_F_0
+  m_Name: Roll
   m_Speed: 1.5
   m_CycleOffset: 0
   m_Transitions:
@@ -70,7 +70,7 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: 024c1d7f8e797be43bbb0e4cd5cdd5b5, type: 2}
+  m_Motion: {fileID: 7400000, guid: b5cde369bc3390e4194233a96b1a245d, type: 2}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 
@@ -150,9 +150,6 @@ AnimatorStateMachine:
   - serializedVersion: 1
     m_State: {fileID: -8435730968776676075}
     m_Position: {x: 380, y: -290, z: 0}
-  - serializedVersion: 1
-    m_State: {fileID: 3984884893277720268}
-    m_Position: {x: 820, y: 40, z: 0}
   m_ChildStateMachines:
   - serializedVersion: 1
     m_StateMachine: {fileID: -5805221525175630957}
@@ -510,12 +507,6 @@ AnimatorController:
     m_DefaultInt: 0
     m_DefaultBool: 0
     m_Controller: {fileID: 9100000}
-  - m_Name: StrongAttack
-    m_Type: 9
-    m_DefaultFloat: 0
-    m_DefaultInt: 0
-    m_DefaultBool: 0
-    m_Controller: {fileID: 9100000}
   m_AnimatorLayers:
   - serializedVersion: 5
     m_Name: Base Layer
@@ -851,9 +842,9 @@ AnimatorStateTransition:
   m_Mute: 0
   m_IsExit: 0
   serializedVersion: 3
-  m_TransitionDuration: 0.017957568
+  m_TransitionDuration: 0.23547941
   m_TransitionOffset: 0
-  m_ExitTime: 0.9836748
+  m_ExitTime: 0.69983804
   m_HasExitTime: 1
   m_HasFixedDuration: 1
   m_InterruptionSource: 0
@@ -895,7 +886,7 @@ BlendTree:
   m_Name: Blend Tree
   m_Childs:
   - serializedVersion: 2
-    m_Motion: {fileID: 7400000, guid: 8445a1d7ee9a4a447a2791ca041e8a00, type: 2}
+    m_Motion: {fileID: 7400000, guid: 501714755b216864c8a0453598b5a9a8, type: 2}
     m_Threshold: 0
     m_Position: {x: 0, y: 0}
     m_TimeScale: 1
@@ -942,7 +933,6 @@ AnimatorState:
   - {fileID: -837616407952714410}
   - {fileID: -3803323212492709938}
   - {fileID: 6358545509149882422}
-  - {fileID: -237706656082579570}
   m_StateMachineBehaviours:
   - {fileID: 3941943538678957565}
   m_Position: {x: 50, y: 50, z: 0}
