@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 /// <summary>
 /// 플레이어의 전투 진입점.
@@ -32,6 +33,14 @@ public class PlayerCombat : MonoBehaviour
 
     // 스킬 시전 중에는 일반 공격 입력을 막기 위해 Player가 확인하는 플래그.
     public bool IsCastingSkill { get; private set; }
+
+    /// <summary>
+    /// 콤보 타수가 실제로 시작될 때(OnAttackStart Animation Event) 발행된다.
+    /// 꾹 누르기 콤보는 클릭 이벤트(Player.OnAttack)를 거치지 않고 이어지므로,
+    /// Player가 이 이벤트로 이동 잠금을 타수마다 갱신한다. 없으면 홀드 콤보 중
+    /// 안전장치 타이머나 로코모션 복귀(콤보 루프)로 잠금이 풀린다.
+    /// </summary>
+    public event Action ComboStepStarted;
 
     private void Awake()
     {
@@ -133,6 +142,7 @@ public class PlayerCombat : MonoBehaviour
     {
         // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
         comboStep = step;
+        ComboStepStarted?.Invoke();
         Debug.Log(comboStep);
     }
 

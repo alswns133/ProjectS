@@ -12,6 +12,8 @@ public class PlayerDeadState : BaseState
     public override void Enter()
     {
         player.Animation.PlayDie();   // 사망 애니 트리거
+        // 공격/스킬 도중 사망하면 재생 중이던 이펙트가 남으므로 함께 정리한다.
+        player.Effect.AllStopEffect();
         // 이동 입력을 받지 않으므로 Update는 비워둔다 → 조작 잠금이 자동 성립
     }
 
