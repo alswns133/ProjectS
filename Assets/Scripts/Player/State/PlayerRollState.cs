@@ -21,6 +21,8 @@ public class PlayerRollState : BaseState
         // 회피 캔슬: 진행 중이던 공격/스킬을 강제 종료하고 잠금·버퍼·트리거를 정리한다.
         // 안 하면 캔슬된 동작의 트리거가 래치된 채 남아 구르기 직후 저절로 발동한다.
         player.Combat.CancelAction();
+        // 캔슬된 동작의 검기/스킬 이펙트가 화면에 남지 않게 즉시 제거한다.
+        player.Effect.AllStopEffect();
         player.UnlockMovement();
 
         // 입력 방향(카메라 기준)으로 구른다. 무입력 진입은 Player.TryRoll에서 막히지만,

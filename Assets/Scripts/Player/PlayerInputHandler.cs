@@ -19,6 +19,7 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private InputAction jumpAction;
     [SerializeField] private InputAction skillAction;
     [SerializeField] private InputAction attackAction;
+    [SerializeField] private InputAction strongAttackAction;   // 강공격(기본 바인딩: 우클릭)
     [SerializeField] private InputAction rollAction;   // 구르기(기본 바인딩: Left Shift)
 
     // 달리기 판정: 이동 입력이 끊겼다가 이 시간(초) 안에 다시 시작되면 더블탭으로 본다.
@@ -47,6 +48,7 @@ public class PlayerInputHandler : MonoBehaviour
     // 이산 입력은 이벤트로 노출. 구독자(Player·CameraRig)는 입력 출처를 몰라도 됨.
     // 점프는 '꾹 누르면 연속 점프' 설계라 이벤트가 아닌 JumpHeld 폴링으로 처리한다.
     public event Action Attacked;
+    public event Action StrongAttacked;      // 우클릭 강공격. 쿨타임 판정은 수신측(PlayerCombat)
     public event Action<int> SkillPressed;   // 인자 = 눌린 스킬 번호
 
     // 구르기는 점프와 같은 '꾹 누르면 연속 발동' 설계라 이벤트가 아닌 RollHeld 폴링으로 처리한다.
@@ -60,12 +62,14 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction.Enable();
         skillAction.Enable();
         attackAction.Enable();
+        strongAttackAction.Enable();
         rollAction.Enable();
 
         moveAction.started += OnMoveStarted;
         moveAction.canceled += OnMoveCanceled;
         skillAction.started += OnSkill;
         attackAction.started += OnAttack;
+        strongAttackAction.started += OnStrongAttack;
     }
 
     // 구독/활성화의 정확한 짝. OnEnable에서 +=/Enable 했으면 여기서 -=/Disable.
@@ -76,12 +80,14 @@ public class PlayerInputHandler : MonoBehaviour
         moveAction.canceled -= OnMoveCanceled;
         skillAction.started -= OnSkill;
         attackAction.started -= OnAttack;
+        strongAttackAction.started -= OnStrongAttack;
 
         moveAction.Disable();
         zoomAction.Disable();
         jumpAction.Disable();
         skillAction.Disable();
         attackAction.Disable();
+        strongAttackAction.Disable();
         rollAction.Disable();
     }
 
@@ -97,6 +103,11 @@ public class PlayerInputHandler : MonoBehaviour
     private void OnAttack(InputAction.CallbackContext _)
     {
         Attacked?.Invoke();
+    }
+
+    private void OnStrongAttack(InputAction.CallbackContext _)
+    {
+        StrongAttacked?.Invoke();
     }
 
     // started는 이동 입력이 '없음 → 있음'으로 바뀌는 순간만 발화한다.
