@@ -105,6 +105,7 @@ public class Player : MonoBehaviour
     {
         Input.SkillPressed += OnSkill;
         Input.Attacked += OnAttack;
+        Input.StrongAttacked += OnStrongAttack;
         Combat.ComboStepStarted += OnComboStepStarted;
         PlayerEvents.OnPlayerDied += OnDied;   // 죽음 구독
     }
@@ -112,6 +113,7 @@ public class Player : MonoBehaviour
     {
         Input.SkillPressed -= OnSkill;
         Input.Attacked -= OnAttack;
+        Input.StrongAttacked -= OnStrongAttack;
         Combat.ComboStepStarted -= OnComboStepStarted;
         PlayerEvents.OnPlayerDied -= OnDied;   // 죽음 구독 해제
     }
@@ -195,6 +197,23 @@ public class Player : MonoBehaviour
         Combat.OnAttackInput();
         Movement.SnapToCameraForward();
         LockMovement();                    // 공격(콤보 포함) 동안 이동 잠금
+    }
+
+    // 우클릭 강공격 중재. 좌클릭 콤보 도중에도 발동한다(기획: 강공격이 콤보를 캔슬).
+    // 그래서 OnSkill과 달리 IsMovementLocked를 확인하지 않는다.
+    // 콤보 정리(트리거·버퍼 클리어)는 Combat.UseStrongAttack 안의 CancelAction이 담당한다.
+    private void OnStrongAttack()
+    {
+        if (Stats.IsDead) return;
+        if (IsRolling) return;               // 구르기 커밋 유지
+        if (!Movement.IsGrounded) return;    // 공중 발동 방지(좌클릭과 동일)
+
+        // 스킬/강공격 시전 중에는 불가. 이미 쿨타임을 소모한 동작을 도중에 끊지 않는다.
+        if (Combat.IsCastingSkill) return;
+
+        if (!Combat.UseStrongAttack()) return;   // 쿨타임 중이면 아무 일도 일어나지 않음(잠금 X)
+        Movement.SnapToCameraForward();
+        LockMovement();
     }
 
     // 구르기 입력 중재. TryJump처럼 Update에서 매 프레임 폴링한다(꾹 누르면 연속 회피 기획).

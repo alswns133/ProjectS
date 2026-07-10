@@ -62894,8 +62894,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 343343578}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.000000029802319, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.9, z: -4.5755935}
+  m_LocalRotation: {x: 0, y: 0.000000029802322, z: 0, w: 1}
+  m_LocalPosition: {x: -18.73, y: 1.9, z: -4.5800033}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -184232,8 +184232,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 991853993}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.000000029802319, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.9, z: -4.5755935}
+  m_LocalRotation: {x: -0, y: 0.000000029802322, z: -0, w: 1}
+  m_LocalPosition: {x: -18.73, y: 1.9, z: -4.5800033}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -287112,6 +287112,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7210471230131241780, guid: 85d273f05a6c60e439cbd3c255a7a3c2, type: 3}
   m_PrefabInstance: {fileID: 1607856479}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1607893019
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1607893021}
+  - component: {fileID: 1607893020}
+  m_Layer: 0
+  m_Name: DeathEffectSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1607893020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1607893019}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 201e9121c4f897842822ced8de0bb4f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DeathEffectSpawner
+  effectPrefab: {fileID: -492216637980471123, guid: bdd42f515eceef44a93069de46073031, type: 3}
+  initialPoolSize: 5
+--- !u!4 &1607893021
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1607893019}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -16.52631, y: 0.00809, z: 0.57816}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1608038179 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7210471230131241780, guid: 85d273f05a6c60e439cbd3c255a7a3c2, type: 3}
@@ -336654,6 +336700,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7210471230131241780, guid: 85d273f05a6c60e439cbd3c255a7a3c2, type: 3}
   m_PrefabInstance: {fileID: 438413089}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1901975241
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1901975243}
+  - component: {fileID: 1901975242}
+  m_Layer: 0
+  m_Name: HitEffectSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1901975242
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901975241}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1932d00b1cd6b424d9750273e5a9eeb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
+  effectPrefab: {fileID: -740047778188791524, guid: 8f2de98462621dc40a8a5c49a010ebc4, type: 3}
+  initialPoolSize: 10
+--- !u!4 &1901975243
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901975241}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -16.52631, y: 0.00809, z: 0.57816}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1902654731
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -362533,6 +362625,15 @@ MonoBehaviour:
       m_Action: Attack
       m_Flags: 0
     m_Flags: 0
+  strongAttackAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 910c9c62-25a9-4596-9a54-84ab7dcfa801
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
   rollAction:
     m_Name: Roll
     m_Type: 0
@@ -362588,6 +362689,7 @@ MonoBehaviour:
   - 5
   - 8
   - 10
+  strongAttackCooldown: 3
 --- !u!114 &2035824144
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -384709,6 +384811,26 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3949390374087626817, guid: 0887c14310fd9bd469d8968dd67d196f, type: 3}
+      propertyPath: strongAttackAction.m_Name
+      value: Strong Attack
+      objectReference: {fileID: 0}
+    - target: {fileID: 3949390374087626817, guid: 0887c14310fd9bd469d8968dd67d196f, type: 3}
+      propertyPath: strongAttackAction.m_SingletonActionBindings.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3949390374087626817, guid: 0887c14310fd9bd469d8968dd67d196f, type: 3}
+      propertyPath: strongAttackAction.m_SingletonActionBindings.Array.data[0].m_Id
+      value: ce1f4e29-993e-4673-b15d-583c6b5f1164
+      objectReference: {fileID: 0}
+    - target: {fileID: 3949390374087626817, guid: 0887c14310fd9bd469d8968dd67d196f, type: 3}
+      propertyPath: strongAttackAction.m_SingletonActionBindings.Array.data[0].m_Path
+      value: <Mouse>/rightButton
+      objectReference: {fileID: 0}
+    - target: {fileID: 3949390374087626817, guid: 0887c14310fd9bd469d8968dd67d196f, type: 3}
+      propertyPath: strongAttackAction.m_SingletonActionBindings.Array.data[0].m_Action
+      value: Strong Attack
+      objectReference: {fileID: 0}
     - target: {fileID: 4501319161234016781, guid: 0887c14310fd9bd469d8968dd67d196f, type: 3}
       propertyPath: m_LocalPosition.x
       value: -18.73
@@ -386967,3 +387089,5 @@ SceneRoots:
   - {fileID: 1119560218}
   - {fileID: 814951565}
   - {fileID: 3674890466417606727}
+  - {fileID: 1607893021}
+  - {fileID: 1901975243}
