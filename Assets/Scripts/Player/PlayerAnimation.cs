@@ -29,6 +29,8 @@ public class PlayerAnimation : MonoBehaviour
 
     private static readonly int Attack = Animator.StringToHash("Attack");
     private static readonly int StrongAttack = Animator.StringToHash("StrongAttack");
+    private static readonly int RunAttack = Animator.StringToHash("RunAttack");
+    private static readonly int JumpAttack = Animator.StringToHash("JumpAttack");
 
     [SerializeField] private RuntimeAnimatorController villageController;  // 원본
     [SerializeField] private AnimatorOverrideController dungeonController; // 오버라이드
@@ -77,6 +79,12 @@ public class PlayerAnimation : MonoBehaviour
 
     /// <summary>우클릭 강공격 트리거. PlayerCombat.UseStrongAttack이 발동에 성공했을 때만 호출한다.</summary>
     public void PlayStrongAttack() => animator.SetTrigger(StrongAttack);
+
+    /// <summary>달리기 공격(단타) 트리거. 달리는 중 클릭 시 Player가 라우팅한다.</summary>
+    public void PlayRunAttack() => animator.SetTrigger(RunAttack);
+
+    /// <summary>점프 공격(단타) 트리거. 공중 클릭 시 Player가 라우팅한다.</summary>
+    public void PlayJumpAttack() => animator.SetTrigger(JumpAttack);
 
     public void PlayDie() => animator.SetTrigger(DoDie);
 }

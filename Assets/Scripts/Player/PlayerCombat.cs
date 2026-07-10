@@ -138,6 +138,29 @@ public class PlayerCombat : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// 달리기 공격(단타)을 발동한다. 콤보로 이어지지 않으며(기획),
+    /// 시전 중 클릭 차단·해제는 강공격과 같은 규칙(IsCastingSkill)을 재사용한다.
+    /// </summary>
+    public void UseRunAttack()
+    {
+        // 더블탭 직후 콤보 잔여 상태가 남아 있을 수 있으므로 정리하고 발동한다.
+        CancelAction();
+        IsCastingSkill = true;
+        anim.PlayRunAttack();
+    }
+
+    /// <summary>
+    /// 점프 공격(단타)을 발동한다. 공중 클릭 시 Player가 라우팅하며,
+    /// '점프 1회당 1회' 제한과 호버링(높이 고정)은 Player가 관리한다.
+    /// </summary>
+    public void UseJumpAttack()
+    {
+        CancelAction();
+        IsCastingSkill = true;
+        anim.PlayJumpAttack();
+    }
+
     public void OnHitFrame(string key)
     {
         // Animation Event의 인자 실수(오타·빈칸)는 플레이를 멈추지 않고 경고만 남긴다.
