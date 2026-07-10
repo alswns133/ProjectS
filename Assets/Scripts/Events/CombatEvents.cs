@@ -25,6 +25,37 @@ public static class CombatEvents
         => OnDamageDealt?.Invoke(worldPos, amount);
 
     /// <summary>
+    /// 타격 접점 발생 (맞은 부위의 월드 좌표).
+    /// OnDamageDealt와 달리 '때린 쪽'이 발행한다 → 어디를 때렸는지는 히트 판정을
+    /// 수행한 공격자만 알기 때문. 피격 이펙트처럼 맞은 부위에 붙는 연출이 구독한다.
+    /// (OnDamageDealt의 좌표는 데미지 텍스트용 머리 위 고정 높이라 접점 연출에는 못 쓴다.)
+    /// </summary>
+    public static event Action<Vector3> OnHitLanded;
+
+    /// <summary>
+    /// 타격 접점 이벤트 발행. 히트 판정 주체(PlayerCombat 등)가 대상에 데미지를
+    /// 넣은 직후, 맞은 콜라이더 표면의 접점 좌표로 호출한다.
+    /// </summary>
+    /// <param name="hitPos">맞은 부위의 월드 좌표(콜라이더 표면 접점)</param>
+    public static void FireHitLanded(Vector3 hitPos)
+        => OnHitLanded?.Invoke(hitPos);
+
+    /// <summary>
+    /// 적 사망 (죽은 적의 월드 좌표).
+    /// 죽는 적은 즉시 비활성화되므로 처치 연출을 적 오브젝트에 붙일 수 없다
+    /// → 밖에 있는 구독자(처치 이펙트·드롭·퀘스트 카운트)가 이 사실을 받아 처리한다.
+    /// </summary>
+    public static event Action<Vector3> OnEnemyDied;
+
+    /// <summary>
+    /// 적 사망 이벤트 발행. 사망이 확정된 직후, 오브젝트를 비활성화하기 '전에' 호출한다
+    /// (비활성화 후에는 transform 위치를 읽는 쪽이 신뢰할 수 없으므로).
+    /// </summary>
+    /// <param name="worldPos">죽은 적의 월드 좌표(발밑 기준. 높이 보정은 연출 쪽 프리팹이 담당)</param>
+    public static void FireEnemyDied(Vector3 worldPos)
+        => OnEnemyDied?.Invoke(worldPos);
+
+    /// <summary>
     /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다.
     /// (static 이벤트가 이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지)
     /// </summary>
@@ -32,5 +63,7 @@ public static class CombatEvents
     private static void ResetStatics()
     {
         OnDamageDealt = null;   // ★ 새 이벤트는 여기에도 반드시 추가
+        OnHitLanded = null;
+        OnEnemyDied = null;
     }
 }
