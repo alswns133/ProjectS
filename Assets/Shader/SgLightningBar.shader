@@ -70,6 +70,7 @@ Shader "ProjectS/UI/SgLightningBar"
             float4 _FillColor, _EmptyColor, _BoltColor, _CoreColor;
             float  _Amplitude, _JitterFps, _LineWidth, _CoreWidth, _BranchStr, _Surge;
 
+
             Varyings vert (Attributes IN)
             {
                 Varyings OUT;
