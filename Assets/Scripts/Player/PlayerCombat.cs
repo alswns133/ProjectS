@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -9,10 +10,24 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerAnimation))]
 public class PlayerCombat : MonoBehaviour
 {
-    // 공격 클립의 Animation Event가 넘기는 인덱스로 사용할 히트 박스 목록.
-    // 모션마다 판정 위치와 크기가 다르므로 Transform 단위로 분리한다.
-    [SerializeField] private Transform[] attackHitBoxes;
+    // 공격/스킬 클립의 Animation Event가 string 키로 조회하는 히트 박스 슬롯.
+    // 모션마다 판정 위치·크기뿐 아니라 데미지도 다르므로 슬롯 단위로 묶는다.
+    // area의 위치/회전/스케일이 곧 판정 박스다(스케일 = 박스 크기).
+    // 키는 PlayerEffects의 이펙트 키와 같은 체계를 쓴다. 예: "Attack1", "Skill2_Wave"
+    // → 연출과 판정이 이름으로 짝이 맞아, 클립 이벤트만 봐도 무엇이 나가는지 읽힌다.
+    [Serializable]
+    private class HitBoxSlot
+    {
+        public string key;
+        public Transform area;
+        public int damage = 10;
+    }
+
+    [SerializeField] private HitBoxSlot[] attackHitBoxes;
     [SerializeField] private LayerMask enemyMask;
+
+    // 매 히트 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
+    private readonly Dictionary<string, HitBoxSlot> hitBoxMap = new Dictionary<string, HitBoxSlot>();
 
     // 현재 재생 중인 콤보 단계. 0이면 콤보가 시작되지 않은 상태다.
     // 실제 단계 확정은 OnAttackStart Animation Event에서 한다.
@@ -53,6 +68,22 @@ public class PlayerCombat : MonoBehaviour
         anim = GetComponent<PlayerAnimation>();
         input = GetComponent<PlayerInputHandler>();
         skillReadyTime = new float[skillCooldowns.Length];
+
+        if (attackHitBoxes == null) return;
+
+        foreach (HitBoxSlot slot in attackHitBoxes)
+        {
+            if (slot == null || string.IsNullOrEmpty(slot.key)) continue;
+
+            // 키 중복을 조용히 덮어쓰면 한쪽 판정이 영영 안 나가 원인 찾기 어렵다 → 경고.
+            if (hitBoxMap.ContainsKey(slot.key))
+            {
+                Debug.LogWarning($"Duplicate hit box key '{slot.key}'. Only the first slot is used.", this);
+                continue;
+            }
+
+            hitBoxMap.Add(slot.key, slot);
+        }
     }
 
     public bool CanUseSkill(int n)
@@ -107,19 +138,19 @@ public class PlayerCombat : MonoBehaviour
         return true;
     }
 
-    public void OnHitFrame(int hitBoxIndex)
+    public void OnHitFrame(string key)
     {
-        // Animation Event의 인자 실수는 플레이를 멈추지 않고 경고만 남긴다.
-        if (attackHitBoxes == null || hitBoxIndex < 0 || hitBoxIndex >= attackHitBoxes.Length)
+        // Animation Event의 인자 실수(오타·빈칸)는 플레이를 멈추지 않고 경고만 남긴다.
+        if (string.IsNullOrEmpty(key) || !hitBoxMap.TryGetValue(key, out HitBoxSlot slot))
         {
-            Debug.LogWarning($"Hit box index out of range ({hitBoxIndex}). Check the Animation Event value.", this);
+            Debug.LogWarning($"Hit box key not found ('{key}'). Check the Animation Event string.", this);
             return;
         }
 
-        Transform box = attackHitBoxes[hitBoxIndex];
+        Transform box = slot.area;
         if (box == null)
         {
-            Debug.LogWarning($"Hit box transform is missing ({hitBoxIndex}).", this);
+            Debug.LogWarning($"Hit box transform is missing ('{key}').", this);
             return;
         }
 
@@ -138,7 +169,7 @@ public class PlayerCombat : MonoBehaviour
             // 대상 쪽은 IDamageable 계약만 알면 된다. 적 종류별 HP 구현은 여기서 몰라도 된다.
             if (buffer[i].TryGetComponent<IDamageable>(out var target))
             {
-                target.TakeDamage(10);
+                target.TakeDamage(slot.damage);
 
                 // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                 // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
@@ -152,11 +183,11 @@ public class PlayerCombat : MonoBehaviour
         if (attackHitBoxes == null) return;
 
         Gizmos.color = Color.red;
-        foreach (Transform box in attackHitBoxes)
+        foreach (HitBoxSlot slot in attackHitBoxes)
         {
-            if (box == null) continue;
+            if (slot == null || slot.area == null) continue;
 
-            Gizmos.matrix = Matrix4x4.TRS(box.position, box.rotation, box.lossyScale);
+            Gizmos.matrix = Matrix4x4.TRS(slot.area.position, slot.area.rotation, slot.area.lossyScale);
             Gizmos.DrawWireCube(Vector3.zero, Vector3.one);
         }
 
