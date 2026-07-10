@@ -80,6 +80,9 @@ public class Player : MonoBehaviour
     {
         IsMovementLocked = false;
         Combat.EndSkillCast();
+        // 점프 공격 호버링 해제. 모션이 끝나 로코모션으로 복귀하는 이 시점이
+        // "모션이 끝나면 다시 내려간다"(기획)에 해당한다. 안전장치 경로로 풀릴 때도 함께 풀린다.
+        Movement.SetHover(false);
     }
 
 
@@ -144,6 +147,10 @@ public class Player : MonoBehaviour
 
         // 접지 여부는 상태와 무관하게 매 프레임 애니메이터에 반영
         Animation.SetGrounded(Movement.IsGrounded);
+
+        // 착지하면 점프 공격 사용권 회복. IsStablyGrounded를 쓰는 이유:
+        // 점프 직후 접지 체크가 몇 프레임 true로 남는 잔존 구간에 리셋되는 것을 막는다.
+        if (Movement.IsStablyGrounded) jumpAttackUsed = false;
     }
 
     /// <summary>현재 상태를 next로 전환한다. 상태들이 자기 전환을 요청하는 공개 창구.</summary>
@@ -183,16 +190,42 @@ public class Player : MonoBehaviour
         LockMovement();                    // 스킬이 실제로 발동할 때만 이동 잠금
     }
 
+    // 점프 공격을 이미 썼는지 여부. '점프 1회당 공격 1회' 제한(기획).
+    // 착지(IsStablyGrounded)하면 Update에서 리셋된다.
+    private bool jumpAttackUsed;
+
+    // 좌클릭 중재. 상황을 보고 점프 공격/달리기 공격/일반 콤보 중 하나로 라우팅한다.
     private void OnAttack()
     {
         if (Stats.IsDead) return;        // 죽었으면 공격 무시(아까 패턴과 동일)
         if (IsRolling) return;           // 구르기 중 공격 금지(회피 커밋 유지)
 
-        // 스킬 시전 중 클릭 차단. 막지 않으면 Attack 트리거가 래치된 채 대기하다가
-        // 스킬이 끝나는 순간 1타가 자동 발동한다.
+        // 스킬/단타 공격 시전 중 클릭 차단. 막지 않으면 Attack 트리거가 래치된 채 대기하다가
+        // 시전이 끝나는 순간 1타가 자동 발동한다.
         // (IsMovementLocked가 아닌 전용 플래그인 이유: 콤보 연타는 잠금 중에도 허용해야 함)
         if (Combat.IsCastingSkill) return;
-        if (!Movement.IsGrounded) return;  // 접지 상태에서만 점프(공중 점프 방지)
+
+        // 공중 클릭 = 점프 공격(단타). 점프 1회당 1회만 허용한다(기획).
+        if (!Movement.IsGrounded)
+        {
+            if (jumpAttackUsed) return;
+
+            jumpAttackUsed = true;
+            Combat.UseJumpAttack();
+            Movement.SnapToCameraForward();  // 공중에서도 카메라가 보는 방향으로 공격(기획)
+            Movement.SetHover(true);         // 모션 동안 높이 고정 → 종료 시 UnlockMovement가 낙하 재개
+            LockMovement();
+            return;
+        }
+
+        // 달리는 중 클릭 = 달리기 공격(단타). 콤보로 이어지지 않는다(기획).
+        if (Input.IsRunning)
+        {
+            Combat.UseRunAttack();
+            Movement.SnapToCameraForward();
+            LockMovement();
+            return;
+        }
 
         Combat.OnAttackInput();
         Movement.SnapToCameraForward();
