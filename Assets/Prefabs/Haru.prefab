@@ -2795,6 +2795,7 @@ GameObject:
   - component: {fileID: 9056312357072566466}
   - component: {fileID: 6439881692653694405}
   - component: {fileID: 66101262139994632}
+  - component: {fileID: 6067060385132799269}
   m_Layer: 0
   m_Name: Haru
   m_TagString: Player
@@ -3022,6 +3023,15 @@ MonoBehaviour:
       m_Action: Attack
       m_Flags: 0
     m_Flags: 0
+  strongAttackAction:
+    m_Name: Strong Attack
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 11a6ac59-830e-463c-9a78-b7d17fa6f7ee
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
   rollAction:
     m_Name: Roll
     m_Type: 0
@@ -3105,6 +3115,7 @@ MonoBehaviour:
   - 5
   - 8
   - 10
+  strongAttackCooldown: 3
 --- !u!114 &6439881692653694405
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3137,6 +3148,19 @@ MonoBehaviour:
   defense: 0
   maxStamina: 100
   staminaRegenPerSecond: 15
+--- !u!114 &6067060385132799269
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6538841839205138869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f5d922d9b6f0d04bab90d83335b6405, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerEffects
+  effects: []
 --- !u!1 &6586163551300503581
 GameObject:
   m_ObjectHideFlags: 0
