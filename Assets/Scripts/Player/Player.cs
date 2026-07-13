@@ -110,6 +110,7 @@ public class Player : MonoBehaviour
         Input.Attacked += OnAttack;
         Input.StrongAttacked += OnStrongAttack;
         Combat.ComboStepStarted += OnComboStepStarted;
+        Combat.TargetHit += OnTargetHit;
         PlayerEvents.OnPlayerDied += OnDied;   // 죽음 구독
     }
     private void OnDisable()
@@ -118,6 +119,7 @@ public class Player : MonoBehaviour
         Input.Attacked -= OnAttack;
         Input.StrongAttacked -= OnStrongAttack;
         Combat.ComboStepStarted -= OnComboStepStarted;
+        Combat.TargetHit -= OnTargetHit;
         PlayerEvents.OnPlayerDied -= OnDied;   // 죽음 구독 해제
     }
 
@@ -183,9 +185,12 @@ public class Player : MonoBehaviour
         // 별도의 '시전 중' 플래그를 새로 만들지 않고 이동 잠금을 게이트로 재사용한다.
         if (IsMovementLocked) return;
 
-        // ★ 쿨타임 판정을 이동 잠금보다 먼저.
-        //   스킬이 실제로 나갔을 때만 방향 정렬 + 이동 잠금 → 쿨타임 중엔 그냥 계속 움직인다.
-        if (!Combat.UseSkill(n)) return;   // 쿨타임 중/없는 스킬이면 여기서 종료(잠금 X)
+        // ★ 판정 순서: 쿨타임 → 게이지 → 발동.
+        //   쿨타임 중이면 게이지를 건드리지 않고, 게이지가 부족하면 쿨타임도 시작하지 않는다
+        //   → 어느 한쪽만 소모되는 사고가 없다. 발동에 성공했을 때만 방향 정렬 + 이동 잠금.
+        if (!Combat.CanUseSkill(n)) return;
+        if (!Stats.TryUseSkillGauge(Combat.GetSkillGaugeCost(n))) return;
+        if (!Combat.UseSkill(n)) return;   // 쿨타임은 위에서 확인했으므로 사실상 항상 성공
         Movement.SnapToCameraForward();
         LockMovement();                    // 스킬이 실제로 발동할 때만 이동 잠금
     }
@@ -277,6 +282,10 @@ public class Player : MonoBehaviour
         Movement.SnapToCameraForward();
         LockMovement();
     }
+
+    // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다(기획: 때려야 게이지가 찬다).
+    // 회복량은 히트박스 슬롯이 소유(강공격 > 일반)하고, 여기는 이벤트를 연결만 한다.
+    private void OnTargetHit(float gaugeGain) => Stats.GainSkillGauge(gaugeGain);
 
     private void OnDied()
     {

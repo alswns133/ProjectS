@@ -17,11 +17,23 @@ public class FillGauge
     private float target = 1f;       // 이 게이지만의 목표
     private float current = 1f;      // 이 게이지만의 현재값
 
+    private static readonly int FillAmountID = Shader.PropertyToID("_FillAmount");
+
+    private Material material;
+
+    private bool hasFillAmountProperty = false;
+
     // 코루틴은 MonoBehaviour 위에서만 돌 수 있어서, 주인을 받아둠
     public void Init(MonoBehaviour runner)
     {
         this.runner = runner;
 
+        // 머티리얼 인스턴스를 만들어 쓴다. 원본 에셋을 직접 만지면
+        // 같은 머티리얼을 쓰는 다른 게이지와 값이 섞이고, 에디터에선 에셋이 영구 변경된다.
+        material = Object.Instantiate(image.material);
+        image.material = material;
+
+        hasFillAmountProperty = material.HasProperty(FillAmountID);
         Apply(current);   // ★ 시작할 때 초기값을 화면에 한 번 그려줌
     }
 
@@ -54,6 +66,9 @@ public class FillGauge
     // 값을 실제 화면(셰이더 + 텍스트)에 꽂는 일만 담당
     private void Apply(float ratio)
     {
-        image.fillAmount = ratio;
+        if (hasFillAmountProperty)
+            material.SetFloat(FillAmountID, ratio);
+        else
+            image.fillAmount = ratio;
     }
 }
