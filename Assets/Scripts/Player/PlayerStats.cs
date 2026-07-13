@@ -67,6 +67,21 @@ public class PlayerStats : MonoBehaviour, IDamageable
         return true;
     }
 
+    // [2026.07.13 태하] 피격 비네트의 회복 복귀 검증용으로 추가. 포션 등 정식 회복에도 그대로 쓰면 된다.
+    /// <summary>
+    /// HP 회복. 최대 HP를 넘지 않게 잘린다. 사망 상태에서는 무시된다
+    /// (부활은 회복과 다른 흐름이 필요하므로 여기서 처리하지 않는다).
+    /// </summary>
+    /// <param name="amount">회복량(양수만 유효)</param>
+    public void Heal(int amount)
+    {
+        if (IsDead) return;
+        if (amount <= 0) return;
+
+        currentHp = Mathf.Min(maxHp, currentHp + amount);
+        PlayerEvents.FireHpChanged(currentHp, maxHp);
+    }
+
     /// <summary>
     /// IDamageable 기본 경로. 일반 공격은 전부 여기로 들어오며 회피 무적의 영향을 받는다.
     /// </summary>
