@@ -8,12 +8,15 @@ public class EnemyStats : MonoBehaviour, IDamageable
     [SerializeField] private int maxHp = 100;
     [SerializeField] private float damageTextHeight = 0.5f;
     private int currentHp;
+    private Enemy enemy;
 
     public bool IsDead => currentHp <= 0;
 
     private void Awake()
     {
         currentHp = maxHp;
+        // 상태 머신 없이 단독 배치된 대상(테스트용)도 있을 수 있어 null을 허용한다.
+        enemy = GetComponent<Enemy>();
     }
 
     public void TakeDamage(int amount)
@@ -29,11 +32,13 @@ public class EnemyStats : MonoBehaviour, IDamageable
 
         if (IsDead)
         {
-            //Debug.Log($"{name} 사망", this);
             // 비활성화 '전에' 발행해야 구독자(처치 이펙트 등)가 위치를 신뢰할 수 있다.
             CombatEvents.FireEnemyDied(transform.position);
-            // 지금은 그냥 비활성. 나중에 사망 연출·드롭으로 확장
-            gameObject.SetActive(false);
+
+            // 사망 연출(애니메이션·AI/충돌 해제·제거 타이밍)은 DeadState가 담당한다.
+            // 상태 머신이 없는 단독 배치 대상만 예전처럼 즉시 비활성화한다.
+            if (enemy != null) enemy.OnDied();
+            else gameObject.SetActive(false);
         }
     }
 }

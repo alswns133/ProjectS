@@ -15,6 +15,14 @@ public class PlayerStats : MonoBehaviour, IDamageable
 
     private float currentStamina;
 
+    // 스킬의 자원(SG). 스태미나와 달리 자동 재생이 없고,
+    // 공격/스킬을 대상에 적중시켜야만 회복된다(기획) → 전투를 유도하는 자원.
+    // 적중당 회복량은 공격 종류마다 달라 PlayerCombat의 히트박스 슬롯이 소유한다.
+    [Header("Skill Gauge")]
+    [SerializeField] private float maxSkillGauge = 100f;
+
+    private float currentSkillGauge;
+
     public bool IsDead => currentHp <= 0;
 
     /// <summary>
@@ -39,6 +47,10 @@ public class PlayerStats : MonoBehaviour, IDamageable
 
         currentStamina = maxStamina;
         PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
+
+        // 기획: 시작 시 게이지는 가득 찬 상태다.
+        currentSkillGauge = maxSkillGauge;
+        PlayerEvents.FireSgChanged(currentSkillGauge, maxSkillGauge);
     }
 
     private void Update()
@@ -65,6 +77,35 @@ public class PlayerStats : MonoBehaviour, IDamageable
         currentStamina -= amount;
         PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
         return true;
+    }
+
+    /// <summary>
+    /// 스킬 게이지 소모를 시도한다. 잔량이 부족하면 아무것도 소모하지 않고 false를 반환하므로,
+    /// 호출측(Player.OnSkill)은 반환값으로 스킬 발동 여부를 함께 결정한다(TryUseStamina와 동일 계약).
+    /// </summary>
+    /// <param name="amount">소모할 양</param>
+    /// <returns>소모에 성공했으면 true</returns>
+    public bool TryUseSkillGauge(float amount)
+    {
+        if (currentSkillGauge < amount) return false;
+
+        currentSkillGauge -= amount;
+        PlayerEvents.FireSgChanged(currentSkillGauge, maxSkillGauge);
+        return true;
+    }
+
+    /// <summary>
+    /// 공격/스킬이 대상에 적중할 때마다 게이지를 회복한다.
+    /// 회복량은 공격 종류(히트박스 슬롯)마다 달라 호출측이 넘긴다 — 강공격 > 일반 공격(기획).
+    /// 가득 차 있으면 이벤트 발행 없이 조용히 지나간다(무의미한 UI 갱신 방지).
+    /// </summary>
+    /// <param name="amount">회복할 양</param>
+    public void GainSkillGauge(float amount)
+    {
+        if (currentSkillGauge >= maxSkillGauge) return;
+
+        currentSkillGauge = Mathf.Min(maxSkillGauge, currentSkillGauge + amount);
+        PlayerEvents.FireSgChanged(currentSkillGauge, maxSkillGauge);
     }
 
     /// <summary>
