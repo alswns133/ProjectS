@@ -32,6 +32,13 @@ public static class PlayerEvents
     public static event Action<int> OnGoldChanged;
 
     /// <summary>
+    /// 스킬 사용 (스킬 번호, 쿨타임 길이(초)). 발동에 성공한 순간 1회 발행된다.
+    /// UI는 이 신호로 카운트다운을 시작하고 이후는 자체 타이머로 진행한다
+    /// → 남은 시간을 매 프레임 폴링하지 않기 위한 설계.
+    /// </summary>
+    public static event Action<int, float> OnSkillUsed;
+
+    /// <summary>
     /// 플레이어 사망. 구독자(상태머신·UI·사운드·게임매니저 등)가 각자 반응한다.
     /// </summary>
     public static event Action OnPlayerDied;
@@ -85,6 +92,14 @@ public static class PlayerEvents
         => OnGoldChanged?.Invoke(gold);
 
     /// <summary>
+    /// 스킬 사용 이벤트 발행. 쿨타임·게이지 판정을 모두 통과해 실제 발동했을 때만 호출한다.
+    /// </summary>
+    /// <param name="skillNumber">사용한 스킬 번호(1~)</param>
+    /// <param name="cooldown">쿨타임 길이(초)</param>
+    public static void FireSkillUsed(int skillNumber, float cooldown)
+        => OnSkillUsed?.Invoke(skillNumber, cooldown);
+
+    /// <summary>
     /// 플레이어 사망 이벤트 발행. HP가 0에 도달한 순간 1회 호출된다.
     /// </summary>
     public static void FirePlayerDied()
@@ -103,6 +118,7 @@ public static class PlayerEvents
         OnLevelUp = null;
         OnExpChanged = null;
         OnGoldChanged = null;
+        OnSkillUsed = null;
         OnPlayerDied = null;   // ★ 새 이벤트는 여기에도 반드시 추가
     }
 }
