@@ -17,6 +17,7 @@ public class HUDPresenter : BasePresenter
         PlayerEvents.OnSGChanged += OnSgChanged;
         PlayerEvents.OnStaminaChanged += OnStaminaChanged;
         PlayerEvents.OnExpChanged += OnExpChanged;
+        PlayerEvents.OnSkillUsed += OnSkillUsed;
     }
 
     protected override void Unsubscribe()
@@ -25,6 +26,7 @@ public class HUDPresenter : BasePresenter
         PlayerEvents.OnSGChanged -= OnSgChanged;
         PlayerEvents.OnStaminaChanged -= OnStaminaChanged;
         PlayerEvents.OnExpChanged -= OnExpChanged;
+        PlayerEvents.OnSkillUsed -= OnSkillUsed;
     }
 
     // 이벤트 받아서 가공 후 View한테 전달
@@ -39,4 +41,7 @@ public class HUDPresenter : BasePresenter
 
     private void OnExpChanged(int cur, int max)
         => _view.SetExp((float)cur / max);
+
+    private void OnSkillUsed(int skillNumber, float cooldown)
+        => _view.StartSkillCooldown(skillNumber, cooldown);
 }

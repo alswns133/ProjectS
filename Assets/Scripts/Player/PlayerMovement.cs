@@ -42,6 +42,22 @@ public class PlayerMovement : MonoBehaviour
     /// <summary>구르기 지속 시간(초). PlayerRollState가 상태 종료 판정에 쓴다.</summary>
     public float RollDuration => rollDuration;
 
+    /// <summary>
+    /// 공중 정지(호버링) 여부. 점프 공격 모션 동안 켜져 높이가 고정된다(기획).
+    /// </summary>
+    public bool IsHovering { get; private set; }
+
+    /// <summary>
+    /// 호버링을 켜고 끈다. 켜는 순간 수직 속도를 0으로 만들어 그 높이에 멈추고,
+    /// 끄면 멈췄던 높이에서 다시 낙하를 시작한다.
+    /// 켜기: 점프 공격 발동 시(Player.OnAttack). 끄기: 모션 종료(UnlockMovement) 또는 사망.
+    /// </summary>
+    public void SetHover(bool value)
+    {
+        IsHovering = value;
+        if (value) verticalVelocity = 0f;
+    }
+
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
@@ -110,6 +126,13 @@ public class PlayerMovement : MonoBehaviour
 
     private void ApplyGravity(ref Vector3 move)
     {
+        // 호버링(점프 공격) 중에는 중력을 누적하지 않고 높이를 고정한다.
+        if (IsHovering)
+        {
+            move.y = 0f;
+            return;
+        }
+
         // 접지 중에는 작은 음수로 눌러 바닥과의 접촉을 안정화한다.
         if (IsGrounded && verticalVelocity < 0f)
             verticalVelocity = -2f;
