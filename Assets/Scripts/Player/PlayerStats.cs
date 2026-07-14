@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerStats : MonoBehaviour, IDamageable
@@ -15,6 +16,13 @@ public class PlayerStats : MonoBehaviour, IDamageable
 
     private float currentStamina;
 
+    // 피격 경직 튜닝. 이 데미지 이상이면 '강한 피격'으로 분류돼
+    // 별도 모션(doHitLarge)과 더 긴 경직이 적용된다.
+    [Header("Hit Stagger")]
+    [SerializeField] private int strongHitThreshold = 20;
+    [SerializeField] private float hitStaggerDuration = 0.4f;
+    [SerializeField] private float strongHitStaggerDuration = 0.8f;
+
     // 스킬의 자원(SG). 스태미나와 달리 자동 재생이 없고,
     // 공격/스킬을 대상에 적중시켜야만 회복된다(기획) → 전투를 유도하는 자원.
     // 적중당 회복량은 공격 종류마다 달라 PlayerCombat의 히트박스 슬롯이 소유한다.
@@ -24,6 +32,21 @@ public class PlayerStats : MonoBehaviour, IDamageable
     private float currentSkillGauge;
 
     public bool IsDead => currentHp <= 0;
+
+    /// <summary>
+    /// 마지막으로 실제 적용된 타격이 강한 피격이었는지 여부.
+    /// HitState는 피격 모션 분기에, DeadState는 사망 모션 분기(doDie/doDieLarge)에 읽는다.
+    /// </summary>
+    public bool LastHitWasStrong { get; private set; }
+
+    /// <summary>이번 피격의 경직 시간(초). 강한 피격이면 더 길다. HitState가 종료 판정에 쓴다.</summary>
+    public float CurrentStaggerDuration => LastHitWasStrong ? strongHitStaggerDuration : hitStaggerDuration;
+
+    /// <summary>
+    /// 데미지가 실제로 적용됐을 때 발행된다(무적으로 씹은 공격, 사망 타격은 제외 — 사망은 OnPlayerDied가 담당).
+    /// Player가 받아 피격 경직 상태(HitState) 진입으로 연결한다.
+    /// </summary>
+    public event Action Damaged;
 
     /// <summary>
     /// 회피 무적 여부. 구르기 상태(PlayerRollState)가 Enter/Exit에서 켜고 끈다.
@@ -140,10 +163,15 @@ public class PlayerStats : MonoBehaviour, IDamageable
         // 구르기 무적: 즉사기가 아니면 데미지·이벤트 모두 없던 일로 한다
         if (IsInvincible && !ignoreInvincibility) return;
 
+        // 강/약 분류를 HP 반영보다 먼저 확정한다 → 사망 시 DeadState가 바로 읽을 수 있다.
+        LastHitWasStrong = amount >= strongHitThreshold;
+
         currentHp = Mathf.Max(0, currentHp - amount);
         PlayerEvents.FireHpChanged(currentHp, maxHp);
 
         if (IsDead)                          // 이번 데미지로 0이 됐으면
-            PlayerEvents.FirePlayerDied();   // 죽음 발행
+            PlayerEvents.FirePlayerDied();   // 죽음 발행 (경직 대신 사망이 우선)
+        else
+            Damaged?.Invoke();               // 살아 있을 때만 피격 경직으로 연결
     }
 }

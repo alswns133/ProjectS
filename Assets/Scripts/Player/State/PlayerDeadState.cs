@@ -11,7 +11,8 @@ public class PlayerDeadState : BaseState
 
     public override void Enter()
     {
-        player.Animation.PlayDie();   // 사망 애니 트리거
+        // 강한 공격에 죽었으면 별도 사망 모션(doDieLarge)으로 분기한다.
+        player.Animation.PlayDie(player.Stats.LastHitWasStrong);
         // 공격/스킬 도중 사망하면 재생 중이던 이펙트가 남으므로 함께 정리한다.
         player.Effect.AllStopEffect();
         // 점프 공격 호버링 중 사망하면 공중에 뜬 채 굳으므로 여기서도 해제한다.
