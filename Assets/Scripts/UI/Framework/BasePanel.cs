@@ -37,15 +37,15 @@ public abstract class BasePanel : MonoBehaviour
     protected virtual void OnPause() { }
 
     // UIManager만 호출하는 메서드들 ( UIManager에서만 호출하기 때문에 아래에 있는 메서드들은 따로 호출하지 않음)
-    private bool _isInitialized = false;
+    private bool isInitialized = false;
 
     internal void Show()
     {
         // 최초 1회만 초기화
-        if (!_isInitialized)
+        if (!isInitialized)
         {
             OnInit();
-            _isInitialized = true;
+            isInitialized = true;
         }
 
         gameObject.SetActive(true);

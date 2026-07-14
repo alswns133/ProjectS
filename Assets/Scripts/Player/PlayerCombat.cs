@@ -21,6 +21,10 @@ public class PlayerCombat : MonoBehaviour
         public string key;
         public Transform area;
         public int damage = 10;
+
+        // 적중 1회당 회복되는 스킬 게이지(SG). 기획: 강공격은 일반 공격보다 많이 찬다
+        // → 공격 종류 분기 대신 슬롯 값으로 표현한다(강공격 슬롯만 높게 설정).
+        public float gaugeGain = 5f;
     }
 
     [SerializeField] private HitBoxSlot[] attackHitBoxes;
@@ -36,6 +40,10 @@ public class PlayerCombat : MonoBehaviour
     [Header("Skill Cooldown")]
     // 인덱스는 스킬 번호와 맞춘다. [0]은 사용하지 않는 더미 슬롯.
     [SerializeField] private float[] skillCooldowns = { 0f, 5f, 5f, 8f, 10f };
+
+    // 스킬별 게이지(SG) 소모량. skillCooldowns와 같은 규칙(인덱스 = 스킬 번호, [0]은 더미).
+    // 잔량 판정·차감은 PlayerStats가 담당하고, 여기는 '얼마를 쓸지'만 보관한다.
+    [SerializeField] private float[] skillGaugeCosts = { 0f, 25f, 25f, 25f, 25f };
 
     [Header("Strong Attack")]
     // 우클릭 강공격 쿨타임. 스킬과 달리 단일 동작이라 배열 대신 단일 값으로 둔다.
@@ -62,6 +70,13 @@ public class PlayerCombat : MonoBehaviour
     /// 안전장치 타이머나 로코모션 복귀(콤보 루프)로 잠금이 풀린다.
     /// </summary>
     public event Action ComboStepStarted;
+
+    /// <summary>
+    /// 공격/스킬이 대상 하나에 적중할 때마다 발행된다(광역이면 대상 수만큼).
+    /// 인자는 이 적중으로 회복할 스킬 게이지(SG) 양 — 히트박스 슬롯별로 다르다(강공격 > 일반).
+    /// Player가 받아 PlayerStats.GainSkillGauge로 연결한다.
+    /// </summary>
+    public event Action<float> TargetHit;
 
     private void Awake()
     {
@@ -98,6 +113,13 @@ public class PlayerCombat : MonoBehaviour
         return Mathf.Max(0f, skillReadyTime[n] - Time.time);
     }
 
+    /// <summary>n번 스킬의 게이지(SG) 소모량. 범위를 벗어난 번호는 0을 돌려준다.</summary>
+    public float GetSkillGaugeCost(int n)
+    {
+        if (n < 1 || n >= skillGaugeCosts.Length) return 0f;
+        return skillGaugeCosts[n];
+    }
+
     public bool UseSkill(int n)
     {
         if (!CanUseSkill(n)) return false;
@@ -107,6 +129,9 @@ public class PlayerCombat : MonoBehaviour
         skillReadyTime[n] = Time.time + skillCooldowns[n];
         IsCastingSkill = true;
         anim.PlaySkill(n);
+
+        // UI(쿨타임 표시)가 이 신호로 카운트다운을 시작한다. 발동 성공 시에만 발행.
+        PlayerEvents.FireSkillUsed(n, skillCooldowns[n]);
         return true;
     }
 
@@ -197,6 +222,9 @@ public class PlayerCombat : MonoBehaviour
                 // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                 // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
                 CombatEvents.FireHitLanded(buffer[i].ClosestPoint(box.position));
+
+                // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다(기획).
+                TargetHit?.Invoke(slot.gaugeGain);
             }
         }
     }

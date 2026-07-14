@@ -13,7 +13,7 @@ public class JsonManager : MonoBehaviour
     public static JsonManager Instance { get; private set; }
 
     // 각 데이터 테이블을 Type별로 보관하는 딕셔너리
-    private readonly Dictionary<Type, object> _tables = new();
+    private readonly Dictionary<Type, object> tables = new();
 
     /// <summary>
     /// 데이터 로딩이 끝났는지 외부가 확인할 수 있는 플래그
@@ -61,7 +61,7 @@ public class JsonManager : MonoBehaviour
     private async Task RegisterAsync<T>() where T : class, IDataRow
     {
         var dict = await LoadDataDictionaryAsync<T>(typeof(T).Name);
-        _tables[typeof(T)] = dict;
+        tables[typeof(T)] = dict;
     }
 
     // 제네릭을 활용한 데이터 접근 메서드
@@ -73,7 +73,7 @@ public class JsonManager : MonoBehaviour
             return new Dictionary<int, T>();
         }
 
-        if (_tables.TryGetValue(typeof(T), out var table)) 
+        if (tables.TryGetValue(typeof(T), out var table)) 
             return (Dictionary<int, T>)table;
 
         Debug.LogError($"[JsonManager] {typeof(T).Name} 테이블 미로드. RegisterAsync<{typeof(T).Name}>() 추가했나요? (또는 IsReady 확인 전 접근?)");

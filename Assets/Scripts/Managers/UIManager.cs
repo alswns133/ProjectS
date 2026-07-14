@@ -17,14 +17,14 @@ public class UIManager : MonoBehaviour
     private LoadingPanel loadingPanel;
 
     // 패널은 스택으로 (뒤로가기 처리)
-    private readonly Stack<BasePanel> _panelStack = new Stack<BasePanel>();
+    private readonly Stack<BasePanel> panelStack = new Stack<BasePanel>();
 
     // 팝업은 리스트로 (여러 개 동시에 가능)
-    private readonly List<BasePopup> _activePopups = new List<BasePopup>();
+    private readonly List<BasePopup> activePopups = new List<BasePopup>();
 
     // 타입으로 빠르게 찾기 위한 Dictionary
-    private readonly Dictionary<Type, BasePanel> _panelMap = new();
-    private readonly Dictionary<Type, BasePopup> _popupMap = new();
+    private readonly Dictionary<Type, BasePanel> panelMap = new();
+    private readonly Dictionary<Type, BasePopup> popupMap = new();
 
     private void Awake()
     {
@@ -46,13 +46,13 @@ public class UIManager : MonoBehaviour
                 loadingPanel = loading;
                 continue;
             }
-            _panelMap[panel.GetType()] = panel;
+            panelMap[panel.GetType()] = panel;
             basePanels.Add(panel);
         }
 
         foreach (var popup in GetComponentsInChildren<BasePopup>(true))
         {
-            _popupMap[popup.GetType()] = popup;
+            popupMap[popup.GetType()] = popup;
             basePopups.Add(popup);
         }
     }
@@ -82,17 +82,17 @@ public class UIManager : MonoBehaviour
     /// <typeparam name="T">BasePanel을 상속받은 클래스</typeparam>
     public void ShowPanel<T>() where T : BasePanel
     {
-        if (!_panelMap.TryGetValue(typeof(T), out var panel))
+        if (!panelMap.TryGetValue(typeof(T), out var panel))
         {
             Debug.LogWarning($"[UIManager] {typeof(T).Name} 패널이 없음");
             return;
         }
 
         // 현재 패널 Pause
-        if (_panelStack.Count > 0)
-            _panelStack.Peek().Pause();
+        if (panelStack.Count > 0)
+            panelStack.Peek().Pause();
 
-        _panelStack.Push(panel);
+        panelStack.Push(panel);
         panel.Show();
     }
 
@@ -103,13 +103,13 @@ public class UIManager : MonoBehaviour
     public void ClearPanelStack()
     {
         // 열려있는 패널 다 닫기
-        while (_panelStack.Count > 0)
-            _panelStack.Pop().Hide();
+        while (panelStack.Count > 0)
+            panelStack.Pop().Hide();
 
         // 팝업도 정리
-        foreach (var popup in _activePopups)
+        foreach (var popup in activePopups)
             popup.Hide();
-        _activePopups.Clear();
+        activePopups.Clear();
     }
 
     /// <summary>
@@ -119,17 +119,17 @@ public class UIManager : MonoBehaviour
     public void Back()
     {
         // 팝업이 있으면 팝업 먼저 닫기
-        if (_activePopups.Count > 0)
+        if (activePopups.Count > 0)
         {
             CloseTopPopup();
             return;
         }
 
         // 패널이 1개 이하면 종료 (마지막 패널은 안 닫음)
-        if (_panelStack.Count <= 1) return;
+        if (panelStack.Count <= 1) return;
 
-        _panelStack.Pop().Hide();
-        _panelStack.Peek().Resume();
+        panelStack.Pop().Hide();
+        panelStack.Peek().Resume();
     }
 
     /// <summary>
@@ -139,13 +139,13 @@ public class UIManager : MonoBehaviour
     /// <typeparam name="T">BasePopup을 상속받은 클래스</typeparam>
     public void ShowPopup<T>() where T : BasePopup
     {
-        if (!_popupMap.TryGetValue(typeof(T), out var popup))
+        if (!popupMap.TryGetValue(typeof(T), out var popup))
         {
             Debug.LogWarning($"[UIManager] {typeof(T).Name} 팝업이 없음");
             return;
         }
 
-        _activePopups.Add(popup);
+        activePopups.Add(popup);
         popup.Show();
     }
 
@@ -155,10 +155,10 @@ public class UIManager : MonoBehaviour
     /// <param name="popup">닫을 팝업</param>
     internal void ClosePopup(BasePopup popup)
     {
-        if (!_activePopups.Contains(popup)) return;
+        if (!activePopups.Contains(popup)) return;
 
         popup.Hide();
-        _activePopups.Remove(popup);
+        activePopups.Remove(popup);
     }
 
     /// <summary>
@@ -166,7 +166,7 @@ public class UIManager : MonoBehaviour
     /// </summary>
     private void CloseTopPopup()
     {
-        var top = _activePopups[_activePopups.Count - 1];
+        var top = activePopups[activePopups.Count - 1];
         ClosePopup(top);
     }
 
