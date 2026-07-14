@@ -109,7 +109,9 @@ Unity 3D 액션 RPG 프로젝트의 코드 작업 가이드입니다. 런타임 
 ### 이름 규칙
 
 - 클래스, 메서드, 프로퍼티, 상수: `PascalCase`.
-- 지역 변수, 매개변수, private 필드: 기존 파일 스타일을 우선하되 기본은 `camelCase`.
+- 지역 변수, 매개변수, private 필드: `camelCase`. 언더바 접두사(`_view` 같은 형태)는 사용하지 않습니다.
+  기존 코드의 언더바 필드는 2026-07에 일괄 제거했습니다. `[SerializeField]` 필드를 리네임할 때는
+  인스펙터 연결이 끊기지 않게 `[FormerlySerializedAs("옛이름")]`을 함께 붙입니다.
 - 이벤트: `OnXxx`.
 - 이벤트 발행 메서드: `FireXxx`.
 - bool 값: `IsXxx`, `HasXxx`, `CanXxx` 형태를 우선합니다.

@@ -35,7 +35,7 @@ public class HpVignette : MonoBehaviour
 
     private static readonly int DangerId = Shader.PropertyToID("_Danger");
 
-    private Material _hpMaterial; // 인스턴스 복제본. 공유 머티리얼 오염 방지.
+    private Material hpMaterial; // 인스턴스 복제본. 공유 머티리얼 오염 방지.
     private float punchTimer;
     private float lastRatio = 1f;
 
@@ -49,9 +49,9 @@ public class HpVignette : MonoBehaviour
         // 그대로 SetFloat하면 같은 머티리얼을 쓰는 다른 UI까지 함께 글리치된다.
         if (hpImage.material != null)
         {
-            _hpMaterial = Instantiate(hpImage.material);
-            hpImage.material = _hpMaterial;
-            _hpMaterial.SetFloat(DangerId, 0f);
+            hpMaterial = Instantiate(hpImage.material);
+            hpImage.material = hpMaterial;
+            hpMaterial.SetFloat(DangerId, 0f);
         }
 
         SetAlpha(hpImage, 0f);
@@ -63,8 +63,8 @@ public class HpVignette : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_hpMaterial != null)
-            Destroy(_hpMaterial);
+        if (hpMaterial != null)
+            Destroy(hpMaterial);
     }
 
     /// <summary>
@@ -82,10 +82,10 @@ public class HpVignette : MonoBehaviour
 
         // 붉은 농도(선형)와 별개로, 글리치는 glitchStartRatio 아래에서만 올라온다.
         // 평상시엔 조용한 비네트, 위험 구간부터 모니터가 맛가기 시작하는 구조.
-        if (_hpMaterial != null)
+        if (hpMaterial != null)
         {
             float danger = Mathf.InverseLerp(glitchStartRatio, 0f, ratio);
-            _hpMaterial.SetFloat(DangerId, danger);
+            hpMaterial.SetFloat(DangerId, danger);
         }
 
         if (ratio < lastRatio)

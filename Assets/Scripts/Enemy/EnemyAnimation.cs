@@ -34,7 +34,7 @@ public class EnemyAnimation : MonoBehaviour
     /// 대기 애니메이션 2종 중 어떤 것을 재생할지 전달한다.
     /// IdleState가 진입 시 0/1 중 하나를 고르고, Animator는 IdleVariant 값으로 대기 클립을 분기한다.
     /// </summary>
-    public void SetIdleVariant(int index) => animator.SetInteger(IdleVariant, index);
+    public void SetIdleVariant(int index) => animator.SetFloat(IdleVariant, index);
 
     /// <summary>플레이어 발견 연출 트리거. DetectState 진입 시 1회 호출한다.</summary>
     public void PlayDetect() => animator.SetTrigger(DoDetect);
