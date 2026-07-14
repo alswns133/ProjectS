@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// 사망 상태. 사망 연출을 재생하고 AI/충돌을 끈다. 다른 상태로 전환되지 않는 막다른 상태.
@@ -15,6 +15,7 @@ public class EnemyDeadState : EnemyBaseState
         elapsed = 0f;
 
         enemy.Animation.PlayDie();
+        enemy.Effects?.Play(EnemyEffects.EffectCue.Death);
 
         // 시체가 길을 막거나 추가 타격을 받지 않도록 이동과 충돌을 모두 끈다.
         enemy.Movement.DisableAgent();

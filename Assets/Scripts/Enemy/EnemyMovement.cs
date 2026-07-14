@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿﻿using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
@@ -9,6 +9,10 @@ using UnityEngine.AI;
 public class EnemyMovement : MonoBehaviour
 {
     private NavMeshAgent agent;
+
+    // 발견 대시처럼 일시적으로 속도를 바꾼 뒤 원래 값으로 되돌리기 위한 기준 속도.
+    // NavMeshAgent의 기본 speed는 에디터 튜닝 값이므로 Awake에서 보관한다.
+    private float baseSpeed;
 
     /// <summary>현재 이동 속력. 이동 애니메이션 블렌드 값으로 쓴다.</summary>
     public float CurrentSpeed => agent.enabled ? agent.velocity.magnitude : 0f;
@@ -32,6 +36,7 @@ public class EnemyMovement : MonoBehaviour
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        baseSpeed = agent.speed;
     }
 
     /// <summary>목적지를 갱신한다. 추적 상태가 매 프레임 호출한다.</summary>
@@ -64,6 +69,28 @@ public class EnemyMovement : MonoBehaviour
         if (dir.sqrMagnitude < 0.0001f) return;
 
         transform.rotation = Quaternion.LookRotation(dir);
+    }
+
+    /// <summary>
+    /// 기본 NavMeshAgent 속도에 배수를 적용한다.
+    /// DetectState의 발견 대시처럼 짧게 속도를 바꾸는 상태에서만 사용한다.
+    /// </summary>
+    public void SetSpeedMultiplier(float multiplier)
+    {
+        // DetectState 전용 튜닝. multiplier가 음수로 들어와도 역주행하지 않도록 0 이상으로 제한한다.
+        if (agent == null) return;
+        agent.speed = baseSpeed * Mathf.Max(0f, multiplier);
+    }
+
+    /// <summary>
+    /// NavMeshAgent 속도를 Awake에서 저장한 기본값으로 되돌린다.
+    /// 발견 대시가 다른 상태로 끊겨도 속도 변경이 남지 않게 Exit에서 호출한다.
+    /// </summary>
+    public void ResetSpeed()
+    {
+        // DetectState가 끝날 때 반드시 호출해 추격/공격 상태가 원래 이동 속도를 쓰게 한다.
+        if (agent == null) return;
+        agent.speed = baseSpeed;
     }
 
     /// <summary>에이전트를 완전히 끈다. 사망 시 1회 호출하며 되돌리지 않는다.</summary>

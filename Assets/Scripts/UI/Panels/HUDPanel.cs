@@ -23,6 +23,10 @@ public class HUDPanel : BasePanel
     [Header("Skill Cooldown")]
     [SerializeField] private SkillCooldownSlot[] skillSlots = new SkillCooldownSlot[4];
 
+    // [2026.07.13 태하] 피격/저체력 비네트 연출 추가. HP 변경을 받아 비네트에 비율을 전달한다.
+    [Header("Hit Effect")]
+    [SerializeField] private HpVignette _hpVignette;
+
     protected override void OnInit()
     {
         hp.Init(this);
@@ -36,8 +40,16 @@ public class HUDPanel : BasePanel
         staminaRoot.SetActive(false);
     }
 
-    public void SetHp(float ratio) => hp.SetRatio(ratio);
-    public void SetSg(float ratio) => sg.SetRatio(ratio);
+    // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
+    public void SetHp(float ratio)
+    {
+        _hp.SetRatio(ratio);
+        _hpVignette.SetHpRatio(ratio);
+    }
+    public void SetSg(float ratio) => _sg.SetRatio(ratio);
+
+    //public void SetHp(float ratio) => hp.SetRatio(ratio);
+    //public void SetSg(float ratio) => sg.SetRatio(ratio);
 
     /// <summary>
     /// 스태미나 게이지 갱신. 가득 차면 게이지를 숨기고, 소모 중일 때만 보여준다(기획).
