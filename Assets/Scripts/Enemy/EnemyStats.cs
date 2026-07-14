@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+﻿﻿using UnityEngine;
 
 /// <summary>
 /// 몬스터 HP와 사망 판정. 피격 진입점(IDamageable)을 구현한다.
@@ -39,6 +39,10 @@ public class EnemyStats : MonoBehaviour, IDamageable
             // 상태 머신이 없는 단독 배치 대상만 예전처럼 즉시 비활성화한다.
             if (enemy != null) enemy.OnDied();
             else gameObject.SetActive(false);
+        }
+        else
+        {
+            enemy?.OnDamaged();
         }
     }
 }
