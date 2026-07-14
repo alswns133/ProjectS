@@ -137868,6 +137868,7 @@ MonoBehaviour:
   defense: 0
   maxStamina: 100
   staminaRegenPerSecond: 15
+  maxSkillGauge: 100
 --- !u!114 &708303897
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -137898,27 +137899,35 @@ MonoBehaviour:
   - key: Attack1
     area: {fileID: 1122435371}
     damage: 10
+    gaugeGain: 5
   - key: Attack2
     area: {fileID: 1247050516}
     damage: 10
+    gaugeGain: 5
   - key: Attack3
     area: {fileID: 1227683781}
     damage: 10
+    gaugeGain: 5
   - key: Dash_Attack
     area: {fileID: 948307334}
     damage: 10
+    gaugeGain: 5
   - key: Strong_Attack
     area: {fileID: 1882521366}
     damage: 50
+    gaugeGain: 5
   - key: Skill1_1
     area: {fileID: 1091168347}
     damage: 20
+    gaugeGain: 5
   - key: Skill1_2
     area: {fileID: 363867684}
     damage: 20
+    gaugeGain: 5
   - key: Skill1_3
     area: {fileID: 244321023}
     damage: 100
+    gaugeGain: 5
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
@@ -137929,6 +137938,12 @@ MonoBehaviour:
   - 0
   - 0
   - 0
+  skillGaugeCosts:
+  - 0
+  - 25
+  - 25
+  - 25
+  - 25
   strongAttackCooldown: 0
 --- !u!114 &708303899
 MonoBehaviour:
@@ -192410,7 +192425,7 @@ MonoBehaviour:
     Enabled: 1
     CollisionFilter:
       serializedVersion: 2
-      m_Bits: 1
+      m_Bits: 129
     IgnoreTag: Player
     CameraRadius: 0.2
     DampingIntoCollision: 0
@@ -215656,7 +215671,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4677417301979344184, guid: ac39c19646c0ff5478e39d088f54e406, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -3.92
+      value: -6.369
       objectReference: {fileID: 0}
     - target: {fileID: 4677417301979344184, guid: ac39c19646c0ff5478e39d088f54e406, type: 3}
       propertyPath: m_LocalPosition.y
@@ -215664,7 +215679,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4677417301979344184, guid: ac39c19646c0ff5478e39d088f54e406, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 9.66
+      value: 14.32
       objectReference: {fileID: 0}
     - target: {fileID: 4677417301979344184, guid: ac39c19646c0ff5478e39d088f54e406, type: 3}
       propertyPath: m_LocalRotation.w
@@ -254384,6 +254399,73 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 85d273f05a6c60e439cbd3c255a7a3c2, type: 3}
+--- !u!1001 &1357679059
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3074023336519285521, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 7ec7ed8f8a672e647a9fb0ccb8a59646, type: 2}
+    - target: {fileID: 8575666814052449233, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_Name
+      value: Enemy_A
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 12.786
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: -180
+      objectReference: {fileID: 0}
+    - target: {fileID: 8955745566013514091, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8575666814052449233, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1713884778}
+    - targetCorrespondingSourceObject: {fileID: 8575666814052449233, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1713884777}
+  m_SourcePrefab: {fileID: 100100000, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
 --- !u!1001 &1357797836
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -319526,6 +319608,50 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6029872931248605079, guid: f76b34bbacdb7a844b30725620f05be2, type: 3}
   m_PrefabInstance: {fileID: 2069501113}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1713884774 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8575666814052449233, guid: 2d79b83ff7c66954081ef98f1feb70ed, type: 3}
+  m_PrefabInstance: {fileID: 1357679059}
+  m_PrefabAsset: {fileID: 0}
+--- !u!143 &1713884777
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1713884774}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 1.6
+  m_Radius: 0.8
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0.85, z: -0.05}
+--- !u!114 &1713884778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1713884774}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0969458fc0391c342948b439f25b8d0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrainingDummy
+  maxHp: 300
+  damageTextHeight: 1.8
 --- !u!4 &1713980684 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7210471230131241780, guid: 85d273f05a6c60e439cbd3c255a7a3c2, type: 3}
@@ -376976,18 +377102,23 @@ MonoBehaviour:
   - key: 
     area: {fileID: 0}
     damage: 10
+    gaugeGain: 5
   - key: 
     area: {fileID: 0}
     damage: 10
+    gaugeGain: 5
   - key: 
     area: {fileID: 0}
     damage: 10
+    gaugeGain: 5
   - key: 
     area: {fileID: 0}
     damage: 10
+    gaugeGain: 5
   - key: 
     area: {fileID: 0}
     damage: 10
+    gaugeGain: 5
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
@@ -376998,6 +377129,12 @@ MonoBehaviour:
   - 5
   - 8
   - 10
+  skillGaugeCosts:
+  - 0
+  - 25
+  - 25
+  - 25
+  - 25
   strongAttackCooldown: 3
 --- !u!114 &2035824144
 MonoBehaviour:
@@ -377054,6 +377191,7 @@ MonoBehaviour:
   defense: 0
   maxStamina: 100
   staminaRegenPerSecond: 15
+  maxSkillGauge: 100
 --- !u!114 &2035824149
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -407972,6 +408110,7 @@ SceneRoots:
   - {fileID: 199743971}
   - {fileID: 1015314096}
   - {fileID: 525753048}
+  - {fileID: 1357679059}
   - {fileID: 991853996}
   - {fileID: 770570887}
   - {fileID: 1345941773}
