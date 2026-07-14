@@ -10,12 +10,12 @@ using UnityEngine.InputSystem;
 public class PlayerInputHandler : MonoBehaviour
 {
     // 연속 입력: 매 프레임 값이 필요 → 폴링(프로퍼티로 실시간 read)
-    [Header("Continuous")]
+    [Header("연속 입력")]
     [SerializeField] private InputAction moveAction;
     [SerializeField] private InputAction zoomAction;
 
     // 이산 입력: 누른 '순간'이 중요 → 이벤트(콜백)
-    [Header("Discrete")]
+    [Header("단발 입력")]
     [SerializeField] private InputAction jumpAction;
     [SerializeField] private InputAction skillAction;
     [SerializeField] private InputAction attackAction;
@@ -23,7 +23,7 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private InputAction rollAction;   // 구르기(기본 바인딩: Left Shift)
 
     // 달리기 판정: 이동 입력이 끊겼다가 이 시간(초) 안에 다시 시작되면 더블탭으로 본다.
-    [Header("Run")]
+    [Header("달리기")]
     [SerializeField] private float doubleTapWindow = 0.3f;
 
     // 연속 입력은 프로퍼티로 노출. 호출 시점에 즉시 읽으므로 Update 실행 순서에 안 휘둘림.

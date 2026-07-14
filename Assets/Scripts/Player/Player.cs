@@ -54,12 +54,16 @@ public class Player : MonoBehaviour
 
     // 회피(구르기) 1회당 스태미나 소모량. 잔량 판정·차감은 PlayerStats가 담당하고,
     // 여기는 '얼마를 쓸지'만 안다(입력 중재자가 비용을 소유).
-    [Header("Roll")]
+    [Header("구르기")]
     [SerializeField] private float rollStaminaCost = 20f;
+
+    [Header("점프")]
+    [SerializeField, Min(0f)] private float autoJumpDelay = 0.08f;
 
     // 이동 잠금이 시작된 뒤 흐른 시간. 해제 신호(로코모션 복귀)를 놓쳐도
     // 안전장치로 잠금을 풀기 위해 잰다.
     private float actionLockTimer;
+    private float stableGroundedTime;
 
     /// <summary>
     /// 이동이 잠겨 있는지 여부. 공격/스킬 발동 중 true.
@@ -149,6 +153,8 @@ public class Player : MonoBehaviour
             if (actionLockTimer >= maxActionLockTime) UnlockMovement();
         }
 
+        UpdateStableGroundedTime();
+
         // 점프 버튼을 누르고 있으면 착지할 때마다 자동으로 다시 점프(꾹 누르면 연속 점프)
         TryJump();
 
@@ -162,7 +168,22 @@ public class Player : MonoBehaviour
 
         // 착지하면 점프 공격 사용권 회복. IsStablyGrounded를 쓰는 이유:
         // 점프 직후 접지 체크가 몇 프레임 true로 남는 잔존 구간에 리셋되는 것을 막는다.
-        if (Movement.IsStablyGrounded) jumpAttackUsed = false;
+        if (Movement.IsStablyGrounded)
+        {
+            jumpAttackUsed = false;
+
+            // 착지 직전 공중 클릭 레이스 정리: 트리거가 세팅됐지만 애니메이터가 전환을
+            // 평가하기 전에 착지하면 점프 공격이 발동되지 못한다. 이때 로코모션을 벗어난 적이
+            // 없어 ComboResetBehaviour의 정리도 안 타므로, 래치된 트리거(유령 점프 공격의 원인)와
+            // 호버링·시전 플래그가 그대로 남는다 → 접지 상태에서 직접 정리한다.
+            // 정상 점프 공격은 공중 호버링 중(비접지)이라 이 블록에 들어오지 않는다.
+            Animation.ResetJumpAttackTrigger();
+            if (Movement.IsHovering)
+            {
+                Combat.CancelAction();
+                UnlockMovement();   // 내부에서 SetHover(false)도 함께 처리
+            }
+        }
     }
 
     /// <summary>현재 상태를 next로 전환한다. 상태들이 자기 전환을 요청하는 공개 창구.</summary>
@@ -178,12 +199,26 @@ public class Player : MonoBehaviour
         if (IsRolling) return;             // 구르기 중 점프 금지(회피 커밋 유지)
         if (IsStaggered) return;           // 피격 경직 중 점프 금지
         if (IsMovementLocked) return;      // 이동 잠금 상태면 점프 무시(공격/스킬 중 점프 방지)
+        if (stableGroundedTime < autoJumpDelay) return;  // 착지 직후 모션이 정리될 짧은 여유
 
         // 접지/상승 판정은 Movement가 단일 소유(CanJump). 실패하면 여기서 끝
         // → 트리거가 래치된 채 남아 착지 후 점프 모션이 한 번 더 재생되는 것을 막는다.
         if (!Movement.Jump()) return;
+        stableGroundedTime = 0f;
         Animation.PlayJump();              // 실제로 점프했을 때만 모션 트리거
     }
+
+    private void UpdateStableGroundedTime()
+    {
+        if (Movement.IsStablyGrounded)
+        {
+            stableGroundedTime += Time.deltaTime;
+            return;
+        }
+
+        stableGroundedTime = 0f;
+    }
+
     private void OnSkill(int n)
     {
         if (Stats.IsDead) return;

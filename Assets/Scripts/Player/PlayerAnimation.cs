@@ -80,6 +80,8 @@ public class PlayerAnimation : MonoBehaviour
 
     public void ResetAttackTrigger() => animator.ResetTrigger(Attack);
 
+    public void ResetJumpAttackTrigger() => animator.ResetTrigger(JumpAttack);
+
     /// <summary>우클릭 강공격 트리거. PlayerCombat.UseStrongAttack이 발동에 성공했을 때만 호출한다.</summary>
     public void PlayStrongAttack() => animator.SetTrigger(StrongAttack);
 

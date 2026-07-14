@@ -19,9 +19,13 @@ public class EnemyStats : MonoBehaviour, IDamageable
         enemy = GetComponent<Enemy>();
     }
 
-    public void TakeDamage(int amount)
+    /// <summary>
+    /// 데미지 적용. 몬스터는 무적이 없어 살아 있으면 항상 적용된다.
+    /// </summary>
+    /// <returns>실제 적용됐으면 true. 이미 죽은 대상이면 false(IDamageable 계약).</returns>
+    public bool TakeDamage(int amount)
     {
-        if (IsDead) return;                       // 이미 죽었으면 무시(1회 사망 보장)
+        if (IsDead) return false;                 // 이미 죽었으면 무시(1회 사망 보장)
 
         currentHp = Mathf.Max(0, currentHp - amount);
         //Debug.Log($"{name} 피격! {amount} 데미지 → 남은 HP {currentHp}", this);
@@ -44,5 +48,7 @@ public class EnemyStats : MonoBehaviour, IDamageable
         {
             enemy?.OnDamaged();
         }
+
+        return true;
     }
 }
