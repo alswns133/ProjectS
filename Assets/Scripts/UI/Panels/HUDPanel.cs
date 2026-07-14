@@ -43,10 +43,10 @@ public class HUDPanel : BasePanel
     // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
     public void SetHp(float ratio)
     {
-        _hp.SetRatio(ratio);
+        hp.SetRatio(ratio);
         _hpVignette.SetHpRatio(ratio);
     }
-    public void SetSg(float ratio) => _sg.SetRatio(ratio);
+    public void SetSg(float ratio) => sg.SetRatio(ratio);
 
     //public void SetHp(float ratio) => hp.SetRatio(ratio);
     //public void SetSg(float ratio) => sg.SetRatio(ratio);
