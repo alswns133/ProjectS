@@ -79,6 +79,21 @@ public class PlayerStats : MonoBehaviour, IDamageable
         return true;
     }
 
+    // [2026.07.13 태하] 피격 비네트의 회복 복귀 검증용으로 추가. 포션 등 정식 회복에도 그대로 쓰면 된다.
+    /// <summary>
+    /// HP 회복. 최대 HP를 넘지 않게 잘린다. 사망 상태에서는 무시된다
+    /// (부활은 회복과 다른 흐름이 필요하므로 여기서 처리하지 않는다).
+    /// </summary>
+    /// <param name="amount">회복량(양수만 유효)</param>
+    public void Heal(int amount)
+    {
+        if (IsDead) return;
+        if (amount <= 0) return;
+
+        currentHp = Mathf.Min(maxHp, currentHp + amount);
+        PlayerEvents.FireHpChanged(currentHp, maxHp);
+    }
+
     /// <summary>
     /// 스킬 게이지 소모를 시도한다. 잔량이 부족하면 아무것도 소모하지 않고 false를 반환하므로,
     /// 호출측(Player.OnSkill)은 반환값으로 스킬 발동 여부를 함께 결정한다(TryUseStamina와 동일 계약).
