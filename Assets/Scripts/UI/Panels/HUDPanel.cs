@@ -1,7 +1,8 @@
-﻿using TMPro;
+﻿using System.Collections;
+using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
-using System.Collections;
 
 public class HUDPanel : BasePanel
 {
@@ -25,7 +26,8 @@ public class HUDPanel : BasePanel
 
     // [2026.07.13 태하] 피격/저체력 비네트 연출 추가. HP 변경을 받아 비네트에 비율을 전달한다.
     [Header("Hit Effect")]
-    [SerializeField] private HpVignette _hpVignette;
+    [FormerlySerializedAs("_hpVignette")]
+    [SerializeField] private HpVignette hpVignette;
 
     protected override void OnInit()
     {
@@ -44,7 +46,7 @@ public class HUDPanel : BasePanel
     public void SetHp(float ratio)
     {
         hp.SetRatio(ratio);
-        _hpVignette.SetHpRatio(ratio);
+        hpVignette.SetHpRatio(ratio);
     }
     public void SetSg(float ratio) => sg.SetRatio(ratio);
 

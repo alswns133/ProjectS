@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Serialization;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.AddressableAssets;
 using System.Threading.Tasks;
@@ -28,20 +29,23 @@ public class SoundManager : MonoBehaviour
     private const string BGM_VOLUME_PARAM = "BGMVolume";
     private const string SFX_VOLUME_PARAM = "SFXVolume";
 
-    private AudioMixerGroup _bgmGroup;
-    private AudioMixerGroup _sfxGroup;
+    private AudioMixerGroup bgmGroup;
+    private AudioMixerGroup sfxGroup;
 
     // BGM은 보통 1개만 재생되므로 전용 소스 하나만 둠
-    private AudioSource _bgmSource;
+    private AudioSource bgmSource;
 
     // 디버깅용 SerializeField. 빌드 전 주석 해제 → readonly 복구
     // SFX는 Pool로 관리 (동적 확장)
-    [SerializeField] private /*readonly*/ List<AudioSource> _sfxPool = new List<AudioSource>();
+    // FormerlySerializedAs: 언더바 제거 리네임(_sfxPool→sfxPool) 전에 저장된
+    // 인스펙터 연결이 끊기지 않게 유지한다. 씬 재저장 후에는 지워도 된다.
+    [FormerlySerializedAs("_sfxPool")]
+    [SerializeField] private /*readonly*/ List<AudioSource> sfxPool = new List<AudioSource>();
 
     // Addressables로 로드한 클립 캐시 (씬 단위로 로드/해제)
-    private readonly Dictionary<string, AudioClip> _clipCache = new Dictionary<string, AudioClip>();
+    private readonly Dictionary<string, AudioClip> clipCache = new Dictionary<string, AudioClip>();
     // 해제를 위해 핸들도 같이 보관해둠
-    private readonly Dictionary<string, AsyncOperationHandle<AudioClip>> _handles =
+    private readonly Dictionary<string, AsyncOperationHandle<AudioClip>> handles =
         new Dictionary<string, AsyncOperationHandle<AudioClip>>();
 
     private void Awake()
@@ -63,12 +67,12 @@ public class SoundManager : MonoBehaviour
         audioMixer = Resources.Load<AudioMixer>("AudioMixer");
 
         // 믹서 그룹은 한 번만 찾아서 캐싱 (FindMatchingGroups는 비용이 있음)
-        _bgmGroup = audioMixer.FindMatchingGroups(BGM_VOLUME_PARAM)[0];
-        _sfxGroup = audioMixer.FindMatchingGroups(SFX_VOLUME_PARAM)[0];
+        bgmGroup = audioMixer.FindMatchingGroups(BGM_VOLUME_PARAM)[0];
+        sfxGroup = audioMixer.FindMatchingGroups(SFX_VOLUME_PARAM)[0];
 
         // BGM 소스 생성 (2D 사운드)
-        _bgmSource = CreateAudioSource("BGM_Source", _bgmGroup);
-        _bgmSource.spatialBlend = 0f; // 0 = 완전 2D
+        bgmSource = CreateAudioSource("BGM_Source", bgmGroup);
+        bgmSource.spatialBlend = 0f; // 0 = 완전 2D
 
         // SFX Pool 미리 채워두기
         for (int i = 0; i < initialPoolSize; i++)
@@ -90,8 +94,8 @@ public class SoundManager : MonoBehaviour
 
     private AudioSource CreateSfxSource()
     {
-        var source = CreateAudioSource($"SFX_Source_{_sfxPool.Count}", _sfxGroup);
-        _sfxPool.Add(source);
+        var source = CreateAudioSource($"SFX_Source_{sfxPool.Count}", sfxGroup);
+        sfxPool.Add(source);
         return source;
     }
 
@@ -99,20 +103,20 @@ public class SoundManager : MonoBehaviour
     private AudioSource GetAvailableSfxSource()
     {
         // 1순위: 재생 안 하고 노는 소스 찾기
-        for (int i = 0; i < _sfxPool.Count; i++)
+        for (int i = 0; i < sfxPool.Count; i++)
         {
-            if (!_sfxPool[i].isPlaying) return _sfxPool[i];
+            if (!sfxPool[i].isPlaying) return sfxPool[i];
         }
 
         // 2순위: 아직 상한선 안 넘었으면 새로 만들기
-        if (_sfxPool.Count < maxPoolSize)
+        if (sfxPool.Count < maxPoolSize)
         {
             return CreateSfxSource();
         }
 
         // 3순위: 상한선 도달 → 가장 오래된(0번) 소스를 강제로 재활용
         // RPG에서 동시 사운드가 폭발해도 안정적으로 동작하게 하는 fallback
-        return _sfxPool[0];
+        return sfxPool[0];
     }
 
     /// <summary>
@@ -152,15 +156,15 @@ public class SoundManager : MonoBehaviour
     private async Task<AudioClip> LoadClipAsync(string fileName)
     {
         // 이미 캐시에 있으면 그대로 반환
-        if (_clipCache.TryGetValue(fileName, out var cached)) return cached;
+        if (clipCache.TryGetValue(fileName, out var cached)) return cached;
 
         var handle = Addressables.LoadAssetAsync<AudioClip>(fileName);
         await handle.Task;
 
         if (handle.Status == AsyncOperationStatus.Succeeded)
         {
-            _clipCache[fileName] = handle.Result;
-            _handles[fileName] = handle; // 나중에 해제하려고 핸들 보관
+            clipCache[fileName] = handle.Result;
+            handles[fileName] = handle; // 나중에 해제하려고 핸들 보관
             return handle.Result;
         }
 
@@ -177,14 +181,14 @@ public class SoundManager : MonoBehaviour
         StopBgm();
 
         // 재생 중인 SFX도 정지
-        foreach (var src in _sfxPool) src.Stop();
+        foreach (var src in sfxPool) src.Stop();
 
-        foreach (var handle in _handles.Values)
+        foreach (var handle in handles.Values)
         {
             if (handle.IsValid()) Addressables.Release(handle);
         }
-        _handles.Clear();
-        _clipCache.Clear();
+        handles.Clear();
+        clipCache.Clear();
     }
 
 
@@ -207,12 +211,12 @@ public class SoundManager : MonoBehaviour
         if (clip == null) return;
 
         // 이미 같은 곡 재생 중이면 무시
-        if (_bgmSource.clip == clip && _bgmSource.isPlaying) return;
+        if (bgmSource.clip == clip && bgmSource.isPlaying) return;
 
-        _bgmSource.clip = clip;
-        _bgmSource.volume = table.Volume;
-        _bgmSource.loop = table.Loop;
-        _bgmSource.Play();
+        bgmSource.clip = clip;
+        bgmSource.volume = table.Volume;
+        bgmSource.loop = table.Loop;
+        bgmSource.Play();
     }
 
     /// <summary>
@@ -220,8 +224,8 @@ public class SoundManager : MonoBehaviour
     /// </summary>
     public void StopBgm()
     {
-        _bgmSource.Stop();
-        _bgmSource.clip = null;
+        bgmSource.Stop();
+        bgmSource.clip = null;
     }
 
     /// <summary>
