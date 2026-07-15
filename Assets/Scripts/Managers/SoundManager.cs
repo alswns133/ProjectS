@@ -19,7 +19,7 @@ public class SoundManager : MonoBehaviour
 {
     public static SoundManager Instance { get; private set; }
 
-    [Header("Mixer")]
+    [Header("믹서")]
     [SerializeField] private AudioMixer audioMixer; // 에디터 확인용 (빌드 전 정리 가능)
 
     [Header("SFX Pool 설정")]

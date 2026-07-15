@@ -14,7 +14,10 @@ public class PlayerAnimation : MonoBehaviour
     private static readonly int Grounded = Animator.StringToHash("isGrounded");
     private static readonly int DoJump = Animator.StringToHash("doJump");
     private static readonly int DoDie = Animator.StringToHash("doDie");
+    private static readonly int DoDieLarge = Animator.StringToHash("doDieLarge");
     private static readonly int DoRoll = Animator.StringToHash("doRoll");
+    private static readonly int DoHit = Animator.StringToHash("doHit");
+    private static readonly int DoHitLarge = Animator.StringToHash("doHitLarge");
 
     // 스킬 트리거 해시 테이블. [0]은 더미 — 스킬 번호(1~)를 인덱스로 바로 쓰기 위함.
     // 따라서 유효 번호는 1..Length-1. 스킬을 늘리면 여기에 추가.
@@ -77,6 +80,8 @@ public class PlayerAnimation : MonoBehaviour
 
     public void ResetAttackTrigger() => animator.ResetTrigger(Attack);
 
+    public void ResetJumpAttackTrigger() => animator.ResetTrigger(JumpAttack);
+
     /// <summary>우클릭 강공격 트리거. PlayerCombat.UseStrongAttack이 발동에 성공했을 때만 호출한다.</summary>
     public void PlayStrongAttack() => animator.SetTrigger(StrongAttack);
 
@@ -86,5 +91,23 @@ public class PlayerAnimation : MonoBehaviour
     /// <summary>점프 공격(단타) 트리거. 공중 클릭 시 Player가 라우팅한다.</summary>
     public void PlayJumpAttack() => animator.SetTrigger(JumpAttack);
 
-    public void PlayDie() => animator.SetTrigger(DoDie);
+    /// <summary>
+    /// 피격 트리거. HitState 진입 시 1회 호출한다.
+    /// 강한 피격(isLarge)은 별도 모션(doHitLarge)으로 분기한다.
+    /// </summary>
+    public void PlayHit(bool isLarge) => animator.SetTrigger(isLarge ? DoHitLarge : DoHit);
+
+    /// <summary>
+    /// 피격 트리거 해제. HitState Exit에서 호출한다.
+    /// 경직 중 사망/구르기로 끊겼을 때 래치된 트리거가 남아
+    /// 나중에 유령 피격 모션이 재생되는 것을 막는다(ResetRollTrigger와 같은 방침).
+    /// </summary>
+    public void ResetHitTriggers()
+    {
+        animator.ResetTrigger(DoHit);
+        animator.ResetTrigger(DoHitLarge);
+    }
+
+    /// <summary>사망 트리거. 강한 공격에 죽었으면(byLargeHit) 별도 모션(doDieLarge)으로 분기한다.</summary>
+    public void PlayDie(bool byLargeHit) => animator.SetTrigger(byLargeHit ? DoDieLarge : DoDie);
 }

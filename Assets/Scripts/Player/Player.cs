@@ -30,6 +30,7 @@ public class Player : MonoBehaviour
     public PlayerDeadState DeadState { get; private set; }
 
     public PlayerRollState RollState { get; private set; }
+    public PlayerHitState HitState { get; private set; }
     public PlayerEffects Effect { get; private set; }
 
     private PlayerStateMachine sm; // 전환(Exit→Enter)을 책임지는 머신. 내부 전용
@@ -40,6 +41,12 @@ public class Player : MonoBehaviour
     /// </summary>
     public bool IsRolling => sm.Current == RollState;
 
+    /// <summary>
+    /// 피격 경직 중 여부. 경직 동안 점프·공격·스킬 입력을 차단하는 게이트.
+    /// 구르기는 차단하지 않는다(경직을 회피로 캔슬하는 조작 허용 — 회피 최우선 철학).
+    /// </summary>
+    public bool IsStaggered => sm.Current == HitState;
+
     // ── 이동 잠금(공격·스킬 중 이동 차단) ────────────────────────────
     // 해제는 동작이 끝나 로코모션으로 돌아올 때 ComboResetBehaviour가 담당한다.
     // 안전장치: 해제 신호를 놓쳐도 이 시간 뒤 자동 해제
@@ -47,12 +54,16 @@ public class Player : MonoBehaviour
 
     // 회피(구르기) 1회당 스태미나 소모량. 잔량 판정·차감은 PlayerStats가 담당하고,
     // 여기는 '얼마를 쓸지'만 안다(입력 중재자가 비용을 소유).
-    [Header("Roll")]
+    [Header("구르기")]
     [SerializeField] private float rollStaminaCost = 20f;
+
+    [Header("점프")]
+    [SerializeField, Min(0f)] private float autoJumpDelay = 0.08f;
 
     // 이동 잠금이 시작된 뒤 흐른 시간. 해제 신호(로코모션 복귀)를 놓쳐도
     // 안전장치로 잠금을 풀기 위해 잰다.
     private float actionLockTimer;
+    private float stableGroundedTime;
 
     /// <summary>
     /// 이동이 잠겨 있는지 여부. 공격/스킬 발동 중 true.
@@ -101,6 +112,7 @@ public class Player : MonoBehaviour
         FreeState = new PlayerFreeState(this);
         DeadState = new PlayerDeadState(this);
         RollState = new PlayerRollState(this);
+        HitState = new PlayerHitState(this);
     }
 
     // 이벤트 구독/해제는 OnEnable↔OnDisable 짝으로. 짝을 안 맞추면 중복 구독이 쌓인다.
@@ -111,6 +123,7 @@ public class Player : MonoBehaviour
         Input.StrongAttacked += OnStrongAttack;
         Combat.ComboStepStarted += OnComboStepStarted;
         Combat.TargetHit += OnTargetHit;
+        Stats.Damaged += OnDamaged;
         PlayerEvents.OnPlayerDied += OnDied;   // 죽음 구독
     }
     private void OnDisable()
@@ -120,6 +133,7 @@ public class Player : MonoBehaviour
         Input.StrongAttacked -= OnStrongAttack;
         Combat.ComboStepStarted -= OnComboStepStarted;
         Combat.TargetHit -= OnTargetHit;
+        Stats.Damaged -= OnDamaged;
         PlayerEvents.OnPlayerDied -= OnDied;   // 죽음 구독 해제
     }
 
@@ -139,6 +153,8 @@ public class Player : MonoBehaviour
             if (actionLockTimer >= maxActionLockTime) UnlockMovement();
         }
 
+        UpdateStableGroundedTime();
+
         // 점프 버튼을 누르고 있으면 착지할 때마다 자동으로 다시 점프(꾹 누르면 연속 점프)
         TryJump();
 
@@ -152,7 +168,22 @@ public class Player : MonoBehaviour
 
         // 착지하면 점프 공격 사용권 회복. IsStablyGrounded를 쓰는 이유:
         // 점프 직후 접지 체크가 몇 프레임 true로 남는 잔존 구간에 리셋되는 것을 막는다.
-        if (Movement.IsStablyGrounded) jumpAttackUsed = false;
+        if (Movement.IsStablyGrounded)
+        {
+            jumpAttackUsed = false;
+
+            // 착지 직전 공중 클릭 레이스 정리: 트리거가 세팅됐지만 애니메이터가 전환을
+            // 평가하기 전에 착지하면 점프 공격이 발동되지 못한다. 이때 로코모션을 벗어난 적이
+            // 없어 ComboResetBehaviour의 정리도 안 타므로, 래치된 트리거(유령 점프 공격의 원인)와
+            // 호버링·시전 플래그가 그대로 남는다 → 접지 상태에서 직접 정리한다.
+            // 정상 점프 공격은 공중 호버링 중(비접지)이라 이 블록에 들어오지 않는다.
+            Animation.ResetJumpAttackTrigger();
+            if (Movement.IsHovering)
+            {
+                Combat.CancelAction();
+                UnlockMovement();   // 내부에서 SetHover(false)도 함께 처리
+            }
+        }
     }
 
     /// <summary>현재 상태를 next로 전환한다. 상태들이 자기 전환을 요청하는 공개 창구.</summary>
@@ -166,17 +197,33 @@ public class Player : MonoBehaviour
         if (!Input.JumpHeld) return;       // 버튼을 안 누르고 있으면 점프 안 함
         if (Stats.IsDead) return;          // ★ 죽었으면 무시
         if (IsRolling) return;             // 구르기 중 점프 금지(회피 커밋 유지)
+        if (IsStaggered) return;           // 피격 경직 중 점프 금지
         if (IsMovementLocked) return;      // 이동 잠금 상태면 점프 무시(공격/스킬 중 점프 방지)
+        if (stableGroundedTime < autoJumpDelay) return;  // 착지 직후 모션이 정리될 짧은 여유
 
         // 접지/상승 판정은 Movement가 단일 소유(CanJump). 실패하면 여기서 끝
         // → 트리거가 래치된 채 남아 착지 후 점프 모션이 한 번 더 재생되는 것을 막는다.
         if (!Movement.Jump()) return;
+        stableGroundedTime = 0f;
         Animation.PlayJump();              // 실제로 점프했을 때만 모션 트리거
     }
+
+    private void UpdateStableGroundedTime()
+    {
+        if (Movement.IsStablyGrounded)
+        {
+            stableGroundedTime += Time.deltaTime;
+            return;
+        }
+
+        stableGroundedTime = 0f;
+    }
+
     private void OnSkill(int n)
     {
         if (Stats.IsDead) return;
         if (IsRolling) return;             // 구르기 중 스킬 금지(회피 커밋 유지)
+        if (IsStaggered) return;           // 피격 경직 중 스킬 금지
 
         // 동작 중(스킬 시전·공격 콤보 = 이동 잠금 중)에는 새 스킬을 받지 않는다.
         // 막지 않으면 시전 중 누른 스킬의 트리거가 래치되어 현재 스킬이 끝나자마자
@@ -204,6 +251,7 @@ public class Player : MonoBehaviour
     {
         if (Stats.IsDead) return;        // 죽었으면 공격 무시(아까 패턴과 동일)
         if (IsRolling) return;           // 구르기 중 공격 금지(회피 커밋 유지)
+        if (IsStaggered) return;         // 피격 경직 중 공격 금지
 
         // 스킬/단타 공격 시전 중 클릭 차단. 막지 않으면 Attack 트리거가 래치된 채 대기하다가
         // 시전이 끝나는 순간 1타가 자동 발동한다.
@@ -244,6 +292,7 @@ public class Player : MonoBehaviour
     {
         if (Stats.IsDead) return;
         if (IsRolling) return;               // 구르기 커밋 유지
+        if (IsStaggered) return;             // 피격 경직 중 강공격 금지
         if (!Movement.IsGrounded) return;    // 공중 발동 방지(좌클릭과 동일)
 
         // 스킬/강공격 시전 중에는 불가. 이미 쿨타임을 소모한 동작을 도중에 끊지 않는다.
@@ -286,6 +335,17 @@ public class Player : MonoBehaviour
     // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다(기획: 때려야 게이지가 찬다).
     // 회복량은 히트박스 슬롯이 소유(강공격 > 일반)하고, 여기는 이벤트를 연결만 한다.
     private void OnTargetHit(float gaugeGain) => Stats.GainSkillGauge(gaugeGain);
+
+    // 데미지가 실제로 적용됐을 때 피격 경직으로 전환한다.
+    // 구르기 중에는 진입하지 않는다: 일반 공격은 무적으로 애초에 안 들어오고,
+    // 즉사기(무적 관통)가 치명이 아니었던 경우에도 회피 커밋은 유지한다(기획).
+    private void OnDamaged()
+    {
+        if (Stats.IsDead) return;
+        if (IsRolling) return;
+
+        ChangeState(HitState);
+    }
 
     private void OnDied()
     {

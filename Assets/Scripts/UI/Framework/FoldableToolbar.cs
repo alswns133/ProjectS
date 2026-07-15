@@ -10,7 +10,7 @@ using UnityEngine.UI;
 /// </summary>
 public class FoldableToolbar : MonoBehaviour
 {
-    [Header("References")]
+    [Header("참조")]
     [SerializeField] private Button arrowButton;
     [SerializeField] private RectTransform arrow;
 
@@ -18,13 +18,13 @@ public class FoldableToolbar : MonoBehaviour
     // 접을 때는 자동으로 반대(먼 아이콘부터) 순서가 된다.
     [SerializeField] private RectTransform[] icons;
 
-    [Header("Timing")]
+    [Header("타이밍")]
     [SerializeField] private float iconDuration = 0.15f;   // 아이콘 하나가 커지거나 작아지는 시간
     [SerializeField] private float stagger = 0.05f;        // 아이콘 간 시작 시차
     [SerializeField] private AnimationCurve ease = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     // 애로우 스프라이트가 그려진 방향에 따라 인스펙터에서 조정한다.
-    [Header("Arrow")]
+    [Header("화살표")]
     [SerializeField] private float expandedArrowY = 0f;
     [SerializeField] private float foldedArrowY = 180f;
 

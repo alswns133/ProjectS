@@ -5,6 +5,7 @@ using UnityEngine;
 /// 실제 전진은 구르기 클립의 루트 모션이 담당하므로 상태는 방향 정렬과 중력만 처리한다.
 /// 무입력(Idle) 진입은 Player.TryRoll에서 차단된다.
 /// 회피 컨셉: 구르는 동안 일반 공격은 전부 무시하고 즉사기만 맞는다(PlayerStats 참조).
+/// 구르기 종료 후에도 잔여 무적이 잠시 유지된다(PlayerStats.postRollInvincibleDuration).
 /// 공격/스킬 도중에도 진입 가능한 최우선 동작(회피 캔슬)이라, 진입하며 진행 중이던
 /// 전투 동작을 정리한다. 도중에 방향을 꺾을 수 없는 '커밋형' 회피다.
 /// </summary>
@@ -61,6 +62,10 @@ public class PlayerRollState : BaseState
         // 어떤 경로로 상태를 떠나든(정상 종료·사망 전환) 무적이 남지 않게 여기서 해제.
         // ChangeState가 Exit 호출을 보장하므로 이 한 곳이면 충분하다.
         player.Stats.SetInvincible(false);
+
+        // 구르기가 끝난 직후 일어나는 프레임에 바로 얻어맞지 않게 잔여 무적을 부여한다.
+        // 지속 시간은 PlayerStats의 postRollInvincibleDuration(인스펙터)에서 튜닝한다.
+        player.Stats.GrantPostRollInvincibility();
 
         // 애니메이터가 소비하지 못한 doRoll이 래치된 채 남으면
         // 나중에 조건이 맞는 순간 유령 구르기가 재생된다 → 상태를 떠날 때 반드시 정리.

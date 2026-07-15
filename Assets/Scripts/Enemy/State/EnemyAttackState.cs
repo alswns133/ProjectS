@@ -16,8 +16,9 @@ public class EnemyAttackState : EnemyBaseState
         elapsed = 0f;
 
         // 공격 커밋: 시작 순간 대상을 바라본 방향으로 고정한다.
-        // 모션 중 계속 추적하지 않아 플레이어 회피가 의미 있게 작동한다.
+        // 모션 중 계속 추적하지 않아 플레이어의 위치 이동이 의미 있게 작동한다.
         enemy.Movement.Stop();
+        enemy.Animation.SetSpeedImmediate(0f);
         if (enemy.Target != null) enemy.Movement.Face(enemy.Target.position);
 
         // 공격 선택과 쿨다운 소모는 Combat가 소유한다.
@@ -25,7 +26,6 @@ public class EnemyAttackState : EnemyBaseState
         enemy.Combat.BeginAttack(enemy.DistanceToTarget());
         enemy.Animation.PlayAttack(enemy.Combat.CurrentAttackIndex);
         enemy.Effects?.Play(EnemyEffects.EffectCue.Attack);
-        enemy.Animation.SetSpeed(0f);
     }
 
     public override void Update()

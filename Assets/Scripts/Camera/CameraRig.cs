@@ -13,7 +13,7 @@ public class CameraRig : MonoBehaviour
     // 입력은 플레이어 오브젝트에 있으므로 인스펙터로 연결(다른 오브젝트라 GetComponent 불가).
     [SerializeField] private PlayerInputHandler input;
 
-    [Header("Zoom")]
+    [Header("줌")]
     [SerializeField] private float zoomSpeed = 50f;
     [SerializeField] private float minDistance = 2f;   // 줌인 한계(너무 붙지 않게)
     [SerializeField] private float maxDistance = 10f;  // 줌아웃 한계(너무 멀어지지 않게)
