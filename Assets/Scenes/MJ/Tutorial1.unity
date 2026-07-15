@@ -20317,6 +20317,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -20327,6 +20328,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &106833587
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -20356,14 +20358,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1083663124}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 452571270}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -20391,8 +20385,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &106833590
@@ -20404,7 +20400,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 106833584}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -20416,7 +20412,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &106833591
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37672,6 +37668,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -37682,6 +37679,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &201845057
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37711,14 +37709,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1210590985}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 35272073}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -37746,8 +37736,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &201845060
@@ -37759,7 +37751,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 201845054}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -37771,7 +37763,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &201845061
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -60286,6 +60278,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -60296,6 +60289,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &318798157
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -60325,14 +60319,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 497475782}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1037180577}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -60360,8 +60346,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &318798160
@@ -60373,7 +60361,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 318798154}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -60385,7 +60373,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &318798161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -110748,6 +110736,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -110758,6 +110747,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &573715659
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -110787,14 +110777,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 554877190}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 163241961}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -110822,8 +110804,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &573715662
@@ -110835,7 +110819,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 573715656}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -110847,7 +110831,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &573715663
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -124711,6 +124695,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -124721,6 +124706,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &648714299
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -124750,14 +124736,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1625308877}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1765632123}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -124785,8 +124763,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &648714302
@@ -124798,7 +124778,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 648714296}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -124810,7 +124790,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &648714303
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -129521,6 +129501,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -129531,6 +129512,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &670247341
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -129560,14 +129542,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1935755319}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1292619927}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -129595,8 +129569,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &670247344
@@ -129608,7 +129584,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 670247338}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -129620,7 +129596,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &670247345
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -159582,6 +159558,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -159592,6 +159569,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &824580491
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -159621,14 +159599,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1510578316}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 326082860}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -159656,8 +159626,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &824580494
@@ -159669,7 +159641,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 824580488}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -159681,7 +159653,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &824580495
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -179954,6 +179926,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -179964,6 +179937,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 80
 --- !u!114 &933893614
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180028,8 +180002,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &933893617
@@ -188731,6 +188707,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -188741,6 +188718,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &983487386
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -188770,14 +188748,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1618021685}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1492308380}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -188805,8 +188775,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &983487389
@@ -188818,7 +188790,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 983487383}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -188830,7 +188802,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &983487390
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -216328,6 +216300,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -216338,6 +216311,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &1154161686
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -216367,14 +216341,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 483689786}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1871681393}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -216402,8 +216368,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &1154161689
@@ -216415,7 +216383,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 1154161683}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -216427,7 +216395,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &1154161690
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -230718,6 +230686,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -230728,6 +230697,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &1230222270
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -230757,14 +230727,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1898057460}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1597324306}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -230792,8 +230754,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &1230222273
@@ -230805,7 +230769,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 1230222267}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -230817,7 +230781,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &1230222274
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -279923,6 +279887,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -279933,6 +279898,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &1514199364
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -279962,14 +279928,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 877020707}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 867640017}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -279997,8 +279955,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &1514199367
@@ -280010,7 +279970,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 1514199361}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -280022,7 +279982,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &1514199368
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -291005,6 +290965,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -291015,6 +290976,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &1574862740
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -291044,14 +291006,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 1686695382}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 378802071}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -291079,8 +291033,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &1574862743
@@ -291092,7 +291048,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 1574862737}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -291104,7 +291060,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &1574862744
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -352268,6 +352224,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -352278,6 +352235,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &1929798831
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -352307,14 +352265,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 848637346}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 2038922747}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -352342,8 +352292,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &1929798834
@@ -352355,7 +352307,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 1929798828}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -352367,7 +352319,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &1929798835
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -369404,6 +369356,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -369414,6 +369367,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &2012262824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -369443,14 +369397,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 2136512555}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1978888933}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -369478,8 +369424,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &2012262827
@@ -369491,7 +369439,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 2012262821}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -369503,7 +369451,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &2012262828
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -377483,6 +377431,7 @@ MonoBehaviour:
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
   targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
@@ -377493,6 +377442,7 @@ MonoBehaviour:
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
+  surroundAngleRange: 120
 --- !u!114 &2054565473
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -377522,14 +377472,6 @@ MonoBehaviour:
     damage: 0
     hitBox: {fileID: 693767067}
     weight: 1
-  - name: Attack 3
-    animationIndex: 3
-    range: 1.8
-    cooldown: 2
-    duration: 1.2
-    damage: 0
-    hitBox: {fileID: 1162523090}
-    weight: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 256
@@ -377557,8 +377499,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
-  animationSpeedDeadZone: 0.3
   reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
 --- !u!195 &2054565476
@@ -377570,7 +377514,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 2054565470}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.8
+  m_Radius: 0.2
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -377582,7 +377526,7 @@ NavMeshAgent:
   m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_ObstacleAvoidanceType: 1
 --- !u!114 &2054565477
 MonoBehaviour:
   m_ObjectHideFlags: 0
