@@ -81,6 +81,9 @@ public class PlayerCombat : MonoBehaviour
     private PlayerAnimation anim;
     private PlayerInputHandler input;
 
+    // 구르기·피격·사망 중 뒤늦게 도착한 검기 발사 이벤트를 무시하기 위해 상태를 조회할 중앙 컨텍스트.
+    private Player player;
+
     // 콤보 창이 열리기 전에 들어온 공격 입력을 기억해 다음 타로 넘긴다.
     private bool attackBuffered;
     private float[] skillReadyTime;
@@ -107,6 +110,7 @@ public class PlayerCombat : MonoBehaviour
     {
         anim = GetComponent<PlayerAnimation>();
         input = GetComponent<PlayerInputHandler>();
+        player = GetComponent<Player>();
         skillReadyTime = new float[skillCooldowns.Length];
         relayProjectileHit = gain => TargetHit?.Invoke(gain);
 
@@ -301,6 +305,13 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
+        // 구르기·피격 등으로 스킬이 캔슬되면 IsCastingSkill이 꺼진다.
+        // 스킬 클립이 블렌드 아웃되며 이 이벤트가 뒤늦게 도착해도 검기가 나가지 않게 막는다.
+        if (!IsCastingSkill) return;
+
+        // 사망 등 IsCastingSkill이 남아 있을 수 있는 중단 경로까지 이펙트와 같은 기준으로 막는다.
+        if (player.IsActionInterrupted) return;
+
         swordWaveSpawner.Fire(
             slot.muzzle.position,
             slot.muzzle.rotation,
@@ -344,7 +355,7 @@ public class PlayerCombat : MonoBehaviour
         // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
         comboStep = step;
         ComboStepStarted?.Invoke();
-        Debug.Log(comboStep);
+        DevLog.Log(comboStep);
     }
 
     public void ClearAttackBuffer()
@@ -372,7 +383,7 @@ public class PlayerCombat : MonoBehaviour
         // Locomotion 복귀 시 호출된다. 콤보와 스킬 시전 상태를 모두 정리한다.
         comboStep = 0;
         EndSkillCast();
-        Debug.Log(comboStep);
+        DevLog.Log(comboStep);
     }
 
     /// <summary>
@@ -387,5 +398,10 @@ public class PlayerCombat : MonoBehaviour
         attackBuffered = false;
         EndSkillCast();
         ClearAttackBuffer();
+
+        // 강공격·달리기 공격 트리거도 래치될 수 있다(ClearAttackBuffer는 일반 Attack만 지운다).
+        // 피격·구르기로 캔슬된 뒤 이 둘이 남아 유령 발동하는 것을 막는다.
+        anim.ResetStrongAttackTrigger();
+        anim.ResetRunAttackTrigger();
     }
 }

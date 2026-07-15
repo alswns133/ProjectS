@@ -35,8 +35,13 @@ public class PlayerEffects : MonoBehaviour
     // 매 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
     private readonly Dictionary<string, EffectSlot> effectMap = new Dictionary<string, EffectSlot>();
 
+    // 구르기·피격·사망 중 뒤늦게 도착한 이펙트 이벤트를 무시하기 위해 상태를 조회할 중앙 컨텍스트.
+    private Player player;
+
     private void Awake()
     {
+        player = GetComponent<Player>();
+
         if (effects == null) return;
 
         foreach (var slot in effects)
@@ -69,6 +74,10 @@ public class PlayerEffects : MonoBehaviour
     /// </summary>
     public void OnEffect(string key)
     {
+        // 구르기·피격·사망으로 동작이 중단됐으면, 블렌드 아웃 중 뒤늦게 도착한 이펙트를 무시한다.
+        // 입력을 막는 조건과 동일(Player.IsActionInterrupted) → 이벤트도 같은 기준으로 게이트.
+        if (player.IsActionInterrupted) return;
+
         if (!TryGetSlot(key, out EffectSlot slot)) return;
 
         if (slot.anchorToWorld)
