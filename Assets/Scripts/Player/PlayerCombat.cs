@@ -27,11 +27,35 @@ public class PlayerCombat : MonoBehaviour
         public float gaugeGain = 5f;
     }
 
+    // 검기처럼 몸에서 떨어져 날아가는 판정은 히트 박스 대신 투사체로 내보낸다.
+    // 슬롯 키 체계는 HitBoxSlot과 동일: 클립 Animation Event의 string 인자와 맞춘다.
+    [Serializable]
+    private class ProjectileSlot
+    {
+        public string key;
+
+        // 발사 위치·방향 기준 Transform. 보통 캐릭터 가슴 높이의 자식 오브젝트를 쓴다.
+        public Transform muzzle;
+        public int damage = 15;
+        public float gaugeGain = 5f;
+
+        // 관통 여부. true면 경로 위 여러 적을 연속 타격, false면 첫 적중에 소멸한다.
+        public bool canPierce = true;
+    }
+
     [SerializeField] private HitBoxSlot[] attackHitBoxes;
     [SerializeField] private LayerMask enemyMask;
 
+    [Header("투사체 스킬")]
+    [SerializeField] private SwordWaveSpawner swordWaveSpawner;
+    [SerializeField] private ProjectileSlot[] projectileSlots;
+
     // 매 히트 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
     private readonly Dictionary<string, HitBoxSlot> hitBoxMap = new Dictionary<string, HitBoxSlot>();
+    private readonly Dictionary<string, ProjectileSlot> projectileMap = new Dictionary<string, ProjectileSlot>();
+
+    // 투사체 적중을 TargetHit으로 중계하는 캐시 델리게이트. 발사마다 람다를 새로 만들지 않기 위함.
+    private Action<float> relayProjectileHit;
 
     // 현재 재생 중인 콤보 단계. 0이면 콤보가 시작되지 않은 상태다.
     // 실제 단계 확정은 OnAttackStart Animation Event에서 한다.
@@ -83,21 +107,40 @@ public class PlayerCombat : MonoBehaviour
         anim = GetComponent<PlayerAnimation>();
         input = GetComponent<PlayerInputHandler>();
         skillReadyTime = new float[skillCooldowns.Length];
+        relayProjectileHit = gain => TargetHit?.Invoke(gain);
 
-        if (attackHitBoxes == null) return;
-
-        foreach (HitBoxSlot slot in attackHitBoxes)
+        if (attackHitBoxes != null)
         {
-            if (slot == null || string.IsNullOrEmpty(slot.key)) continue;
-
-            // 키 중복을 조용히 덮어쓰면 한쪽 판정이 영영 안 나가 원인 찾기 어렵다 → 경고.
-            if (hitBoxMap.ContainsKey(slot.key))
+            foreach (HitBoxSlot slot in attackHitBoxes)
             {
-                Debug.LogWarning($"Duplicate hit box key '{slot.key}'. Only the first slot is used.", this);
-                continue;
-            }
+                if (slot == null || string.IsNullOrEmpty(slot.key)) continue;
 
-            hitBoxMap.Add(slot.key, slot);
+                // 키 중복을 조용히 덮어쓰면 한쪽 판정이 영영 안 나가 원인 찾기 어렵다 → 경고.
+                if (hitBoxMap.ContainsKey(slot.key))
+                {
+                    Debug.LogWarning($"Duplicate hit box key '{slot.key}'. Only the first slot is used.", this);
+                    continue;
+                }
+
+                hitBoxMap.Add(slot.key, slot);
+            }
+        }
+
+        if (projectileSlots != null)
+        {
+            foreach (ProjectileSlot slot in projectileSlots)
+            {
+                if (slot == null || string.IsNullOrEmpty(slot.key)) continue;
+
+                // 히트 박스와 같은 방침: 키 중복은 경고를 남기고 첫 슬롯만 쓴다.
+                if (projectileMap.ContainsKey(slot.key))
+                {
+                    Debug.LogWarning($"Duplicate projectile key '{slot.key}'. Only the first slot is used.", this);
+                    continue;
+                }
+
+                projectileMap.Add(slot.key, slot);
+            }
         }
     }
 
@@ -229,6 +272,41 @@ public class PlayerCombat : MonoBehaviour
                 TargetHit?.Invoke(slot.gaugeGain);
             }
         }
+    }
+
+    /// <summary>
+    /// 스킬 클립의 Animation Event가 검기를 내보내는 프레임에 호출한다. 인자는 투사체 슬롯 키.
+    /// 판정 결과가 이펙트·게이지 회복으로 이어지는 흐름은 OnHitFrame과 같고,
+    /// 판정 주체만 히트 박스에서 날아가는 투사체로 바뀐다.
+    /// </summary>
+    public void OnProjectileFrame(string key)
+    {
+        // Animation Event의 인자 실수(오타·빈칸)는 플레이를 멈추지 않고 경고만 남긴다.
+        if (string.IsNullOrEmpty(key) || !projectileMap.TryGetValue(key, out ProjectileSlot slot))
+        {
+            Debug.LogWarning($"Projectile key not found ('{key}'). Check the Animation Event string.", this);
+            return;
+        }
+
+        if (slot.muzzle == null)
+        {
+            Debug.LogWarning($"Projectile muzzle is missing ('{key}').", this);
+            return;
+        }
+
+        if (swordWaveSpawner == null)
+        {
+            Debug.LogWarning("SwordWaveSpawner is not assigned.", this);
+            return;
+        }
+
+        swordWaveSpawner.Fire(
+            slot.muzzle.position,
+            slot.muzzle.rotation,
+            slot.damage,
+            slot.gaugeGain,
+            slot.canPierce,
+            relayProjectileHit);
     }
 
     private void OnDrawGizmosSelected()
