@@ -1,7 +1,8 @@
-﻿using TMPro;
+﻿using System.Collections;
+using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
-using System.Collections;
 
 public class HUDPanel : BasePanel
 {
@@ -14,21 +15,19 @@ public class HUDPanel : BasePanel
 
     // 스태미나는 FillGauge(Image/Text 참조)와 별개로 껐다 켤 루트 오브젝트가 필요하다.
     // FillGauge는 컴포넌트가 아닌 직렬화 클래스라 자기 GameObject를 모른다.
-    [Header("Stamina")]
+    [Header("스태미나")]
     [SerializeField] private FillGauge stamina;
     [SerializeField] private GameObject staminaRoot;
 
     // 인덱스 = 스킬 번호 - 1 (슬롯 0 = 스킬 1). 코드의 [0] 더미 규칙과 달리
     // 인스펙터에서 빈 첫 칸이 생기지 않게 UI 쪽은 실제 슬롯 수만큼만 둔다.
-    [Header("Skill Cooldown")]
+    [Header("스킬 쿨타임")]
     [SerializeField] private SkillCooldownSlot[] skillSlots = new SkillCooldownSlot[4];
 
     // [2026.07.13 태하] 피격/저체력 비네트 연출 추가. HP 변경을 받아 비네트에 비율을 전달한다.
-    [Header("Hit Effect")]
-    [SerializeField] private HpVignette _hpVignette;
-
-    // [2026.07.13 태하] HP바 심전도 연출 추가. HP 비율을 셰이더 _Alive(1=박동, 0=플랫라인)로 전달한다.
-    [SerializeField] private HpEcg _hpEcg;
+    [Header("피격 효과")]
+    [FormerlySerializedAs("_hpVignette")]
+    [SerializeField] private HpVignette hpVignette;
 
     protected override void OnInit()
     {
@@ -47,8 +46,7 @@ public class HUDPanel : BasePanel
     public void SetHp(float ratio)
     {
         hp.SetRatio(ratio);
-        _hpVignette.SetHpRatio(ratio);
-        _hpEcg.SetHpRatio(ratio);
+        hpVignette.SetHpRatio(ratio);
     }
     public void SetSg(float ratio) => sg.SetRatio(ratio);
 

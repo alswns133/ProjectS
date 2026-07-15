@@ -17,7 +17,7 @@ public class HpVignette : MonoBehaviour
     [SerializeField] private Image hpImage;    // HP가 낮을수록 짙어지는 상시 오버레이
     [SerializeField] private Image hitImage;   // 피격 순간 번쩍했다가 감쇠하는 플래시
 
-    [Header("Tuning")]
+    [Header("튜닝")]
     // HP 0일 때 hpImage의 알파(0~1). 255 기준 100 ≒ 0.39. 1에 가까우면 화면이
     // 완전히 가려져 플레이가 불가능해지므로 Range로 상한을 막아 둔다.
     [SerializeField, Range(0f, 0.8f)] private float maxAlpha = 0.25f;
@@ -28,14 +28,14 @@ public class HpVignette : MonoBehaviour
     // hitImage가 0으로 가라앉는 시간.
     [SerializeField] private float punchFadeDuration = 0.25f;
 
-    [Header("Glitch (DangerGlitchVignette 셰이더)")]
+    [Header("글리치 (DangerGlitchVignette 셰이더)")]
     // 이 HP 비율 아래부터 글리치가 시작된다. 비율이 여기서 0으로 떨어지는 동안
     // _Danger가 0 -> 1로 올라간다. 1로 두면 HP가 조금만 깎여도 글리치가 켜진다.
     [SerializeField, Range(0.05f, 1f)] private float glitchStartRatio = 0.4f;
 
     private static readonly int DangerId = Shader.PropertyToID("_Danger");
 
-    private Material _hpMaterial; // 인스턴스 복제본. 공유 머티리얼 오염 방지.
+    private Material hpMaterial; // 인스턴스 복제본. 공유 머티리얼 오염 방지.
     private float punchTimer;
     private float lastRatio = 1f;
 
@@ -49,9 +49,9 @@ public class HpVignette : MonoBehaviour
         // 그대로 SetFloat하면 같은 머티리얼을 쓰는 다른 UI까지 함께 글리치된다.
         if (hpImage.material != null)
         {
-            _hpMaterial = Instantiate(hpImage.material);
-            hpImage.material = _hpMaterial;
-            _hpMaterial.SetFloat(DangerId, 0f);
+            hpMaterial = Instantiate(hpImage.material);
+            hpImage.material = hpMaterial;
+            hpMaterial.SetFloat(DangerId, 0f);
         }
 
         SetAlpha(hpImage, 0f);
@@ -63,8 +63,8 @@ public class HpVignette : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_hpMaterial != null)
-            Destroy(_hpMaterial);
+        if (hpMaterial != null)
+            Destroy(hpMaterial);
     }
 
     /// <summary>
@@ -82,10 +82,10 @@ public class HpVignette : MonoBehaviour
 
         // 붉은 농도(선형)와 별개로, 글리치는 glitchStartRatio 아래에서만 올라온다.
         // 평상시엔 조용한 비네트, 위험 구간부터 모니터가 맛가기 시작하는 구조.
-        if (_hpMaterial != null)
+        if (hpMaterial != null)
         {
             float danger = Mathf.InverseLerp(glitchStartRatio, 0f, ratio);
-            _hpMaterial.SetFloat(DangerId, danger);
+            hpMaterial.SetFloat(DangerId, danger);
         }
 
         if (ratio < lastRatio)

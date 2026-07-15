@@ -23,10 +23,11 @@ public class EnemyDetectState : EnemyBaseState
         if (enemy.Target != null)
         {
             // 발견 대시는 플레이어 쪽으로 압박하는 연출이므로 목적지를 즉시 갱신한다.
+            // 목적지는 Chase와 같은 분산 교전 지점을 쓴다 → 동시 발견 시 대시부터 한 점으로 몰리지 않는다.
             // Target이 없으면 애니메이션만 재생하고 duration 후 Chase로 넘어가며, Chase가 다시 null을 처리한다.
             enemy.Movement.Resume();
             enemy.Movement.Face(enemy.Target.position);
-            enemy.Movement.SetDestination(enemy.Target.position);
+            enemy.Movement.SetDestination(enemy.GetChaseDestination());
         }
     }
 
@@ -37,10 +38,11 @@ public class EnemyDetectState : EnemyBaseState
         // 대시 중에도 목적지는 갱신해 플레이어 쪽으로 압박한다.
         if (enemy.Target != null)
         {
-            enemy.Movement.SetDestination(enemy.Target.position);
+            enemy.Movement.SetDestination(enemy.GetChaseDestination());
             enemy.Animation.SetSpeed(enemy.Movement.CurrentSpeed);
         }
 
+        // 연출이 끝나면 무조건 추적으로 넘긴다.
         if (elapsed >= enemy.DetectDuration)
             enemy.StateMachine.ChangeState(enemy.ChaseState);
     }

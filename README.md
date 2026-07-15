@@ -177,6 +177,10 @@ Assets/Scripts
 - Addressables로 로드한 리소스는 사용이 끝나면 Release합니다.
 - 데미지 대상은 구체 클래스가 아니라 `IDamageable`로 다룹니다.
 
+주요 설계 결정과 그 근거는 [docs/decisions/](docs/decisions/)에 ADR(Architecture Decision Record)로 기록합니다.
+
+- [ADR-001: JSON 테이블과 Addressables 적용 범위](docs/decisions/001-addressables-and-data-scope.md)
+
 ## 현재 강점
 
 - 플레이어 기능이 역할별 컴포넌트로 명확히 분리되어 있습니다.

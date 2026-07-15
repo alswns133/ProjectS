@@ -30,11 +30,14 @@ public class EnemyAnimation : MonoBehaviour
     /// <summary>현재 이동 속력. 이동/걷기 애니메이션 블렌드 값으로 쓴다.</summary>
     public void SetSpeed(float speed) => animator.SetFloat(Speed, speed, Damp, Time.deltaTime);
 
+    /// <summary>감쇠 없이 이동 블렌드 값을 즉시 바꾼다. 공격 진입처럼 모션을 바로 끊을 때 쓴다.</summary>
+    public void SetSpeedImmediate(float speed) => animator.SetFloat(Speed, speed);
+
     /// <summary>
     /// 대기 애니메이션 2종 중 어떤 것을 재생할지 전달한다.
     /// IdleState가 진입 시 0/1 중 하나를 고르고, Animator는 IdleVariant 값으로 대기 클립을 분기한다.
     /// </summary>
-    public void SetIdleVariant(int index) => animator.SetInteger(IdleVariant, index);
+    public void SetIdleVariant(int index) => animator.SetFloat(IdleVariant, index);
 
     /// <summary>플레이어 발견 연출 트리거. DetectState 진입 시 1회 호출한다.</summary>
     public void PlayDetect() => animator.SetTrigger(DoDetect);
