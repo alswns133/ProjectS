@@ -59,6 +59,7 @@ public class PlayerCombat : MonoBehaviour
 
     // 현재 재생 중인 콤보 단계. 0이면 콤보가 시작되지 않은 상태다.
     // 실제 단계 확정은 OnAttackStart Animation Event에서 한다.
+    [Header("현재 콤보")]
     [SerializeField] private int comboStep = 0;
 
     [Header("스킬 쿨타임")]
