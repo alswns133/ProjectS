@@ -17,7 +17,7 @@ public class HpVignette : MonoBehaviour
     [SerializeField] private Image hpImage;    // HP가 낮을수록 짙어지는 상시 오버레이
     [SerializeField] private Image hitImage;   // 피격 순간 번쩍했다가 감쇠하는 플래시
 
-    [Header("Tuning")]
+    [Header("튜닝")]
     // HP 0일 때 hpImage의 알파(0~1). 255 기준 100 ≒ 0.39. 1에 가까우면 화면이
     // 완전히 가려져 플레이가 불가능해지므로 Range로 상한을 막아 둔다.
     [SerializeField, Range(0f, 0.8f)] private float maxAlpha = 0.25f;
@@ -28,7 +28,7 @@ public class HpVignette : MonoBehaviour
     // hitImage가 0으로 가라앉는 시간.
     [SerializeField] private float punchFadeDuration = 0.25f;
 
-    [Header("Glitch (DangerGlitchVignette 셰이더)")]
+    [Header("글리치 (DangerGlitchVignette 셰이더)")]
     // 이 HP 비율 아래부터 글리치가 시작된다. 비율이 여기서 0으로 떨어지는 동안
     // _Danger가 0 -> 1로 올라간다. 1로 두면 HP가 조금만 깎여도 글리치가 켜진다.
     [SerializeField, Range(0.05f, 1f)] private float glitchStartRatio = 0.4f;

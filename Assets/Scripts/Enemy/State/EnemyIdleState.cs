@@ -20,7 +20,7 @@ public class EnemyIdleState : EnemyBaseState
         enemy.Animation.SetSpeed(0f);
 
         // 첫 발견은 바로 Chase로 가지 않고 DetectState를 거쳐 발견 연출/대시를 재생한다.
-        if (enemy.DistanceToTarget() <= enemy.DetectionRange)
+        if (enemy.CanDetectTarget())
             enemy.StateMachine.ChangeState(enemy.DetectState);
     }
 }

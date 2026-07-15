@@ -19,7 +19,7 @@ public class PlayerMovement : MonoBehaviour
     // 구르기 튜닝. 상태 클래스(PlayerRollState)는 MonoBehaviour가 아니라
     // 인스펙터 값을 못 가지므로, 이동 소관인 여기에 두고 프로퍼티로 노출한다.
     // 이동 속도는 따로 없다: 구르기 전진은 클립의 루트 모션이 담당한다.
-    [Header("Roll")]
+    [Header("구르기")]
     [SerializeField] private float rollDuration = 0.6f; // 구르기 지속 시간(초). 클립 길이와 맞출 것
 
     private CharacterController controller;

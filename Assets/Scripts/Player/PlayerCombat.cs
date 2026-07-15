@@ -37,7 +37,7 @@ public class PlayerCombat : MonoBehaviour
     // 실제 단계 확정은 OnAttackStart Animation Event에서 한다.
     [SerializeField] private int comboStep = 0;
 
-    [Header("Skill Cooldown")]
+    [Header("스킬 쿨타임")]
     // 인덱스는 스킬 번호와 맞춘다. [0]은 사용하지 않는 더미 슬롯.
     [SerializeField] private float[] skillCooldowns = { 0f, 5f, 5f, 8f, 10f };
 
@@ -45,7 +45,7 @@ public class PlayerCombat : MonoBehaviour
     // 잔량 판정·차감은 PlayerStats가 담당하고, 여기는 '얼마를 쓸지'만 보관한다.
     [SerializeField] private float[] skillGaugeCosts = { 0f, 25f, 25f, 25f, 25f };
 
-    [Header("Strong Attack")]
+    [Header("강공격")]
     // 우클릭 강공격 쿨타임. 스킬과 달리 단일 동작이라 배열 대신 단일 값으로 둔다.
     [SerializeField] private float strongAttackCooldown = 3f;
 
@@ -217,7 +217,9 @@ public class PlayerCombat : MonoBehaviour
             // 대상 쪽은 IDamageable 계약만 알면 된다. 적 종류별 HP 구현은 여기서 몰라도 된다.
             if (buffer[i].TryGetComponent<IDamageable>(out var target))
             {
-                target.TakeDamage(slot.damage);
+                // 데미지가 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다.
+                // 시체 타격으로 스킬 게이지를 채우는 악용을 막는 효과도 겸한다.
+                if (!target.TakeDamage(slot.damage)) continue;
 
                 // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                 // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.

@@ -23,7 +23,7 @@ public class EnemyPatrolState : EnemyBaseState
     public override void Update()
     {
         // 순찰보다 발견이 우선이다.
-        if (enemy.DistanceToTarget() <= enemy.DetectionRange)
+        if (enemy.CanDetectTarget())
         {
             enemy.StateMachine.ChangeState(enemy.DetectState);
             return;

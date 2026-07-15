@@ -8,35 +8,48 @@ using UnityEngine.AI;
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyMovement : MonoBehaviour
 {
+    [SerializeField, Min(0f)] private float animationSpeedDeadZone = 0.3f;
+    [SerializeField, Min(0f)] private float reachSampleHeightTolerance = 0.5f;
+
+    // 회피 우선순위 범위. 전원이 같은 값(유니티 기본 50)이면 밀집 시 서로 대칭으로
+    // 밀어내는 회피 계산이 반복되어 제자리 떨림이 생긴다. 개체마다 다른 값을 주면
+    // 낮은 숫자(높은 우선순위) 쪽이 길을 얻고 나머지가 비켜서며 떨림이 크게 줄어든다.
+    [Header("군중 회피")]
+    [SerializeField, Range(0, 99)] private int avoidancePriorityMin = 30;
+    [SerializeField, Range(0, 99)] private int avoidancePriorityMax = 70;
+
     private NavMeshAgent agent;
+    private NavMeshPath path;
 
     // 발견 대시처럼 일시적으로 속도를 바꾼 뒤 원래 값으로 되돌리기 위한 기준 속도.
     // NavMeshAgent의 기본 speed는 에디터 튜닝 값이므로 Awake에서 보관한다.
     private float baseSpeed;
 
-    /// <summary>현재 이동 속력. 이동 애니메이션 블렌드 값으로 쓴다.</summary>
-    public float CurrentSpeed => agent.enabled ? agent.velocity.magnitude : 0f;
+    /// <summary>현재 이동 속력. 아주 작은 잔여 속도는 대기 모션으로 취급한다.</summary>
+    public float CurrentSpeed
+    {
+        get
+        {
+            if (!agent.enabled || agent.isStopped) return 0f;
 
-    /// <summary>
-    /// 목적지까지 온전한 경로가 있는지 여부. 플레이어가 점프로 지형 위에 올라가는 등
-    /// NavMesh 밖에 있으면 false가 된다(PathPartial/PathInvalid).
-    /// 경로 계산 중(pathPending)에는 아직 모르는 상태이므로 낙관적으로 true를 돌려준다
-    /// → 계산이 끝나기 전에 추적을 성급하게 멈추지 않기 위함.
-    /// </summary>
-    public bool HasReachablePath => !agent.enabled || agent.pathPending
-        || agent.pathStatus == NavMeshPathStatus.PathComplete;
+            float speed = agent.velocity.magnitude;
+            return speed < animationSpeedDeadZone ? 0f : speed;
+        }
+    }
 
-    /// <summary>
-    /// 현재 경로의 끝에 도달했는지 여부. 부분 경로일 때 이게 true면
-    /// "갈 수 있는 데까지 다 갔다"는 뜻이라, 추적 상태가 대기 전환 판정에 쓴다.
-    /// </summary>
+    /// <summary>현재 경로의 끝에 도달했는지 여부. 순찰 상태가 지점 도착 판정에 쓴다.</summary>
     public bool ReachedPathEnd => agent.enabled && !agent.pathPending
         && agent.remainingDistance <= agent.stoppingDistance;
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        path = new NavMeshPath();
         baseSpeed = agent.speed;
+
+        // Random.Range(int)는 max가 배타적이므로 +1로 최댓값도 포함시킨다.
+        agent.avoidancePriority = Random.Range(
+            avoidancePriorityMin, Mathf.Max(avoidancePriorityMin, avoidancePriorityMax) + 1);
     }
 
     /// <summary>목적지를 갱신한다. 추적 상태가 매 프레임 호출한다.</summary>
@@ -45,6 +58,25 @@ public class EnemyMovement : MonoBehaviour
         // 사망(에이전트 꺼짐)이나 NavMesh 밖 스폰 직후 호출돼도 예외가 나지 않게 방어한다.
         if (!agent.enabled || !agent.isOnNavMesh) return;
         agent.SetDestination(worldPos);
+    }
+
+    /// <summary>지정 위치까지 완전한 NavMesh 경로가 있는지 검사한다.</summary>
+    public bool CanReach(Vector3 worldPos, float sampleRadius)
+    {
+        if (!agent.enabled || !agent.isOnNavMesh) return false;
+
+        if (!NavMesh.SamplePosition(
+            worldPos, // 검사할 목표 위치: 보통 플레이어 위치
+            out NavMeshHit hit, // 목표 주변에서 찾은 가장 가까운 NavMesh 지점
+            sampleRadius, // 검색 반경: 플레이어가 NavMesh에서 살짝 떠 있거나 가장자리에 있을 때 보정할 거리
+            agent.areaMask)) // 이 에이전트가 이동 가능한 NavMesh Area 마스크
+            return false;
+
+        // 점프로 올라간 높은 지형 아래의 NavMesh가 잡히면 갈 수 있다고 오판할 수 있다.
+        if (Mathf.Abs(hit.position.y - worldPos.y) > reachSampleHeightTolerance) return false;
+        if (!agent.CalculatePath(hit.position, path)) return false;
+
+        return path.status == NavMeshPathStatus.PathComplete;
     }
 
     /// <summary>이동을 멈춘다(경로는 유지). 대기·공격 상태 진입 시 호출한다.</summary>

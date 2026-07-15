@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerStats : MonoBehaviour, IDamageable
@@ -9,16 +10,28 @@ public class PlayerStats : MonoBehaviour, IDamageable
     [SerializeField] private int defense;
 
     // 회피(구르기)의 자원. 소모는 TryUseStamina, 회복은 Update의 자동 재생이 담당한다.
-    [Header("Stamina")]
+    [Header("스태미나")]
     [SerializeField] private float maxStamina = 100f;
     [SerializeField] private float staminaRegenPerSecond = 15f;
 
     private float currentStamina;
 
+    // 피격 경직 튜닝. 이 데미지 이상이면 '강한 피격'으로 분류돼
+    // 별도 모션(doHitLarge)과 더 긴 경직이 적용된다.
+    [Header("피격 경직")]
+    [SerializeField] private int strongHitThreshold = 20;
+    [SerializeField] private float hitStaggerDuration = 0.4f;
+    [SerializeField] private float strongHitStaggerDuration = 0.8f;
+
+    // 구르기 모션이 끝난 뒤에도 유지되는 잔여 무적 시간(초).
+    // 구르기 판정 종료와 동시에 무적이 끊기면 일어나는 프레임에 바로 얻어맞아 회피가 빡빡하게 느껴진다.
+    [Header("회피 무적")]
+    [SerializeField, Min(0f)] private float postRollInvincibleDuration = 1f;
+
     // 스킬의 자원(SG). 스태미나와 달리 자동 재생이 없고,
     // 공격/스킬을 대상에 적중시켜야만 회복된다(기획) → 전투를 유도하는 자원.
     // 적중당 회복량은 공격 종류마다 달라 PlayerCombat의 히트박스 슬롯이 소유한다.
-    [Header("Skill Gauge")]
+    [Header("스킬 게이지")]
     [SerializeField] private float maxSkillGauge = 100f;
 
     private float currentSkillGauge;
@@ -26,16 +39,45 @@ public class PlayerStats : MonoBehaviour, IDamageable
     public bool IsDead => currentHp <= 0;
 
     /// <summary>
-    /// 회피 무적 여부. 구르기 상태(PlayerRollState)가 Enter/Exit에서 켜고 끈다.
+    /// 마지막으로 실제 적용된 타격이 강한 피격이었는지 여부.
+    /// HitState는 피격 모션 분기에, DeadState는 사망 모션 분기(doDie/doDieLarge)에 읽는다.
+    /// </summary>
+    public bool LastHitWasStrong { get; private set; }
+
+    /// <summary>이번 피격의 경직 시간(초). 강한 피격이면 더 길다. HitState가 종료 판정에 쓴다.</summary>
+    public float CurrentStaggerDuration => LastHitWasStrong ? strongHitStaggerDuration : hitStaggerDuration;
+
+    /// <summary>
+    /// 데미지가 실제로 적용됐을 때 발행된다(무적으로 씹은 공격, 사망 타격은 제외 — 사망은 OnPlayerDied가 담당).
+    /// Player가 받아 피격 경직 상태(HitState) 진입으로 연결한다.
+    /// </summary>
+    public event Action Damaged;
+
+    /// <summary>
+    /// 회피 무적 여부. 두 경로의 합이다:
+    /// 구르기 중 수동 무적(PlayerRollState가 Enter/Exit에서 켜고 끔) + 구르기 종료 후 잔여 무적(타이머).
     /// true인 동안 일반 공격 데미지는 무시되고, 즉사기(ignoreInvincibility)만 통과한다.
     /// </summary>
-    public bool IsInvincible { get; private set; }
+    public bool IsInvincible => manualInvincible || Time.time < invincibleUntilTime;
+
+    // 구르기 상태가 Enter/Exit 짝으로 제어하는 수동 무적.
+    // 잔여 무적(invincibleUntilTime)과 분리해 두어, Exit의 해제 보장이 타이머와 얽히지 않는다.
+    private bool manualInvincible;
+    private float invincibleUntilTime;
 
     /// <summary>
     /// 무적 상태를 켜고 끈다. 호출측(구르기 상태)이 Enter/Exit 짝으로 호출해야
     /// 무적이 영구히 남는 사고가 없다(상태 머신의 Exit 보장에 기댄다).
     /// </summary>
-    public void SetInvincible(bool value) => IsInvincible = value;
+    public void SetInvincible(bool value) => manualInvincible = value;
+
+    /// <summary>
+    /// 구르기 종료 직후의 잔여 무적을 부여한다. PlayerRollState.Exit가 호출한다.
+    /// SetInvincible(false)와 별도의 타이머로 동작하므로 "Exit에서 반드시 해제" 규칙과 충돌하지 않고,
+    /// 시간이 지나면 저절로 풀려 무적이 영구히 남는 사고도 없다.
+    /// </summary>
+    public void GrantPostRollInvincibility()
+        => invincibleUntilTime = Time.time + postRollInvincibleDuration;
 
     private void Start()
     {
@@ -126,24 +168,33 @@ public class PlayerStats : MonoBehaviour, IDamageable
     /// <summary>
     /// IDamageable 기본 경로. 일반 공격은 전부 여기로 들어오며 회피 무적의 영향을 받는다.
     /// </summary>
-    public void TakeDamage(int amount) => TakeDamage(amount, false);
+    /// <returns>데미지가 실제로 적용됐으면 true. 무적/사망으로 씹혔으면 false(IDamageable 계약).</returns>
+    public bool TakeDamage(int amount) => TakeDamage(amount, false);
 
     /// <summary>
     /// 데미지 적용. 즉사기처럼 회피 불가 판정이 필요한 공격만 ignoreInvincibility를 true로 호출한다.
     /// </summary>
     /// <param name="amount">데미지 양</param>
     /// <param name="ignoreInvincibility">true면 구르기 무적을 관통(즉사기 전용)</param>
-    public void TakeDamage(int amount, bool ignoreInvincibility)
+    /// <returns>데미지가 실제로 적용됐으면 true. 때린 쪽이 히트 이펙트 발행 여부를 이 값으로 분기한다.</returns>
+    public bool TakeDamage(int amount, bool ignoreInvincibility)
     {
-        if (IsDead) return;   // ★ 이 가드가 죽음 1회 발행을 보장하는 핵심
+        if (IsDead) return false;   // ★ 이 가드가 죽음 1회 발행을 보장하는 핵심
 
         // 구르기 무적: 즉사기가 아니면 데미지·이벤트 모두 없던 일로 한다
-        if (IsInvincible && !ignoreInvincibility) return;
+        if (IsInvincible && !ignoreInvincibility) return false;
+
+        // 강/약 분류를 HP 반영보다 먼저 확정한다 → 사망 시 DeadState가 바로 읽을 수 있다.
+        LastHitWasStrong = amount >= strongHitThreshold;
 
         currentHp = Mathf.Max(0, currentHp - amount);
         PlayerEvents.FireHpChanged(currentHp, maxHp);
 
         if (IsDead)                          // 이번 데미지로 0이 됐으면
-            PlayerEvents.FirePlayerDied();   // 죽음 발행
+            PlayerEvents.FirePlayerDied();   // 죽음 발행 (경직 대신 사망이 우선)
+        else
+            Damaged?.Invoke();               // 살아 있을 때만 피격 경직으로 연결
+
+        return true;
     }
 }
