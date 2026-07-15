@@ -27,6 +27,9 @@ public class HUDPanel : BasePanel
     [Header("Hit Effect")]
     [SerializeField] private HpVignette _hpVignette;
 
+    // [2026.07.13 태하] HP바 심전도 연출 추가. HP 비율을 셰이더 _Alive(1=박동, 0=플랫라인)로 전달한다.
+    [SerializeField] private HpEcg _hpEcg;
+
     protected override void OnInit()
     {
         hp.Init(this);
@@ -43,10 +46,11 @@ public class HUDPanel : BasePanel
     // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
     public void SetHp(float ratio)
     {
-        _hp.SetRatio(ratio);
+        hp.SetRatio(ratio);
         _hpVignette.SetHpRatio(ratio);
+        _hpEcg.SetHpRatio(ratio);
     }
-    public void SetSg(float ratio) => _sg.SetRatio(ratio);
+    public void SetSg(float ratio) => sg.SetRatio(ratio);
 
     //public void SetHp(float ratio) => hp.SetRatio(ratio);
     //public void SetSg(float ratio) => sg.SetRatio(ratio);

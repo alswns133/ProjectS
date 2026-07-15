@@ -185395,18 +185395,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81ef383357c212440bffdf8c6aa7deda, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HUDPanel
-  _hp:
+  hp:
     image: {fileID: 958489234}
     lerpSpeed: 1
-  _sg:
+  sg:
     image: {fileID: 22813059}
     lerpSpeed: 1
   expBar: {fileID: 2099597889}
-  _stamina:
-    image: {fileID: 2005580542}
+  stamina:
+    image: {fileID: 0}
     lerpSpeed: 1
-  _staminaRoot: {fileID: 2005580540}
+  staminaRoot: {fileID: 2005580540}
+  skillSlots:
+  - overlay: {fileID: 0}
+    remainText: {fileID: 0}
+  - overlay: {fileID: 0}
+    remainText: {fileID: 0}
+  - overlay: {fileID: 0}
+    remainText: {fileID: 0}
+  - overlay: {fileID: 0}
+    remainText: {fileID: 0}
   _hpVignette: {fileID: 5124834}
+  _hpEcg: {fileID: 958489235}
 --- !u!114 &874654250
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -200535,6 +200545,7 @@ GameObject:
   - component: {fileID: 958489233}
   - component: {fileID: 958489234}
   - component: {fileID: 958489232}
+  - component: {fileID: 958489235}
   m_Layer: 5
   m_Name: HP Bar
   m_TagString: Untagged
@@ -200613,6 +200624,19 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &958489235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 958489230}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe934180220a2ed459aee195aada58f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HpEcg
+  ecgImage: {fileID: 958489234}
 --- !u!1001 &958685760
 PrefabInstance:
   m_ObjectHideFlags: 0
