@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -107,7 +107,7 @@ public class PlayerEffects : MonoBehaviour
         foreach (var slot in effects)
         {
             // 아직 안 채운 슬롯이 있어도 순회가 끊기지 않게 건너뛴다.
-            if (slot != null && slot.particle != null)
+            if (slot != null && slot.particle != null && !slot.anchorToWorld)
                 slot.particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
     }

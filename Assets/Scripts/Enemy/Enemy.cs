@@ -33,6 +33,11 @@ public class Enemy : MonoBehaviour
     [SerializeField, Min(0f)] private float targetNavMeshSampleRadius = 0.5f;
     [SerializeField, Min(0.02f)] private float targetPathCheckInterval = 0.25f;
 
+    // 경계 상황(플레이어 점프, NavMesh 가장자리)에서 경로 검사 결과가 매번 뒤집히며
+    // 추격↔대기가 떨리는 것을 막는다. 반대 결과가 이 횟수만큼 연속돼야 판정을 바꾼다.
+    // targetPathCheckInterval × 이 값 = 판정이 바뀌는 데 필요한 최소 시간.
+    [SerializeField, Min(1)] private int reachResultConfirmCount = 3;
+
     // ── 피격 경직 ────────────────────────────────────────────────────
     // 피격 경직 설정. 일반 몬스터는 켜고, 보스/슈퍼아머 몬스터는 끄는 식으로 쓴다.
     // hitStunCooldown은 연타를 맞을 때 매 프레임 HitState로 재진입하는 것을 막는 안전장치다.
@@ -72,6 +77,11 @@ public class Enemy : MonoBehaviour
     // 앞이 막혔을 때 목적지를 트는 각도(타겟 중심 접선 방향). 방향은 개체별 좌/우 랜덤 고정.
     // 작으면 옆으로 도는 티가 안 나서 계속 뒤에서 밀고, 크면 크게 우회해 포위가 빨라지는 대신 동선이 과장돼 보인다.
     [SerializeField, Range(0f, 90f)] private float allySidestepAngle = 45f;
+
+    // 개체별 포위 각도 범위(±도). 접근 방향에 개체마다 고정 랜덤 각을 더해
+    // 같은 방향에서 온 개체들도 플레이어 주위 서로 다른 방위로 갈라져 들어간다.
+    // 0이면 접근 방향 그대로 목적지를 잡아 한쪽에 뭉치고, 클수록 뒤까지 도는 완전 포위에 가까워진다.
+    [SerializeField, Range(0f, 180f)] private float surroundAngleRange = 80f;
 
     /// <summary>HP와 사망 판정을 소유하는 스탯 컴포넌트.</summary>
     public EnemyStats Stats { get; private set; }
@@ -129,10 +139,12 @@ public class Enemy : MonoBehaviour
     private float nextHitStunTime;
     private float nextPathCheckTime;
     private bool cachedCanReachTarget;
+    private int reachFlipStreak;
 
     // 군중 제어 개체값. Awake에서 한 번 뽑아 고정한다.
     private float combatDistanceFactor;
     private float sidestepSign;
+    private float surroundAngleOffset;
     private readonly RaycastHit[] allyBlockHits = new RaycastHit[8];
 
     private void Awake()
@@ -160,6 +172,7 @@ public class Enemy : MonoBehaviour
         combatDistanceFactor = Random.Range(
             combatDistanceFactorMin, Mathf.Max(combatDistanceFactorMin, combatDistanceFactorMax));
         sidestepSign = Random.value < 0.5f ? -1f : 1f;
+        surroundAngleOffset = Random.Range(-surroundAngleRange, surroundAngleRange);
     }
 
     private void Start()
@@ -191,6 +204,9 @@ public class Enemy : MonoBehaviour
     /// <summary>
     /// 타겟 위치까지 NavMesh 완전 경로가 있는지 주기적으로 검사한다.
     /// 플레이어가 점프로만 갈 수 있는 곳에 있으면 false가 되어 추격 대신 바라보기로 처리된다.
+    /// 단발 검사 결과로 바로 판정을 뒤집지 않고 반대 결과가 연속으로 확정 횟수만큼 나와야 바꾼다.
+    /// 점프 궤적이나 NavMesh 가장자리처럼 검사마다 결과가 흔들리는 상황에서
+    /// 추격↔대기가 매 검사 주기로 떨리는 것을 막기 위함이다.
     /// </summary>
     public bool CanReachTarget()
     {
@@ -198,7 +214,21 @@ public class Enemy : MonoBehaviour
         if (Time.time < nextPathCheckTime) return cachedCanReachTarget;
 
         nextPathCheckTime = Time.time + targetPathCheckInterval;
-        cachedCanReachTarget = Movement.CanReach(Target.position, targetNavMeshSampleRadius);
+
+        bool raw = Movement.CanReach(Target.position, targetNavMeshSampleRadius);
+        if (raw == cachedCanReachTarget)
+        {
+            reachFlipStreak = 0;
+            return cachedCanReachTarget;
+        }
+
+        reachFlipStreak++;
+        if (reachFlipStreak >= reachResultConfirmCount)
+        {
+            cachedCanReachTarget = raw;
+            reachFlipStreak = 0;
+        }
+
         return cachedCanReachTarget;
     }
 
@@ -219,6 +249,9 @@ public class Enemy : MonoBehaviour
         // 타겟과 정확히 겹쳐 방향을 구할 수 없으면 타겟 등 뒤를 기본 방향으로 쓴다.
         if (direction.sqrMagnitude < 0.0001f) direction = -Target.forward;
         direction.Normalize();
+
+        // 개체별 고정 포위각을 더해 같은 방향에서 온 개체들의 목적지 방위를 흩뿌린다.
+        direction = Quaternion.AngleAxis(surroundAngleOffset, Vector3.up) * direction;
 
         // 회전 방향(sidestepSign)은 개체별로 고정한다. 매번 다시 뽑으면
         // 좌우 목적지 사이를 오가며 떨고, 전원이 같은 쪽이면 한 줄로 따라돌기만 한다.

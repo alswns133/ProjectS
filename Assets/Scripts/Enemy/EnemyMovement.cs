@@ -8,8 +8,19 @@ using UnityEngine.AI;
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyMovement : MonoBehaviour
 {
-    [SerializeField, Min(0f)] private float animationSpeedDeadZone = 0.3f;
     [SerializeField, Min(0f)] private float reachSampleHeightTolerance = 0.5f;
+
+    // 밀집 시 회피 계산으로 순간 속도가 프레임마다 진동해 걷기↔대기 애니메이션이 깜빡이는 것을 막는 설정.
+    // 속도를 평활화한 뒤 시작/멈춤 문턱을 분리(히스테리시스)해 문턱 근처 진동이 판정을 못 뒤집게 한다.
+    [Header("애니메이션 속도 판정")]
+    [SerializeField, Min(0f)] private float animationSpeedDeadZone = 0.3f;
+
+    // 순간 속도를 이 시간에 걸친 지수 평균으로 뭉갠다. 0이면 즉시 반영.
+    [SerializeField, Min(0f)] private float speedSmoothingTime = 0.2f;
+
+    // 움직임 시작으로 인정하는 문턱. 멈춤 문턱(deadZone)보다 높게 잡아야
+    // 두 문턱 사이에서 진동하는 속도가 걷기/대기 판정을 뒤집지 못한다.
+    [SerializeField, Min(0f)] private float animationMoveStartThreshold = 0.6f;
 
     // 회피 우선순위 범위. 전원이 같은 값(유니티 기본 50)이면 밀집 시 서로 대칭으로
     // 밀어내는 회피 계산이 반복되어 제자리 떨림이 생긴다. 개체마다 다른 값을 주면
@@ -25,17 +36,15 @@ public class EnemyMovement : MonoBehaviour
     // NavMeshAgent의 기본 speed는 에디터 튜닝 값이므로 Awake에서 보관한다.
     private float baseSpeed;
 
-    /// <summary>현재 이동 속력. 아주 작은 잔여 속도는 대기 모션으로 취급한다.</summary>
-    public float CurrentSpeed
-    {
-        get
-        {
-            if (!agent.enabled || agent.isStopped) return 0f;
+    // 애니메이션 속도 판정용 내부 상태. Update에서 갱신한다.
+    private float smoothedSpeed;
+    private bool isMovingForAnimation;
 
-            float speed = agent.velocity.magnitude;
-            return speed < animationSpeedDeadZone ? 0f : speed;
-        }
-    }
+    /// <summary>
+    /// 애니메이션 블렌드용 이동 속력. 순간 속도가 아니라 평활화 + 이중 문턱을 거친 값이라
+    /// 밀집 시 회피 진동에도 걷기/대기가 깜빡이지 않는다. 대기 판정이면 0을 돌려준다.
+    /// </summary>
+    public float CurrentSpeed => isMovingForAnimation ? smoothedSpeed : 0f;
 
     /// <summary>현재 경로의 끝에 도달했는지 여부. 순찰 상태가 지점 도착 판정에 쓴다.</summary>
     public bool ReachedPathEnd => agent.enabled && !agent.pathPending
@@ -50,6 +59,26 @@ public class EnemyMovement : MonoBehaviour
         // Random.Range(int)는 max가 배타적이므로 +1로 최댓값도 포함시킨다.
         agent.avoidancePriority = Random.Range(
             avoidancePriorityMin, Mathf.Max(avoidancePriorityMin, avoidancePriorityMax) + 1);
+    }
+
+    private void Update()
+    {
+        float raw = (!agent.enabled || agent.isStopped) ? 0f : agent.velocity.magnitude;
+
+        // 지수 이동 평균. Lerp 계수를 deltaTime 기반 지수식으로 계산해 프레임레이트와 무관하게 감쇠된다.
+        smoothedSpeed = speedSmoothingTime <= 0f
+            ? raw
+            : Mathf.Lerp(smoothedSpeed, raw, 1f - Mathf.Exp(-Time.deltaTime / speedSmoothingTime));
+
+        // 이중 문턱: 시작은 높은 문턱, 멈춤은 낮은 문턱. 사이 구간에서는 현재 판정을 유지한다.
+        if (isMovingForAnimation)
+        {
+            if (smoothedSpeed < animationSpeedDeadZone) isMovingForAnimation = false;
+        }
+        else
+        {
+            if (smoothedSpeed >= animationMoveStartThreshold) isMovingForAnimation = true;
+        }
     }
 
     /// <summary>목적지를 갱신한다. 추적 상태가 매 프레임 호출한다.</summary>
