@@ -17321,7 +17321,7 @@ MonoBehaviour:
   audioMixer: {fileID: 0}
   initialPoolSize: 10
   maxPoolSize: 30
-  _sfxPool: []
+  sfxPool: []
 --- !u!4 &652147648
 Transform:
   m_ObjectHideFlags: 0
@@ -25822,7 +25822,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85f695238f296224e9ad4a2317fc770e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HUDPresenter
-  _view: {fileID: 1048877917}
+  view: {fileID: 1048877917}
 --- !u!114 &1048877917
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -25855,8 +25855,8 @@ MonoBehaviour:
     remainText: {fileID: 0}
   - overlay: {fileID: 0}
     remainText: {fileID: 0}
-  _hpVignette: {fileID: 1231608106}
-  _hpEcg: {fileID: 1991260694}
+  hpVignette: {fileID: 1231608106}
+  hpEcg: {fileID: 1991260698}
 --- !u!114 &1048877918
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -48581,8 +48581,8 @@ GameObject:
   - component: {fileID: 1991260693}
   - component: {fileID: 1991260697}
   - component: {fileID: 1991260696}
+  - component: {fileID: 1991260698}
   - component: {fileID: 1991260695}
-  - component: {fileID: 1991260694}
   m_Layer: 5
   m_Name: HP Bar
   m_TagString: Untagged
@@ -48610,19 +48610,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1991260694
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1991260692}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe934180220a2ed459aee195aada58f3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HpEcg
-  ecgImage: {fileID: 1991260696}
 --- !u!114 &1991260695
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -48674,6 +48661,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1991260692}
   m_CullTransparentMesh: 1
+--- !u!114 &1991260698
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1991260692}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe934180220a2ed459aee195aada58f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HpEcg
+  ecgImage: {fileID: 1991260696}
 --- !u!1 &1992953960
 GameObject:
   m_ObjectHideFlags: 0

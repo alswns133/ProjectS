@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
@@ -17,17 +17,22 @@ public class HpEcg : MonoBehaviour
     // 영구 수정되고, 같은 머티리얼을 쓰는 다른 UI에도 값이 번진다.
     private Material _material;
 
-    private void Awake()
-    {
-        _material = Instantiate(ecgImage.material);
-        ecgImage.material = _material;
-        _material.SetFloat(AliveId, 1f);
-    }
+    //private void Awake()
+    //{
+    //    _material = Instantiate(ecgImage.material);
+    //    ecgImage.material = _material;
+    //    _material.SetFloat(AliveId, 1f);
+    //}
 
-    private void OnDestroy()
+    //private void OnDestroy()
+    //{
+    //    if (_material != null)
+    //        Destroy(_material);
+    //}
+
+    public void SetMaterial(Material material)
     {
-        if (_material != null)
-            Destroy(_material);
+        _material = material;
     }
 
     /// <summary>

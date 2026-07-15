@@ -21,6 +21,8 @@ public class FillGauge
 
     private Material material;
 
+    public Material Material => material;
+
     private bool hasFillAmountProperty = false;
 
     // 코루틴은 MonoBehaviour 위에서만 돌 수 있어서, 주인을 받아둠
