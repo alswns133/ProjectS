@@ -175,7 +175,7 @@ public class UIManager : MonoBehaviour
     private void OnBack(InputAction.CallbackContext context)
     {
         Back();
-        Debug.Log("[UIManager] Back");
+        DevLog.Log("[UIManager] Back");
     }
 
 
