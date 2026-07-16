@@ -73,7 +73,7 @@ public class AddressableManager : MonoBehaviour
     {
         System.GC.Collect();
         Resources.UnloadUnusedAssets();
-        Debug.Log("강제 GC 실행 완료");
+        DevLog.Log("강제 GC 실행 완료");
     }
 
     public void NextScene()

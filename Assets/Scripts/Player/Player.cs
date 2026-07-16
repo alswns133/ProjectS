@@ -47,6 +47,14 @@ public class Player : MonoBehaviour
     /// </summary>
     public bool IsStaggered => sm.Current == HitState;
 
+    /// <summary>
+    /// 구르기·피격·사망으로 전투 동작이 중단된 상태인지 여부.
+    /// 입력(OnAttack/OnSkill)은 이미 이 조건으로 막지만, 애니메이션 이벤트(이펙트·검기)는
+    /// 클립이 블렌드 아웃되며 뒤늦게 도착할 수 있어 같은 조건으로 한 번 더 막아야 한다.
+    /// 안 막으면 구르기 캔슬 순간 뒤늦은 이벤트가 구르기 방향으로 이펙트/검기를 내보낸다.
+    /// </summary>
+    public bool IsActionInterrupted => IsRolling || IsStaggered || Stats.IsDead;
+
     // ── 이동 잠금(공격·스킬 중 이동 차단) ────────────────────────────
     // 해제는 동작이 끝나 로코모션으로 돌아올 때 ComboResetBehaviour가 담당한다.
     // 안전장치: 해제 신호를 놓쳐도 이 시간 뒤 자동 해제
