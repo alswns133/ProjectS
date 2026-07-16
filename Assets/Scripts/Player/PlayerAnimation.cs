@@ -80,7 +80,22 @@ public class PlayerAnimation : MonoBehaviour
 
     public void ResetAttackTrigger() => animator.ResetTrigger(Attack);
 
+    /// <summary>
+    /// 래치된 강공격·달리기 공격 트리거를 지운다. 일반 공격(Attack)만 ClearAttackBuffer가 지우므로,
+    /// 피격·구르기로 캔슬될 때 이 둘이 남아 나중에 유령 발동하는 것을 CancelAction에서 함께 막는다.
+    /// </summary>
+    public void ResetStrongAttackTrigger() => animator.ResetTrigger(StrongAttack);
+
+    public void ResetRunAttackTrigger() => animator.ResetTrigger(RunAttack);
+
     public void ResetJumpAttackTrigger() => animator.ResetTrigger(JumpAttack);
+
+    /// <summary>
+    /// 래치된 일반 점프 트리거(doJump)를 지운다. 점프 입력 직후 애니메이터가 전환을
+    /// 평가하기 전에 피격 등으로 상태가 끊기면, 소비되지 못한 트리거가 남아
+    /// 나중에 유령 점프가 재생된다 → 중단 상태 진입 시 정리한다.
+    /// </summary>
+    public void ResetJumpTrigger() => animator.ResetTrigger(DoJump);
 
     /// <summary>우클릭 강공격 트리거. PlayerCombat.UseStrongAttack이 발동에 성공했을 때만 호출한다.</summary>
     public void PlayStrongAttack() => animator.SetTrigger(StrongAttack);

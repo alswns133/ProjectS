@@ -34,8 +34,17 @@ public class PlayerCombat : MonoBehaviour
     {
         public string key;
 
+        // 이 슬롯이 발사할 투사체 프리팹. 종류(검기 가로/세로, 총알 등 = 비주얼·판정 박스가 다른 것)마다
+        // 프리팹을 나누고 여기서 고른다. 풀 관리는 씬에 하나 있는 ProjectileSpawner가 프리팹별로 한다.
+        public Projectile prefab;
+
         // 발사 위치·방향 기준 Transform. 보통 캐릭터 가슴 높이의 자식 오브젝트를 쓴다.
         public Transform muzzle;
+
+        // muzzle 회전에 더할 각도(오일러). 같은 프리팹을 대각/세로 등으로 살짝 틀 때만 쓴다.
+        // 검기 종류 자체가 다르면 프리팹(spawner)을 나누고, 여기선 미세 각도만 조정한다.
+        public Vector3 rotationOffset;
+
         public int damage = 15;
         public float gaugeGain = 5f;
 
@@ -46,8 +55,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private HitBoxSlot[] attackHitBoxes;
     [SerializeField] private LayerMask enemyMask;
 
+    // 스포너는 씬에 하나만 두고 프리팹별 풀을 내부에서 관리한다.
+    // 투사체 종류가 늘어도 씬 오브젝트는 늘지 않고, 슬롯에 프리팹만 추가하면 된다.
     [Header("투사체 스킬")]
-    [SerializeField] private SwordWaveSpawner swordWaveSpawner;
+    [SerializeField] private ProjectileSpawner projectileSpawner;
     [SerializeField] private ProjectileSlot[] projectileSlots;
 
     // 매 히트 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
@@ -59,6 +70,7 @@ public class PlayerCombat : MonoBehaviour
 
     // 현재 재생 중인 콤보 단계. 0이면 콤보가 시작되지 않은 상태다.
     // 실제 단계 확정은 OnAttackStart Animation Event에서 한다.
+    [Header("현재 콤보")]
     [SerializeField] private int comboStep = 0;
 
     [Header("스킬 쿨타임")]
@@ -79,6 +91,9 @@ public class PlayerCombat : MonoBehaviour
     private readonly Collider[] buffer = new Collider[64];
     private PlayerAnimation anim;
     private PlayerInputHandler input;
+
+    // 구르기·피격·사망 중 뒤늦게 도착한 검기 발사 이벤트를 무시하기 위해 상태를 조회할 중앙 컨텍스트.
+    private Player player;
 
     // 콤보 창이 열리기 전에 들어온 공격 입력을 기억해 다음 타로 넘긴다.
     private bool attackBuffered;
@@ -106,6 +121,7 @@ public class PlayerCombat : MonoBehaviour
     {
         anim = GetComponent<PlayerAnimation>();
         input = GetComponent<PlayerInputHandler>();
+        player = GetComponent<Player>();
         skillReadyTime = new float[skillCooldowns.Length];
         relayProjectileHit = gain => TargetHit?.Invoke(gain);
 
@@ -266,7 +282,7 @@ public class PlayerCombat : MonoBehaviour
 
                 // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                 // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
-                CombatEvents.FireHitLanded(buffer[i].ClosestPoint(box.position));
+                CombatEvents.FirePlayerHitLanded(buffer[i].ClosestPoint(box.position));
 
                 // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다(기획).
                 TargetHit?.Invoke(slot.gaugeGain);
@@ -294,15 +310,32 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        if (swordWaveSpawner == null)
+        if (slot.prefab == null)
         {
-            Debug.LogWarning("SwordWaveSpawner is not assigned.", this);
+            Debug.LogWarning($"Projectile prefab is not assigned ('{key}').", this);
             return;
         }
 
-        swordWaveSpawner.Fire(
+        if (projectileSpawner == null)
+        {
+            Debug.LogWarning("ProjectileSpawner is not assigned.", this);
+            return;
+        }
+
+        // 구르기·피격 등으로 스킬이 캔슬되면 IsCastingSkill이 꺼진다.
+        // 스킬 클립이 블렌드 아웃되며 이 이벤트가 뒤늦게 도착해도 검기가 나가지 않게 막는다.
+        if (!IsCastingSkill) return;
+
+        // 사망 등 IsCastingSkill이 남아 있을 수 있는 중단 경로까지 이펙트와 같은 기준으로 막는다.
+        if (player.IsActionInterrupted) return;
+
+        // muzzle 방향에 슬롯별 회전 오프셋을 더해 검기 방향(가로/세로/대각)을 맞춘다.
+        Quaternion rotation = slot.muzzle.rotation * Quaternion.Euler(slot.rotationOffset);
+
+        projectileSpawner.Fire(
+            slot.prefab,
             slot.muzzle.position,
-            slot.muzzle.rotation,
+            rotation,
             slot.damage,
             slot.gaugeGain,
             slot.canPierce,
@@ -343,7 +376,7 @@ public class PlayerCombat : MonoBehaviour
         // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
         comboStep = step;
         ComboStepStarted?.Invoke();
-        Debug.Log(comboStep);
+        DevLog.Log(comboStep);
     }
 
     public void ClearAttackBuffer()
@@ -371,7 +404,7 @@ public class PlayerCombat : MonoBehaviour
         // Locomotion 복귀 시 호출된다. 콤보와 스킬 시전 상태를 모두 정리한다.
         comboStep = 0;
         EndSkillCast();
-        Debug.Log(comboStep);
+        DevLog.Log(comboStep);
     }
 
     /// <summary>
@@ -386,5 +419,10 @@ public class PlayerCombat : MonoBehaviour
         attackBuffered = false;
         EndSkillCast();
         ClearAttackBuffer();
+
+        // 강공격·달리기 공격 트리거도 래치될 수 있다(ClearAttackBuffer는 일반 Attack만 지운다).
+        // 피격·구르기로 캔슬된 뒤 이 둘이 남아 유령 발동하는 것을 막는다.
+        anim.ResetStrongAttackTrigger();
+        anim.ResetRunAttackTrigger();
     }
 }

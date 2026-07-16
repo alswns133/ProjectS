@@ -12,6 +12,13 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float rotationDamping = 10f;
     [SerializeField] private float jumpHeight = 3f;
     [SerializeField] private float gravity = 9.8f;
+
+    // 공중에서 입력 방향으로 관성을 꺾는 속도. 지상은 루트모션이 담당하고, 공중은 점프 순간
+    // 캡처한 수평 속도(관성)를 유지하다가 이 값만큼만 서서히 조향한다.
+    // 작을수록 관성 위주(둔한 조작), 클수록 즉각 조작(관성 약함).
+    [SerializeField] private float airControl = 8f;
+
+    [Header("바닥 체크")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float checkRadius = 0.25f;
     [SerializeField] private LayerMask floorLayer;
@@ -27,6 +34,14 @@ public class PlayerMovement : MonoBehaviour
 
     // CharacterController는 Rigidbody 속도를 들고 있지 않으므로 수직 속도를 직접 누적한다.
     private float verticalVelocity;
+
+    // 지상에서 실제로 난 수평 속도(루트모션+코드 결과)를 매 프레임 측정해 둔다.
+    // 점프 순간 이 값을 airVelocity로 넘겨, 공중 속도를 지상과 정확히 일치시키기 위함.
+    private Vector3 lastPosition;
+    private Vector3 groundHorizontalVelocity;
+
+    // 점프 순간 캡처한 공중 관성 속도. 공중에서는 이 값을 유지하며 입력 방향으로만 서서히 조향한다.
+    private Vector3 airVelocity;
 
     public bool IsGrounded { get; private set; }
 
@@ -62,6 +77,9 @@ public class PlayerMovement : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         TryCacheMainCamera();
+
+        // 첫 LateUpdate에서 (현재위치 - 0) 큰 델타로 속도가 튀지 않게 시작 위치로 초기화한다.
+        lastPosition = transform.position;
     }
 
     public void Move(Vector2 input, bool isRunning = false)
@@ -69,7 +87,24 @@ public class PlayerMovement : MonoBehaviour
         // 이동이 잠긴 상태에서도 PlayerFreeState가 zero 입력으로 호출한다.
         // 그래서 중력/접지는 계속 처리되고 수평 이동만 멈춘다.
         // 기본값 false: 구르기 상태처럼 zero 입력만 넘기는 호출부는 달리기를 신경 쓸 필요 없다.
-        Vector3 move = CameraRelative(input) * (isRunning ? runSpeed : moveSpeed);
+        Vector3 move;
+
+        if (IsGrounded)
+        {
+            // 지상: 목표 속도를 즉시 적용한다(즉각 반응 우선 — 가속 램프를 시험했다가 되돌린 팀 결정, 2026-07).
+            // 루트모션이 위치를 함께 담당하고, 출발 시 부드러움은 애니메이션 블렌드 감쇠가 맡는다.
+            move = CameraRelative(input) * (isRunning ? runSpeed : moveSpeed);
+        }
+        else
+        {
+            // 공중: 점프 순간 캡처한 관성(airVelocity)을 유지하고, 입력 방향으로 airControl만큼만
+            // 서서히 조향한다. 무입력이면 관성을 그대로 이어가 지상에서 내던 속도로 날아간다.
+            Vector3 target = CameraRelative(input) * airVelocity.magnitude;
+            if (target.sqrMagnitude < 0.0001f) target = airVelocity;
+            airVelocity = Vector3.MoveTowards(airVelocity, target, airControl * Time.deltaTime);
+            move = airVelocity;
+        }
+
         FaceDirection(move);
         ApplyGravity(ref move);
         controller.Move(move * Time.deltaTime);
@@ -82,7 +117,21 @@ public class PlayerMovement : MonoBehaviour
         // v = sqrt(2gh). 이후 ApplyGravity에서 낙하 가속을 더 크게 주기 때문에
         // jumpHeight는 정확한 높이라기보다 튜닝 기준값에 가깝다.
         verticalVelocity = Mathf.Sqrt(2f * jumpHeight * gravity);
+
+        // 점프 직전 지상에서 내던 수평 속도를 공중 관성으로 넘긴다.
+        // → 달리다 뛰면 달리기 속도로, 걷다 뛰면 걷기 속도로 자연스럽게 이어진다.
+        airVelocity = groundHorizontalVelocity;
         return true;
+    }
+
+    /// <summary>
+    /// 상승 중인 점프 속도를 제거한다. 점프 상승 도중 피격 등으로 동작이 끊길 때 호출해
+    /// 애니메이션은 멈췄는데 몸만 계속 떠오르는 것을 막는다.
+    /// 하강 중(verticalVelocity ≤ 0)에는 건드리지 않아 낙하는 자연스럽게 이어진다.
+    /// </summary>
+    public void CancelJump()
+    {
+        if (verticalVelocity > 0f) verticalVelocity = 0f;
     }
 
     /// <summary>
@@ -109,6 +158,21 @@ public class PlayerMovement : MonoBehaviour
         if (!TryCacheMainCamera()) return;
 
         FaceInstantly(cam.forward);
+    }
+
+    // 루트모션과 controller.Move가 모두 적용된 뒤(프레임 끝) 실제 이동량으로 지상 수평 속도를 측정한다.
+    // 무엇이 위치를 옮겼든(루트모션/코드/둘 다) 결과 속도라, 점프 시 넘기면 공중이 지상과 정확히 일치한다.
+    // 벽에 막히면 실제 이동량이 줄어 측정 속도도 자연히 낮아진다(벽에 눌린 채 점프하면 관성이 안 실림).
+    private void LateUpdate()
+    {
+        if (Time.deltaTime > 0f && IsGrounded)
+        {
+            Vector3 delta = transform.position - lastPosition;
+            delta.y = 0f;
+            groundHorizontalVelocity = delta / Time.deltaTime;
+        }
+
+        lastPosition = transform.position;
     }
 
     private void FixedUpdate()
