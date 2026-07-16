@@ -139,7 +139,7 @@ public class Projectile : MonoBehaviour
 
             // 캐스트 시작 지점에 이미 겹쳐 있던 콜라이더는 point가 원점으로 나오므로 근사치로 보정한다.
             Vector3 point = hit.distance > 0f ? hit.point : hit.collider.ClosestPoint(from);
-            CombatEvents.FireHitLanded(point);
+            CombatEvents.FirePlayerHitLanded(point);
             onTargetHit?.Invoke(gaugeGain);
             hitCount++;
 

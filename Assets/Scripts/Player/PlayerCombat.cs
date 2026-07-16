@@ -282,7 +282,7 @@ public class PlayerCombat : MonoBehaviour
 
                 // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                 // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
-                CombatEvents.FireHitLanded(buffer[i].ClosestPoint(box.position));
+                CombatEvents.FirePlayerHitLanded(buffer[i].ClosestPoint(box.position));
 
                 // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다(기획).
                 TargetHit?.Invoke(slot.gaugeGain);
