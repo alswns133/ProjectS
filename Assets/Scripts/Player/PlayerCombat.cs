@@ -368,6 +368,7 @@ public class PlayerCombat : MonoBehaviour
             relayProjectileHit);
     }
 
+#if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
         if (attackHitBoxes == null) return;
@@ -383,6 +384,7 @@ public class PlayerCombat : MonoBehaviour
 
         Gizmos.matrix = Matrix4x4.identity;
     }
+#endif
 
     public void OnAttackInput()
     {
