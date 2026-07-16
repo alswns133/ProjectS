@@ -121,7 +121,7 @@ public class EnemyCombat : MonoBehaviour
                 // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다.
                 // 구르기 무적에 씹힌 공격에도 이펙트가 나오면 플레이어가 맞은 것으로 오인한다.
                 if (target.TakeDamage(attack.damage))
-                    CombatEvents.FireHitLanded(buffer[i].ClosestPoint(attack.hitBox.position));
+                    CombatEvents.FireEnemyHitLanded(buffer[i].ClosestPoint(attack.hitBox.position));
             }
         }
     }
