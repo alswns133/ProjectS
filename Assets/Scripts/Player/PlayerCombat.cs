@@ -34,8 +34,17 @@ public class PlayerCombat : MonoBehaviour
     {
         public string key;
 
+        // 이 슬롯이 발사할 투사체 프리팹. 종류(검기 가로/세로, 총알 등 = 비주얼·판정 박스가 다른 것)마다
+        // 프리팹을 나누고 여기서 고른다. 풀 관리는 씬에 하나 있는 ProjectileSpawner가 프리팹별로 한다.
+        public Projectile prefab;
+
         // 발사 위치·방향 기준 Transform. 보통 캐릭터 가슴 높이의 자식 오브젝트를 쓴다.
         public Transform muzzle;
+
+        // muzzle 회전에 더할 각도(오일러). 같은 프리팹을 대각/세로 등으로 살짝 틀 때만 쓴다.
+        // 검기 종류 자체가 다르면 프리팹(spawner)을 나누고, 여기선 미세 각도만 조정한다.
+        public Vector3 rotationOffset;
+
         public int damage = 15;
         public float gaugeGain = 5f;
 
@@ -46,8 +55,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private HitBoxSlot[] attackHitBoxes;
     [SerializeField] private LayerMask enemyMask;
 
+    // 스포너는 씬에 하나만 두고 프리팹별 풀을 내부에서 관리한다.
+    // 투사체 종류가 늘어도 씬 오브젝트는 늘지 않고, 슬롯에 프리팹만 추가하면 된다.
     [Header("투사체 스킬")]
-    [SerializeField] private SwordWaveSpawner swordWaveSpawner;
+    [SerializeField] private ProjectileSpawner projectileSpawner;
     [SerializeField] private ProjectileSlot[] projectileSlots;
 
     // 매 히트 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
@@ -299,9 +310,15 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        if (swordWaveSpawner == null)
+        if (slot.prefab == null)
         {
-            Debug.LogWarning("SwordWaveSpawner is not assigned.", this);
+            Debug.LogWarning($"Projectile prefab is not assigned ('{key}').", this);
+            return;
+        }
+
+        if (projectileSpawner == null)
+        {
+            Debug.LogWarning("ProjectileSpawner is not assigned.", this);
             return;
         }
 
@@ -312,9 +329,13 @@ public class PlayerCombat : MonoBehaviour
         // 사망 등 IsCastingSkill이 남아 있을 수 있는 중단 경로까지 이펙트와 같은 기준으로 막는다.
         if (player.IsActionInterrupted) return;
 
-        swordWaveSpawner.Fire(
+        // muzzle 방향에 슬롯별 회전 오프셋을 더해 검기 방향(가로/세로/대각)을 맞춘다.
+        Quaternion rotation = slot.muzzle.rotation * Quaternion.Euler(slot.rotationOffset);
+
+        projectileSpawner.Fire(
+            slot.prefab,
             slot.muzzle.position,
-            slot.muzzle.rotation,
+            rotation,
             slot.damage,
             slot.gaugeGain,
             slot.canPierce,
