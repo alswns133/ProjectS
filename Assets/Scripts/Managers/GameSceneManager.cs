@@ -142,8 +142,7 @@ public class GameSceneManager : MonoBehaviour
         // 활성화 타이밍을 우리가 직접 제어하기 위함.
         operation.allowSceneActivation = false;
 
-        bool activated = false;
-        while (!activated)
+        while (true)
         {
             // 씬 진행도(0~0.9)를 뒤쪽 구간(PRELOAD_WEIGHT ~ 1.0)에 매핑해 1단계와 하나의 바로 잇는다
             float sceneRatio = Mathf.Clamp01(operation.progress / 0.9f);
@@ -160,17 +159,21 @@ public class GameSceneManager : MonoBehaviour
             // 실제 로드 완료 + 보정 바도 끝까지 찼을 때 활성화
             if (operation.progress >= 0.9f && displayProgress >= 1f)
             {
-                activated = true;
-
-                if (sceneDic.ContainsKey(next)) sceneDic[next].Enter();  // 새 씬의 Enter 호출
-                current = next;
-
-                yield return null;                       // 씬 활성화가 반영되도록 한 프레임 대기
                 operation.allowSceneActivation = true;  // 막아뒀던 활성화 허용 → 씬 전환 실행
+
+                // 활성화와 이전 씬 언로드가 실제로 끝날 때까지 기다린다.
+                yield return operation;
+
+                // 새 씬 오브젝트의 Start까지 완료된 뒤 Enter를 호출한다.
+                yield return null;
+                break;
             }
 
             yield return null;
         }
+
+        if (sceneDic.ContainsKey(next)) sceneDic[next].Enter();  // 새 씬의 Enter 호출
+        current = next;
 
         UIManager.Instance.HideLoading();        // 활성화 후 로딩 닫기(한 프레임 깜빡임 방지)
         loading = false;
