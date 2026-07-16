@@ -29,6 +29,8 @@ public class HUDPanel : BasePanel
     [FormerlySerializedAs("_hpVignette")]
     [SerializeField] private HpVignette hpVignette;
 
+    [SerializeField] private HpEcg hpEcg;
+
     protected override void OnInit()
     {
         hp.Init(this);
@@ -40,6 +42,8 @@ public class HUDPanel : BasePanel
 
         // 시작 스태미나는 가득이므로 기본은 숨김. 첫 소모 이벤트가 오면 SetStamina가 켠다.
         staminaRoot.SetActive(false);
+
+        hpEcg.SetMaterial(hp.Material);
     }
 
     // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
@@ -47,6 +51,7 @@ public class HUDPanel : BasePanel
     {
         hp.SetRatio(ratio);
         hpVignette.SetHpRatio(ratio);
+        hpEcg.SetHpRatio(ratio);
     }
     public void SetSg(float ratio) => sg.SetRatio(ratio);
 

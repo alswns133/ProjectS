@@ -21,6 +21,8 @@ public class FillGauge
 
     private Material material;
 
+    public Material Material => material;
+
     private bool hasFillAmountProperty = false;
 
     // 코루틴은 MonoBehaviour 위에서만 돌 수 있어서, 주인을 받아둠
@@ -30,10 +32,15 @@ public class FillGauge
 
         // 머티리얼 인스턴스를 만들어 쓴다. 원본 에셋을 직접 만지면
         // 같은 머티리얼을 쓰는 다른 게이지와 값이 섞이고, 에디터에선 에셋이 영구 변경된다.
-        material = Object.Instantiate(image.material);
-        image.material = material;
+        if(image != null)
+        {
+            material = Object.Instantiate(image.material);
+            image.material = material;
+            hasFillAmountProperty = material.HasProperty(FillAmountID);
 
-        hasFillAmountProperty = material.HasProperty(FillAmountID);
+        }
+
+
         Apply(current);   // ★ 시작할 때 초기값을 화면에 한 번 그려줌
     }
 
@@ -69,6 +76,9 @@ public class FillGauge
         if (hasFillAmountProperty)
             material.SetFloat(FillAmountID, ratio);
         else
+        {
+            if (image == null) return;
             image.fillAmount = ratio;
+        }
     }
 }
