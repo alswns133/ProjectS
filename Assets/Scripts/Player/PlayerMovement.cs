@@ -17,6 +17,8 @@ public class PlayerMovement : MonoBehaviour
     // 캡처한 수평 속도(관성)를 유지하다가 이 값만큼만 서서히 조향한다.
     // 작을수록 관성 위주(둔한 조작), 클수록 즉각 조작(관성 약함).
     [SerializeField] private float airControl = 8f;
+
+    [Header("바닥 체크")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float checkRadius = 0.25f;
     [SerializeField] private LayerMask floorLayer;
@@ -89,7 +91,8 @@ public class PlayerMovement : MonoBehaviour
 
         if (IsGrounded)
         {
-            // 지상: 기존 그대로. 루트모션이 위치를 담당하고 코드 이동은 지금 값을 유지한다.
+            // 지상: 목표 속도를 즉시 적용한다(즉각 반응 우선 — 가속 램프를 시험했다가 되돌린 팀 결정, 2026-07).
+            // 루트모션이 위치를 함께 담당하고, 출발 시 부드러움은 애니메이션 블렌드 감쇠가 맡는다.
             move = CameraRelative(input) * (isRunning ? runSpeed : moveSpeed);
         }
         else
