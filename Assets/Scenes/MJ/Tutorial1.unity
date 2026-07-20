@@ -347567,6 +347567,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1901975243}
   - component: {fileID: 1901975242}
+  - component: {fileID: 1901975244}
   m_Layer: 0
   m_Name: HitEffectSpawner
   m_TagString: Untagged
@@ -347588,6 +347589,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
   prefab: {fileID: -740047778188791524, guid: 8f2de98462621dc40a8a5c49a010ebc4, type: 3}
   initialPoolSize: 10
+  source: 0
 --- !u!4 &1901975243
 Transform:
   m_ObjectHideFlags: 0
@@ -347603,6 +347605,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1901975244
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901975241}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1932d00b1cd6b424d9750273e5a9eeb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
+  prefab: {fileID: 6660427250470465309, guid: 31ecc7f79750fcf4aa6f7409d58fa4b9, type: 3}
+  initialPoolSize: 10
+  source: 1
 --- !u!1001 &1902654731
 PrefabInstance:
   m_ObjectHideFlags: 0

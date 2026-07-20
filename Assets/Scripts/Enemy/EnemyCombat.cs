@@ -62,6 +62,12 @@ public class EnemyCombat : MonoBehaviour
 
     // 이번 AttackState에서 선택된 공격. OnAttackHit Animation Event가 이 값을 기준으로 판정한다.
     private AttackPattern currentAttack;
+    private Enemy enemy;
+
+    private void Awake()
+    {
+        enemy = GetComponent<Enemy>();
+    }
 
     /// <summary>등록된 공격 중 가장 긴 사거리. ChaseState가 공격 전환 판정에 쓴다.</summary>
     public float AttackRange => GetMaxAttackRange();
@@ -93,6 +99,10 @@ public class EnemyCombat : MonoBehaviour
 
     public void OnAttackHit()
     {
+        // 피격·사망 등으로 공격 상태가 끝난 뒤 블렌드 아웃 중 도착한 이벤트는 무시한다.
+        if (enemy == null || enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState)
+            return;
+
         // Animation Event가 공격 선택 직후가 아닌 시점에 와도 마지막 선택 공격 기준으로 판정한다.
         AttackPattern attack = currentAttack ?? GetDefaultAttack();
         if (attack == null) return;

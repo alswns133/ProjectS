@@ -10,6 +10,16 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerAnimation))]
 public class PlayerCombat : MonoBehaviour
 {
+    private enum CombatAction
+    {
+        None,
+        Combo,
+        Skill,
+        StrongAttack,
+        RunAttack,
+        JumpAttack,
+    }
+
     // 공격/스킬 클립의 Animation Event가 string 키로 조회하는 히트 박스 슬롯.
     // 모션마다 판정 위치·크기뿐 아니라 데미지도 다르므로 슬롯 단위로 묶는다.
     // area의 위치/회전/스케일이 곧 판정 박스다(스케일 = 박스 크기).
@@ -34,8 +44,17 @@ public class PlayerCombat : MonoBehaviour
     {
         public string key;
 
+        // 이 슬롯이 발사할 투사체 프리팹. 종류(검기 가로/세로, 총알 등 = 비주얼·판정 박스가 다른 것)마다
+        // 프리팹을 나누고 여기서 고른다. 풀 관리는 씬에 하나 있는 ProjectileSpawner가 프리팹별로 한다.
+        public Projectile prefab;
+
         // 발사 위치·방향 기준 Transform. 보통 캐릭터 가슴 높이의 자식 오브젝트를 쓴다.
         public Transform muzzle;
+
+        // muzzle 회전에 더할 각도(오일러). 같은 프리팹을 대각/세로 등으로 살짝 틀 때만 쓴다.
+        // 검기 종류 자체가 다르면 프리팹(spawner)을 나누고, 여기선 미세 각도만 조정한다.
+        public Vector3 rotationOffset;
+
         public int damage = 15;
         public float gaugeGain = 5f;
 
@@ -46,8 +65,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private HitBoxSlot[] attackHitBoxes;
     [SerializeField] private LayerMask enemyMask;
 
+    // 스포너는 씬에 하나만 두고 프리팹별 풀을 내부에서 관리한다.
+    // 투사체 종류가 늘어도 씬 오브젝트는 늘지 않고, 슬롯에 프리팹만 추가하면 된다.
     [Header("투사체 스킬")]
-    [SerializeField] private SwordWaveSpawner swordWaveSpawner;
+    [SerializeField] private ProjectileSpawner projectileSpawner;
     [SerializeField] private ProjectileSlot[] projectileSlots;
 
     // 매 히트 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
@@ -90,6 +111,11 @@ public class PlayerCombat : MonoBehaviour
 
     // 스킬 시전 중에는 일반 공격 입력을 막기 위해 Player가 확인하는 플래그.
     public bool IsCastingSkill { get; private set; }
+
+    // Animation Event는 취소된 클립이 블렌드 아웃되는 동안에도 늦게 도착할 수 있다.
+    // 현재 액션과 이벤트 키가 일치할 때만 판정을 허용해 이전 액션의 유령 타격을 막는다.
+    private CombatAction currentAction;
+    private int currentSkillNumber;
 
     /// <summary>
     /// 콤보 타수가 실제로 시작될 때(OnAttackStart Animation Event) 발행된다.
@@ -176,6 +202,8 @@ public class PlayerCombat : MonoBehaviour
         // 실패한 스킬 입력은 이동 잠금으로 이어지면 안 된다.
         skillReadyTime[n] = Time.time + skillCooldowns[n];
         IsCastingSkill = true;
+        currentAction = CombatAction.Skill;
+        currentSkillNumber = n;
         anim.PlaySkill(n);
 
         // UI(쿨타임 표시)가 이 신호로 카운트다운을 시작한다. 발동 성공 시에만 발행.
@@ -207,6 +235,7 @@ public class PlayerCombat : MonoBehaviour
         // 시전 중 좌클릭 차단은 스킬과 같은 규칙(IsCastingSkill)을 재사용한다.
         // 해제는 로코모션 복귀(ComboResetBehaviour→ResetCombo) 또는 안전장치 경로가 담당.
         IsCastingSkill = true;
+        currentAction = CombatAction.StrongAttack;
         anim.PlayStrongAttack();
         return true;
     }
@@ -220,6 +249,7 @@ public class PlayerCombat : MonoBehaviour
         // 더블탭 직후 콤보 잔여 상태가 남아 있을 수 있으므로 정리하고 발동한다.
         CancelAction();
         IsCastingSkill = true;
+        currentAction = CombatAction.RunAttack;
         anim.PlayRunAttack();
     }
 
@@ -231,6 +261,7 @@ public class PlayerCombat : MonoBehaviour
     {
         CancelAction();
         IsCastingSkill = true;
+        currentAction = CombatAction.JumpAttack;
         anim.PlayJumpAttack();
     }
 
@@ -242,6 +273,9 @@ public class PlayerCombat : MonoBehaviour
             Debug.LogWarning($"Hit box key not found ('{key}'). Check the Animation Event string.", this);
             return;
         }
+
+        // 구르기·피격·사망 또는 다른 공격으로 이미 취소된 클립에서 뒤늦게 온 이벤트는 무시한다.
+        if (!CanApplyHitFrame(key)) return;
 
         Transform box = slot.area;
         if (box == null)
@@ -271,7 +305,7 @@ public class PlayerCombat : MonoBehaviour
 
                 // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                 // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
-                CombatEvents.FireHitLanded(buffer[i].ClosestPoint(box.position));
+                CombatEvents.FirePlayerHitLanded(buffer[i].ClosestPoint(box.position));
 
                 // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다(기획).
                 TargetHit?.Invoke(slot.gaugeGain);
@@ -299,9 +333,15 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        if (swordWaveSpawner == null)
+        if (slot.prefab == null)
         {
-            Debug.LogWarning("SwordWaveSpawner is not assigned.", this);
+            Debug.LogWarning($"Projectile prefab is not assigned ('{key}').", this);
+            return;
+        }
+
+        if (projectileSpawner == null)
+        {
+            Debug.LogWarning("ProjectileSpawner is not assigned.", this);
             return;
         }
 
@@ -312,15 +352,23 @@ public class PlayerCombat : MonoBehaviour
         // 사망 등 IsCastingSkill이 남아 있을 수 있는 중단 경로까지 이펙트와 같은 기준으로 막는다.
         if (player.IsActionInterrupted) return;
 
-        swordWaveSpawner.Fire(
+        // 다른 스킬이나 강공격으로 액션이 교체된 뒤 이전 스킬 이벤트가 도착하는 경우도 차단한다.
+        if (currentAction != CombatAction.Skill || !IsCurrentSkillKey(key)) return;
+
+        // muzzle 방향에 슬롯별 회전 오프셋을 더해 검기 방향(가로/세로/대각)을 맞춘다.
+        Quaternion rotation = slot.muzzle.rotation * Quaternion.Euler(slot.rotationOffset);
+
+        projectileSpawner.Fire(
+            slot.prefab,
             slot.muzzle.position,
-            slot.muzzle.rotation,
+            rotation,
             slot.damage,
             slot.gaugeGain,
             slot.canPierce,
             relayProjectileHit);
     }
 
+#if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
         if (attackHitBoxes == null) return;
@@ -336,9 +384,11 @@ public class PlayerCombat : MonoBehaviour
 
         Gizmos.matrix = Matrix4x4.identity;
     }
+#endif
 
     public void OnAttackInput()
     {
+        currentAction = CombatAction.Combo;
         attackBuffered = true;
 
         // 첫 타는 콤보 창을 기다릴 필요가 없으므로 즉시 트리거한다.
@@ -352,7 +402,11 @@ public class PlayerCombat : MonoBehaviour
 
     public void OnAttackStart(int step)
     {
+        // 캔슬된 콤보 클립의 시작 이벤트가 뒤늦게 도착해 현재 액션을 되돌리지 못하게 한다.
+        if (IsCastingSkill || player.IsActionInterrupted) return;
+
         // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
+        currentAction = CombatAction.Combo;
         comboStep = step;
         ComboStepStarted?.Invoke();
         DevLog.Log(comboStep);
@@ -382,6 +436,8 @@ public class PlayerCombat : MonoBehaviour
     {
         // Locomotion 복귀 시 호출된다. 콤보와 스킬 시전 상태를 모두 정리한다.
         comboStep = 0;
+        currentAction = CombatAction.None;
+        currentSkillNumber = 0;
         EndSkillCast();
         DevLog.Log(comboStep);
     }
@@ -396,6 +452,8 @@ public class PlayerCombat : MonoBehaviour
     {
         comboStep = 0;
         attackBuffered = false;
+        currentAction = CombatAction.None;
+        currentSkillNumber = 0;
         EndSkillCast();
         ClearAttackBuffer();
 
@@ -403,5 +461,39 @@ public class PlayerCombat : MonoBehaviour
         // 피격·구르기로 캔슬된 뒤 이 둘이 남아 유령 발동하는 것을 막는다.
         anim.ResetStrongAttackTrigger();
         anim.ResetRunAttackTrigger();
+    }
+
+    private bool CanApplyHitFrame(string key)
+    {
+        if (player == null || player.IsActionInterrupted) return false;
+
+        // 단타/스킬은 IsCastingSkill이 액션 수명 플래그다. 안전장치 타이머 등으로
+        // 시전이 종료된 뒤 도착한 이벤트가 currentAction 값만 보고 통과하지 못하게 한다.
+        if (currentAction != CombatAction.Combo && !IsCastingSkill) return false;
+
+        return currentAction switch
+        {
+            CombatAction.Combo => comboStep switch
+            {
+                1 => key == "Attack1",
+                2 => key == "Attack2",
+                3 => key == "Attack3",
+                _ => false,
+            },
+            CombatAction.Skill => IsCurrentSkillKey(key),
+            CombatAction.StrongAttack => key == "Strong_Attack",
+            CombatAction.RunAttack => key == "Dash_Attack",
+            CombatAction.JumpAttack => key.StartsWith("Jump", StringComparison.Ordinal),
+            _ => false,
+        };
+    }
+
+    private bool IsCurrentSkillKey(string key)
+    {
+        if (currentSkillNumber <= 0 || string.IsNullOrEmpty(key)) return false;
+
+        string prefix = $"Skill{currentSkillNumber}";
+        return key.Equals(prefix, StringComparison.Ordinal)
+            || key.StartsWith(prefix + "_", StringComparison.Ordinal);
     }
 }
