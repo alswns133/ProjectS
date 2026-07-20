@@ -136967,7 +136967,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player
   maxActionLockTime: 3
   rollStaminaCost: 0
-  autoJumpDelay: 0.08
+  autoJumpDelay: 0.2
 --- !u!114 &708303898
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -137016,10 +137016,12 @@ MonoBehaviour:
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
-  swordWaveSpawner: {fileID: 791994093}
+  projectileSpawner: {fileID: 0}
   projectileSlots:
   - key: Skill3_Wave
+    prefab: {fileID: 5411507273259193358, guid: 14749017f0fef114db060587d404262c, type: 3}
     muzzle: {fileID: 1938994389}
+    rotationOffset: {x: 0, y: 0, z: 0}
     damage: 50
     gaugeGain: 5
     canPierce: 1
@@ -152975,7 +152977,7 @@ GameObject:
   - component: {fileID: 791994094}
   - component: {fileID: 791994093}
   m_Layer: 0
-  m_Name: SwordWaveSpawner
+  m_Name: ProjectileSpawner
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -152993,8 +152995,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 146caf6d0b75e694288780fa42690b54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SwordWaveSpawner
-  prefab: {fileID: 5411507273259193358, guid: 14749017f0fef114db060587d404262c, type: 3}
-  initialPoolSize: 10
+  prewarm:
+  - prefab: {fileID: 5411507273259193358, guid: 14749017f0fef114db060587d404262c, type: 3}
+    count: 5
 --- !u!4 &791994094
 Transform:
   m_ObjectHideFlags: 0
@@ -374207,7 +374210,7 @@ MonoBehaviour:
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
-  swordWaveSpawner: {fileID: 0}
+  projectileSpawner: {fileID: 0}
   projectileSlots: []
   comboStep: 0
   skillCooldowns:
@@ -398824,6 +398827,7 @@ SceneRoots:
   - {fileID: 991853996}
   - {fileID: 1345941773}
   - {fileID: 616410645}
+  - {fileID: 525753048}
   - {fileID: 909118504}
   - {fileID: 1406539370}
   - {fileID: 1429629299}
@@ -398831,7 +398835,6 @@ SceneRoots:
   - {fileID: 179583487}
   - {fileID: 1119560218}
   - {fileID: 814951565}
-  - {fileID: 525753048}
   - {fileID: 1607893021}
   - {fileID: 1901975243}
   - {fileID: 1204691156}

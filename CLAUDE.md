@@ -191,3 +191,18 @@ JSON 테이블과 어드레서블의 적용 범위 기준입니다. 개발 중�
 - **구르기**: WASD + 대각선 총 8방향, 블렌드 트리 애니메이션 사용.
   무입력(Idle) 상태에서는 구르지 않습니다 (원래는 앞으로 굴렀지만 기획 변경됨).
 - **대시**: 대시가 끝날 때 아래로 떨어지는 동작이 의도입니다. 점프 대시 기능은 제거되었습니다.
+- **네임스페이스 (2026-07-20 결정 및 일괄 적용 완료)**: 전 스크립트가 `ProjectS.` 루트 네임스페이스를 사용합니다.
+  **새 파일은 폴더에 맞는 네임스페이스를 필수로 붙입니다.** 원칙: 폴더 = 네임스페이스, 깊이 최대 3단.
+  - 매핑: `Core/` → `ProjectS.Core`(공용 계약: `IState`, `IDamageable`, `SoundID`),
+    `Player/` → `ProjectS.Players`, `Enemy/` → `ProjectS.Enemies`, `Events/` → `ProjectS.Events`,
+    `Managers/` → `ProjectS.Managers`, `Datas/` → `ProjectS.Data`, `Effect/` → `ProjectS.Effects`,
+    `Scene/` → `ProjectS.Scenes`, `Camera/` → `ProjectS.Cameras`, `Debug/` → `ProjectS.Debugging`,
+    `UI/Framework/` → `ProjectS.UI.Framework`(기반층), 그 외 `UI/` → `ProjectS.UI`.
+  - 이름이 폴더와 다른 곳은 전부 **단순명 가림(shadowing) 회피** 목적입니다. C#은 가까운 네임스페이스 멤버가
+    using으로 수입한 타입을 이기므로, 네임스페이스 세그먼트가 `Debug`/`Camera`/`Scene`(UnityEngine 내장 타입)이나
+    `Player`/`Enemy`(우리 클래스명)와 같으면 프로젝트 전역에서 `Debug.Log`, `Camera.main`, `Player` 참조가
+    컴파일 에러가 됩니다. 새 폴더/네임스페이스를 만들 때도 클래스명·Unity 타입명과 같은 세그먼트는 피하세요.
+  - UI 의존 방향은 화면(`ProjectS.UI`) → 기반층(`ProjectS.UI.Framework`) 단방향만 허용합니다.
+  - **asmdef(어셈블리 정의)는 도입하지 않기로 결정.** 네임스페이스와 별개 사안이며, 현 규모에서는
+    컴파일 시간 이득이 없고 Player↔Enemy 상호 참조 구조상 순환 참조 리팩토링 비용만 발생합니다.
+    수백 파일 규모가 되거나 컴파일 시간이 실제로 문제될 때 재검토합니다.
