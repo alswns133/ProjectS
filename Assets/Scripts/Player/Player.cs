@@ -175,8 +175,10 @@ namespace ProjectS.Players
 
             sm.Update(); // 현재 상태의 Update 위임 실행
 
-            // 접지 여부는 상태와 무관하게 매 프레임 애니메이터에 반영
+            // 접지 여부와 수직 속도는 상태와 무관하게 매 프레임 애니메이터에 반영.
+            // 점프/낙하/착지 모션은 이 두 값의 조건 전이로 재생된다(트리거 없음).
             Animation.SetGrounded(Movement.IsGrounded);
+            Animation.SetVerticalVelocity(Movement.VerticalVelocity);
 
             // 착지하면 점프 공격 사용권 회복. IsStablyGrounded를 쓰는 이유:
             // 점프 직후 접지 체크가 몇 프레임 true로 남는 잔존 구간에 리셋되는 것을 막는다.
@@ -213,11 +215,11 @@ namespace ProjectS.Players
             if (IsMovementLocked) return;      // 이동 잠금 상태면 점프 무시(공격/스킬 중 점프 방지)
             if (stableGroundedTime < autoJumpDelay) return;  // 착지 직후 모션이 정리될 짧은 여유
 
-            // 접지/상승 판정은 Movement가 단일 소유(CanJump). 실패하면 여기서 끝
-            // → 트리거가 래치된 채 남아 착지 후 점프 모션이 한 번 더 재생되는 것을 막는다.
+            // 접지/상승 판정은 Movement가 단일 소유(CanJump). 실패하면 여기서 끝.
+            // 점프 모션은 따로 쏘지 않는다: 매 프레임 반영되는 verticalVelocity/isGrounded
+            // 조건 전이가 물리 점프를 그대로 따라오므로, 연속 점프에서 모션이 씹힐 프레임이 없다.
             if (!Movement.Jump()) return;
             stableGroundedTime = 0f;
-            Animation.PlayJump();              // 실제로 점프했을 때만 모션 트리거
         }
 
         private void UpdateStableGroundedTime()

@@ -24,7 +24,6 @@ namespace ProjectS.Players
             player.Combat.CancelAction();
             player.Effect.AllStopEffect();
             player.UnlockMovement();   // 내부에서 SetHover(false)도 함께 처리(점프 공격 중 피격 대비)
-            player.Animation.ResetJumpTrigger();   // 소비되지 못하고 래치된 점프 트리거 정리(유령 점프 방지)
             player.Movement.CancelJump();          // 상승 중이던 점프 속도 제거(피격했는데 계속 떠오르는 것 방지)
 
             player.Animation.PlayHit(player.Stats.LastHitWasStrong);

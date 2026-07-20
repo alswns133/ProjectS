@@ -4,7 +4,7 @@ namespace ProjectS.Players
 {
     /// <summary>
     /// Animator 파라미터 브릿지. 다른 컴포넌트가 Animator를 직접 만지지 않고
-    /// 이 클래스의 의미 있는 메서드(SetForward, PlayJump 등)를 통해서만 제어한다.
+    /// 이 클래스의 의미 있는 메서드(SetForward, PlayRoll 등)를 통해서만 제어한다.
     /// 파라미터 이름 문자열은 한곳(여기)에만 두어 오타·중복을 막는다.
     /// </summary>
     [RequireComponent(typeof(Animator))]
@@ -14,7 +14,7 @@ namespace ProjectS.Players
         // 시작 시 1회 해싱해 int로 캐싱한다. static readonly: 인스턴스 공통·불변.
         private static readonly int Z = Animator.StringToHash("Z");
         private static readonly int Grounded = Animator.StringToHash("isGrounded");
-        private static readonly int DoJump = Animator.StringToHash("doJump");
+        private static readonly int VertVelocity = Animator.StringToHash("verticalVelocity");
         private static readonly int DoDie = Animator.StringToHash("doDie");
         private static readonly int DoDieLarge = Animator.StringToHash("doDieLarge");
         private static readonly int DoRoll = Animator.StringToHash("doRoll");
@@ -52,7 +52,14 @@ namespace ProjectS.Players
         public void SetForward(float z) => animator.SetFloat(Z, z, Damp, Time.deltaTime);
 
         public void SetGrounded(bool v) => animator.SetBool(Grounded, v);
-        public void PlayJump() => animator.SetTrigger(DoJump);
+
+        /// <summary>
+        /// 수직 속도를 애니메이터에 전달한다(Player가 매 프레임 호출).
+        /// 점프 모션은 트리거가 아니라 isGrounded + verticalVelocity 조건 전이로 재생된다
+        /// → 물리가 점프한 프레임에 모션이 반드시 따라오므로 연속 점프에서 씹히지 않는다.
+        /// SetForward와 달리 감쇠를 걸지 않는 이유: 부호(상승/하강)가 전이 조건이라 즉시 반영돼야 한다.
+        /// </summary>
+        public void SetVerticalVelocity(float v) => animator.SetFloat(VertVelocity, v);
 
         /// <summary>
         /// 구르기 트리거. 구르기 상태 진입 시 1회 호출된다.
@@ -91,13 +98,6 @@ namespace ProjectS.Players
         public void ResetRunAttackTrigger() => animator.ResetTrigger(RunAttack);
 
         public void ResetJumpAttackTrigger() => animator.ResetTrigger(JumpAttack);
-
-        /// <summary>
-        /// 래치된 일반 점프 트리거(doJump)를 지운다. 점프 입력 직후 애니메이터가 전환을
-        /// 평가하기 전에 피격 등으로 상태가 끊기면, 소비되지 못한 트리거가 남아
-        /// 나중에 유령 점프가 재생된다 → 중단 상태 진입 시 정리한다.
-        /// </summary>
-        public void ResetJumpTrigger() => animator.ResetTrigger(DoJump);
 
         /// <summary>우클릭 강공격 트리거. PlayerCombat.UseStrongAttack이 발동에 성공했을 때만 호출한다.</summary>
         public void PlayStrongAttack() => animator.SetTrigger(StrongAttack);

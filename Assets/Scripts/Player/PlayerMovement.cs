@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using ProjectS.Debugging;
+using UnityEngine;
 
 namespace ProjectS.Players
 {
@@ -55,6 +56,12 @@ namespace ProjectS.Players
         public bool IsStablyGrounded => IsGrounded && verticalVelocity <= 0f;
 
         public bool CanJump => IsStablyGrounded;
+
+        /// <summary>
+        /// 현재 수직 속도(+상승 / -하강). 애니메이터가 점프 상승·낙하 모션을
+        /// 트리거 없이 상태값 전이로 분기할 때 쓴다(Player가 매 프레임 전달).
+        /// </summary>
+        public float VerticalVelocity => verticalVelocity;
 
         /// <summary>구르기 지속 시간(초). PlayerRollState가 상태 종료 판정에 쓴다.</summary>
         public float RollDuration => rollDuration;
@@ -123,6 +130,11 @@ namespace ProjectS.Players
             // 점프 직전 지상에서 내던 수평 속도를 공중 관성으로 넘긴다.
             // → 달리다 뛰면 달리기 속도로, 걷다 뛰면 걷기 속도로 자연스럽게 이어진다.
             airVelocity = groundHorizontalVelocity;
+
+            // 제자리 점프 보정: 서 있어도 대기 모션의 루트모션 잔떨림이 측정돼 속도가 정확히 0이 아니다.
+            // 이 부스러기가 관성으로 넘어가면 공중에서 FaceDirection이 그 방향(뒤/옆 아무 데나)을
+            // 바라보게 캐릭터를 돌려버린다 → 걷기 속도(3)보다 한참 작은 값은 관성 없음으로 취급한다.
+            if (airVelocity.sqrMagnitude < 0.25f) airVelocity = Vector3.zero;
             return true;
         }
 
