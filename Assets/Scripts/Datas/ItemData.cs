@@ -1,6 +1,9 @@
 using System;
 
-public class ItemData
+namespace ProjectS.Data
 {
+    public class ItemData
+    {
 
+    }
 }

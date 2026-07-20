@@ -1,7 +1,10 @@
 using System;
 
-public class QuestData
+namespace ProjectS.Data
 {
+    public class QuestData
+    {
 
 
+    }
 }
