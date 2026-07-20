@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Serialization;
@@ -31,6 +31,23 @@ namespace ProjectS.Managers
 
         private const string BGM_VOLUME_PARAM = "BGMVolume";
         private const string SFX_VOLUME_PARAM = "SFXVolume";
+
+        // AudioMixer에서 사실상 무음으로 취급되는 dB (SetXxxVolume(0)과 동일한 값)
+        private const float MUTE_DB = -80f;
+
+        // 뮤트 해제 시 복원할 dB. 뮤트 직전 볼륨을 보관해두는 용도 (2026-07-20 TH 추가)
+        private float savedBgmDb;
+        private float savedSfxDb;
+
+        /// <summary>
+        /// BGM이 뮤트 상태인지 여부. UI 토글 초기 상태 동기화에 사용.
+        /// </summary>
+        public bool IsBgmMuted { get; private set; }
+
+        /// <summary>
+        /// SFX가 뮤트 상태인지 여부. UI 토글 초기 상태 동기화에 사용.
+        /// </summary>
+        public bool IsSfxMuted { get; private set; }
 
         private AudioMixerGroup bgmGroup;
         private AudioMixerGroup sfxGroup;
@@ -302,7 +319,16 @@ namespace ProjectS.Managers
         public void SetBgmVolume(int volume)
         {
             float linear = Mathf.Max(0.0001f, volume / 100f);
-            audioMixer.SetFloat(BGM_VOLUME_PARAM, 20f * Mathf.Log10(linear));
+            float db = 20f * Mathf.Log10(linear);
+
+            // 뮤트 중 볼륨 변경은 복원값에만 반영. 믹서에 바로 쓰면 뮤트가 풀려버림 (2026-07-20 TH 수정)
+            if (IsBgmMuted)
+            {
+                savedBgmDb = db;
+                return;
+            }
+
+            audioMixer.SetFloat(BGM_VOLUME_PARAM, db);
         }
 
         /// <summary>
@@ -312,7 +338,62 @@ namespace ProjectS.Managers
         public void SetSfxVolume(int volume)
         {
             float linear = Mathf.Max(0.0001f, volume / 100f);
-            audioMixer.SetFloat(SFX_VOLUME_PARAM, 20f * Mathf.Log10(linear));
+            float db = 20f * Mathf.Log10(linear);
+
+            // 뮤트 중 볼륨 변경은 복원값에만 반영. 믹서에 바로 쓰면 뮤트가 풀려버림 (2026-07-20 TH 수정)
+            if (IsSfxMuted)
+            {
+                savedSfxDb = db;
+                return;
+            }
+
+            audioMixer.SetFloat(SFX_VOLUME_PARAM, db);
+        }
+
+        /// <summary>
+        /// BGM 뮤트 on/off. 뮤트 시 현재 볼륨(dB)을 보관했다가 해제 시 그대로 복원한다.
+        /// UI 뮤트 토글(CyberIconToggleView.OnToggled)에서 호출하는 용도. (2026-07-20 TH 추가)
+        /// </summary>
+        /// <param name="mute">true면 무음, false면 뮤트 직전 볼륨으로 복원</param>
+        public void SetBgmMute(bool mute)
+        {
+            // 같은 상태로 중복 호출 시 savedBgmDb가 -80으로 덮여 복원이 망가지는 것 방지
+            if (mute == IsBgmMuted) return;
+
+            if (mute)
+            {
+                audioMixer.GetFloat(BGM_VOLUME_PARAM, out savedBgmDb);
+                audioMixer.SetFloat(BGM_VOLUME_PARAM, MUTE_DB);
+            }
+            else
+            {
+                audioMixer.SetFloat(BGM_VOLUME_PARAM, savedBgmDb);
+            }
+
+            IsBgmMuted = mute;
+        }
+
+        /// <summary>
+        /// SFX 뮤트 on/off. 뮤트 시 현재 볼륨(dB)을 보관했다가 해제 시 그대로 복원한다.
+        /// UI 뮤트 토글(CyberIconToggleView.OnToggled)에서 호출하는 용도. (2026-07-20 TH 추가)
+        /// </summary>
+        /// <param name="mute">true면 무음, false면 뮤트 직전 볼륨으로 복원</param>
+        public void SetSfxMute(bool mute)
+        {
+            // 같은 상태로 중복 호출 시 savedSfxDb가 -80으로 덮여 복원이 망가지는 것 방지
+            if (mute == IsSfxMuted) return;
+
+            if (mute)
+            {
+                audioMixer.GetFloat(SFX_VOLUME_PARAM, out savedSfxDb);
+                audioMixer.SetFloat(SFX_VOLUME_PARAM, MUTE_DB);
+            }
+            else
+            {
+                audioMixer.SetFloat(SFX_VOLUME_PARAM, savedSfxDb);
+            }
+
+            IsSfxMuted = mute;
         }
     }
 }
