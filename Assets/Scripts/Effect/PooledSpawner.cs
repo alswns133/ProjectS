@@ -1,7 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
-using ProjectS.UI;
 
 namespace ProjectS.Effects
 {

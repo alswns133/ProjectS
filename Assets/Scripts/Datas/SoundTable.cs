@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 
 namespace ProjectS.Data
 {
-    [System.Serializable]
+    [Serializable]
     public class SoundTable : IDataRow
     {
         public string Description;

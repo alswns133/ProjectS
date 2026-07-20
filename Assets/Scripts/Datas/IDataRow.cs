@@ -1,6 +1,4 @@
-using UnityEngine;
-
-namespace ProjectS.Data
+﻿namespace ProjectS.Data
 {
     // 데이터 테이블의 각 행이 구현해야 하는 인터페이스
     public interface IDataRow

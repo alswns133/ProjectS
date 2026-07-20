@@ -1,6 +1,4 @@
-﻿using System;
-using UnityEngine;
-using UnityEngine.InputSystem;
+﻿using UnityEngine;
 using UnityEngine.Serialization;
 using ProjectS.Events;
 using ProjectS.UI.Framework;

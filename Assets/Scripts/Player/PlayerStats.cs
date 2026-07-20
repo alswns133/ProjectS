@@ -1,8 +1,7 @@
-using System;
+﻿using System;
 using UnityEngine;
 using ProjectS.Core;
 using ProjectS.Events;
-using ProjectS.Managers;
 
 namespace ProjectS.Players
 {
