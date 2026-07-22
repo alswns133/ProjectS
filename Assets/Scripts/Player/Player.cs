@@ -133,6 +133,7 @@ namespace ProjectS.Players
             Input.SkillPressed += OnSkill;
             Input.Attacked += OnAttack;
             Input.StrongAttacked += OnStrongAttack;
+            Input.CursorTogglePressed += OnCursorToggle;
             Combat.ComboStepStarted += OnComboStepStarted;
             Combat.TargetHit += OnTargetHit;
             Stats.Damaged += OnDamaged;
@@ -143,6 +144,7 @@ namespace ProjectS.Players
             Input.SkillPressed -= OnSkill;
             Input.Attacked -= OnAttack;
             Input.StrongAttacked -= OnStrongAttack;
+            Input.CursorTogglePressed -= OnCursorToggle;
             Combat.ComboStepStarted -= OnComboStepStarted;
             Combat.TargetHit -= OnTargetHit;
             Stats.Damaged -= OnDamaged;
@@ -151,9 +153,22 @@ namespace ProjectS.Players
 
         private void Start()
         {
-            Cursor.lockState = CursorLockMode.Locked;   // 원본의 커서 잠금
-            Cursor.visible = false;
+            SetCursorLocked(true);     // 시작은 커서 잠금 상태(이후 Alt로 토글)
             sm.ChangeState(FreeState); // 시작 상태 진입
+        }
+
+        // Alt(커서 토글 키)를 누를 때마다 잠금 ↔ 해제를 오간다.
+        // 현재 상태를 별도 플래그가 아닌 Cursor.lockState로 판정 → 에디터 ESC 등
+        // 외부 요인으로 잠금이 풀려도 다음 토글이 실제 상태 기준으로 동작한다.
+        private void OnCursorToggle()
+        {
+            SetCursorLocked(Cursor.lockState != CursorLockMode.Locked);
+        }
+
+        private void SetCursorLocked(bool locked)
+        {
+            Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !locked;
         }
 
         private void Update()
