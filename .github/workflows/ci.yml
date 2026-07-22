@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 같은 PR에 연속으로 푸쉬하면 이전 검사는 취소하고 최신 것만 돌린다
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: Unity 컴파일 검사
+    runs-on: ubuntu-latest
+    steps:
+      # Unity 에디터 도커 이미지가 커서 러너 기본 여유 공간으로는 부족할 수 있어 미리 확보한다
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # LFS 무료 대역폭(월 1GB)을 아끼기 위해 LFS 파일은 캐시에서 재사용하고 변경분만 받는다
+      - name: Create LFS file list
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+
+      - name: Cache LFS objects
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+
+      - name: Pull LFS files
+        run: |
+          git lfs pull
+          git checkout .
+
+      # 에셋 임포트 결과(Library)를 캐싱해 두 번째 실행부터 크게 빨라진다
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-${{ hashFiles('Assets/**/*.cs', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-
+
+      # 풀 빌드(BuildPlayer) 대신 EditMode 테스트 러너로 "스크립트가 컴파일되는가"만 검증한다.
+      # 씬을 빌드하지 않으므로 ExternalAssets(깃 제외) 미참조로 인한 Missing Prefab 에러가 나지 않고,
+      # 플레이어 빌드·셰이더 컴파일 단계가 없어 훨씬 빠르다. 테스트가 0개여도 컴파일 실패 시 잡아낸다.
+      # unityVersion 기본값(auto)은 ProjectVersion.txt를 읽으므로 에디터 업그레이드 시 수정 불필요.
+      - name: EditMode 컴파일 검사
+        uses: game-ci/unity-test-runner@v4
+        timeout-minutes: 40   # 무한 대기 방지 안전장치(빌드 행 사고 재발 시 빠르게 실패)
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          testMode: EditMode
