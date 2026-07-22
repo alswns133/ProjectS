@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 같은 PR에 연속으로 푸쉬하면 이전 검사는 취소하고 최신 것만 돌린다
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Unity 컴파일·빌드 검사
+    runs-on: ubuntu-latest
+    steps:
+      # Unity 에디터 도커 이미지가 커서 러너 기본 여유 공간으로는 부족할 수 있어 미리 확보한다
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # LFS 무료 대역폭(월 1GB)을 아끼기 위해 LFS 파일은 캐시에서 재사용하고 변경분만 받는다
+      - name: Create LFS file list
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+
+      - name: Cache LFS objects
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+
+      - name: Pull LFS files
+        run: |
+          git lfs pull
+          git checkout .
+
+      # 에셋 임포트 결과(Library)를 캐싱해 두 번째 실행부터 크게 빨라진다
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-${{ hashFiles('Assets/**/*.cs', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-
+
+      # unityVersion 기본값(auto)은 ProjectSettings/ProjectVersion.txt를 읽으므로
+      # 에디터 버전을 올려도 이 파일을 고칠 필요가 없다
+      - name: Build (StandaloneWindows64)
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: StandaloneWindows64
