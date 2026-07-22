@@ -23,6 +23,7 @@ namespace ProjectS.Players
         [SerializeField] private InputAction attackAction;
         [SerializeField] private InputAction strongAttackAction;   // 강공격(기본 바인딩: 우클릭)
         [SerializeField] private InputAction rollAction;   // 구르기(기본 바인딩: Left Shift)
+        [SerializeField] private InputAction cursorToggleAction;   // 커서 잠금 토글(기본 바인딩: Left Alt)
 
         // 달리기 판정: 이동 입력이 끊겼다가 이 시간(초) 안에 다시 시작되면 더블탭으로 본다.
         [Header("달리기")]
@@ -52,6 +53,7 @@ namespace ProjectS.Players
         public event Action Attacked;
         public event Action StrongAttacked;      // 우클릭 강공격. 쿨타임 판정은 수신측(PlayerCombat)
         public event Action<int> SkillPressed;   // 인자 = 눌린 스킬 번호
+        public event Action CursorTogglePressed; // 커서 잠금 토글. 잠금/해제 상태 소유는 수신측(Player)
 
         // 구르기는 점프와 같은 '꾹 누르면 연속 발동' 설계라 이벤트가 아닌 RollHeld 폴링으로 처리한다.
         // 이벤트(started) 방식이면 '누른 순간' 1회뿐이라 연속 회피를 만들 수 없다.
@@ -66,12 +68,14 @@ namespace ProjectS.Players
             attackAction.Enable();
             strongAttackAction.Enable();
             rollAction.Enable();
+            cursorToggleAction.Enable();
 
             moveAction.started += OnMoveStarted;
             moveAction.canceled += OnMoveCanceled;
             skillAction.started += OnSkill;
             attackAction.started += OnAttack;
             strongAttackAction.started += OnStrongAttack;
+            cursorToggleAction.started += OnCursorToggle;
         }
 
         // 구독/활성화의 정확한 짝. OnEnable에서 +=/Enable 했으면 여기서 -=/Disable.
@@ -83,6 +87,7 @@ namespace ProjectS.Players
             skillAction.started -= OnSkill;
             attackAction.started -= OnAttack;
             strongAttackAction.started -= OnStrongAttack;
+            cursorToggleAction.started -= OnCursorToggle;
 
             moveAction.Disable();
             zoomAction.Disable();
@@ -91,6 +96,7 @@ namespace ProjectS.Players
             attackAction.Disable();
             strongAttackAction.Disable();
             rollAction.Disable();
+            cursorToggleAction.Disable();
         }
 
         private void OnSkill(InputAction.CallbackContext ctx)
@@ -110,6 +116,11 @@ namespace ProjectS.Players
         private void OnStrongAttack(InputAction.CallbackContext _)
         {
             StrongAttacked?.Invoke();
+        }
+
+        private void OnCursorToggle(InputAction.CallbackContext _)
+        {
+            CursorTogglePressed?.Invoke();
         }
 
         // started는 이동 입력이 '없음 → 있음'으로 바뀌는 순간만 발화한다.
