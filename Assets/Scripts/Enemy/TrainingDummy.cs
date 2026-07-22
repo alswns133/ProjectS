@@ -1,43 +1,48 @@
 ﻿using UnityEngine;
+using ProjectS.Core;
+using ProjectS.Events;
 
-/// <summary>
-/// 트레이닝 더미. 공격 판정·데미지 검증용 최소 대상.
-/// 이동·AI 없이 IDamageable만 구현해 "맞고 죽는" 것만 한다.
-/// </summary>
-public class TrainingDummy : MonoBehaviour, IDamageable
+namespace ProjectS.Enemies
 {
-    [SerializeField] private int maxHp = 100;
-    [SerializeField] private float damageTextHeight = 1.8f;   // 데미지 텍스트가 뜨는 높이(머리 위). 적 크기에 맞춰 조정
-    private int currentHp;
-
-    public bool IsDead => currentHp <= 0;
-
-    private void Awake() => currentHp = maxHp;
-
     /// <summary>
-    /// 데미지 적용. 더미는 무적이 없어 살아 있으면 항상 적용된다.
+    /// 트레이닝 더미. 공격 판정·데미지 검증용 최소 대상.
+    /// 이동·AI 없이 IDamageable만 구현해 "맞고 죽는" 것만 한다.
     /// </summary>
-    /// <returns>실제 적용됐으면 true. 이미 죽은 대상이면 false(IDamageable 계약).</returns>
-    public bool TakeDamage(int amount)
+    public class TrainingDummy : MonoBehaviour, IDamageable
     {
-        if (IsDead) return false;                 // 이미 죽었으면 무시(1회 사망 보장)
+        [SerializeField] private int maxHp = 100;
+        [SerializeField] private float damageTextHeight = 1.8f;   // 데미지 텍스트가 뜨는 높이(머리 위). 적 크기에 맞춰 조정
+        private int currentHp;
 
-        currentHp = Mathf.Max(0, currentHp - amount);
-        //Debug.Log($"{name} 피격! {amount} 데미지 → 남은 HP {currentHp}", this);
+        public bool IsDead => currentHp <= 0;
 
-        // 연출은 이벤트로만 알린다(데미지 텍스트·이펙트가 각자 구독).
-        // 받은 쪽이 발행하는 이유: 나중에 방어력 보정이 생겨도 '실제 적용된' 수치를 아는 곳은 여기다
-        CombatEvents.FireDamageDealt(transform.position + Vector3.up * damageTextHeight, amount);
+        private void Awake() => currentHp = maxHp;
 
-        if (IsDead)
+        /// <summary>
+        /// 데미지 적용. 더미는 무적이 없어 살아 있으면 항상 적용된다.
+        /// </summary>
+        /// <returns>실제 적용됐으면 true. 이미 죽은 대상이면 false(IDamageable 계약).</returns>
+        public bool TakeDamage(int amount)
         {
-            //Debug.Log($"{name} 사망", this);
-            // 비활성화 '전에' 발행해야 구독자(처치 이펙트 등)가 위치를 신뢰할 수 있다.
-            CombatEvents.FireEnemyDied(transform.position);
-            // 지금은 그냥 비활성. 나중에 사망 연출·드롭으로 확장
-            gameObject.SetActive(false);
-        }
+            if (IsDead) return false;                 // 이미 죽었으면 무시(1회 사망 보장)
 
-        return true;
+            currentHp = Mathf.Max(0, currentHp - amount);
+            //Debug.Log($"{name} 피격! {amount} 데미지 → 남은 HP {currentHp}", this);
+
+            // 연출은 이벤트로만 알린다(데미지 텍스트·이펙트가 각자 구독).
+            // 받은 쪽이 발행하는 이유: 나중에 방어력 보정이 생겨도 '실제 적용된' 수치를 아는 곳은 여기다
+            CombatEvents.FireDamageDealt(transform.position + Vector3.up * damageTextHeight, amount);
+
+            if (IsDead)
+            {
+                //Debug.Log($"{name} 사망", this);
+                // 비활성화 '전에' 발행해야 구독자(처치 이펙트 등)가 위치를 신뢰할 수 있다.
+                CombatEvents.FireEnemyDied(transform.position);
+                // 지금은 그냥 비활성. 나중에 사망 연출·드롭으로 확장
+                gameObject.SetActive(false);
+            }
+
+            return true;
+        }
     }
 }
