@@ -137264,6 +137264,23 @@ MonoBehaviour:
       m_Action: Roll
       m_Flags: 0
     m_Flags: 0
+  cursorToggleAction:
+    m_Name: Cursor Toggle
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 368ca302-9afa-402d-aca1-a8b229b29a29
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 8785e68c-889a-4018-ac49-bb2008c793bd
+      m_Path: <Keyboard>/leftAlt
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Cursor Toggle
+      m_Flags: 0
+    m_Flags: 0
   doubleTapWindow: 0.3
 --- !u!143 &708303902
 CharacterController:
@@ -191206,7 +191223,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 724f41eb2681abd45aaddd6cae7ba47c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraRig
-  input: {fileID: 2035824141}
+  input: {fileID: 708303901}
   zoomSpeed: 50
   minDistance: 2
   maxDistance: 10
@@ -196612,7 +196629,6 @@ MonoBehaviour:
   sensitivity: 0.1
   minPitch: -70
   maxPitch: 70
-  thirdpersoncharactercontroller: {fileID: 0}
 --- !u!4 &1026239780 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8341157169923946385, guid: 9d58ee279c6db9a41809fbe28ff1fd16, type: 3}
@@ -347590,7 +347606,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1932d00b1cd6b424d9750273e5a9eeb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
-  prefab: {fileID: 6660427250470465309, guid: 31ecc7f79750fcf4aa6f7409d58fa4b9, type: 3}
+  prefab: {fileID: -6086042992580090171, guid: 202dfb24a8088d242b751a484e4efd1b, type: 3}
   initialPoolSize: 10
   source: 0
 --- !u!4 &1901975243
@@ -347620,7 +347636,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1932d00b1cd6b424d9750273e5a9eeb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
-  prefab: {fileID: 6660427250470465309, guid: 31ecc7f79750fcf4aa6f7409d58fa4b9, type: 3}
+  prefab: {fileID: 2088054485288642982, guid: 1d5e2c1e39ce28045ba277e2eabb79c4, type: 3}
   initialPoolSize: 10
   source: 1
 --- !u!1001 &1902654731
@@ -374177,6 +374193,15 @@ MonoBehaviour:
       m_Groups: 
       m_Action: Roll
       m_Flags: 0
+    m_Flags: 0
+  cursorToggleAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: b3887ebb-57a8-464c-84b1-dfb242ee85e8
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
     m_Flags: 0
   doubleTapWindow: 0.3
 --- !u!114 &2035824142
