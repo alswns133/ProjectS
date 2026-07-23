@@ -28,6 +28,12 @@ namespace ProjectS.Managers
         // 데이터 접근용 프로퍼티 (필요한 테이블마다 추가)
         public IReadOnlyDictionary<int, SoundTable> SoundDict => GetTable<SoundTable>();
 
+        public IReadOnlyDictionary<int, ItemData> ItemDict => GetTable<ItemData>();
+        public IReadOnlyDictionary<int, EquipmentData> EquipmentDict => GetTable<EquipmentData>();
+        public IReadOnlyDictionary<int, ItemOptionData> ItemOptionDict => GetTable<ItemOptionData>();
+        public IReadOnlyDictionary<int, EnhanceBonusData> EnhanceBonusDict => GetTable<EnhanceBonusData>();
+        public IReadOnlyDictionary<int, EnhanceCostData> EnhanceCostDict => GetTable<EnhanceCostData>();
+
         // 에디터에서 로드된 데이터를 확인하기 위한 디버그 리스트
     #if UNITY_EDITOR
         [SerializeField] private List<SoundTable> soundDebugList;
@@ -50,6 +56,15 @@ namespace ProjectS.Managers
         {
             // 데이터 로딩이 필요한 테이블마다 RegisterAsync 호출
             await RegisterAsync<SoundTable>();
+
+            await RegisterAsync<ItemData>();
+            await RegisterAsync<EquipmentData>();
+            await RegisterAsync<ItemOptionData>();
+            await RegisterAsync<EnhanceBonusData>();
+            await RegisterAsync<EnhanceCostData>();
+
+            // ConsumableData는 JSON이 만들어진 뒤 여기에 추가한다.
+            // 어드레서블 주소가 없는 상태로 Register하면 로드 실패 로그만 쌓인다.
 
             IsReady = true;   // ★ 모든 로딩이 끝난 뒤에야 true
 
