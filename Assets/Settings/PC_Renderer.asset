@@ -15,6 +15,24 @@ MonoBehaviour:
   m_Active: 1
   downsampleDepthShader: {fileID: 4800000, guid: cffeaeec0396a2c4dad475266cc8dfeb, type: 3}
   volumetricFogShader: {fileID: 4800000, guid: 08f816187f9af0244a95556ee0cab83f, type: 3}
+--- !u!114 &-2254796305250517487
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 473a86c9e274347dfbdde619584cebe9, type: 3}
+  m_Name: HighlightPlusRenderPassFeature
+  m_EditorClassIdentifier: HighlightPlus.Runtime::HighlightPlus.HighlightPlusRenderPassFeature
+  m_Active: 1
+  renderPassEvent: 500
+  clearStencil: 0
+  previewInEditMode: 1
+  showInSceneView: 1
+  showInPreviewCamera: 0
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -43,7 +61,8 @@ MonoBehaviour:
   - {fileID: 7833122117494664109}
   - {fileID: -8558418868404291563}
   - {fileID: 8150609756558990777}
-  m_RendererFeatureMap: ad6b866f10d7b46c15f8c23562633a89b91d88ca63c81c71
+  - {fileID: -2254796305250517487}
+  m_RendererFeatureMap: ad6b866f10d7b46c15f8c23562633a89b91d88ca63c81c7111feadf0b45ab5e0
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
