@@ -27,6 +27,11 @@ namespace ProjectS.Players
             player.Movement.CancelJump();          // 상승 중이던 점프 속도 제거(피격했는데 계속 떠오르는 것 방지)
 
             player.Animation.PlayHit(player.Stats.LastHitWasStrong);
+
+            // 경직 동안 수평 이동이 멈추므로 로코모션 bool도 함께 내린다. 켜둔 채로 두면
+            // 3단 로코모션 컨트롤러가 피격 모션 도중 걷기 Loop로 새어나간다.
+            // Enter에서 1회면 충분하다: 경직 중에는 이 값을 다시 켜는 상태가 돌지 않는다.
+            player.Animation.SetLocomotion(false, false);
         }
 
         public override void Update()
