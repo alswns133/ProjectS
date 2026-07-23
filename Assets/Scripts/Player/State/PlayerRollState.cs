@@ -55,8 +55,23 @@ namespace ProjectS.Players
             // 중력·접지 유지를 위해 zero 입력으로 Move만 호출한다.
             player.Movement.Move(Vector2.zero);
 
-            if (elapsed >= player.Movement.RollDuration)
-                player.ChangeState(player.FreeState);
+            // 구르는 동안에도 이동 bool은 계속 갱신한다. 3단 로코모션 컨트롤러는 Roll에서
+            // 빠져나갈 때 isMoving/isRunning으로 Idle·걷기·달리기 중 어디로 갈지 정하므로,
+            // 굳힌 값을 들고 있으면 도중에 키를 뗐는데도 구르기 끝에 계속 걸어나간다.
+            Vector2 input = player.Input.MoveInput;
+            bool isMoving = input.sqrMagnitude > 0.0001f;
+            player.Animation.SetLocomotion(isMoving, isMoving && player.Input.IsRunning);
+
+            if (elapsed < player.Movement.RollDuration) return;
+
+            // 구르기 종료 시 현재 입력 방향을 보간 없이 즉시 바라본다.
+            // 안 하면 FreeState의 회전 보간이 구르던 방향에서 새 방향까지 도는 동안
+            // 잠깐 엉뚱한 쪽으로 직진한다(연속 회피에서 특히 눈에 띈다).
+            // 커밋형 회피와 충돌하지 않는다: 방향이 바뀌는 건 구르기가 끝난 뒤다.
+            if (isMoving)
+                player.Movement.FaceInstantly(player.Movement.CameraRelativeDirection(input));
+
+            player.ChangeState(player.FreeState);
         }
 
         public override void Exit()

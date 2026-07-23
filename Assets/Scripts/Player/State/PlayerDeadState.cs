@@ -19,6 +19,8 @@ namespace ProjectS.Players
             player.Effect.AllStopEffect();
             // 점프 공격 호버링 중 사망하면 공중에 뜬 채 굳으므로 여기서도 해제한다.
             player.Movement.SetHover(false);
+            // 달리던 중 죽으면 로코모션 bool이 켜진 채 굳는다 → 사망 모션 위로 걷기 전이가 겹친다.
+            player.Animation.SetLocomotion(false, false);
             // 이동 입력을 받지 않으므로 Update는 비워둔다 → 조작 잠금이 자동 성립
         }
 
