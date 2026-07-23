@@ -13,6 +13,8 @@ namespace ProjectS.Players
         // 파라미터 이름을 매번 문자열로 넘기면 내부에서 해싱 비용 + 오타 위험.
         // 시작 시 1회 해싱해 int로 캐싱한다. static readonly: 인스턴스 공통·불변.
         private static readonly int Z = Animator.StringToHash("Z");
+        private static readonly int Moving = Animator.StringToHash("isMoving");
+        private static readonly int Running = Animator.StringToHash("isRunning");
         private static readonly int Grounded = Animator.StringToHash("isGrounded");
         private static readonly int VertVelocity = Animator.StringToHash("verticalVelocity");
         private static readonly int DoDie = Animator.StringToHash("doDie");
@@ -42,14 +44,49 @@ namespace ProjectS.Players
 
         private const float Damp = 0.1f;   // SetFloat 감쇠 시간. 값이 즉시 안 튀고 부드럽게 따라감
         private Animator animator;
+
+        // 로코모션 규약이 컨트롤러마다 다르다. Player.controller는 Z 블렌드 트리(정지/걷기/달리기 혼합),
+        // Haru.controller는 isMoving/isRunning bool로 도는 3단 State 머신(Idle→Start→Loop→Stop)이다.
+        // 없는 파라미터에 SetBool을 하면 Unity가 매 프레임 경고를 뱉으므로 Awake에서 한 번만 확인해 둔다.
+        // 두 규약이 하나로 통일되면 이 플래그와 SetLocomotion의 가드는 지운다.
+        private bool hasLocomotionBools;
+
         private void Awake()
         {
             animator = GetComponent<Animator>();
             villageController = animator.runtimeAnimatorController;
+
+            // AnimatorOverrideController는 원본의 파라미터 목록을 그대로 물려받으므로
+            // 던전 컨트롤러로 교체돼도 이 판정은 유효하다 → 1회 검사로 충분.
+            hasLocomotionBools = HasParameter(Moving) && HasParameter(Running);
         }
 
         /// <summary>전진량(Z)을 부드럽게 갱신. 자유 시점은 진행 방향 회전이라 Z만 쓴다.</summary>
         public void SetForward(float z) => animator.SetFloat(Z, z, Damp, Time.deltaTime);
+
+        /// <summary>
+        /// 이동/달리기 여부를 bool 파라미터로 전달한다(3단 로코모션 컨트롤러 전용 규약).
+        /// Start/Loop/Stop 클립을 쓰는 컨트롤러는 Z 하나로 상태를 못 고르고, 이 두 값의
+        /// 조건 전이로 Idle↔걷기↔달리기를 오간다. SetForward와 함께 매 프레임 호출한다.
+        /// 파라미터가 없는 컨트롤러(Player.controller)에서는 조용히 무시된다.
+        /// </summary>
+        public void SetLocomotion(bool isMoving, bool isRunning)
+        {
+            if (!hasLocomotionBools) return;
+
+            animator.SetBool(Moving, isMoving);
+            animator.SetBool(Running, isRunning);
+        }
+
+        private bool HasParameter(int nameHash)
+        {
+            foreach (AnimatorControllerParameter p in animator.parameters)
+            {
+                if (p.nameHash == nameHash) return true;
+            }
+
+            return false;
+        }
 
         public void SetGrounded(bool v) => animator.SetBool(Grounded, v);
 

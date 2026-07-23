@@ -20,6 +20,7 @@ namespace ProjectS.Players
             {
                 player.Movement.Move(Vector2.zero);
                 player.Animation.SetForward(0f);
+                player.Animation.SetLocomotion(false, false);
                 return;
             }
 
@@ -35,6 +36,11 @@ namespace ProjectS.Players
             // Z 규약: 정지 0 / 걷기 0.5 / 달리기 1. 컨트롤러 블렌드 트리 임계값과 맞춘 값이다.
             bool isMoving = input.sqrMagnitude > 0.0001f;
             player.Animation.SetForward(isMoving ? (isRunning ? 1f : 0.5f) : 0f);
+
+            // 3단 로코모션 컨트롤러용 bool 규약. Z와 같은 정보를 전달하지만 표현이 달라서 함께 보낸다
+            // (자세한 이유는 PlayerAnimation.SetLocomotion 주석 참고).
+            // 달리기는 이동 중일 때만 켠다 → 멈춘 프레임에 Run 계열로 새는 전이를 원천 차단.
+            player.Animation.SetLocomotion(isMoving, isMoving && isRunning);
         }
     }
 }
