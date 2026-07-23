@@ -33,6 +33,13 @@ namespace ProjectS.Movement
         [SerializeField] private float jumpDashSpeed = 12f;
         [SerializeField] private float jumpDashDuration = 0.55f;
 
+        [Header("낙하 공격")]
+        // 공중 공격(내려찍기) 중 하강 속도. 액션게임 플런지 느낌(클수록 빠름). 3~5 권장.
+        [SerializeField] private float diveSpeed = 4f;
+        // 낙하 공격 중 착지 예고(isLanding) 감지 거리. 일반 점프보다 크게 잡아, 땅에 닿기 전에
+        // 미리 End(내려찍기 스윙)로 전이시킨다 → 착지 순간엔 이미 휘두르고 있게 한다. 스윙 타이밍에 맞춰 조정.
+        [SerializeField] private float diveLandingCheckDistance = 2f;
+
         [Header("착지 예고")]
         // 지면까지 이 거리 안으로 들어오면 착지 모션을 미리 시작한다(모션 길이에 맞춰 조정).
         [SerializeField] private float landingCheckDistance = 1.5f;
@@ -74,12 +81,80 @@ namespace ProjectS.Movement
         // 공중 대시는 착지 전까지 1회만 허용. 착지하면 재사용 가능해진다.
         private bool hasAirDashed;
 
+        // 전투 조율자(FreeCombatController)가 제어하는 호버 상태. 점프 공격 등 모션 동안
+        // 높이를 고정한다. Hovering 프로퍼티로만 켜고, 켜는 순간 현재 높이를 캡처한다.
+        private bool hovering;
+        private float hoverHeight;
+
         // 회피 키가 직전 프레임에 눌려 있었는지. 누르는 순간만 잡아 연타 발동을 막는다.
         private bool wasRollHeld;
 
         // 점프 순간 캡처한 공중 관성 속도. 공중에서는 이 값을 유지하며 입력 방향으로만 서서히 조향한다.
         private Vector3 airVelocity;
         private Vector3 lastPosition;
+
+        // TEMP DEBUG (진단 후 제거): isLanding 상승 엣지 검출용.
+        private bool dbgWasLanding;
+
+        /// <summary>
+        /// 공격/스킬 중 수평 이동·구르기·점프·대시를 막는 외부 잠금.
+        /// 전투 조율자(FreeCombatController)가 Player.IsMovementLocked를 반영해 세팅한다.
+        /// 중력·접지 처리는 계속되므로 제자리에서 공격/낙하는 정상 동작한다.
+        /// </summary>
+        public bool ActionLocked { get; set; }
+
+        /// <summary>
+        /// 낙하 공격(내려찍기) 하강 모드. true면 ActionLocked 중 중력 대신 diveSpeed로 빠르게 내려간다.
+        /// 전투 조율자가 공중 공격 시작 시 켜고, 착지하면 자동으로 해제된다.
+        /// </summary>
+        public bool Diving { get; set; }
+
+        /// <summary>현재 접지 여부. 전투 조율자가 공중 공격/착지 판정에 읽는다.</summary>
+        public bool IsGrounded => controller != null && controller.isGrounded;
+
+        /// <summary>현재 구르기 중 여부. 전투 조율자가 구르기 캔슬·무적 타이밍에 읽는다.</summary>
+        public bool IsRolling => isRolling;
+
+        /// <summary>
+        /// 점프 공격 등 체공 유지(호버) 모드. true면 수직 속도를 0으로 두고 시작 높이를
+        /// LateUpdate에서 유지한다(대시 높이 고정과 같은 원리). 켜는 순간 현재 높이를 캡처한다.
+        /// 모션이 끝나 잠금이 풀리면 조율자가 false로 되돌려 낙하를 재개시킨다.
+        /// </summary>
+        public bool Hovering
+        {
+            get => hovering;
+            set
+            {
+                if (value && !hovering) hoverHeight = transform.position.y;
+                hovering = value;
+            }
+        }
+
+        /// <summary>카메라가 보는 수평 방향을 즉시 바라본다(공격 시작 시 방향 정렬용).</summary>
+        public void SnapToCameraForward()
+        {
+            if (!TryCacheCamera()) return;
+
+            Vector3 fwd = cam.forward;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 0.0001f) return;
+
+            transform.rotation = Quaternion.LookRotation(fwd.normalized);
+        }
+
+        /// <summary>
+        /// 낙하 공격을 낼 만큼 지면에서 충분히 떠 있는지 여부. 발밑 minHeight 안에 지면이 있으면
+        /// (=너무 낮으면) false. 점프 직후 지면에 바짝 붙은 상태에서 낙하 공격이 어색하게 나가는 것을 막는다.
+        /// </summary>
+        public bool HasDiveClearance(float minHeight)
+        {
+            return !Physics.Raycast(
+                transform.position + Vector3.up * 0.1f,
+                Vector3.down,
+                minHeight,
+                groundLayer,
+                QueryTriggerInteraction.Ignore);
+        }
 
         private void Awake()
         {
@@ -108,8 +183,12 @@ namespace ProjectS.Movement
             bool grounded = controller.isGrounded;
             animator.SetBool(groundedHash, grounded);
 
-            // 착지하면 공중 대시 사용을 초기화한다(공중 1회 제한).
-            if (grounded) hasAirDashed = false;
+            // 착지하면 공중 대시 사용을 초기화하고(공중 1회 제한), 낙하 공격 하강도 종료한다.
+            if (grounded)
+            {
+                hasAirDashed = false;
+                Diving = false;
+            }
 
             // 착지 순간(공중 → 접지)에 공중 관성을 확실히 제거한다.
             if (grounded && !wasGrounded)
@@ -120,15 +199,23 @@ namespace ProjectS.Movement
             bool nearGround = false;
             if (verticalVelocity < 0f)
             {
+                // 낙하 공격 중에는 더 먼 거리에서 미리 감지해, 착지 전에 스윙(End)이 시작되게 한다.
+                float landingDist = Diving ? diveLandingCheckDistance : landingCheckDistance;
                 nearGround = Physics.Raycast(
                     transform.position + Vector3.up * 0.1f,
                     Vector3.down,
-                    landingCheckDistance,
+                    landingDist,
                     groundLayer,
                     QueryTriggerInteraction.Ignore);
             }
             animator.SetBool(landingHash, nearGround);
             animator.SetFloat(vertVelocityHash, verticalVelocity);
+
+            // TEMP DEBUG (진단 후 제거): isLanding 상승 순간의 Diving/수직속도/높이를 찍는다.
+            // Diving=True면 다이브 하강(거리 diveLandingCheckDistance), False면 중력 낙하(거리 landingCheckDistance).
+            if (nearGround && !dbgWasLanding)
+                Debug.Log($"[DiveDbg] isLanding=TRUE | Diving={Diving} | vv={verticalVelocity:F2} | y={transform.position.y:F2}", this);
+            dbgWasLanding = nearGround;
 
             // 구르기 중: 일반 이동/회전을 막는다. 전진은 루트모션이 담당.
             if (isRolling)
@@ -173,6 +260,45 @@ namespace ProjectS.Movement
                     airVelocity = jumpDashDirection * jumpDashSpeed;
                 }
 
+                wasRollHeld = input.RollHeld;
+                return;
+            }
+
+            // 전투 잠금 중: 실제 수평 이동만 막고(중력/접지는 유지), 이동 "의도"는 애니메이터에 계속 전달한다.
+            // isMoving을 false로 고정하면 공격 종료(End) 상태에서 End→Walk_Loop(isMoving=true) 전이가
+            // 절대 안 걸려, 방향키를 쥔 채 착지해도 Idle로 새어버린다. 공격 State는 별도라 isMoving=true여도
+            // 걷기로 새지 않고, 오직 End의 전이 분기만 이 값을 읽는다(점프 Jump_End와 동일 원리).
+            // 호버(점프 공격 등) 중에는 중력도 끄고 높이를 고정한다(LateUpdate에서 보정).
+            if (ActionLocked)
+            {
+                // 후딜 캔슬: 공격 잠금 중이라도 지상에서 이동+회피키면 구르기로 즉시 캔슬한다(회피 최우선, 기획).
+                // 구르기가 시작되면 FreeCombatController가 공격 캔슬 + 잠금 해제를 처리한다.
+                if (input.RollHeld && grounded && input.MoveInput.sqrMagnitude > 0.0001f)
+                {
+                    StartRoll(input.MoveInput);
+                    return;
+                }
+
+                Vector3 locked = Vector3.zero;
+                if (hovering)
+                {
+                    verticalVelocity = 0f;
+                }
+                else if (Diving && !grounded)
+                {
+                    // 낙하 공격(내려찍기): 중력 대신 빠른 고정 속도로 내려꽂는다.
+                    verticalVelocity = -diveSpeed;
+                    locked.y = verticalVelocity;
+                }
+                else
+                {
+                    ApplyGravity(ref locked);
+                }
+                controller.Move(locked * Time.deltaTime);
+
+                bool lockedMoving = input.MoveInput.sqrMagnitude > 0.0001f;
+                animator.SetBool(movingHash, lockedMoving);
+                animator.SetBool(runningHash, lockedMoving && input.IsRunning);
                 wasRollHeld = input.RollHeld;
                 return;
             }
@@ -240,6 +366,14 @@ namespace ProjectS.Movement
                 Vector3 dashPos = transform.position;
                 dashPos.y = jumpDashHeight;
                 transform.position = dashPos;
+            }
+
+            // 점프 공격 등 호버 중에는 시작 높이를 유지한다(대시 높이 고정과 같은 이유).
+            if (hovering)
+            {
+                Vector3 hoverPos = transform.position;
+                hoverPos.y = hoverHeight;
+                transform.position = hoverPos;
             }
 
             // 지상에서 이동 중일 때만 갱신. 최댓값을 유지해 회전 중인 느린 프레임에 끌려가지 않게 한다.
