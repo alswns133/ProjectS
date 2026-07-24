@@ -53,16 +53,14 @@ namespace ProjectS.UI
         /// <summary>강화 버튼을 눌렀을 때. Presenter가 검증·판정을 시작한다.</summary>
         public event Action OnEnhanceRequested;
 
-        /// <summary>코어 슬롯을 눌렀을 때. Presenter가 장비 선택 팝업을 연다.</summary>
-        public event Action OnSlotClicked;
-
         protected override void OnInit()
         {
             // 자식 컴포넌트의 Awake 순서에 기대지 않도록 버튼 배선을 여기서 일괄 처리한다.
             // (OnInit은 SetActive(true) 이전에 1회 호출된다 — BasePanel.Show 참고. 그래서 여기서
             //  자식 Awake가 아직 안 돈 상태여도, 버튼 리스너 등록처럼 참조만 쓰는 작업은 안전하다.)
+            // 대상 선택은 코어 슬롯 클릭이 아니라 인벤 슬롯 더블클릭/드래그드랍으로 처리한다.
+            // 코어 슬롯은 CoreSlotDropTarget(드롭 대상)이 담당하므로 여기서 클릭 배선을 하지 않는다.
             if (enhanceButton != null) enhanceButton.onClick.AddListener(() => OnEnhanceRequested?.Invoke());
-            if (coreSlotButton != null) coreSlotButton.onClick.AddListener(() => OnSlotClicked?.Invoke());
             if (closeButton != null) closeButton.onClick.AddListener(() => UIManager.Instance.Back());
         }
 

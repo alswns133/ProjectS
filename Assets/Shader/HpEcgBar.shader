@@ -111,7 +111,7 @@ Shader "ProjectS/UI/HpEcgBar"
                 // 풀피(_FillAmount=1)에선 중앙(uv.y-0.5) 기준 → 바가 정확히 꽉 참.
                 // 0에 가까울수록 하단(uv.y) 기준으로 옮겨 → 낮은 잔여량 구간의 비율을 맞춤.
                 // 두 끝을 각각 최적점에 고정해 스프라이트 모양과 어긋나 짤리는 문제를 없앤다.
-                fx += (uv.y - 0.9 * _FillAmount) * s;
+                fx += (uv.y - 1.0 * _FillAmount) * s;
 
                 // ── 1) HP fill (좌→우) ──
                 float filled = step(fx, _FillAmount);

@@ -60,9 +60,9 @@ MonoBehaviour:
   m_RendererFeatures:
   - {fileID: 7833122117494664109}
   - {fileID: -8558418868404291563}
-  - {fileID: 8150609756558990777}
+  - {fileID: 5615969574330835336}
   - {fileID: -2254796305250517487}
-  m_RendererFeatureMap: ad6b866f10d7b46c15f8c23562633a89b91d88ca63c81c7111feadf0b45ab5e0
+  m_RendererFeatureMap: ad6b866f10d7b46c15f8c23562633a89882164bb92eeef4d11feadf0b45ab5e0
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -91,6 +91,35 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
+--- !u!114 &5615969574330835336
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85e29567eeda6544d96627d694816612, type: 3}
+  m_Name: Analytical Volumetric Lighting
+  m_EditorClassIdentifier: Assembly-CSharp::AkiDevCat.AVL.Rendering.AVLRenderFeature
+  m_Active: 1
+  _settings:
+    ClusteringShader: {fileID: 7200000, guid: 875fa985897ea6c4b8985324841b8971, type: 3}
+    RenderingShader: {fileID: 4800000, guid: fa5d70ca724bb294a8d9cef9ad9206db, type: 3}
+    DebugShader: {fileID: 4800000, guid: f6da641dc9dd2924796ea382d4c70a90, type: 3}
+    renderingQuality: 1
+    enableHDR: 1
+    maxLights: 4096
+    maxMasks: 128
+    enableUpscaling: 1
+    enableDepthCulling: 1
+    cullingClusterSizeX: 16
+    cullingClusterSizeY: 9
+    exportVolumetricLightTexture: 0
+    lightModel: 0
+    debugMode: 0
+    debugOpacity: 0.04
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -117,32 +146,3 @@ MonoBehaviour:
     BlurQuality: 0
     Falloff: 100
     SampleCount: -1
---- !u!114 &8150609756558990777
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bac1b73383ae410d8e277450af64d970, type: 3}
-  m_Name: Analytical Volumetric Lighting
-  m_EditorClassIdentifier: Assembly-CSharp::AkiDevCat.AVL.Rendering.AVLRenderFeature
-  m_Active: 1
-  _settings:
-    ClusteringShader: {fileID: 7200000, guid: 9c1586f774fa47c7a62565dafa7c1cbf, type: 3}
-    RenderingShader: {fileID: 4800000, guid: 2d7019988494484596b679d293a0dfeb, type: 3}
-    DebugShader: {fileID: 4800000, guid: e2a515e7e7c24926abfaa53800afd988, type: 3}
-    renderingQuality: 1
-    enableHDR: 1
-    maxLights: 4096
-    maxMasks: 128
-    enableUpscaling: 1
-    enableDepthCulling: 1
-    cullingClusterSizeX: 16
-    cullingClusterSizeY: 9
-    exportVolumetricLightTexture: 0
-    lightModel: 0
-    debugMode: 0
-    debugOpacity: 0.04
