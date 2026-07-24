@@ -18,6 +18,9 @@ namespace ProjectS.Enemies
     [RequireComponent(typeof(EnemyMovement))]
     [RequireComponent(typeof(EnemyAnimation))]
     [RequireComponent(typeof(EnemyCombat))]
+    // 미니맵 등록도 부품처럼 강제한다. MinimapMarkerSource의 type 기본값이 Enemy라
+    // 몬스터는 자동 추가만으로 별도 설정 없이 미니맵에 잡힌다.
+    [RequireComponent(typeof(MinimapMarkerSource))]
     public class Enemy : MonoBehaviour
     {
         // ── 순찰 ─────────────────────────────────────────────────────────
