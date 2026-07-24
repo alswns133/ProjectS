@@ -1,4 +1,6 @@
-﻿using ProjectS.Players;
+﻿using ProjectS.Core;
+using ProjectS.Events;
+using ProjectS.Players;
 
 namespace ProjectS.Enemies
 {
@@ -16,6 +18,9 @@ namespace ProjectS.Enemies
     [RequireComponent(typeof(EnemyMovement))]
     [RequireComponent(typeof(EnemyAnimation))]
     [RequireComponent(typeof(EnemyCombat))]
+    // 미니맵 등록도 부품처럼 강제한다. MinimapMarkerSource의 type 기본값이 Enemy라
+    // 몬스터는 자동 추가만으로 별도 설정 없이 미니맵에 잡힌다.
+    [RequireComponent(typeof(MinimapMarkerSource))]
     public class Enemy : MonoBehaviour
     {
         // ── 순찰 ─────────────────────────────────────────────────────────
@@ -29,10 +34,15 @@ namespace ProjectS.Enemies
         // ── 발견 ─────────────────────────────────────────────────────────
         // 감지 설정. Idle/Patrol에서 플레이어가 detectionRange 안에 들어오면 DetectState로 진입한다.
         // 바로 Chase로 가지 않는 이유: "플레이어 발견" 연출과 짧은 대시를 하나의 커밋 동작으로 보장하기 위함.
-        // detectDuration 동안 발견 연출/대시를 처리한 뒤 ChaseState로 넘어간다.
+        // 발견 상태 유지 시간은 별도 값이 아니라 발견 클립 길이를 따른다(DetectState가 애니메이터에서 읽음).
         [Header("감지")]
         [SerializeField] private float detectionRange = 8f;
-        [SerializeField] private float detectDuration = 0.7f;
+
+        // 발견 순간 플레이어 쪽으로 짧게 달려들지 여부. 발견 애니메이션과 한 몸인 설정이다.
+        // 근접 몬스터는 발견 모션이 달려드는 연출이라 켜 두고,
+        // 원거리 몬스터는 발견 즉시 제자리에서 겨누는 모션이라 꺼야 한다.
+        // 켜 두면 겨누는 모션을 재생하면서 몸이 미끄러져 애니메이션과 이동이 따로 논다.
+        [SerializeField] private bool useDetectDash = true;
         [SerializeField] private float detectDashSpeedMultiplier = 1.8f;
         [SerializeField, Min(0f)] private float targetNavMeshSampleRadius = 0.5f;
         [SerializeField, Min(0.02f)] private float targetPathCheckInterval = 0.25f;
@@ -120,6 +130,15 @@ namespace ProjectS.Enemies
         /// <summary>추적 대상(플레이어). 씬에 없으면 null이며, 상태들은 대상이 없으면 자연스럽게 대기한다.</summary>
         public Transform Target { get; private set; }
 
+        // 대상의 생사 판정용. Transform만으로는 죽었는지 알 수 없어 따로 캐싱한다.
+        private IDamageable targetDamageable;
+
+        /// <summary>
+        /// 추적 대상이 살아 있는지 여부. 생사를 알 수 없는 대상(IDamageable이 없는 경우)은
+        /// 살아 있는 것으로 본다 — 모르는 이유로 몬스터가 멈춰 서는 것보다 낫다.
+        /// </summary>
+        public bool IsTargetAlive => targetDamageable == null || !targetDamageable.IsDead;
+
         /// <summary>피격용 루트 콜라이더. 사망 시 추가 피격과 물리 충돌을 막기 위해 DeadState가 끈다.</summary>
         public Collider BodyCollider { get; private set; }
 
@@ -131,8 +150,11 @@ namespace ProjectS.Enemies
         public int PatrolPointCount => patrolPoints != null ? patrolPoints.Length : 0;
         /// <summary>순찰 지점에 도착한 뒤 다음 지점으로 가기 전 대기 시간.</summary>
         public float PatrolWaitTime => patrolWaitTime;
-        /// <summary>발견 연출/대시 상태가 유지되는 시간.</summary>
-        public float DetectDuration => detectDuration;
+        /// <summary>
+        /// 발견 시 짧은 대시 연출을 사용하는지 여부. 발견 애니메이션이 제자리 모션인
+        /// 원거리 몬스터는 꺼서 이동 없이 발견 연출만 재생하게 한다.
+        /// </summary>
+        public bool UseDetectDash => useDetectDash;
         /// <summary>발견 대시 중 NavMeshAgent 기본 속도에 곱할 배수.</summary>
         public float DetectDashSpeedMultiplier => detectDashSpeedMultiplier;
         /// <summary>피격 상태가 유지되는 시간.</summary>
@@ -179,11 +201,27 @@ namespace ProjectS.Enemies
             surroundAngleOffset = Random.Range(-surroundAngleRange, surroundAngleRange);
         }
 
+        private void OnEnable()
+        {
+            PlayerEvents.OnPlayerDied += OnTargetDied;
+        }
+
+        private void OnDisable()
+        {
+            PlayerEvents.OnPlayerDied -= OnTargetDied;
+        }
+
         private void Start()
         {
             // 플레이어는 씬에 1명뿐이라는 전제라 시작 시 1회만 찾는다. 매 프레임 Find는 피한다.
             Player player = FindAnyObjectByType<Player>();
-            if (player != null) Target = player.transform;
+            if (player != null)
+            {
+                Target = player.transform;
+
+                // Player가 이미 Awake에서 캐싱해 둔 것을 그대로 받는다(Start는 모든 Awake 이후라 안전).
+                targetDamageable = player.Stats;
+            }
 
             // 순찰 지점이 있으면 순찰 몬스터, 없으면 제자리 대기 몬스터로 시작한다.
             StateMachine.ChangeState(HasPatrol ? PatrolState : IdleState);
@@ -201,9 +239,13 @@ namespace ProjectS.Enemies
         public float DistanceToTarget()
             => Target != null ? Vector3.Distance(transform.position, Target.position) : float.PositiveInfinity;
 
-        /// <summary>감지 거리 안에 있으면 발견을 허용한다.</summary>
+        /// <summary>
+        /// 감지 거리 안에 살아 있는 대상이 있으면 발견을 허용한다.
+        /// 생사를 함께 보는 이유: 플레이어가 죽은 뒤 Idle로 돌려놔도 이 판정이 거리만 보면
+        /// 다음 프레임에 곧바로 시체를 다시 발견해 추격이 재개된다.
+        /// </summary>
         public bool CanDetectTarget()
-            => DistanceToTarget() <= detectionRange;
+            => IsTargetAlive && DistanceToTarget() <= detectionRange;
 
         /// <summary>
         /// 타겟 위치까지 NavMesh 완전 경로가 있는지 주기적으로 검사한다.
@@ -335,6 +377,20 @@ namespace ProjectS.Enemies
         /// DeadState는 다른 상태로 전환되지 않는 최종 상태다.
         /// </summary>
         public void OnDied() => StateMachine.ChangeState(DeadState);
+
+        /// <summary>
+        /// 플레이어 사망 시 교전을 멈추고 대기(또는 순찰)로 돌아간다.
+        /// 없으면 시체를 계속 쫓아가 때리는 그림이 된다 — 데미지는 IDamageable이 막아 0이지만
+        /// 추격·공격 모션은 그대로 나가기 때문이다.
+        /// 재발견은 CanDetectTarget의 생사 판정이 막는다.
+        /// </summary>
+        private void OnTargetDied()
+        {
+            // 이미 죽은 몬스터에게 DeadState는 최종 상태다. 여기서 되살리면 안 된다.
+            if (StateMachine.Current == DeadState) return;
+
+            StateMachine.ChangeState(HasPatrol ? PatrolState : IdleState);
+        }
 
         private void OnDrawGizmosSelected()
         {

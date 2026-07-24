@@ -117,6 +117,20 @@
             agent.isStopped = true;
         }
 
+        /// <summary>
+        /// 이동을 멈추고 경로까지 지운다. 지금 향하던 목적지가 더 이상 의미 없을 때 쓴다.
+        /// Stop()은 경로를 남기므로, 나중에 Resume()이 불리는 순간 에이전트가 옛 목적지로
+        /// 한 프레임 끌려간다(공격이 끝나고 추격으로 돌아올 때 몸이 툭 밀리는 원인).
+        /// 순찰은 ReachedPathEnd로 도착을 판정하므로 이 메서드를 쓰지 않는다.
+        /// </summary>
+        public void StopAndClearPath()
+        {
+            if (!agent.enabled || !agent.isOnNavMesh) return;
+
+            agent.isStopped = true;
+            agent.ResetPath();
+        }
+
         /// <summary>멈췄던 이동을 재개한다. 추적 상태 진입 시 호출한다.</summary>
         public void Resume()
         {

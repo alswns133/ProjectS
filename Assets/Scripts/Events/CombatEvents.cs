@@ -14,11 +14,13 @@ namespace ProjectS.Events
     public static class CombatEvents
     {
         /// <summary>
-        /// 데미지 적용 완료 (피격 월드 좌표, 실제 적용된 데미지).
+        /// 데미지 적용 완료 (피격 월드 좌표, 실제 적용된 데미지, 표시 종류).
         /// 데미지를 '받은 쪽'(IDamageable 구현체)이 발행한다
         /// → 방어력·저항 등으로 보정된 최종 수치를 아는 곳이 사실의 소유자이기 때문.
+        /// 표시 종류도 받은 쪽이 정한다: 자신이 플레이어인지는 스스로 알고,
+        /// 치명타 여부는 때린 쪽이 DamageResult에 담아 TakeDamage로 넘겨주기 때문.
         /// </summary>
-        public static event Action<Vector3, int> OnDamageDealt;
+        public static event Action<Vector3, int, DamageTextKind> OnDamageDealt;
 
         /// <summary>
         /// 데미지 적용 이벤트 발행. TakeDamage 구현체가 HP에 데미지를 실제 반영한 직후 호출한다.
@@ -26,8 +28,9 @@ namespace ProjectS.Events
         /// </summary>
         /// <param name="worldPos">텍스트/이펙트를 띄울 월드 좌표(보통 피격자 머리 위)</param>
         /// <param name="amount">실제 적용된 데미지</param>
-        public static void FireDamageDealt(Vector3 worldPos, int amount)
-            => OnDamageDealt?.Invoke(worldPos, amount);
+        /// <param name="kind">데미지 텍스트 색을 정하는 종류</param>
+        public static void FireDamageDealt(Vector3 worldPos, int amount, DamageTextKind kind)
+            => OnDamageDealt?.Invoke(worldPos, amount, kind);
 
         /// <summary>
         /// 플레이어의 공격이 적에게 적중 (맞은 부위의 월드 좌표).
@@ -62,6 +65,31 @@ namespace ProjectS.Events
             => OnEnemyHitLanded?.Invoke(hitPos);
 
         /// <summary>
+        /// 투사체가 지형·벽에 막혀 소멸 (접점 월드 좌표, 표면 법선, 재생할 이펙트 프리팹).
+        /// 벽에 남는 탄흔·스파크가 구독한다. 피격 이벤트와 분리한 이유는 '맞은 대상'이 없어서다
+        /// — 데미지도 없고 연출도 다르므로 같은 이벤트로 묶으면 구독자가 매번 구분해야 한다.
+        /// <para>
+        /// 법선을 함께 넘기는 이유: 스파크가 벽에 파묻히거나 반대로 튀지 않으려면
+        /// 이펙트를 표면 바깥 방향으로 세워야 하는데, 그 방향은 충돌을 판정한 쪽만 안다.
+        /// </para>
+        /// <para>
+        /// 이펙트 프리팹까지 실어 보내는 이유: 벽 충돌 연출은 총알 종류마다 다르다(검기 흔적,
+        /// 화살 박힘, 총알 스파크). 구독자가 프리팹을 소유하면 종류가 늘 때마다 씬 오브젝트와
+        /// 이벤트를 늘려야 하므로, "무엇으로 터질지"는 투사체 프리팹이 소유한다.
+        /// </para>
+        /// </summary>
+        public static event Action<Vector3, Vector3, HitEffect> OnProjectileBlocked;
+
+        /// <summary>
+        /// 투사체 차단 이벤트 발행. Projectile이 장애물 접점을 확정하고 소멸하기 직전에 호출한다.
+        /// </summary>
+        /// <param name="hitPos">벽과 만난 접점의 월드 좌표</param>
+        /// <param name="normal">접점의 표면 법선(벽에서 바깥으로 향하는 방향)</param>
+        /// <param name="effectPrefab">재생할 이펙트 프리팹. null이면 연출 없이 소멸만 한다.</param>
+        public static void FireProjectileBlocked(Vector3 hitPos, Vector3 normal, HitEffect effectPrefab)
+            => OnProjectileBlocked?.Invoke(hitPos, normal, effectPrefab);
+
+        /// <summary>
         /// 적 사망 (죽은 적의 월드 좌표).
         /// 죽는 적은 즉시 비활성화되므로 처치 연출을 적 오브젝트에 붙일 수 없다
         /// → 밖에 있는 구독자(처치 이펙트·드롭·퀘스트 카운트)가 이 사실을 받아 처리한다.
@@ -86,6 +114,7 @@ namespace ProjectS.Events
             OnDamageDealt = null;   // ★ 새 이벤트는 여기에도 반드시 추가
             OnPlayerHitLanded = null;
             OnEnemyHitLanded = null;
+            OnProjectileBlocked = null;
             OnEnemyDied = null;
         }
     }

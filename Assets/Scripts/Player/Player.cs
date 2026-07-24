@@ -17,6 +17,9 @@ namespace ProjectS.Players
     [RequireComponent(typeof(PlayerCombat))]
     [RequireComponent(typeof(PlayerStats))]
     [RequireComponent(typeof(PlayerEffects))]
+    // 미니맵 등록도 부품처럼 강제한다. 자동 추가 시 type 기본값이 Enemy이므로,
+    // 플레이어는 인스펙터에서 MinimapMarkerSource의 type을 Player로 한 번 바꿔 줘야 한다.
+    [RequireComponent(typeof(MinimapMarkerSource))]
 
     public class Player : MonoBehaviour
     {
@@ -361,8 +364,9 @@ namespace ProjectS.Players
             LockMovement();
         }
 
-        // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다(기획: 때려야 게이지가 찬다).
-        // 회복량은 히트박스 슬롯이 소유(강공격 > 일반)하고, 여기는 이벤트를 연결만 한다.
+        // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다. 자연 회복(PlayerStats의 초당 회복)과
+        // 더해지는 두 번째 수급 경로다. 회복량은 SkillTable 행(SgGain)이 소유하고,
+        // 여기는 이벤트를 연결만 한다.
         private void OnTargetHit(float gaugeGain) => Stats.GainSkillGauge(gaugeGain);
 
         // 데미지가 실제로 적용됐을 때 피격 경직으로 전환한다.

@@ -23,6 +23,7 @@ namespace ProjectS.UI
             PlayerEvents.OnSGChanged += OnSgChanged;
             PlayerEvents.OnStaminaChanged += OnStaminaChanged;
             PlayerEvents.OnExpChanged += OnExpChanged;
+            PlayerEvents.OnLevelChanged += OnLevelChanged;
             PlayerEvents.OnSkillUsed += OnSkillUsed;
         }
 
@@ -32,6 +33,7 @@ namespace ProjectS.UI
             PlayerEvents.OnSGChanged -= OnSgChanged;
             PlayerEvents.OnStaminaChanged -= OnStaminaChanged;
             PlayerEvents.OnExpChanged -= OnExpChanged;
+            PlayerEvents.OnLevelChanged -= OnLevelChanged;
             PlayerEvents.OnSkillUsed -= OnSkillUsed;
         }
 
@@ -47,6 +49,9 @@ namespace ProjectS.UI
 
         private void OnExpChanged(int cur, int max)
             => view.SetExp((float)cur / max);
+
+        private void OnLevelChanged(int level)
+            => view.SetLevel(level);
 
         private void OnSkillUsed(int skillNumber, float cooldown)
             => view.StartSkillCooldown(skillNumber, cooldown);
