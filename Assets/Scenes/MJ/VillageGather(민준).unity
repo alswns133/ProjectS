@@ -12100,16 +12100,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   characterId: 1
+  level: 1
   maxHp: 100
   currentHp: 100
   defense: 0
+  attackPower: 100
+  critChance: 0.05
+  critDamage: 1.5
   maxStamina: 100
   staminaRegenPerSecond: 15
+  damageTextHeight: 1.8
   strongHitThreshold: 20
   hitStaggerDuration: 0.4
   strongHitStaggerDuration: 0.8
   postRollInvincibleDuration: 1
   maxSkillGauge: 100
+  skillGaugeRegenPerSecond: 5
 --- !u!114 &132787779
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12140,36 +12146,28 @@ MonoBehaviour:
   attackHitBoxes:
   - key: Attack1
     area: {fileID: 782029911}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Attack2
     area: {fileID: 1964432895}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Attack3
     area: {fileID: 152240199}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Dash_Attack
     area: {fileID: 1165685926}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Strong_Attack
     area: {fileID: 1189328477}
-    damage: 50
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_1
     area: {fileID: 2123390272}
-    damage: 20
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_2
     area: {fileID: 128545174}
-    damage: 20
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_3
     area: {fileID: 1213818982}
-    damage: 100
-    gaugeGain: 5
+    skillId: 1
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
@@ -12179,22 +12177,9 @@ MonoBehaviour:
     prefab: {fileID: 5411507273259193358, guid: 14749017f0fef114db060587d404262c, type: 3}
     muzzle: {fileID: 1018762099}
     rotationOffset: {x: 0, y: 0, z: 0}
-    damage: 50
-    gaugeGain: 5
+    skillId: 101
     canPierce: 1
   comboStep: 0
-  skillCooldowns:
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  skillGaugeCosts:
-  - 0
-  - 25
-  - 25
-  - 0
-  - 25
   strongAttackCooldown: 0
 --- !u!114 &132787781
 MonoBehaviour:
