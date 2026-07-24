@@ -26,6 +26,13 @@ namespace ProjectS.Events
         public static event Action<int> OnLevelUp;
 
         /// <summary>
+        /// 현재 레벨 변경 (레벨). 표시용이라 스폰 시점의 최초 1회에도 발행된다.
+        /// OnLevelUp과 나눠 둔 이유: 레벨업 연출(이펙트·사운드)을 OnLevelUp에 붙였을 때
+        /// 스폰 때마다 그 연출이 터지지 않게 하기 위함이다.
+        /// </summary>
+        public static event Action<int> OnLevelChanged;
+
+        /// <summary>
         /// 경험치 변경 (현재EXP, 최대EXP)
         /// </summary>
         public static event Action<int, int> OnExpChanged;
@@ -79,6 +86,13 @@ namespace ProjectS.Events
             => OnLevelUp?.Invoke(level);
 
         /// <summary>
+        /// 현재 레벨 발행. 표시용이므로 스폰 직후(스탯 테이블 반영 후)에도 1회 호출한다.
+        /// </summary>
+        /// <param name="level">현재 레벨</param>
+        public static void FireLevelChanged(int level)
+            => OnLevelChanged?.Invoke(level);
+
+        /// <summary>
         /// Exp 변경 이벤트 발행. 구독자(HP UI 등)에게 현재/최대 Exp를 알림.
         /// </summary>
         /// <param name="cur">현재 Exp</param>
@@ -118,6 +132,7 @@ namespace ProjectS.Events
             OnSGChanged = null;
             OnStaminaChanged = null;
             OnLevelUp = null;
+            OnLevelChanged = null;
             OnExpChanged = null;
             OnGoldChanged = null;
             OnSkillUsed = null;

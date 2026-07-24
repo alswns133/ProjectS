@@ -45,7 +45,9 @@ namespace ProjectS.Effects
         private Action<Projectile> onFinished;
         private Action<float> onTargetHit;
         private Vector3 startPosition;
-        private int damage;
+        // 완성된 데미지 숫자가 아니라 계산 재료를 들고 다닌다.
+        // 방어 경감은 맞는 대상마다 다르므로, 최종 피해는 적중 시점에 대상별로 산출해야 한다.
+        private AttackContext attack;
         private float gaugeGain;
         private bool canPierce;
         private int hitCount;
@@ -53,19 +55,20 @@ namespace ProjectS.Effects
         /// <summary>
         /// 투사체를 발사한다. ProjectileSpawner의 Fire를 통해서만 호출된다.
         /// </summary>
+        /// <param name="attack">데미지 계산 재료. 최종 피해는 적중 시점에 대상별로 산출한다.</param>
         /// <param name="canPierce">true면 경로 위 여러 적을 연속 타격, false면 첫 적중에 소멸.</param>
         /// <param name="onTargetHit">적중 1회당 호출. 인자는 회복할 스킬 게이지 양.</param>
         /// <param name="onFinished">수명 종료 시 풀 반환 콜백.</param>
         public void Launch(
             Vector3 position,
             Quaternion rotation,
-            int damage,
+            in AttackContext attack,
             float gaugeGain,
             bool canPierce,
             Action<float> onTargetHit,
             Action<Projectile> onFinished)
         {
-            this.damage = damage;
+            this.attack = attack;
             this.gaugeGain = gaugeGain;
             this.canPierce = canPierce;
             this.onTargetHit = onTargetHit;
@@ -138,8 +141,11 @@ namespace ProjectS.Effects
                 if (!hit.collider.TryGetComponent<IDamageable>(out IDamageable target)) continue;
                 if (!alreadyHit.Add(target)) continue;
 
+                // 방어 경감은 맞는 쪽 방어도로 계산하므로 적중 대상마다 따로 굴린다.
+                DamageResult result = DamageCalculator.Calculate(in attack, target.Defense, target.IsBoss);
+
                 // 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다(근접 판정과 같은 방침).
-                if (!target.TakeDamage(damage)) continue;
+                if (!target.TakeDamage(in result)) continue;
 
                 // 캐스트 시작 지점에 이미 겹쳐 있던 콜라이더는 point가 원점으로 나오므로 근사치로 보정한다.
                 Vector3 point = hit.distance > 0f ? hit.point : hit.collider.ClosestPoint(from);

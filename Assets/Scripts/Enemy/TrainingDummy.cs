@@ -11,10 +11,21 @@ namespace ProjectS.Enemies
     public class TrainingDummy : MonoBehaviour, IDamageable
     {
         [SerializeField] private int maxHp = 100;
+
+        // 검증용 대상이라 방어도는 인스펙터에서 직접 넣는다(테이블을 타지 않는다).
+        // 0이면 경감 없이 계산기 출력이 그대로 들어오므로 공식 확인에 편하다.
+        [SerializeField] private float defense;
+
         [SerializeField] private float damageTextHeight = 1.8f;   // 데미지 텍스트가 뜨는 높이(머리 위). 적 크기에 맞춰 조정
         private int currentHp;
 
         public bool IsDead => currentHp <= 0;
+
+        /// <summary>IDamageable. 방어 경감은 때린 쪽이 이 값을 읽어 계산한다.</summary>
+        public float Defense => defense;
+
+        /// <summary>IDamageable. 더미는 보스 판정을 쓰지 않는다.</summary>
+        public bool IsBoss => false;
 
         private void Awake() => currentHp = maxHp;
 
@@ -22,16 +33,18 @@ namespace ProjectS.Enemies
         /// 데미지 적용. 더미는 무적이 없어 살아 있으면 항상 적용된다.
         /// </summary>
         /// <returns>실제 적용됐으면 true. 이미 죽은 대상이면 false(IDamageable 계약).</returns>
-        public bool TakeDamage(int amount)
+        public bool TakeDamage(in DamageResult result)
         {
             if (IsDead) return false;                 // 이미 죽었으면 무시(1회 사망 보장)
 
-            currentHp = Mathf.Max(0, currentHp - amount);
-            //Debug.Log($"{name} 피격! {amount} 데미지 → 남은 HP {currentHp}", this);
+            currentHp = Mathf.Max(0, currentHp - result.Amount);
 
             // 연출은 이벤트로만 알린다(데미지 텍스트·이펙트가 각자 구독).
-            // 받은 쪽이 발행하는 이유: 나중에 방어력 보정이 생겨도 '실제 적용된' 수치를 아는 곳은 여기다
-            CombatEvents.FireDamageDealt(transform.position + Vector3.up * damageTextHeight, amount);
+            // 받은 쪽이 발행하는 이유: 방어력까지 반영된 '실제 적용된' 수치를 아는 곳이 여기이기 때문.
+            CombatEvents.FireDamageDealt(
+                transform.position + Vector3.up * damageTextHeight,
+                result.Amount,
+                result.IsCritical ? DamageTextKind.Critical : DamageTextKind.Normal);
 
             if (IsDead)
             {
