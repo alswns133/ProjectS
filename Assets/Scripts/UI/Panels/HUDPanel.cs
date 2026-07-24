@@ -16,6 +16,12 @@ namespace ProjectS.UI
         [Header("EXP")]
         [SerializeField] private Image expBar;
 
+        [Header("레벨")]
+        [SerializeField] private TextMeshProUGUI levelText;
+
+        // {0}에 레벨 숫자가 들어간다.
+        [SerializeField] private string levelFormat = "{0}";
+
         // 스태미나는 FillGauge(Image/Text 참조)와 별개로 껐다 켤 루트 오브젝트가 필요하다.
         // FillGauge는 컴포넌트가 아닌 직렬화 클래스라 자기 GameObject를 모른다.
         [Header("스태미나")]
@@ -52,6 +58,8 @@ namespace ProjectS.UI
         // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
         public void SetHp(float ratio)
         {
+            // 낮은 HP에서 게이지가 안 보이는 문제는 HpEcgBar 셰이더의 _MinFill이 처리한다.
+            // 여기서 또 보정하면 두 보정이 겹쳐 실제보다 많이 남은 것처럼 보인다.
             hp.SetRatio(ratio);
             hpVignette.SetHpRatio(ratio);
             hpEcg.SetHpRatio(ratio);
@@ -75,6 +83,18 @@ namespace ProjectS.UI
         public void SetExp(float ratio)
         {
             expBar.fillAmount = ratio ;
+        }
+
+        /// <summary>
+        /// 레벨 표시 갱신. HUDPresenter가 OnLevelChanged 이벤트를 받아 호출한다.
+        /// </summary>
+        /// <param name="level">현재 레벨</param>
+        public void SetLevel(int level)
+        {
+            // 레벨 표시는 HUD에 따라 없을 수도 있으므로(튜토리얼 HUD 등) 미할당을 허용한다.
+            if (levelText == null) return;
+
+            levelText.text = string.Format(levelFormat, level);
         }
 
         /// <summary>
