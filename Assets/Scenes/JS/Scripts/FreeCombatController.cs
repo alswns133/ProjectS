@@ -32,16 +32,8 @@ namespace ProjectS.Combat
         [SerializeField] private float maxActionLockTime = 3f;
         private float actionLockTimer;
 
-        [Header("낙하 공격")]
-        // 이 높이 이상 떠 있어야 공중 공격(낙하 공격)이 나간다. 점프 직후 지면에 붙어 나가는 어색함 방지.
-        [SerializeField] private float minDiveHeight = 2f;
-
-        // 공중 공격은 점프 1회당 1회만 허용한다(기획). 착지하면 회복된다.
-        private bool jumpAttackUsed;
-        private bool wasGrounded;
-
-        // 구르기 시작 순간을 잡아 진행 중이던 공격을 캔슬하기 위한 엣지 검출.
-        private bool wasRolling;
+        // 회피(구르기/공중 대시) 시작 순간을 잡아 진행 중이던 공격을 캔슬하기 위한 엣지 검출.
+        private bool wasDodging;
 
         private void Awake()
         {
@@ -93,32 +85,18 @@ namespace ProjectS.Combat
             // Player의 잠금 상태를 이동 컨트롤러에 반영(수평 이동/구르기/점프/대시 차단).
             move.ActionLocked = player.IsMovementLocked;
 
-            // 잠금이 풀렸는데 체공/다이브 상태가 남아 있으면 정리한다(안전장치).
-            // 정상 흐름에선 Loop 진입(BeginDive)과 착지에서 각각 꺼지지만, Start 중 중단 등 예외 대비.
-            if (!player.IsMovementLocked)
-            {
-                if (move.Hovering) move.Hovering = false;
-                if (move.Diving) move.Diving = false;
-            }
-
-            // 착지: 공중 공격 사용권 회복(점프 1회당 1회). 내려찍기는 착지하면서 End(impact)
-            // 클립으로 이어지고, 로코모션 복귀 시 SMB가 잠금을 푼다(별도 캔슬 불필요).
-            bool grounded = move.IsGrounded;
-            if (grounded && !wasGrounded)
-                jumpAttackUsed = false;
-            wasGrounded = grounded;
-
-            // 구르기 시작 순간, 진행 중이던 공격을 캔슬하고 잠금을 푼다.
-            // (후딜 캔슬 = 회피가 공격을 캔슬하는 최우선 동작. FreeMoveController가 잠금 중에도 구르기를 허용한다)
-            if (move.IsRolling && !wasRolling)
+            // 회피(지상 구르기 / 공중 대시)가 시작되는 순간, 진행 중이던 공격을 캔슬하고 잠금을 푼다.
+            // 회피가 공격을 캔슬하는 최우선 동작이며, FreeMoveController가 잠금 중에도 이 둘을 허용한다.
+            bool dodging = move.IsRolling || move.IsJumpDashing;
+            if (dodging && !wasDodging)
             {
                 combat.CancelAction();
                 player.UnlockMovement();
             }
-            wasRolling = move.IsRolling;
+            wasDodging = dodging;
         }
 
-        // 좌클릭 중재. Player.OnAttack의 라우팅을 미러한다(공중 공격 / 대시 공격 / 지상 콤보).
+        // 좌클릭 중재. Player.OnAttack의 라우팅을 미러한다(대시 공격 / 지상 콤보).
         private void OnAttack()
         {
             if (stats.IsDead) return;
@@ -127,28 +105,18 @@ namespace ProjectS.Combat
             // 스킬/단타 시전 중 클릭 차단. 막지 않으면 트리거가 래치돼 시전 종료 직후 저절로 발동한다.
             if (combat.IsCastingSkill) return;
 
-            // 공중 클릭 = 공중 공격(내려찍기). 점프 1회당 1회만(기획).
-            // 호버(높이 고정) 없이 ActionLocked 블록의 중력으로 떨어지며 슬램한다.
-            // 3단 클립(Start→Loop→End)은 점프와 같은 원리: 하강 → 착지(isGrounded) → 임팩트.
-            if (!move.IsGrounded)
-            {
-                if (jumpAttackUsed) return;
-                if (!move.HasDiveClearance(minDiveHeight)) return;   // 너무 낮으면 낙하 공격 불가
-
-                jumpAttackUsed = true;
-                combat.UseJumpAttack();
-                move.SnapToCameraForward();   // 공중에서도 카메라 방향으로 공격(기획)
-                move.Hovering = true;         // Start 동안 체공 유지. Loop 진입 시 SMB(BeginDive)가 하강 시작.
-                Lock();
-                return;
-            }
+            // 공중 공격(낙하 공격)은 제거됨 → 공중 클릭은 아무 것도 하지 않는다.
+            // 이 가드가 없으면 공중 클릭이 아래의 지상 콤보로 새어 들어간다.
+            if (!move.IsGrounded) return;
 
             // 달리는 중 클릭 = 대시 공격(단타). 콤보로 이어지지 않는다(기획).
+            // 카메라 = 조준: 발동 순간 카메라 정면으로 스냅하고, 잠금으로 그 방향을 유지한다.
+            // 잠금 동안 이동·회전이 막히며, 캔슬은 구르기(Shift)로만 가능하다(ActionLocked 블록의 후딜 캔슬).
             if (input.IsRunning)
             {
                 combat.UseRunAttack();
-                move.SnapToCameraForward();
-                Lock();
+                move.SnapToCameraForward();   // 공격을 카메라 방향으로(발동 순간 고정)
+                Lock();                        // 공격 중 이동·회전 차단
                 return;
             }
 
@@ -171,14 +139,18 @@ namespace ProjectS.Combat
         private void OnTargetHit(float gaugeGain) => stats.GainSkillGauge(gaugeGain);
 
         /// <summary>
-        /// 낙하 공격 Loop State 진입 시 SMB(DiveHoverBehaviour)가 호출한다.
-        /// Start 동안 유지하던 체공을 끝내고, Loop 시작과 동시에 빠른 하강(다이브)을 시작한다.
+        /// 공격 모션이 끝나는 프레임에 Animation Event로 호출한다(예: 대시 공격 클립).
+        /// 이동 잠금을 풀고 콤보·시전 상태를 정리한다.
+        ///
+        /// 애니메이터의 ComboResetBehaviour(로코모션 복귀 시 자동 해제)가 붙어 있지 않아도
+        /// 확실하게 잠금이 풀리도록 하는 명시적 경로다. 잠금이 안 풀리면 이동·점프 입력이
+        /// 안전장치 타이머(maxActionLockTime)가 만료될 때까지 통째로 막힌다.
+        /// 두 경로가 모두 동작해도 무해하다(해제는 여러 번 불러도 안전).
         /// </summary>
-        public void BeginDive()
+        public void EndAttack()
         {
-            move.Hovering = false;
-            move.Diving = true;   // 빠른 하강 시작 → isLanding → End(슬램 임팩트)
-            Debug.Log("[DiveDbg] BeginDive 호출됨 (Loop 진입 → Diving ON)", this);   // TEMP DEBUG (진단 후 제거)
+            player.UnlockMovement();
+            combat.ResetCombo();
         }
 
         // 공격이 실제로 발동할 때 이동을 잠근다. 잠금은 즉시 반영하고(레이스 방지),

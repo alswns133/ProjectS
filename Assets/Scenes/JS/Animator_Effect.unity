@@ -10013,7 +10013,6 @@ MonoBehaviour:
   sensitivity: 0.1
   minPitch: -70
   maxPitch: 70
-  thirdpersoncharactercontroller: {fileID: 0}
 --- !u!1001 &1147612065
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12982,6 +12981,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 6444419969119536879, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1580966197}
+    - targetCorrespondingSourceObject: {fileID: 6444419969119536879, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1580966201}
   m_SourcePrefab: {fileID: 100100000, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
 --- !u!1 &1580966180 stripped
 GameObject:
@@ -13027,16 +13029,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   characterId: 1
+  level: 1
   maxHp: 100
   currentHp: 100
   defense: 0
+  attackPower: 100
+  critChance: 0.05
+  critDamage: 1.5
   maxStamina: 100
   staminaRegenPerSecond: 15
+  damageTextHeight: 1.8
   strongHitThreshold: 20
   hitStaggerDuration: 0.4
   strongHitStaggerDuration: 0.8
   postRollInvincibleDuration: 1
   maxSkillGauge: 100
+  skillGaugeRegenPerSecond: 5
 --- !u!114 &1580966187
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13052,36 +13060,28 @@ MonoBehaviour:
   attackHitBoxes:
   - key: Attack1
     area: {fileID: 862146318}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Attack2
     area: {fileID: 644889527}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Attack3
     area: {fileID: 1534152962}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Dash_Attack
     area: {fileID: 606361409}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Strong_Attack
     area: {fileID: 586612244}
-    damage: 50
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_1
     area: {fileID: 1209449797}
-    damage: 20
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_2
     area: {fileID: 891900030}
-    damage: 20
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_3
     area: {fileID: 2090813797}
-    damage: 100
-    gaugeGain: 5
+    skillId: 1
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
@@ -13091,22 +13091,9 @@ MonoBehaviour:
     prefab: {fileID: 0}
     muzzle: {fileID: 1708899534}
     rotationOffset: {x: 0, y: 0, z: 0}
-    damage: 50
-    gaugeGain: 5
+    skillId: 101
     canPierce: 1
   comboStep: 0
-  skillCooldowns:
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  skillGaugeCosts:
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
   strongAttackCooldown: 0
 --- !u!114 &1580966188
 MonoBehaviour:
@@ -13379,10 +13366,8 @@ MonoBehaviour:
   rollDuration: 0.5
   jumpHeight: 10
   airControl: 8
-  jumpDashSpeed: 6
+  jumpDashSpeed: 8
   jumpDashDuration: 0.3
-  diveSpeed: 4
-  diveLandingCheckDistance: 10
   landingCheckDistance: 1
   groundLayer:
     serializedVersion: 2
@@ -13408,8 +13393,6 @@ MonoBehaviour:
   stats: {fileID: 0}
   move: {fileID: 0}
   maxActionLockTime: 3
-  minDiveHeight: 2
-  diveHoverDuration: 0.4
 --- !u!114 &1580966197
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13462,6 +13445,38 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Players.PlayerEffects
   effects: []
+--- !u!114 &1580966201
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1580966180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3a1614965df13e43948c2f2e0558988, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Movement.CursorLockController
+  cursorHoldAction:
+    m_Name: CursorHold
+    m_Type: 1
+    m_ExpectedControlType: 
+    m_Id: f1cca80a-19f7-4b41-be46-2e738dccd839
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: b02854ba-0a77-49da-add7-d9276cacc1ab
+      m_Path: <Keyboard>/leftAlt
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: CursorHold
+      m_Flags: 0
+    m_Flags: 0
+  lockOnStart: 1
+  lookControllers:
+  - {fileID: 1381341043}
 --- !u!1001 &1582183157
 PrefabInstance:
   m_ObjectHideFlags: 0
