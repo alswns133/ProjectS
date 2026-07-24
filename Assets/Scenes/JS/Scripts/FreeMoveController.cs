@@ -33,6 +33,17 @@ namespace ProjectS.Movement
         [SerializeField] private float jumpDashSpeed = 12f;
         [SerializeField] private float jumpDashDuration = 0.55f;
 
+        [Header("공중 공격(내려찍기)")]
+        // 시전 순간 살짝 떠오르는 높이. 점프 직후 저공에서 시전해도 어색하지 않게 해준다(명조식).
+        [SerializeField] private float diveRiseHeight = 0.25f;
+        // 위 높이까지 올라가는 속도(m/s). Start 클립이 재생되는 동안 도달하도록 맞춘다.
+        [SerializeField] private float diveRiseSpeed = 2f;
+        // Loop 구간 하강 속도. 클수록 빠르게 내려꽂는다.
+        [SerializeField] private float diveSpeed = 8f;
+        // 하강 중 착지 예고(isLanding) 감지 거리. 일반 점프와 요구 타이밍이 달라 따로 둔다.
+        // 작을수록 '닿는 순간'에 가깝게 임팩트가 시작되고, 크면 더 미리 시작된다.
+        [SerializeField] private float diveLandingCheckDistance = 0.4f;
+
         [Header("착지 예고")]
         // 지면까지 이 거리 안으로 들어오면 착지 모션을 미리 시작한다(모션 길이에 맞춰 조정).
         [SerializeField] private float landingCheckDistance = 1.5f;
@@ -56,6 +67,7 @@ namespace ProjectS.Movement
         private int vertVelocityHash;
         private int landingHash;
         private int jumpDashHash;
+        private int jumpHash;
 
         private float verticalVelocity;
         private float groundSpeedMagnitude;
@@ -82,6 +94,13 @@ namespace ProjectS.Movement
         // 회피 키가 직전 프레임에 눌려 있었는지. 누르는 순간만 잡아 연타 발동을 막는다.
         private bool wasRollHeld;
 
+        // 공중 공격 상태. Hovering = Start 구간(체공), Diving = Loop 구간(하강).
+        // 둘 다 잠금(ActionLocked) 중에만 의미가 있고, 착지하면 해제된다.
+        private bool hovering;
+        private float hoverHeight;       // 현재 유지 중인 높이(상승 구간에서 목표를 향해 올라간다)
+        private float hoverTargetHeight; // 시전 높이 + diveRiseHeight
+        private bool diving;
+
         // 점프 순간 캡처한 공중 관성 속도. 공중에서는 이 값을 유지하며 입력 방향으로만 서서히 조향한다.
         private Vector3 airVelocity;
         private Vector3 lastPosition;
@@ -93,6 +112,13 @@ namespace ProjectS.Movement
         /// </summary>
         public bool ActionLocked { get; set; }
 
+        /// <summary>
+        /// 점프 입력만 따로 막는다(이동·회전은 허용). 공격 모션이 로코모션으로 블렌드되는 구간에서 쓴다.
+        /// 그 구간에 점프하면 애니메이터가 전이 중이라 Any State → Jump_Start가 밀려
+        /// 점프 모션이 공중에서 뒤늦게 재생된다. 블렌드가 끝난 뒤 점프하도록 미루는 용도.
+        /// </summary>
+        public bool JumpBlocked { get; set; }
+
         /// <summary>현재 접지 여부. 전투 조율자가 공격 가능 판정에 읽는다.</summary>
         public bool IsGrounded => controller != null && controller.isGrounded;
 
@@ -101,6 +127,52 @@ namespace ProjectS.Movement
 
         /// <summary>현재 공중 대시(닷지) 중 여부. 전투 조율자가 공격 캔슬 판정에 읽는다.</summary>
         public bool IsJumpDashing => isJumpDashing;
+
+        /// <summary>
+        /// 공중 공격 Start 구간의 체공. 켜는 순간 현재 높이를 캡처하고, diveRiseHeight만큼 위를 목표로
+        /// 서서히 올라간 뒤 그 높이를 유지한다(LateUpdate에서 루트모션을 덮어써 고정).
+        /// </summary>
+        public bool Hovering
+        {
+            get => hovering;
+            set
+            {
+                if (value && !hovering)
+                {
+                    hoverHeight = transform.position.y;
+                    hoverTargetHeight = hoverHeight + diveRiseHeight;
+                }
+                hovering = value;
+            }
+        }
+
+        /// <summary>
+        /// 공중 공격 Loop 구간의 하강. true면 중력 대신 diveSpeed 고정 속도로 내려간다.
+        /// 착지하면 Hovering과 함께 자동 해제된다.
+        /// </summary>
+        public bool Diving { get; set; }
+
+        /// <summary>
+        /// 공중 공격을 시작한다. Start 구간 체공을 켜고, 이전 하강 상태를 정리한다.
+        /// 실제 하강 전환은 Loop 진입 시 <see cref="BeginDive"/>가 담당한다.
+        /// </summary>
+        public void BeginDiveHover()
+        {
+            Diving = false;
+            Hovering = true;
+        }
+
+        /// <summary>
+        /// 공중 공격 Loop 진입 시 호출한다. 체공을 끝내고 하강을 시작한다.
+        /// 이미 체공이 풀렸다면(캔슬 등) 아무 것도 하지 않는다.
+        /// </summary>
+        public void BeginDive()
+        {
+            if (!Hovering) return;
+
+            Hovering = false;
+            Diving = true;
+        }
 
         /// <summary>카메라가 보는 수평 방향을 즉시 바라본다(공격 시작 시 방향 정렬용).</summary>
         public void SnapToCameraForward()
@@ -126,6 +198,7 @@ namespace ProjectS.Movement
             vertVelocityHash = Animator.StringToHash("verticalVelocity");
             landingHash = Animator.StringToHash("isLanding");
             jumpDashHash = Animator.StringToHash("doJumpDash");
+            jumpHash = Animator.StringToHash("doJump");
 
             if (input == null) input = GetComponent<PlayerInputHandler>();
 
@@ -141,8 +214,15 @@ namespace ProjectS.Movement
             bool grounded = controller.isGrounded;
             animator.SetBool(groundedHash, grounded);
 
-            // 착지하면 공중 대시 사용을 초기화한다(공중 1회 제한).
-            if (grounded) hasAirDashed = false;
+            // 착지하면 공중 대시 사용을 초기화하고, 공중 공격의 체공/하강도 해제한다.
+            // ★ Hovering을 반드시 끄는 이유: 체공이 남으면 LateUpdate가 매 프레임 Y를 고정해
+            //   점프해도 몸이 안 뜨고 isGrounded가 계속 true가 된다.
+            if (grounded)
+            {
+                hasAirDashed = false;
+                Hovering = false;
+                Diving = false;
+            }
 
             // 착지 순간(공중 → 접지)에 공중 관성을 확실히 제거한다.
             if (grounded && !wasGrounded)
@@ -153,10 +233,19 @@ namespace ProjectS.Movement
             bool nearGround = false;
             if (verticalVelocity < 0f)
             {
+                // 공중 공격 하강 중에는 전용 거리를 쓴다(임팩트 타이밍을 일반 점프와 따로 조절).
+                // 한 프레임 낙하량보다 짧으면 빠른 하강에서 감지 구간을 건너뛸 수 있어 하한을 둔다.
+                float landingDist = landingCheckDistance;
+                if (Diving)
+                {
+                    float perFrameDrop = -verticalVelocity * Time.deltaTime * 2f;
+                    landingDist = Mathf.Max(diveLandingCheckDistance, perFrameDrop);
+                }
+
                 nearGround = Physics.Raycast(
                     transform.position + Vector3.up * 0.1f,
                     Vector3.down,
-                    landingCheckDistance,
+                    landingDist,
                     groundLayer,
                     QueryTriggerInteraction.Ignore);
             }
@@ -216,8 +305,27 @@ namespace ProjectS.Movement
                     return;
                 }
 
+                // 공격 중에는 이동 조작이 없으므로 공중 관성을 정리한다.
+                // 안 지우면 점프 시점의 방향(옛 카메라 방향)이 얼어붙은 채 남아, 잠금이 풀린 뒤
+                // 접지 인식이 늦는 구간에서 공중 이동 분기가 그 방향으로 캐릭터를 밀어낸다.
+                airVelocity = Vector3.zero;
+
                 Vector3 locked = Vector3.zero;
-                ApplyGravity(ref locked);
+                if (hovering)
+                {
+                    // Start 구간: 수직 속도를 죽이고 높이는 LateUpdate가 유지·상승시킨다.
+                    verticalVelocity = 0f;
+                }
+                else if (Diving && !grounded)
+                {
+                    // Loop 구간: 중력 대신 고정 속도로 내려꽂는다.
+                    verticalVelocity = -diveSpeed;
+                    locked.y = verticalVelocity;
+                }
+                else
+                {
+                    ApplyGravity(ref locked);
+                }
                 controller.Move(locked * Time.deltaTime);
 
                 bool lockedMoving = input.MoveInput.sqrMagnitude > 0.0001f;
@@ -251,7 +359,8 @@ namespace ProjectS.Movement
             }
 
             // 점프: 버튼을 누르고 있으면 접지할 때마다 다시 점프(꾹 누르면 연속 점프).
-            if (input.JumpHeld && grounded && verticalVelocity <= 0f)
+            // JumpBlocked면 미룬다(공격 → 로코모션 블렌드 중). 계속 누르고 있으면 풀리는 즉시 점프한다.
+            if (input.JumpHeld && grounded && verticalVelocity <= 0f && !JumpBlocked)
                 Jump();
 
             Vector3 move;
@@ -293,6 +402,17 @@ namespace ProjectS.Movement
                 transform.position = dashPos;
             }
 
+            // 공중 공격 Start 구간: 시전 높이에서 diveRiseHeight까지 서서히 올라간 뒤 그 높이를 유지한다.
+            // 상승·유지 모두 여기서 해야 뒤에 적용되는 루트모션이 다시 끌어내리지 못한다(대시 높이 고정과 동일).
+            if (hovering)
+            {
+                hoverHeight = Mathf.MoveTowards(hoverHeight, hoverTargetHeight, diveRiseSpeed * Time.deltaTime);
+
+                Vector3 hoverPos = transform.position;
+                hoverPos.y = hoverHeight;
+                transform.position = hoverPos;
+            }
+
             // 지상에서 이동 중일 때만 갱신. 최댓값을 유지해 회전 중인 느린 프레임에 끌려가지 않게 한다.
             if (Time.deltaTime > 0f && controller.isGrounded && input.MoveInput.sqrMagnitude > 0.0001f)
             {
@@ -309,6 +429,11 @@ namespace ProjectS.Movement
         private void Jump()
         {
             verticalVelocity = Mathf.Sqrt(2f * jumpHeight * gravity);
+
+            // 점프 모션은 트리거로 발사한다. 조건 전이(isGrounded=false + verticalVelocity>10)로 걸면
+            // 그 창이 0.2초뿐이라, 공격 종료 블렌딩이나 접지 판정 지연에 밀리면 모션을 통째로 놓친다.
+            // 트리거는 래치되므로 창을 놓칠 수 없고, 1회 발사·1회 소비라 상승 중 재생되는 문제도 없다.
+            animator.SetTrigger(jumpHash);
 
             // 방향은 현재 입력에서, 크기는 지상에서 측정한 실제 속도에서 가져온다.
             Vector2 moveInput = input.MoveInput;

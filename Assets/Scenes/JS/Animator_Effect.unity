@@ -11467,7 +11467,7 @@ Transform:
   m_GameObject: {fileID: 1381341040}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.000000029802322, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.9, z: -5.315228}
+  m_LocalPosition: {x: 0, y: 1.9, z: -5.31523}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13361,13 +13361,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FreeMoveController
   walkSpeed: 3
   runSpeed: 6
-  rotationDamping: 10
+  turnSpeed: 1440
   gravity: 9.8
   rollDuration: 0.5
   jumpHeight: 10
   airControl: 8
   jumpDashSpeed: 8
   jumpDashDuration: 0.3
+  diveRiseHeight: 1.5
+  diveRiseSpeed: 20
+  diveSpeed: 15
+  diveLandingCheckDistance: 1
   landingCheckDistance: 1
   groundLayer:
     serializedVersion: 2
@@ -13393,6 +13397,9 @@ MonoBehaviour:
   stats: {fileID: 0}
   move: {fileID: 0}
   maxActionLockTime: 3
+  lockingStateTags:
+  - Attack
+  attackEnterGrace: 0.15
 --- !u!114 &1580966197
 MonoBehaviour:
   m_ObjectHideFlags: 0

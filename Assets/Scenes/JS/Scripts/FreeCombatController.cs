@@ -32,8 +32,25 @@ namespace ProjectS.Combat
         [SerializeField] private float maxActionLockTime = 3f;
         private float actionLockTimer;
 
+        [Header("공격 상태 판정")]
+        // 이동을 잠글 Animator State Tag 목록. 공격 종류마다 다른 태그를 붙여 메커니즘을 구분할 수 있다
+        // (예: 평타 "Attack", 스킬 "Skill", 강공격 "StrongAttack"). 여기 등록된 태그는 전부 이동을 잠근다.
+        // 제약: State 하나에 Tag는 하나만 지정할 수 있고, 비교는 정확히 일치해야 한다(접두어 매칭 불가).
+        [SerializeField] private string[] lockingStateTags = { "Attack" };
+        // 트리거를 쏜 직후엔 아직 공격 State에 진입하기 전이라 태그가 안 잡힌다. 그 짧은 공백을 메우는 유예 시간.
+        [SerializeField] private float attackEnterGrace = 0.15f;
+
+        private Animator animator;
+        private float attackGraceUntil;
+        // Tag 비교는 매 프레임이라 문자열 해싱을 피해 Awake에서 1회 캐싱한다.
+        private int[] lockingTagHashes;
+
         // 회피(구르기/공중 대시) 시작 순간을 잡아 진행 중이던 공격을 캔슬하기 위한 엣지 검출.
         private bool wasDodging;
+
+        // 공중 공격은 점프 1회당 1회만 허용한다(기획). 착지하면 회복된다.
+        private bool jumpAttackUsed;
+        private bool wasGrounded;
 
         private void Awake()
         {
@@ -42,6 +59,12 @@ namespace ProjectS.Combat
             if (combat == null) combat = GetComponent<PlayerCombat>();
             if (stats == null) stats = GetComponent<PlayerStats>();
             if (move == null) move = GetComponent<FreeMoveController>();
+            animator = GetComponent<Animator>();
+
+            int tagCount = lockingStateTags != null ? lockingStateTags.Length : 0;
+            lockingTagHashes = new int[tagCount];
+            for (int i = 0; i < tagCount; i++)
+                lockingTagHashes[i] = Animator.StringToHash(lockingStateTags[i]);
 
             // 참조 누락은 초기화 시점에 명확히 알린다(런타임 NRE로 늦게 터지지 않게).
             // 특히 Player는 '비활성(체크 해제) 상태로 오브젝트에 존재'해야 한다 — 제거하면 안 된다.
@@ -82,8 +105,24 @@ namespace ProjectS.Combat
                 if (actionLockTimer >= maxActionLockTime) player.UnlockMovement();
             }
 
-            // Player의 잠금 상태를 이동 컨트롤러에 반영(수평 이동/구르기/점프/대시 차단).
-            move.ActionLocked = player.IsMovementLocked;
+            // 공격 상태를 애니메이터 State Tag로 판단하되, '공격 본편'과 '로코모션으로 빠져나가는 블렌드'를 구분한다.
+            //
+            // 이동 잠금은 블렌드가 시작되면 바로 푼다. 블렌드 중에도 잠가두면 코드 이동은 막힌 채
+            // 들어오는 로코모션 클립의 루트모션만 살아 있어, 캐릭터가 '바라보던 옛 방향'으로 강제로 끌려간다.
+            //
+            // 반면 점프는 블렌드가 끝날 때까지 계속 막는다. 전이 중에 점프하면
+            // Any State → Jump_Start가 밀려 점프 모션이 공중에서 뒤늦게 재생되기 때문이다.
+            bool inAttack = IsInAttackMotion();
+            bool blendingOut = IsBlendingOutOfAttack();
+            bool grace = Time.time < attackGraceUntil;
+
+            move.ActionLocked = (inAttack && !blendingOut) || grace;
+            move.JumpBlocked = inAttack || grace;
+
+            // 착지하면 공중 공격 사용권을 회복한다(점프 1회당 1회).
+            bool grounded = move.IsGrounded;
+            if (grounded && !wasGrounded) jumpAttackUsed = false;
+            wasGrounded = grounded;
 
             // 회피(지상 구르기 / 공중 대시)가 시작되는 순간, 진행 중이던 공격을 캔슬하고 잠금을 푼다.
             // 회피가 공격을 캔슬하는 최우선 동작이며, FreeMoveController가 잠금 중에도 이 둘을 허용한다.
@@ -105,9 +144,20 @@ namespace ProjectS.Combat
             // 스킬/단타 시전 중 클릭 차단. 막지 않으면 트리거가 래치돼 시전 종료 직후 저절로 발동한다.
             if (combat.IsCastingSkill) return;
 
-            // 공중 공격(낙하 공격)은 제거됨 → 공중 클릭은 아무 것도 하지 않는다.
-            // 이 가드가 없으면 공중 클릭이 아래의 지상 콤보로 새어 들어간다.
-            if (!move.IsGrounded) return;
+            // 공중 클릭 = 공중 공격(내려찍기). 점프 1회당 1회만(기획), 높이 제한 없음.
+            // 카메라 = 조준이므로 발동 순간 카메라 정면으로 고정하고, 잠금으로 그 방향을 유지한다.
+            // Start 구간은 체공, Loop 진입 시 하강(BeginDive)으로 전환된다.
+            if (!move.IsGrounded)
+            {
+                if (jumpAttackUsed) return;
+
+                jumpAttackUsed = true;
+                combat.UseJumpAttack();
+                move.SnapToCameraForward();
+                move.BeginDiveHover();
+                Lock();
+                return;
+            }
 
             // 달리는 중 클릭 = 대시 공격(단타). 콤보로 이어지지 않는다(기획).
             // 카메라 = 조준: 발동 순간 카메라 정면으로 스냅하고, 잠금으로 그 방향을 유지한다.
@@ -160,6 +210,65 @@ namespace ProjectS.Combat
             player.LockMovement();
             move.ActionLocked = true;
             actionLockTimer = 0f;
+
+            // 애니메이터가 아직 공격 State에 진입하기 전이라 태그로는 잡히지 않는다.
+            // 이 유예 시간 동안은 무조건 잠가 그 공백을 메운다.
+            attackGraceUntil = Time.time + attackEnterGrace;
+        }
+
+        /// <summary>
+        /// 지금 이동을 잠가야 하는 모션(lockingStateTags 중 하나)이 재생 중인지 여부.
+        /// 공격으로 '들어가는' 전이 중에는 다음 State가 공격이므로 그것도 공격 중으로 본다.
+        /// 공격에서 '나가는' 전이 중에는 현재 State가 아직 공격이라 블렌드가 끝날 때까지 true가 유지된다.
+        /// </summary>
+        private bool IsInAttackMotion()
+        {
+            if (animator == null || lockingTagHashes == null || lockingTagHashes.Length == 0) return false;
+
+            if (IsAttackTagged(animator.GetCurrentAnimatorStateInfo(0))) return true;
+
+            return animator.IsInTransition(0)
+                && IsAttackTagged(animator.GetNextAnimatorStateInfo(0));
+        }
+
+        /// <summary>
+        /// 공격에서 로코모션으로 '빠져나가는' 블렌드 중인지 여부(현재는 공격, 다음은 공격이 아님).
+        /// 이 구간에는 이동 잠금을 풀어야 한다. 잠근 채로 두면 코드 이동은 막히고
+        /// 들어오는 로코모션 클립의 루트모션만 작동해, 바라보던 옛 방향으로 강제 이동한다.
+        /// </summary>
+        private bool IsBlendingOutOfAttack()
+        {
+            if (animator == null || !animator.IsInTransition(0)) return false;
+
+            return IsAttackTagged(animator.GetCurrentAnimatorStateInfo(0))
+                && !IsAttackTagged(animator.GetNextAnimatorStateInfo(0));
+        }
+
+        // 해당 State에 잠금 대상 Tag가 붙어 있는지. 비교는 Awake에서 캐싱한 해시로 한다.
+        private bool IsAttackTagged(AnimatorStateInfo info)
+        {
+            for (int i = 0; i < lockingTagHashes.Length; i++)
+            {
+                if (info.tagHash == lockingTagHashes[i]) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 지정한 Tag가 붙은 모션이 재생 중인지 여부(전이 중이면 진입할 State도 포함).
+        /// 공격 종류마다 메커니즘이 다를 때 분기용으로 쓴다(예: 스킬 중에는 회피 캔슬 금지 등).
+        /// </summary>
+        /// <param name="tag">Animator State에 지정한 Tag 문자열</param>
+        public bool IsInMotionTagged(string tag)
+        {
+            if (animator == null || string.IsNullOrEmpty(tag)) return false;
+
+            int hash = Animator.StringToHash(tag);
+            if (animator.GetCurrentAnimatorStateInfo(0).tagHash == hash) return true;
+
+            return animator.IsInTransition(0)
+                && animator.GetNextAnimatorStateInfo(0).tagHash == hash;
         }
     }
 }
