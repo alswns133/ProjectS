@@ -11,9 +11,9 @@ namespace ProjectS.Scenes
 
         private void RequsetScene()
         {
-            //GameSceneManager.Instance.RegisterScene<Tutorial1>(false);
+            GameSceneManager.Instance.RegisterScene<Tutorial1>(false);
             //GameSceneManager.Instance.RegisterScene<VillageGather>(false);
-            GameSceneManager.Instance.RegisterScene<DungeonGather>(false);
+            //GameSceneManager.Instance.RegisterScene<DungeonGather>(false);
         }
 
         private async void Start()
@@ -31,9 +31,9 @@ namespace ProjectS.Scenes
             // 3) 모든 준비 완료 → 게임 씬으로 전환
             Debug.Log("[BootstrapTest] 초기화 완료, 다음 씬으로 이동");
             //GameSceneManager.Instance.RequestSceneChange<InGame>();
-            //GameSceneManager.Instance.RequestSceneChange<Tutorial1>();
+            GameSceneManager.Instance.RequestSceneChange<Tutorial1>();
             //GameSceneManager.Instance.RequestSceneChange<VillageGather>();
-            GameSceneManager.Instance.RequestSceneChange<DungeonGather>();
+            //GameSceneManager.Instance.RequestSceneChange<DungeonGather>();
         }
     }
 }

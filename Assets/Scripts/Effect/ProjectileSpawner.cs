@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using ProjectS.Core;
 using ProjectS.Players;
 
 namespace ProjectS.Effects
@@ -53,13 +54,14 @@ namespace ProjectS.Effects
         /// 지정 프리팹의 투사체 하나를 위치·방향으로 발사한다.
         /// </summary>
         /// <param name="prefab">발사할 투사체 프리팹. 슬롯이 종류(검기 가로/세로, 총알 등)를 고른다.</param>
+        /// <param name="attack">데미지 계산 재료. 최종 피해는 투사체가 적중 시점에 대상별로 산출한다.</param>
         /// <param name="canPierce">true면 여러 적 관통, false면 첫 적중에 소멸.</param>
         /// <param name="onTargetHit">적중 1회당 호출. 인자는 회복할 스킬 게이지 양.</param>
         public void Fire(
             Projectile prefab,
             Vector3 position,
             Quaternion rotation,
-            int damage,
+            in AttackContext attack,
             float gaugeGain,
             bool canPierce,
             Action<float> onTargetHit)
@@ -69,7 +71,7 @@ namespace ProjectS.Effects
             Queue<Projectile> pool = GetPool(prefab);
             Projectile projectile = pool.Count > 0 ? pool.Dequeue() : CreateItem(prefab);
 
-            projectile.Launch(position, rotation, damage, gaugeGain, canPierce, onTargetHit, returnCallbacks[prefab]);
+            projectile.Launch(position, rotation, in attack, gaugeGain, canPierce, onTargetHit, returnCallbacks[prefab]);
         }
 
         // 프리팹의 풀을 돌려준다. 처음 보는 프리팹이면 풀과 반환 콜백을 함께 1회 생성한다.

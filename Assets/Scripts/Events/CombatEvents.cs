@@ -14,11 +14,13 @@ namespace ProjectS.Events
     public static class CombatEvents
     {
         /// <summary>
-        /// 데미지 적용 완료 (피격 월드 좌표, 실제 적용된 데미지).
+        /// 데미지 적용 완료 (피격 월드 좌표, 실제 적용된 데미지, 표시 종류).
         /// 데미지를 '받은 쪽'(IDamageable 구현체)이 발행한다
         /// → 방어력·저항 등으로 보정된 최종 수치를 아는 곳이 사실의 소유자이기 때문.
+        /// 표시 종류도 받은 쪽이 정한다: 자신이 플레이어인지는 스스로 알고,
+        /// 치명타 여부는 때린 쪽이 DamageResult에 담아 TakeDamage로 넘겨주기 때문.
         /// </summary>
-        public static event Action<Vector3, int> OnDamageDealt;
+        public static event Action<Vector3, int, DamageTextKind> OnDamageDealt;
 
         /// <summary>
         /// 데미지 적용 이벤트 발행. TakeDamage 구현체가 HP에 데미지를 실제 반영한 직후 호출한다.
@@ -26,8 +28,9 @@ namespace ProjectS.Events
         /// </summary>
         /// <param name="worldPos">텍스트/이펙트를 띄울 월드 좌표(보통 피격자 머리 위)</param>
         /// <param name="amount">실제 적용된 데미지</param>
-        public static void FireDamageDealt(Vector3 worldPos, int amount)
-            => OnDamageDealt?.Invoke(worldPos, amount);
+        /// <param name="kind">데미지 텍스트 색을 정하는 종류</param>
+        public static void FireDamageDealt(Vector3 worldPos, int amount, DamageTextKind kind)
+            => OnDamageDealt?.Invoke(worldPos, amount, kind);
 
         /// <summary>
         /// 플레이어의 공격이 적에게 적중 (맞은 부위의 월드 좌표).

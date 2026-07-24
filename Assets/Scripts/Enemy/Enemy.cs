@@ -1,4 +1,6 @@
-﻿using ProjectS.Players;
+﻿using ProjectS.Core;
+using ProjectS.Events;
+using ProjectS.Players;
 
 namespace ProjectS.Enemies
 {
@@ -120,6 +122,15 @@ namespace ProjectS.Enemies
         /// <summary>추적 대상(플레이어). 씬에 없으면 null이며, 상태들은 대상이 없으면 자연스럽게 대기한다.</summary>
         public Transform Target { get; private set; }
 
+        // 대상의 생사 판정용. Transform만으로는 죽었는지 알 수 없어 따로 캐싱한다.
+        private IDamageable targetDamageable;
+
+        /// <summary>
+        /// 추적 대상이 살아 있는지 여부. 생사를 알 수 없는 대상(IDamageable이 없는 경우)은
+        /// 살아 있는 것으로 본다 — 모르는 이유로 몬스터가 멈춰 서는 것보다 낫다.
+        /// </summary>
+        public bool IsTargetAlive => targetDamageable == null || !targetDamageable.IsDead;
+
         /// <summary>피격용 루트 콜라이더. 사망 시 추가 피격과 물리 충돌을 막기 위해 DeadState가 끈다.</summary>
         public Collider BodyCollider { get; private set; }
 
@@ -179,11 +190,27 @@ namespace ProjectS.Enemies
             surroundAngleOffset = Random.Range(-surroundAngleRange, surroundAngleRange);
         }
 
+        private void OnEnable()
+        {
+            PlayerEvents.OnPlayerDied += OnTargetDied;
+        }
+
+        private void OnDisable()
+        {
+            PlayerEvents.OnPlayerDied -= OnTargetDied;
+        }
+
         private void Start()
         {
             // 플레이어는 씬에 1명뿐이라는 전제라 시작 시 1회만 찾는다. 매 프레임 Find는 피한다.
             Player player = FindAnyObjectByType<Player>();
-            if (player != null) Target = player.transform;
+            if (player != null)
+            {
+                Target = player.transform;
+
+                // Player가 이미 Awake에서 캐싱해 둔 것을 그대로 받는다(Start는 모든 Awake 이후라 안전).
+                targetDamageable = player.Stats;
+            }
 
             // 순찰 지점이 있으면 순찰 몬스터, 없으면 제자리 대기 몬스터로 시작한다.
             StateMachine.ChangeState(HasPatrol ? PatrolState : IdleState);
@@ -201,9 +228,13 @@ namespace ProjectS.Enemies
         public float DistanceToTarget()
             => Target != null ? Vector3.Distance(transform.position, Target.position) : float.PositiveInfinity;
 
-        /// <summary>감지 거리 안에 있으면 발견을 허용한다.</summary>
+        /// <summary>
+        /// 감지 거리 안에 살아 있는 대상이 있으면 발견을 허용한다.
+        /// 생사를 함께 보는 이유: 플레이어가 죽은 뒤 Idle로 돌려놔도 이 판정이 거리만 보면
+        /// 다음 프레임에 곧바로 시체를 다시 발견해 추격이 재개된다.
+        /// </summary>
         public bool CanDetectTarget()
-            => DistanceToTarget() <= detectionRange;
+            => IsTargetAlive && DistanceToTarget() <= detectionRange;
 
         /// <summary>
         /// 타겟 위치까지 NavMesh 완전 경로가 있는지 주기적으로 검사한다.
@@ -335,6 +366,20 @@ namespace ProjectS.Enemies
         /// DeadState는 다른 상태로 전환되지 않는 최종 상태다.
         /// </summary>
         public void OnDied() => StateMachine.ChangeState(DeadState);
+
+        /// <summary>
+        /// 플레이어 사망 시 교전을 멈추고 대기(또는 순찰)로 돌아간다.
+        /// 없으면 시체를 계속 쫓아가 때리는 그림이 된다 — 데미지는 IDamageable이 막아 0이지만
+        /// 추격·공격 모션은 그대로 나가기 때문이다.
+        /// 재발견은 CanDetectTarget의 생사 판정이 막는다.
+        /// </summary>
+        private void OnTargetDied()
+        {
+            // 이미 죽은 몬스터에게 DeadState는 최종 상태다. 여기서 되살리면 안 된다.
+            if (StateMachine.Current == DeadState) return;
+
+            StateMachine.ChangeState(HasPatrol ? PatrolState : IdleState);
+        }
 
         private void OnDrawGizmosSelected()
         {

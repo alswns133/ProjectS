@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem;
+using ProjectS.Core;
 using ProjectS.Managers;
 using ProjectS.Players;
 using ProjectS.Scenes;
@@ -46,7 +47,9 @@ namespace ProjectS.Debugging
             // 상단 숫자열과 넘패드 둘 다 허용한다. 0 = 피해, 9 = 회복.
             if (keyboard.digit0Key.wasPressedThisFrame || keyboard.numpad0Key.wasPressedThisFrame)
             {
-                stats.TakeDamage(damagePerPress);
+                // 계산기를 거치지 않는 디버그 경로라 결과를 직접 만든다(치명타 없음).
+                DamageResult debugDamage = new DamageResult { Amount = damagePerPress, IsCritical = false };
+                stats.TakeDamage(in debugDamage);
             }
 
             if (keyboard.digit9Key.wasPressedThisFrame || keyboard.numpad9Key.wasPressedThisFrame)

@@ -35,7 +35,10 @@ namespace ProjectS.Enemies
             // Animation Event 없이도 상태 흐름이 돌아가게 타이머 기반으로 둔다.
             [Min(0.01f)] public float duration = 1.2f;
 
-            public int damage = 10;
+            // 이 공격의 계수. 피해 = EnemyStats.AttackPower × 계수 로 계산된다.
+            // 공격력(테이블)과 모션별 세기(인스펙터)를 분리해, 같은 몬스터의 강한 패턴/약한 패턴을
+            // 스탯 테이블을 건드리지 않고 표현한다.
+            public float coef = 1f;
 
             // 이 Transform의 위치/회전/스케일이 곧 판정 박스다.
             // 공격 클립별 손/무기 위치에 맞춘 자식 오브젝트를 연결한다.
@@ -127,17 +130,47 @@ namespace ProjectS.Enemies
             if (count == buffer.Length)
                 Debug.LogWarning($"Enemy hit buffer is full ({count}). Some targets may have been skipped.", this);
 
+            // 몬스터도 플레이어와 같은 계산기를 탄다. 다른 건 계수의 출처(인스펙터)뿐이다.
+            AttackContext attackContext = BuildAttackContext(attack);
+
             for (int i = 0; i < count; i++)
             {
                 // 현재 프로젝트 규칙: 피격 레이어 콜라이더와 IDamageable은 같은 루트 GameObject에 둔다.
                 if (buffer[i].TryGetComponent<IDamageable>(out var target))
                 {
+                    DamageResult result = DamageCalculator.Calculate(in attackContext, target.Defense, target.IsBoss);
+
                     // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다.
                     // 구르기 무적에 씹힌 공격에도 이펙트가 나오면 플레이어가 맞은 것으로 오인한다.
-                    if (target.TakeDamage(attack.damage))
+                    if (target.TakeDamage(in result))
                         CombatEvents.FireEnemyHitLanded(buffer[i].ClosestPoint(attack.hitBox.position));
                 }
             }
+        }
+
+        /// <summary>
+        /// 공격 패턴과 몬스터 스탯을 합쳐 데미지 계산 입력을 만든다.
+        /// 랜덤 편차·치명타·관통은 몬스터용 데이터가 아직 없어 "편차 없음, 치명타 없음"으로 고정한다.
+        /// (몬스터 치명타 유무는 기획 확인 대기 항목 — 값이 정해지면 여기와 MonsterStatTable만 고치면 된다.)
+        /// </summary>
+        private AttackContext BuildAttackContext(AttackPattern attack)
+        {
+            // 호출부(OnAttackHit)가 enemy·Stats 유효성을 이미 확인한 뒤에만 들어온다.
+            return new AttackContext
+            {
+                AttackPower = enemy.Stats.AttackPower,
+                Coef = attack.coef,
+
+                // 1.0~1.0 = 편차 없음. 계산기가 평타·스킬과 같은 경로를 타게 하려고 자리는 채운다.
+                RandomMin = 1f,
+                RandomMax = 1f,
+
+                CritChance = 0f,
+                CritDamage = 1f,
+                Penetration = 0f,
+                DamageBonus = 0f,
+                BossBonus = 0f,
+            };
         }
 
         private AttackPattern SelectAttack(float distanceToTarget)
