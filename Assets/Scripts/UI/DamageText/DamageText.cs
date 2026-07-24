@@ -24,15 +24,25 @@ namespace ProjectS.UI
         private void Awake()
         {
             label = GetComponent<TMP_Text>();
-            baseColor = label.color;
         }
 
-        public void Show(int amount, Vector3 position, Action<DamageText> onFinished)
+        /// <summary>
+        /// 텍스트를 띄운다. 표시 문자열과 색은 스포너가 종류(일반/치명타/플레이어 피격)에 따라 정해서 넘긴다.
+        /// </summary>
+        /// <param name="text">표시할 문자열. 치명타면 "CRITICAL"처럼 라벨이 함께 들어있다.</param>
+        /// <param name="position">띄울 월드 좌표</param>
+        /// <param name="color">글자 색. 페이드 아웃의 기준색으로도 쓰인다.</param>
+        /// <param name="onFinished">수명 종료 시 풀 반환 콜백</param>
+        public void Show(string text, Vector3 position, Color color, Action<DamageText> onFinished)
         {
             // 풀에서 재사용되므로 이전 사용 흔적을 모두 초기화한다.
             returnToPool = onFinished;
             transform.position = position;
-            label.text = amount.ToString();
+            label.text = text;
+
+            // 프리팹 색이 아니라 이번 호출의 색을 기준으로 페이드한다.
+            // 풀에서 재사용될 때 이전 타격의 색이 남지 않게 매번 덮어쓴다.
+            baseColor = color;
             label.color = baseColor;
             elapsed = 0f;
 

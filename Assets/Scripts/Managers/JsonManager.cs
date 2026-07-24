@@ -27,6 +27,10 @@ namespace ProjectS.Managers
 
         // 데이터 접근용 프로퍼티 (필요한 테이블마다 추가)
         public IReadOnlyDictionary<int, SoundTable> SoundDict => GetTable<SoundTable>();
+        public IReadOnlyDictionary<int, PlayerStatTable> PlayerStatDict => GetTable<PlayerStatTable>();
+        public IReadOnlyDictionary<int, PlayerLevelTable> PlayerLevelDict => GetTable<PlayerLevelTable>();
+        public IReadOnlyDictionary<int, MonsterStatTable> MonsterStatDict => GetTable<MonsterStatTable>();
+        public IReadOnlyDictionary<int, SkillTable> SkillDict => GetTable<SkillTable>();
 
         public IReadOnlyDictionary<int, ItemData> ItemDict => GetTable<ItemData>();
         public IReadOnlyDictionary<int, EquipmentData> EquipmentDict => GetTable<EquipmentData>();
@@ -56,6 +60,10 @@ namespace ProjectS.Managers
         {
             // 데이터 로딩이 필요한 테이블마다 RegisterAsync 호출
             await RegisterAsync<SoundTable>();
+            await RegisterAsync<PlayerStatTable>();
+            await RegisterAsync<PlayerLevelTable>();
+            await RegisterAsync<MonsterStatTable>();
+            await RegisterAsync<SkillTable>();
 
             await RegisterAsync<ItemData>();
             await RegisterAsync<EquipmentData>();
@@ -97,6 +105,16 @@ namespace ProjectS.Managers
             Debug.LogError($"[JsonManager] {typeof(T).Name} 테이블 미로드. RegisterAsync<{typeof(T).Name}>() 추가했나요? (또는 IsReady 확인 전 접근?)");
             return new Dictionary<int, T>();
         }
+
+        /// <summary>
+        /// 테이블에서 행 하나를 조회한다. 없는 키면 null을 돌려주므로 호출측이 폴백을 정할 수 있다.
+        /// 로딩이 끝난 뒤(IsReady 또는 ReadyTask await 이후)에 호출해야 한다.
+        /// </summary>
+        /// <typeparam name="T">조회할 테이블의 행 타입</typeparam>
+        /// <param name="index">행의 Index(캐릭터/몬스터/스킬 ID)</param>
+        /// <returns>찾은 행. 없으면 null</returns>
+        public T Get<T>(int index) where T : class, IDataRow
+            => GetTable<T>().TryGetValue(index, out T row) ? row : null;
 
         // Addressables에서 JSON 텍스트를 로드하고, 제네릭 리스트로 파싱한 뒤, 딕셔너리로 변환하는 메서드
         private async Task<Dictionary<int, T>> LoadDataDictionaryAsync<T>(string address) where T : class, IDataRow

@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Core;
+using ProjectS.Data;
 using ProjectS.Debugging;
 using ProjectS.Effects;
 using ProjectS.Events;
+using ProjectS.Managers;
 
 namespace ProjectS.Players
 {
@@ -36,11 +38,12 @@ namespace ProjectS.Players
         {
             public string key;
             public Transform area;
-            public int damage = 10;
 
-            // 적중 1회당 회복되는 스킬 게이지(SG). 기획: 강공격은 일반 공격보다 많이 찬다
-            // → 공격 종류 분기 대신 슬롯 값으로 표현한다(강공격 슬롯만 높게 설정).
-            public float gaugeGain = 5f;
+            // 이 타격이 참조할 SkillTable 행 ID. 계수·랜덤 범위·게이지 회복량이 전부 여기서 나온다.
+            // 평타=1, 피니시(마지막 타)=2, 우클릭 강공격=3, 캐릭터 스킬=101~(검사) / 201~(거너).
+            // 데미지를 슬롯에 직접 넣지 않는 이유: 밸런스 수치는 기획이 시트에서 바꾸는 값이라
+            // 인스펙터와 테이블 두 곳에 두면 어느 쪽이 진짜인지 알 수 없게 된다.
+            public int skillId = 1;
         }
 
         // 검기처럼 몸에서 떨어져 날아가는 판정은 히트 박스 대신 투사체로 내보낸다.
@@ -61,8 +64,8 @@ namespace ProjectS.Players
             // 검기 종류 자체가 다르면 프리팹(spawner)을 나누고, 여기선 미세 각도만 조정한다.
             public Vector3 rotationOffset;
 
-            public int damage = 15;
-            public float gaugeGain = 5f;
+            // 히트 박스 슬롯과 같은 규칙: 계수·랜덤 범위·게이지 회복량은 SkillTable 행에서 온다.
+            public int skillId = 101;
 
             // 관통 여부. true면 경로 위 여러 적을 연속 타격, false면 첫 적중에 소멸한다.
             public bool canPierce = true;
@@ -89,16 +92,20 @@ namespace ProjectS.Players
         [Header("현재 콤보")]
         [SerializeField] private int comboStep = 0;
 
-        [Header("스킬 쿨타임")]
-        // 인덱스는 스킬 번호와 맞춘다. [0]은 사용하지 않는 더미 슬롯.
-        [SerializeField] private float[] skillCooldowns = { 0f, 5f, 5f, 8f, 10f };
+        // 스킬 입력은 1~4번이다(입력 액션 수, HUD 쿨타임 슬롯 수와 짝을 이룬다).
+        // skillReadyTime[0]은 쓰지 않는 더미 슬롯.
+        private const int MaxSkillNumber = 4;
 
-        // 스킬별 게이지(SG) 소모량. skillCooldowns와 같은 규칙(인덱스 = 스킬 번호, [0]은 더미).
-        // 잔량 판정·차감은 PlayerStats가 담당하고, 여기는 '얼마를 쓸지'만 보관한다.
-        [SerializeField] private float[] skillGaugeCosts = { 0f, 25f, 25f, 25f, 25f };
+        // 우클릭 강공격은 캐릭터 공용 행(SKILL_RCLICK)을 쓴다.
+        private const int StrongAttackSkillId = 3;
+
+        // 이 캐릭터의 스킬 행 ID를 SkillId 오름차순으로 캐싱한다(스킬 번호 n → [n-1]).
+        // PlayerStats.SkillSetPrefix로 걸러 만들기 때문에, 스킬이 늘거나 ID 체계가 바뀌어도
+        // 코드가 아니라 테이블만 고치면 된다. 테이블 로딩이 끝난 뒤 첫 사용 시 1회 구축한다.
+        private int[] characterSkillIds;
 
         [Header("강공격")]
-        // 우클릭 강공격 쿨타임. 스킬과 달리 단일 동작이라 배열 대신 단일 값으로 둔다.
+        // 테이블(SkillId 3) 조회에 실패했을 때만 쓰는 폴백 쿨타임.
         [SerializeField] private float strongAttackCooldown = 3f;
 
         private float strongAttackReadyTime;
@@ -133,7 +140,7 @@ namespace ProjectS.Players
 
         /// <summary>
         /// 공격/스킬이 대상 하나에 적중할 때마다 발행된다(광역이면 대상 수만큼).
-        /// 인자는 이 적중으로 회복할 스킬 게이지(SG) 양 — 히트박스 슬롯별로 다르다(강공격 > 일반).
+        /// 인자는 이 적중으로 회복할 스킬 게이지(SG) 양 — SkillTable의 SgGain에서 온다(평타 +5, 우클릭 +20).
         /// Player가 받아 PlayerStats.GainSkillGauge로 연결한다.
         /// </summary>
         public event Action<float> TargetHit;
@@ -143,7 +150,7 @@ namespace ProjectS.Players
             anim = GetComponent<PlayerAnimation>();
             input = GetComponent<PlayerInputHandler>();
             player = GetComponent<Player>();
-            skillReadyTime = new float[skillCooldowns.Length];
+            skillReadyTime = new float[MaxSkillNumber + 1];
             relayProjectileHit = gain => TargetHit?.Invoke(gain);
 
             if (attackHitBoxes != null)
@@ -183,37 +190,142 @@ namespace ProjectS.Players
 
         public bool CanUseSkill(int n)
         {
-            if (n < 1 || n >= skillCooldowns.Length) return false;
-            return Time.time >= skillReadyTime[n];
+            if (n < 1 || n > MaxSkillNumber) return false;
+            if (Time.time < skillReadyTime[n]) return false;
+
+            // 테이블이 아직 없으면 쿨타임·소모량을 알 수 없다. 0 쿨타임·0 소모로 발동시키면
+            // 로딩 중에만 스킬이 공짜가 되므로, 데이터가 준비될 때까지 막는다.
+            int skillId = GetSkillId(n);
+            return skillId != 0 && GetSkillRow(skillId) != null;
         }
 
         public float GetRemainingCooldown(int n)
         {
-            if (n < 1 || n >= skillCooldowns.Length) return 0f;
+            if (n < 1 || n > MaxSkillNumber) return 0f;
             return Mathf.Max(0f, skillReadyTime[n] - Time.time);
         }
 
-        /// <summary>n번 스킬의 게이지(SG) 소모량. 범위를 벗어난 번호는 0을 돌려준다.</summary>
+        /// <summary>n번 스킬의 게이지(SG) 소모량. 범위를 벗어나거나 행이 없으면 0을 돌려준다.</summary>
         public float GetSkillGaugeCost(int n)
         {
-            if (n < 1 || n >= skillGaugeCosts.Length) return 0f;
-            return skillGaugeCosts[n];
+            if (n < 1 || n > MaxSkillNumber) return 0f;
+
+            int skillId = GetSkillId(n);
+            if (skillId == 0) return 0f;
+
+            SkillTable skill = GetSkillRow(skillId);
+            return skill != null ? skill.SgCost : 0f;
         }
 
         public bool UseSkill(int n)
         {
             if (!CanUseSkill(n)) return false;
 
+            SkillTable skill = GetSkillRow(GetSkillId(n));
+            if (skill == null) return false;
+
             // 실제 발동에 성공했을 때만 쿨타임과 시전 상태를 시작한다.
             // 실패한 스킬 입력은 이동 잠금으로 이어지면 안 된다.
-            skillReadyTime[n] = Time.time + skillCooldowns[n];
+            skillReadyTime[n] = Time.time + skill.Cooldown;
             IsCastingSkill = true;
             currentAction = CombatAction.Skill;
             currentSkillNumber = n;
             anim.PlaySkill(n);
 
             // UI(쿨타임 표시)가 이 신호로 카운트다운을 시작한다. 발동 성공 시에만 발행.
-            PlayerEvents.FireSkillUsed(n, skillCooldowns[n]);
+            PlayerEvents.FireSkillUsed(n, skill.Cooldown);
+            return true;
+        }
+
+        // 스킬 번호(1~)를 이 캐릭터의 SkillTable 행 ID로 바꾼다. 해당 번호의 스킬이 없으면 0.
+        private int GetSkillId(int n)
+        {
+            int[] ids = GetCharacterSkillIds();
+            if (ids == null || n < 1 || n > ids.Length) return 0;
+
+            return ids[n - 1];
+        }
+
+        // 이 캐릭터의 스킬 행 ID 목록을 만든다(SkillId 오름차순 = 스킬 1, 2, 3, 궁 순서).
+        // NameKey 접두사로 거르므로 평타·우클릭 같은 캐릭터 공용 행은 자연히 빠지고,
+        // "SW_ULTIMATE"처럼 이름 규칙이 다른 행도 특별 취급 없이 포함된다.
+        private int[] GetCharacterSkillIds()
+        {
+            if (characterSkillIds != null) return characterSkillIds;
+
+            JsonManager json = JsonManager.Instance;
+            if (json == null || !json.IsReady) return null;
+
+            string prefix = player.Stats.SkillSetPrefix;
+            if (string.IsNullOrEmpty(prefix)) return null;
+
+            string filter = prefix + "_";
+            List<int> ids = new List<int>();
+
+            foreach (KeyValuePair<int, SkillTable> pair in json.SkillDict)
+            {
+                if (pair.Value.NameKey != null
+                    && pair.Value.NameKey.StartsWith(filter, StringComparison.Ordinal))
+                {
+                    ids.Add(pair.Key);
+                }
+            }
+
+            // 딕셔너리 순회 순서는 보장되지 않으므로 ID로 정렬해 스킬 번호와 짝을 고정한다.
+            ids.Sort();
+            characterSkillIds = ids.ToArray();
+
+            if (characterSkillIds.Length == 0)
+                Debug.LogWarning($"SkillTable에 '{filter}'로 시작하는 스킬 행이 없습니다.", this);
+
+            return characterSkillIds;
+        }
+
+        // 없는 행은 경고만 남기고 null을 돌려준다. 호출측이 "발동 안 함/판정 안 함"을 정한다.
+        // 로딩 중(IsReady=false)에는 경고 없이 null 이다 — 아직 없는 게 정상이기 때문.
+        private SkillTable GetSkillRow(int skillId)
+        {
+            JsonManager json = JsonManager.Instance;
+            if (json == null || !json.IsReady) return null;
+
+            SkillTable skill = json.Get<SkillTable>(skillId);
+            if (skill == null)
+                Debug.LogWarning($"SkillTable에 SkillId {skillId} 행이 없습니다.", this);
+
+            return skill;
+        }
+
+        /// <summary>
+        /// SkillTable 행과 현재 플레이어 스탯을 합쳐 데미지 계산 입력을 만든다.
+        /// 관통·피해량증가%·보스추가뎀%는 장비·패시브가 미구현이라 0으로 둔다.
+        /// </summary>
+        /// <param name="skillId">참조할 SkillTable 행 ID</param>
+        /// <param name="attack">계산기에 넘길 공격자 정보</param>
+        /// <param name="gaugeGain">적중 1회당 회복할 스킬 게이지(SG)</param>
+        /// <returns>행을 찾았으면 true. false면 판정 자체를 건너뛴다(0 데미지로 때리는 것보다 원인이 드러난다).</returns>
+        private bool TryBuildAttack(int skillId, out AttackContext attack, out float gaugeGain)
+        {
+            attack = default;
+            gaugeGain = 0f;
+
+            SkillTable skill = GetSkillRow(skillId);
+            if (skill == null) return false;
+
+            PlayerStats stats = player.Stats;
+            attack = new AttackContext
+            {
+                AttackPower = stats.AttackPower,
+                Coef = skill.Coef,
+                RandomMin = skill.RandomMin,
+                RandomMax = skill.RandomMax,
+                CritChance = stats.CritChance,
+                CritDamage = stats.CritDamage,
+                Penetration = 0f,
+                DamageBonus = 0f,
+                BossBonus = 0f,
+            };
+
+            gaugeGain = skill.SgGain;
             return true;
         }
 
@@ -237,7 +349,8 @@ namespace ProjectS.Players
             // 안 하면 캔슬된 콤보의 트리거가 남아 강공격 직후 일반 공격이 저절로 나간다.
             CancelAction();
 
-            strongAttackReadyTime = Time.time + strongAttackCooldown;
+            SkillTable strongAttack = GetSkillRow(StrongAttackSkillId);
+            strongAttackReadyTime = Time.time + (strongAttack != null ? strongAttack.Cooldown : strongAttackCooldown);
             // 시전 중 좌클릭 차단은 스킬과 같은 규칙(IsCastingSkill)을 재사용한다.
             // 해제는 로코모션 복귀(ComboResetBehaviour→ResetCombo) 또는 안전장치 경로가 담당.
             IsCastingSkill = true;
@@ -290,6 +403,10 @@ namespace ProjectS.Players
                 return;
             }
 
+            // 계수·랜덤 범위·게이지 회복량은 슬롯이 가리키는 SkillTable 행에서 온다.
+            // 대상 루프 밖에서 한 번만 만든다(스탯은 타격 내내 같다).
+            if (!TryBuildAttack(slot.skillId, out AttackContext attack, out float gaugeGain)) return;
+
             int count = Physics.OverlapBoxNonAlloc(
                 box.position,
                 box.lossyScale * 0.5f,
@@ -305,16 +422,23 @@ namespace ProjectS.Players
                 // 대상 쪽은 IDamageable 계약만 알면 된다. 적 종류별 HP 구현은 여기서 몰라도 된다.
                 if (buffer[i].TryGetComponent<IDamageable>(out var target))
                 {
+                    // 방어 경감은 맞는 쪽 방어도로 계산되므로 대상마다 따로 굴린다.
+                    // 랜덤 편차·치명타도 대상별로 굴러간다(광역이면 적마다 다른 숫자가 뜬다).
+                    DamageResult result = DamageCalculator.Calculate(in attack, target.Defense, target.IsBoss);
+
                     // 데미지가 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다.
                     // 시체 타격으로 스킬 게이지를 채우는 악용을 막는 효과도 겸한다.
-                    if (!target.TakeDamage(slot.damage)) continue;
+                    if (!target.TakeDamage(in result)) continue;
 
                     // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                     // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
                     CombatEvents.FirePlayerHitLanded(buffer[i].ClosestPoint(box.position));
 
-                    // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다(기획).
-                    TargetHit?.Invoke(slot.gaugeGain);
+                    // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다.
+                    // ★ 설계 수치 시트에는 우클릭 SG가 "+20 / 사용당"으로 적혀 있지만,
+                    //   적중당이 맞다고 확정됐다(2026-07-23). 시트 표기를 근거로 "사용 1회당 1번"으로
+                    //   바꾸지 말 것 — 광역으로 여러 마리를 맞히면 그만큼 차는 것이 의도다.
+                    TargetHit?.Invoke(gaugeGain);
                 }
             }
         }
@@ -361,6 +485,10 @@ namespace ProjectS.Players
             // 다른 스킬이나 강공격으로 액션이 교체된 뒤 이전 스킬 이벤트가 도착하는 경우도 차단한다.
             if (currentAction != CombatAction.Skill || !IsCurrentSkillKey(key)) return;
 
+            // 투사체는 발사 후에 적을 만나므로, 완성된 데미지 숫자가 아니라 계산 재료를 들려 보낸다.
+            // 방어 경감은 맞는 대상마다 달라 발사 시점에는 최종 피해를 알 수 없기 때문이다.
+            if (!TryBuildAttack(slot.skillId, out AttackContext attack, out float gaugeGain)) return;
+
             // muzzle 방향에 슬롯별 회전 오프셋을 더해 검기 방향(가로/세로/대각)을 맞춘다.
             Quaternion rotation = slot.muzzle.rotation * Quaternion.Euler(slot.rotationOffset);
 
@@ -368,8 +496,8 @@ namespace ProjectS.Players
                 slot.prefab,
                 slot.muzzle.position,
                 rotation,
-                slot.damage,
-                slot.gaugeGain,
+                in attack,
+                gaugeGain,
                 slot.canPierce,
                 relayProjectileHit);
         }
