@@ -95878,10 +95878,20 @@ MonoBehaviour:
   detectionRange: 8
   detectDuration: 0.7
   detectDashSpeedMultiplier: 1.8
+  targetNavMeshSampleRadius: 0.5
+  targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
   despawnDelay: 3
+  combatDistanceFactorMin: 0.7
+  combatDistanceFactorMax: 0.9
+  allyBlockRadius: 0.4
+  allyBlockDistance: 1.2
+  allyBlockProbeHeight: 0.5
+  allySidestepAngle: 45
+  surroundAngleRange: 80
 --- !u!114 &491919824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -95900,7 +95910,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 720376460}
     weight: 1
   - name: Attack 2
@@ -95908,7 +95918,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 354361788}
     weight: 1
   targetMask:
@@ -95938,6 +95948,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
+  reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
+  avoidancePriorityMin: 30
+  avoidancePriorityMax: 70
 --- !u!195 &491919827
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -95972,7 +95988,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b594eff9ecd28c4db0b171aa905cfad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStats
+  monsterId: 1101
   maxHp: 100
+  attackPower: 10
+  defense: 0
+  isBoss: 0
   damageTextHeight: 0.5
 --- !u!143 &491919829
 CharacterController:
@@ -139310,12 +139330,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   characterId: 1
+  level: 1
   maxHp: 100
   currentHp: 100
   defense: 0
+  attackPower: 100
+  critChance: 0.05
+  critDamage: 1.5
   maxStamina: 100
   staminaRegenPerSecond: 15
+  damageTextHeight: 1.8
+  strongHitThreshold: 20
+  hitStaggerDuration: 0.4
+  strongHitStaggerDuration: 0.8
+  postRollInvincibleDuration: 1
   maxSkillGauge: 100
+  skillGaugeRegenPerSecond: 5
 --- !u!114 &708303897
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -139330,6 +139360,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player
   maxActionLockTime: 3
   rollStaminaCost: 0
+  autoJumpDelay: 0.08
 --- !u!114 &708303898
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -139345,52 +139376,34 @@ MonoBehaviour:
   attackHitBoxes:
   - key: Attack1
     area: {fileID: 1122435371}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Attack2
     area: {fileID: 1247050516}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Attack3
     area: {fileID: 1227683781}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Dash_Attack
     area: {fileID: 948307334}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: Strong_Attack
     area: {fileID: 1882521366}
-    damage: 50
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_1
     area: {fileID: 1091168347}
-    damage: 20
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_2
     area: {fileID: 363867684}
-    damage: 20
-    gaugeGain: 5
+    skillId: 1
   - key: Skill1_3
     area: {fileID: 244321023}
-    damage: 100
-    gaugeGain: 5
+    skillId: 1
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
+  projectileSpawner: {fileID: 0}
+  projectileSlots: []
   comboStep: 0
-  skillCooldowns:
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  skillGaugeCosts:
-  - 0
-  - 0
-  - 25
-  - 0
-  - 25
   strongAttackCooldown: 0
 --- !u!114 &708303899
 MonoBehaviour:
@@ -139423,6 +139436,7 @@ MonoBehaviour:
   rotationDamping: 10
   jumpHeight: 6
   gravity: 9.8
+  airControl: 8
   groundCheck: {fileID: 1159824283}
   checkRadius: 0.25
   floorLayer:
@@ -139615,6 +139629,15 @@ MonoBehaviour:
       m_Groups: 
       m_Action: Roll
       m_Flags: 0
+    m_Flags: 0
+  cursorToggleAction:
+    m_Name: Cursor Toggle
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: ca0dd4f0-f514-405d-b0ad-735e5e4f879d
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
     m_Flags: 0
   doubleTapWindow: 0.3
 --- !u!143 &708303902
@@ -188847,6 +188870,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
   prefab: {fileID: -740047778188791524, guid: 8f2de98462621dc40a8a5c49a010ebc4, type: 3}
   initialPoolSize: 10
+  source: 0
 --- !u!4 &970735723
 Transform:
   m_ObjectHideFlags: 0
@@ -199755,7 +199779,6 @@ MonoBehaviour:
   sensitivity: 0.1
   minPitch: -70
   maxPitch: 70
-  thirdpersoncharactercontroller: {fileID: 0}
 --- !u!4 &1026239780 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8341157169923946385, guid: 9d58ee279c6db9a41809fbe28ff1fd16, type: 3}
@@ -214689,6 +214712,17 @@ MonoBehaviour:
   prefab: {fileID: 2112676398002898940, guid: 5fc5cfe076fec1c448f5ac7571ff97eb, type: 3}
   initialPoolSize: 10
   spawnJitter: 0.3
+  normal:
+    color: {r: 1, g: 1, b: 1, a: 1}
+    format: '{0}'
+  critical:
+    color: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+    format: '<size=50%>CRITICAL</size>
+
+      {0}'
+  playerDamaged:
+    color: {r: 1, g: 0, b: 0, a: 1}
+    format: '{0}'
 --- !u!4 &1119560218
 Transform:
   m_ObjectHideFlags: 0
@@ -241958,10 +241992,20 @@ MonoBehaviour:
   detectionRange: 8
   detectDuration: 0.7
   detectDashSpeedMultiplier: 1.8
+  targetNavMeshSampleRadius: 0.5
+  targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
   despawnDelay: 3
+  combatDistanceFactorMin: 0.7
+  combatDistanceFactorMax: 0.9
+  allyBlockRadius: 0.4
+  allyBlockDistance: 1.2
+  allyBlockProbeHeight: 0.5
+  allySidestepAngle: 45
+  surroundAngleRange: 80
 --- !u!114 &1264982804
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -241980,7 +242024,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 1306139678}
     weight: 1
   - name: Attack 2
@@ -241988,7 +242032,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 1174168578}
     weight: 1
   targetMask:
@@ -242018,6 +242062,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
+  reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
+  avoidancePriorityMin: 30
+  avoidancePriorityMax: 70
 --- !u!195 &1264982807
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -242052,7 +242102,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b594eff9ecd28c4db0b171aa905cfad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStats
+  monsterId: 1101
   maxHp: 100
+  attackPower: 10
+  defense: 0
+  isBoss: 0
   damageTextHeight: 0.5
 --- !u!143 &1264982809
 CharacterController:
@@ -307903,7 +307957,6 @@ MonoBehaviour:
   sensitivity: 0.1
   minPitch: -70
   maxPitch: 70
-  thirdpersoncharactercontroller: {fileID: 0}
 --- !u!1 &1633110479
 GameObject:
   m_ObjectHideFlags: 0
@@ -311734,10 +311787,20 @@ MonoBehaviour:
   detectionRange: 8
   detectDuration: 0.7
   detectDashSpeedMultiplier: 1.8
+  targetNavMeshSampleRadius: 0.5
+  targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
   despawnDelay: 3
+  combatDistanceFactorMin: 0.7
+  combatDistanceFactorMax: 0.9
+  allyBlockRadius: 0.4
+  allyBlockDistance: 1.2
+  allyBlockProbeHeight: 0.5
+  allySidestepAngle: 45
+  surroundAngleRange: 80
 --- !u!114 &1648438489
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -311756,7 +311819,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 1491957870}
     weight: 1
   - name: Attack 2
@@ -311764,7 +311827,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 1091522516}
     weight: 1
   targetMask:
@@ -311794,6 +311857,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
+  reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
+  avoidancePriorityMin: 30
+  avoidancePriorityMax: 70
 --- !u!195 &1648438492
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -311828,7 +311897,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b594eff9ecd28c4db0b171aa905cfad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStats
+  monsterId: 1101
   maxHp: 100
+  attackPower: 10
+  defense: 0
+  isBoss: 0
   damageTextHeight: 0.5
 --- !u!143 &1648438494
 CharacterController:
@@ -325168,10 +325241,20 @@ MonoBehaviour:
   detectionRange: 8
   detectDuration: 0.7
   detectDashSpeedMultiplier: 1.8
+  targetNavMeshSampleRadius: 0.5
+  targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
   despawnDelay: 3
+  combatDistanceFactorMin: 0.7
+  combatDistanceFactorMax: 0.9
+  allyBlockRadius: 0.4
+  allyBlockDistance: 1.2
+  allyBlockProbeHeight: 0.5
+  allySidestepAngle: 45
+  surroundAngleRange: 80
 --- !u!114 &1713884782
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -325190,7 +325273,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 494360460}
     weight: 1
   - name: Attack 2
@@ -325198,7 +325281,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 1832683185}
     weight: 1
   targetMask:
@@ -325228,6 +325311,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
+  reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
+  avoidancePriorityMin: 30
+  avoidancePriorityMax: 70
 --- !u!195 &1713884785
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -325262,7 +325351,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b594eff9ecd28c4db0b171aa905cfad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStats
+  monsterId: 1101
   maxHp: 100
+  attackPower: 10
+  defense: 0
+  isBoss: 0
   damageTextHeight: 0.5
 --- !u!4 &1713980684 stripped
 Transform:
@@ -337515,10 +337608,20 @@ MonoBehaviour:
   detectionRange: 8
   detectDuration: 0.7
   detectDashSpeedMultiplier: 1.8
+  targetNavMeshSampleRadius: 0.5
+  targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
   despawnDelay: 3
+  combatDistanceFactorMin: 0.7
+  combatDistanceFactorMax: 0.9
+  allyBlockRadius: 0.4
+  allyBlockDistance: 1.2
+  allyBlockProbeHeight: 0.5
+  allySidestepAngle: 45
+  surroundAngleRange: 80
 --- !u!114 &1781160529
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -337537,7 +337640,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 1552675174}
     weight: 1
   - name: Attack 2
@@ -337545,7 +337648,7 @@ MonoBehaviour:
     range: 1.8
     cooldown: 2
     duration: 1.2
-    damage: 10
+    coef: 1
     hitBox: {fileID: 1296877512}
     weight: 1
   targetMask:
@@ -337575,6 +337678,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovement
+  reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
+  avoidancePriorityMin: 30
+  avoidancePriorityMax: 70
 --- !u!195 &1781160532
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -337609,7 +337718,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b594eff9ecd28c4db0b171aa905cfad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStats
+  monsterId: 1101
   maxHp: 100
+  attackPower: 10
+  defense: 0
+  isBoss: 0
   damageTextHeight: 0.5
 --- !u!143 &1781160534
 CharacterController:
@@ -384168,6 +384281,15 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
+  cursorToggleAction:
+    m_Name: 
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 04031fee-4f77-4967-bb69-306a708d28cc
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
   doubleTapWindow: 0.3
 --- !u!114 &2035824142
 MonoBehaviour:
@@ -384183,6 +384305,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player
   maxActionLockTime: 3
   rollStaminaCost: 20
+  autoJumpDelay: 0.08
 --- !u!114 &2035824143
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -384198,40 +384321,25 @@ MonoBehaviour:
   attackHitBoxes:
   - key: 
     area: {fileID: 0}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: 
     area: {fileID: 0}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: 
     area: {fileID: 0}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: 
     area: {fileID: 0}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   - key: 
     area: {fileID: 0}
-    damage: 10
-    gaugeGain: 5
+    skillId: 1
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
+  projectileSpawner: {fileID: 0}
+  projectileSlots: []
   comboStep: 0
-  skillCooldowns:
-  - 0
-  - 5
-  - 5
-  - 8
-  - 10
-  skillGaugeCosts:
-  - 0
-  - 25
-  - 25
-  - 25
-  - 25
   strongAttackCooldown: 3
 --- !u!114 &2035824144
 MonoBehaviour:
@@ -384264,6 +384372,7 @@ MonoBehaviour:
   rotationDamping: 10
   jumpHeight: 3
   gravity: 9.8
+  airControl: 8
   groundCheck: {fileID: 1844575664}
   checkRadius: 0.25
   floorLayer:
@@ -384283,12 +384392,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   characterId: 1
+  level: 1
   maxHp: 100
   currentHp: 100
   defense: 0
+  attackPower: 100
+  critChance: 0.05
+  critDamage: 1.5
   maxStamina: 100
   staminaRegenPerSecond: 15
+  damageTextHeight: 1.8
+  strongHitThreshold: 20
+  hitStaggerDuration: 0.4
+  strongHitStaggerDuration: 0.8
+  postRollInvincibleDuration: 1
   maxSkillGauge: 100
+  skillGaugeRegenPerSecond: 5
 --- !u!114 &2035824149
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -409995,6 +410114,94 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 7739548495678909120}
     m_Modifications:
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_Pivot.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_RootOrder
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4546473359128379108, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
+      propertyPath: m_Name
+      value: Label_SemiBold
+      objectReference: {fileID: 0}
     - target: {fileID: 2752252558333708431, guid: 3c945f684932c264390c9555d02082a6, type: 3}
       propertyPath: m_text
       value: '<color=#73CFF5>Synty<color=#FFFFFF> Did you know you can press Alt
@@ -410115,94 +410322,6 @@ PrefabInstance:
     - target: {fileID: 7492348068093464936, guid: 3c945f684932c264390c9555d02082a6, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_Pivot.x
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_Pivot.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_RootOrder
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_AnchorMax.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_AnchorMin.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_SizeDelta.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_SizeDelta.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2749708641982727653, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4546473359128379108, guid: a9e8e826ab2a7be4e82b2feedda52835, type: 3}
-      propertyPath: m_Name
-      value: Label_SemiBold
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -17,6 +17,9 @@ namespace ProjectS.Players
     [RequireComponent(typeof(PlayerCombat))]
     [RequireComponent(typeof(PlayerStats))]
     [RequireComponent(typeof(PlayerEffects))]
+    // 미니맵 등록도 부품처럼 강제한다. 자동 추가 시 type 기본값이 Enemy이므로,
+    // 플레이어는 인스펙터에서 MinimapMarkerSource의 type을 Player로 한 번 바꿔 줘야 한다.
+    [RequireComponent(typeof(MinimapMarkerSource))]
 
     public class Player : MonoBehaviour
     {
