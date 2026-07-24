@@ -55,6 +55,28 @@ namespace ProjectS.Enemies
             animator.SetTrigger(DoAttack);
         }
 
+        /// <summary>
+        /// 지금 재생 중인 상태가 지정 태그를 가진 클립인지 여부. 해당 상태들에 애니메이터에서 태그를
+        /// 달아 두어야 한다(공격은 "Attack", 발견은 "Detect"). 전환(IsInTransition) 중에는 아직 그 상태에
+        /// 진입하기 전이라 false를 돌려준다. 상태가 트리거를 켠 뒤 "클립에 실제로 들어갔는지" 확인하는 데 쓴다
+        /// (진입 전에 종료 판정을 하면 이전 로코모션의 normalizedTime을 보고 즉시 빠져나간다).
+        /// </summary>
+        public bool IsPlaying(string stateTag)
+            => !animator.IsInTransition(0)
+            && animator.GetCurrentAnimatorStateInfo(0).IsTag(stateTag);
+
+        /// <summary>
+        /// 현재 상태의 클립이 끝까지 재생됐는지 여부(normalizedTime 기준). 루프가 아닌 공격 클립의
+        /// 종료 판정에 쓴다. 클립 길이를 인스펙터에 손으로 적지 않고 애니메이터에서 직접 읽는 방식이다.
+        /// </summary>
+        /// <param name="threshold">
+        /// 종료로 볼 진행도. 1.0 정확히 노리면 프레임 타이밍상 그 순간을 놓쳐 한 바퀴 더 돌 수 있어
+        /// 살짝 못 미친 값을 기본으로 쓴다. State Speed는 normalizedTime에 이미 반영돼 있어 따로 볼 필요 없다.
+        /// </param>
+        public bool IsCurrentStateFinished(float threshold = 0.98f)
+            => !animator.IsInTransition(0)
+            && animator.GetCurrentAnimatorStateInfo(0).normalizedTime >= threshold;
+
         /// <summary>피격 경직 트리거. HitState 진입 시 1회 호출한다.</summary>
         public void PlayHit() => animator.SetTrigger(DoHit);
 

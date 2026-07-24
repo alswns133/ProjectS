@@ -1,11 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using ProjectS.Core;
 using ProjectS.Events;
 
 namespace ProjectS.Effects
 {
+    /// <summary>
+    /// 투사체를 쏜 진영. 적중 이펙트 이벤트를 어느 쪽으로 발행할지 가른다.
+    /// 프리팹 단위 속성으로 두는 이유: 대상 레이어(targetMask)가 이미 프리팹마다 다르므로
+    /// "누가 쏘는 물건인가"는 발사 시점 인자가 아니라 프리팹의 성질이다.
+    /// </summary>
+    public enum ProjectileOwner
+    {
+        Player,
+        Enemy,
+    }
+
     /// <summary>
     /// 직진 투사체 1개(검기·총알 등). 발사 방향으로 직진하며 경로 위의 IDamageable에게 데미지를 준다.
     /// 종류 차이(비주얼, 판정 크기, 속도)는 전부 프리팹·인스펙터 값으로 표현하고,
@@ -24,10 +36,22 @@ namespace ProjectS.Effects
         // 예: 검기는 가로로 넓은 참격이라 X를 크게, 총알은 X/Y를 작게 잡는다.
         [SerializeField] private Vector3 hitBoxSize = new Vector3(2f, 1f, 0.5f);
 
-        [SerializeField] private LayerMask enemyMask;
+        // 이 투사체가 때릴 대상 레이어. 플레이어용 프리팹은 몬스터 레이어를,
+        // 몬스터용 프리팹은 플레이어 레이어를 넣는다.
+        [SerializeField, FormerlySerializedAs("enemyMask")] private LayerMask targetMask;
+
+        // 발행할 적중 이펙트 이벤트를 가른다. targetMask와 반드시 짝을 맞춘다
+        // (플레이어 레이어를 때리는데 Player로 두면 플레이어가 때린 타격 이펙트가 난다).
+        [SerializeField] private ProjectileOwner owner = ProjectileOwner.Player;
 
         // 벽·지형 마스크. 여기에 맞으면 관통 여부와 무관하게 그 자리에서 소멸한다.
         [SerializeField] private LayerMask obstacleMask;
+
+        // 벽에 막혔을 때 접점에서 재생할 이펙트 프리팹(탄흔·스파크 등). 비워 두면 연출 없이 소멸한다.
+        // 씬 스포너가 아니라 투사체가 소유하는 이유: 벽 충돌 연출은 총알 종류마다 다른데,
+        // 스포너가 프리팹을 들면 종류가 늘 때마다 씬 오브젝트를 늘려야 한다.
+        // 재생과 풀 관리는 씬의 ProjectileImpactSpawner가 이 프리팹을 키로 처리한다.
+        [SerializeField] private HitEffect blockedEffect;
 
         // 관통 모드일 때 최대 적중 수. 무한 관통으로 밀집 웨이브가 통째로 지워지는 것을 막는 상한.
         [SerializeField, Min(1)] private int maxPierceTargets = 5;
@@ -120,7 +144,7 @@ namespace ProjectS.Effects
                 hitBuffer,
                 transform.rotation,
                 distance,
-                enemyMask | obstacleMask,
+                targetMask | obstacleMask,
                 QueryTriggerInteraction.Collide);
 
             // 벽이 적보다 가까우면 적을 때리기 전에 멈춰야 하므로 가까운 순으로 처리한다.
@@ -135,6 +159,11 @@ namespace ProjectS.Effects
                 if (IsInMask(hit.collider.gameObject.layer, obstacleMask))
                 {
                     transform.position = hit.point;
+
+                    // 캐스트 시작 지점에 이미 겹쳐 있으면 point/normal이 원점으로 나온다.
+                    // 그 경우 진행 방향의 반대를 법선으로 써서 이펙트가 쏜 쪽을 향하게 한다.
+                    Vector3 normal = hit.distance > 0f ? hit.normal : -direction;
+                    CombatEvents.FireProjectileBlocked(hit.point, normal, blockedEffect);
                     return false;
                 }
 
@@ -149,7 +178,12 @@ namespace ProjectS.Effects
 
                 // 캐스트 시작 지점에 이미 겹쳐 있던 콜라이더는 point가 원점으로 나오므로 근사치로 보정한다.
                 Vector3 point = hit.distance > 0f ? hit.point : hit.collider.ClosestPoint(from);
-                CombatEvents.FirePlayerHitLanded(point);
+
+                // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
+                // 내면 플레이어가 적중시킨 것으로 오인한다.
+                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point);
+                else CombatEvents.FireEnemyHitLanded(point);
+
                 onTargetHit?.Invoke(gaugeGain);
                 hitCount++;
 

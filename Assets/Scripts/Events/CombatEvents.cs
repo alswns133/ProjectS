@@ -65,6 +65,31 @@ namespace ProjectS.Events
             => OnEnemyHitLanded?.Invoke(hitPos);
 
         /// <summary>
+        /// 투사체가 지형·벽에 막혀 소멸 (접점 월드 좌표, 표면 법선, 재생할 이펙트 프리팹).
+        /// 벽에 남는 탄흔·스파크가 구독한다. 피격 이벤트와 분리한 이유는 '맞은 대상'이 없어서다
+        /// — 데미지도 없고 연출도 다르므로 같은 이벤트로 묶으면 구독자가 매번 구분해야 한다.
+        /// <para>
+        /// 법선을 함께 넘기는 이유: 스파크가 벽에 파묻히거나 반대로 튀지 않으려면
+        /// 이펙트를 표면 바깥 방향으로 세워야 하는데, 그 방향은 충돌을 판정한 쪽만 안다.
+        /// </para>
+        /// <para>
+        /// 이펙트 프리팹까지 실어 보내는 이유: 벽 충돌 연출은 총알 종류마다 다르다(검기 흔적,
+        /// 화살 박힘, 총알 스파크). 구독자가 프리팹을 소유하면 종류가 늘 때마다 씬 오브젝트와
+        /// 이벤트를 늘려야 하므로, "무엇으로 터질지"는 투사체 프리팹이 소유한다.
+        /// </para>
+        /// </summary>
+        public static event Action<Vector3, Vector3, HitEffect> OnProjectileBlocked;
+
+        /// <summary>
+        /// 투사체 차단 이벤트 발행. Projectile이 장애물 접점을 확정하고 소멸하기 직전에 호출한다.
+        /// </summary>
+        /// <param name="hitPos">벽과 만난 접점의 월드 좌표</param>
+        /// <param name="normal">접점의 표면 법선(벽에서 바깥으로 향하는 방향)</param>
+        /// <param name="effectPrefab">재생할 이펙트 프리팹. null이면 연출 없이 소멸만 한다.</param>
+        public static void FireProjectileBlocked(Vector3 hitPos, Vector3 normal, HitEffect effectPrefab)
+            => OnProjectileBlocked?.Invoke(hitPos, normal, effectPrefab);
+
+        /// <summary>
         /// 적 사망 (죽은 적의 월드 좌표).
         /// 죽는 적은 즉시 비활성화되므로 처치 연출을 적 오브젝트에 붙일 수 없다
         /// → 밖에 있는 구독자(처치 이펙트·드롭·퀘스트 카운트)가 이 사실을 받아 처리한다.
@@ -89,6 +114,7 @@ namespace ProjectS.Events
             OnDamageDealt = null;   // ★ 새 이벤트는 여기에도 반드시 추가
             OnPlayerHitLanded = null;
             OnEnemyHitLanded = null;
+            OnProjectileBlocked = null;
             OnEnemyDied = null;
         }
     }
