@@ -30,23 +30,18 @@ namespace ProjectS.UI
         protected override void Subscribe()
         {
             view.OnEnhanceRequested += HandleEnhanceRequested;
-            view.OnSlotClicked += HandleSlotClicked;
-            ItemSelectPopup.OnEquipmentChosen += HandleEquipmentChosen;
+            // 대상 선택 입력 두 가지를 같은 진입점으로 모은다: 인벤 슬롯 더블클릭 + 코어 슬롯에 드롭.
+            InventorySlotView.OnDoubleClicked += HandleEquipmentChosen;
+            CoreSlotDropTarget.OnDropped += HandleEquipmentChosen;
             PlayerEvents.OnGoldChanged += HandleGoldChanged;
         }
 
         protected override void Unsubscribe()
         {
             view.OnEnhanceRequested -= HandleEnhanceRequested;
-            view.OnSlotClicked -= HandleSlotClicked;
-            ItemSelectPopup.OnEquipmentChosen -= HandleEquipmentChosen;
+            InventorySlotView.OnDoubleClicked -= HandleEquipmentChosen;
+            CoreSlotDropTarget.OnDropped -= HandleEquipmentChosen;
             PlayerEvents.OnGoldChanged -= HandleGoldChanged;
-        }
-
-        private void HandleSlotClicked()
-        {
-            // 장비 선택은 강화창 위에 팝업으로. Esc 한 번이면 이 팝업만 닫히고 강화창은 살아있다.
-            UIManager.Instance.ShowPopup<ItemSelectPopup>();
         }
 
         private void HandleEquipmentChosen(EquipmentInstance chosen)
