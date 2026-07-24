@@ -1,5 +1,6 @@
 using UnityEngine;
 using ProjectS.Scenes;
+using ProjectS.UI;
 
 namespace ProjectS.Managers
 {
@@ -175,6 +176,10 @@ namespace ProjectS.Managers
 
                 yield return null;
             }
+
+            // 이 씬의 미니맵 배경을 적용한다(Bootstrap이 등록소에 넣어 둔 것을 씬 이름으로 조회).
+            // Enter보다 먼저 발행해도, 늦게 켜지는 미니맵은 MinimapEvents 캐시로 따라잡는다.
+            MinimapRegistry.ApplyStage(next);
 
             if (sceneDic.ContainsKey(next)) sceneDic[next].Enter();  // 새 씬의 Enter 호출
             current = next;

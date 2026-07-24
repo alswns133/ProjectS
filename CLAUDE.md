@@ -36,12 +36,24 @@ Unity 3D 액션 RPG 프로젝트의 코드 작업 가이드입니다. 런타임 
   - `EnemyMovement`: NavMeshAgent 기반 이동과 추적. 플레이어(CharacterController)와 달리 길 찾기가 필요해 NavMesh를 사용합니다.
   - `EnemyAnimation`: 몬스터 Animator 파라미터와 트리거를 제어하는 유일한 통로.
   - `EnemyCombat`: 공격 판정(미리 할당한 Collider 버퍼)과 공격 쿨다운. 히트 프레임은 Animation Event로 연결합니다.
+- **근접/원거리는 클래스를 파생하지 않고 `EnemyCombat`의 공격 패턴 `kind`(Melee/Projectile)로 구분합니다.**
+  Projectile 공격은 `OnAttackHit`에서 판정 대신 `ProjectileSpawner`로 투사체를 쏘고, 데미지·피격 이펙트·벽
+  탄흔은 날아가는 `Projectile`이 적중 시점에 처리합니다. `minRange`로 "붙으면 근접"을, `detectAttack`으로
+  "발견 시 돌진/조우 사격"을 표현하므로, 궁수 같은 혼합 몬스터도 슬롯 조합만으로 만듭니다.
 - 상태 머신은 `IState` 인터페이스를 플레이어와 공유하고, `EnemyBaseState` -> 구체 상태 클래스 구조를 따릅니다. 전환은 반드시 `EnemyStateMachine.ChangeState()`를 거칩니다.
 - 현재 상태:
   - `EnemyIdleState`: 대기. 감지 반경 안에 플레이어가 들어오면 Chase로 전환.
   - `EnemyChaseState`: 추적. 공격 사거리에 들어오면 Attack, 추적 범위를 벗어나면 Idle로 전환.
-  - `EnemyAttackState`: 공격 재생. 종료 후 거리에 따라 Chase 또는 Idle로 전환.
+  - `EnemyDetectState`: 최초 발견 연출(+근접 돌진/원거리 조우 사격). 발견 클립이 끝나면 Chase로 전환.
+  - `EnemyAttackState`: 공격 재생. 공격 클립이 끝나면 거리에 따라 Chase 또는 Idle로 전환.
   - `EnemyDeadState`: 사망 연출과 AI/충돌 비활성화. 다른 상태로 전환되지 않습니다.
+- **Attack/Detect 상태 종료는 인스펙터 수동 시간이 아니라 애니메이터 클립 종료로 판정합니다**
+  (`EnemyAnimation.IsCurrentStateFinished`의 normalizedTime 기준). 클립 길이를 손으로 적던
+  `duration`/`detectDuration`은 제거됐습니다 — 클립을 바꿔도 값이 어긋나지 않게 하기 위함입니다.
+  - 이 판정이 성립하려면 **애니메이터에서 공격 State에는 `Attack`, 발견/조우 State에는 `Detect` 태그가
+    반드시 있어야 합니다.** 태그가 상태 진입 감지(`IsPlaying`)의 유일한 근거이기 때문입니다.
+    새 공격/발견 클립을 추가할 때 태그를 빠뜨리면, 안전 타임아웃까지(약 1초) 어색하게 굳었다 넘어갑니다.
+  - `cooldown`(공격 간격)처럼 클립 길이와 무관한 밸런스 값은 그대로 인스펙터에 둡니다.
 - 순찰, 피격 경직, 그로기 같은 새 AI 행동은 `Enemy.Update()`에 조건문을 늘리기보다 새 상태 클래스로 추가합니다.
 - `TrainingDummy`는 공격 판정·데미지 검증용 최소 구현으로 별도 유지합니다.
 

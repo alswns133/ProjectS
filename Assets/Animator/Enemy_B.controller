@@ -7,7 +7,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Attack1
+  m_Name: Attack2
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -21,8 +21,8 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: ee13c5bda3048224fb604c2fb257dcf6, type: 2}
-  m_Tag: 
+  m_Motion: {fileID: 7400000, guid: 00938d10dcb09124887155293f0e397f, type: 2}
+  m_Tag: Attack
   m_SpeedParameter: 
   m_MirrorParameter: 
   m_CycleOffsetParameter: 
@@ -75,8 +75,8 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: 9ecb3790747ade6428346bab8f9eee27, type: 2}
-  m_Tag: 
+  m_Motion: {fileID: 7400000, guid: d6e7a36b2382c014db3d2f2ac0f82f93, type: 2}
+  m_Tag: Detect
   m_SpeedParameter: 
   m_MirrorParameter: 
   m_CycleOffsetParameter: 
@@ -101,7 +101,7 @@ AnimatorStateMachine:
     m_Position: {x: 320, y: -170, z: 0}
   - serializedVersion: 1
     m_State: {fileID: -6590030962288066300}
-    m_Position: {x: 600, y: -270, z: 0}
+    m_Position: {x: 760, y: -270, z: 0}
   m_ChildStateMachines:
   - serializedVersion: 1
     m_StateMachine: {fileID: 8386153741560890735}
@@ -267,7 +267,7 @@ BlendTree:
   m_Name: BlendTree
   m_Childs:
   - serializedVersion: 2
-    m_Motion: {fileID: 7400000, guid: 22d2a825e6283b444878d76a63ec840b, type: 2}
+    m_Motion: {fileID: 7400000, guid: b91e83777beb74e42a5a48242c474087, type: 2}
     m_Threshold: 0
     m_Position: {x: 0, y: 0}
     m_TimeScale: 1
@@ -275,7 +275,7 @@ BlendTree:
     m_DirectBlendParameter: Speed
     m_Mirror: 0
   - serializedVersion: 2
-    m_Motion: {fileID: 7400000, guid: f4b890d711d77b04f8a365de4d29939f, type: 2}
+    m_Motion: {fileID: 7400000, guid: 16fb3e39c1131c242b830eb2d8b1186a, type: 2}
     m_Threshold: 1
     m_Position: {x: 0, y: 0}
     m_TimeScale: 1
@@ -296,7 +296,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Attack2
+  m_Name: Attack1
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -310,8 +310,8 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: 9ecb3790747ade6428346bab8f9eee27, type: 2}
-  m_Tag: 
+  m_Motion: {fileID: 7400000, guid: c414cb43d5b26a845add1188d20d2bbb, type: 2}
+  m_Tag: Attack
   m_SpeedParameter: 
   m_MirrorParameter: 
   m_CycleOffsetParameter: 
@@ -347,7 +347,7 @@ AnimatorController:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Enemy
+  m_Name: Enemy_B
   serializedVersion: 5
   m_AnimatorParameters:
   - m_Name: Speed
@@ -462,7 +462,7 @@ AnimatorStateTransition:
   m_Conditions:
   - m_ConditionMode: 6
     m_ConditionEvent: AttackIndex
-    m_EventTreshold: 1
+    m_EventTreshold: 2
   - m_ConditionMode: 1
     m_ConditionEvent: doAttack
     m_EventTreshold: 0
@@ -590,15 +590,15 @@ BlendTree:
   m_Name: Blend Tree
   m_Childs:
   - serializedVersion: 2
-    m_Motion: {fileID: -1290838760769747020}
+    m_Motion: {fileID: 7400000, guid: b91e83777beb74e42a5a48242c474087, type: 2}
     m_Threshold: 0
-    m_Position: {x: -1, y: 0}
+    m_Position: {x: 0, y: 0}
     m_TimeScale: 1
     m_CycleOffset: 0
     m_DirectBlendParameter: Speed
     m_Mirror: 0
   - serializedVersion: 2
-    m_Motion: {fileID: 7400000, guid: b13149ba018207f4b87108ef7335f570, type: 2}
+    m_Motion: {fileID: 7400000, guid: 170fa49eccc626241a9a9a76894b87d1, type: 2}
     m_Threshold: 0.33333334
     m_Position: {x: 0.5, y: 0}
     m_TimeScale: 1
@@ -606,7 +606,7 @@ BlendTree:
     m_DirectBlendParameter: X
     m_Mirror: 0
   - serializedVersion: 2
-    m_Motion: {fileID: 7400000, guid: 47de62e68d3e2e242b8cdbcfd6894744, type: 2}
+    m_Motion: {fileID: 7400000, guid: fe79baf941e0223439c4b54a6d6648b4, type: 2}
     m_Threshold: 0.6666667
     m_Position: {x: 1, y: 0}
     m_TimeScale: 1
@@ -763,7 +763,7 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: 42ba484924cab574e81f117c56c9dae5, type: 2}
+  m_Motion: {fileID: 7400000, guid: 933a2e4ec3b0a1d478eb8ddff521dddf, type: 2}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 
@@ -779,7 +779,7 @@ AnimatorStateTransition:
   m_Conditions:
   - m_ConditionMode: 6
     m_ConditionEvent: AttackIndex
-    m_EventTreshold: 2
+    m_EventTreshold: 1
   - m_ConditionMode: 1
     m_ConditionEvent: doAttack
     m_EventTreshold: 0
