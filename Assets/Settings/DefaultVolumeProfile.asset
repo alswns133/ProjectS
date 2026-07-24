@@ -347,6 +347,34 @@ MonoBehaviour:
   SunScatteringIntensity:
     m_OverrideState: 1
     m_Value: 2
+--- !u!114 &-4982263281983147705
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c87ff93a90145e495f4ea994d8f730d, type: 3}
+  m_Name: AVLVolumeComponent
+  m_EditorClassIdentifier: Assembly-CSharp::AkiDevCat.AVL.Rendering.AVLVolumeComponent
+  active: 1
+  airDensity:
+    m_OverrideState: 1
+    m_Value: 0
+  fogDensityGlobal:
+    m_OverrideState: 1
+    m_Value: 0
+  fogDensityPerLightModifier:
+    m_OverrideState: 1
+    m_Value: 0.5
+  fogScattering:
+    m_OverrideState: 1
+    m_Value: 0
+  fogColor:
+    m_OverrideState: 1
+    m_Value: {r: 0.01, g: 0.03, b: 0.05, a: 1}
 --- !u!114 &-4463884970436517307
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -536,7 +564,7 @@ MonoBehaviour:
   - {fileID: 7518938298396184218}
   - {fileID: -1410297666881709256}
   - {fileID: -7504716597230791581}
-  - {fileID: 281111628587793198}
+  - {fileID: -4982263281983147705}
 --- !u!114 &281111628587793198
 MonoBehaviour:
   m_ObjectHideFlags: 3
