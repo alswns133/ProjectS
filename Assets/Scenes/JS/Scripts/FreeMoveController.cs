@@ -559,9 +559,12 @@ namespace ProjectS.Movement
             return (f * input.y + r * input.x).normalized;
         }
 
-        // 회피(구르기/공중 대시) 분기 전용 접지 판정. controller.isGrounded(발밑 0.x cm만 떠도 false)의
-        // 틈을 짧은 레이캐스트로 메워, 지상 회피가 공중 대시로 새지 않게 한다. 물리/중력 판정에는 쓰지 않는다.
-        private bool IsEffectivelyGrounded()
+        /// <summary>
+        /// 회피·공격 분기용 '사실상 접지' 판정. controller.isGrounded(발밑 0.x cm만 떠도 false)의 틈을
+        /// 짧은 레이캐스트로 메운다. 지상 회피가 공중 대시로 새거나(회피), Jump_Attack_End처럼 이미
+        /// 착지한 모션에서 공중 공격이 재발동되는 것(공격)을 막는다. 물리/중력 판정에는 쓰지 않는다.
+        /// </summary>
+        public bool IsEffectivelyGrounded()
         {
             if (controller.isGrounded) return true;
 
