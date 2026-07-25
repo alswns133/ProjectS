@@ -92,6 +92,7 @@ namespace ProjectS.Combat
         {
             input.Attacked += OnAttack;
             input.StrongAttacked += OnStrongAttack;
+            input.SkillPressed += OnSkillPressed;
             combat.ComboStepStarted += OnComboStepStarted;
             combat.TargetHit += OnTargetHit;
         }
@@ -100,6 +101,7 @@ namespace ProjectS.Combat
         {
             input.Attacked -= OnAttack;
             input.StrongAttacked -= OnStrongAttack;
+            input.SkillPressed -= OnSkillPressed;
             combat.ComboStepStarted -= OnComboStepStarted;
             combat.TargetHit -= OnTargetHit;
         }
@@ -209,6 +211,28 @@ namespace ProjectS.Combat
             // 상승은 여기서 시작하지 않는다. 준비 동작(windup) 동안 떠오르면 어색하므로,
             // 올려치기 클립의 Animation Event(OnStrongAttackRiseStart)가 발이 땅을 떠나는 프레임에
             // StrongAttackRising을 켜고, 정점의 OnStrongAttackRiseEnd가 끈다. 상승 자체는 클립 루트모션이 담당.
+        }
+
+        // 숫자키 스킬(1~4) 중재. Player.OnSkill의 판정 순서(쿨타임 → 게이지 → 발동)를 그대로 미러한다.
+        // 트리거 애니메이션 재생 자체는 PlayerAnimation.PlaySkill(민준님 코드, combat.UseSkill 내부에서 호출)이 담당하므로,
+        // 애니메이터 State/트리거 이름은 반드시 "Skill1"~"Skill4"(밑줄 없음)와 일치해야 한다.
+        private void OnSkillPressed(int n)
+        {
+            if (stats.IsDead) return;
+            if (move.IsRolling) return;               // 구르기 중 스킬 금지(회피 커밋 유지)
+            // player.IsMovementLocked가 아니라 combat.IsCastingSkill을 게이트로 쓴다. 다른 공격(OnAttack/
+            // OnStrongAttack)과 같은 규칙 — 캔슬 창(AttackCancelBehaviour)이 열리면 이동은 아직 잠긴 채여도
+            // 다음 공격 입력은 통과시켜야, 대시공격→스킬처럼 애니메이션이 끝나길 기다리지 않고 연계된다.
+            if (combat.IsCastingSkill) return;
+            if (!move.IsEffectivelyGrounded()) return; // 공중 스킬은 없음(기획) — Any State 전이라도 공중에선 막는다
+
+            // 판정 순서: 쿨타임 → 게이지 → 발동. 어느 한쪽만 소모되는 사고를 막는다.
+            if (!combat.CanUseSkill(n)) return;
+            if (!stats.TryUseSkillGauge(combat.GetSkillGaugeCost(n))) return;
+            if (!combat.UseSkill(n)) return;           // 쿨타임은 위에서 확인했으므로 사실상 항상 성공
+
+            move.SnapToCameraForward();
+            Lock();                                     // 스킬이 실제로 발동할 때만 이동 잠금
         }
 
         // 콤보 타수가 실제 시작될 때마다(OnAttackStart Animation Event 경유) 잠금을 갱신한다.
