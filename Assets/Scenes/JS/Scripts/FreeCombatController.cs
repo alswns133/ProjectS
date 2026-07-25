@@ -14,8 +14,11 @@ namespace ProjectS.Combat
     /// 로코모션 복귀 시 자동으로 Player.UnlockMovement()를 호출해 처리한다.
     ///
     /// 현재 구현 범위: 좌클릭 라우팅(공중 공격 / 대시 공격 / 지상 콤보) + 우클릭 강공격(올려치기→공중 연계)
-    /// + 콤보 잠금 갱신 + 적중 게이지 회복.
+    /// + 공격 간 연계(캔슬 창) + 콤보 잠금 갱신 + 적중 게이지 회복.
     /// (스킬·피격/사망 반응·구르기 무적은 다음 단계)
+    ///
+    /// 공격 간 연계(캔슬 창)는 이 클래스가 아니라 공격 State에 붙이는 <see cref="AttackCancelBehaviour"/>(SMB)가
+    /// State별로 처리한다. 그래야 공격마다 연계 타이밍을 애니메이터에서 따로 튜닝할 수 있다.
     /// </summary>
     public class FreeCombatController : MonoBehaviour
     {
@@ -41,11 +44,6 @@ namespace ProjectS.Combat
         // 트리거를 쏜 직후엔 아직 공격 State에 진입하기 전이라 태그가 안 잡힌다. 그 짧은 공백을 메우는 유예 시간.
         [SerializeField] private float attackEnterGrace = 0.15f;
 
-        [Header("강공격 연계")]
-        // 우클릭 강공격(올려치기) 캐스트 후 이 시간이 지나면 공중 공격 연계 '창'을 연다.
-        // 창은 한 번 열리면 유지되므로, 이후 공중에 있는 동안 '언제든' 좌클릭으로 공중 공격에 연계할 수 있다.
-        // 단일 Animation Event로 특정 프레임에만 여는 방식과 달리, 그 프레임이 지나도 닫히지 않는다.
-        [SerializeField] private float strongAttackChainDelay = 0.2f;
 
         private Animator animator;
         private float attackGraceUntil;
@@ -59,12 +57,6 @@ namespace ProjectS.Combat
         private bool jumpAttackUsed;
         private bool wasGrounded;
 
-        // 강공격 연계 창 관리. 캐스트가 아니라 '실제로 떠오른 시점(StrongAttackRising)'부터 재서,
-        // strongAttackChainDelay 뒤 IsCastingSkill을 풀어 창을 연다. 준비 동작(지상) 중에는 열리지 않는다
-        // (안 그러면 우클릭 직후 좌클릭이 사실상 땅에서 공중 공격을 시전한다).
-        private bool strongAttackChainPending;
-        private float strongAttackRiseTime;
-        private bool wasStrongAttackRising;
 
         private void Awake()
         {
@@ -100,6 +92,7 @@ namespace ProjectS.Combat
         {
             input.Attacked += OnAttack;
             input.StrongAttacked += OnStrongAttack;
+            input.SkillPressed += OnSkillPressed;
             combat.ComboStepStarted += OnComboStepStarted;
             combat.TargetHit += OnTargetHit;
         }
@@ -108,6 +101,7 @@ namespace ProjectS.Combat
         {
             input.Attacked -= OnAttack;
             input.StrongAttacked -= OnStrongAttack;
+            input.SkillPressed -= OnSkillPressed;
             combat.ComboStepStarted -= OnComboStepStarted;
             combat.TargetHit -= OnTargetHit;
         }
@@ -140,19 +134,6 @@ namespace ProjectS.Combat
             if (grounded && !wasGrounded) jumpAttackUsed = false;
             wasGrounded = grounded;
 
-            // 강공격 연계 창 열기: '실제로 떠오른 시점(RiseStart)'을 기준으로 잰다. 준비 동작(지상, StrongAttackRising=false)
-            // 중에는 열리지 않아, 우클릭 직후 좌클릭이 땅에서 공중 공격으로 새지 않는다.
-            bool rising = move.StrongAttackRising;
-            if (rising && !wasStrongAttackRising) strongAttackRiseTime = Time.time;   // 떠오른 순간 기록
-            wasStrongAttackRising = rising;
-
-            // 떠오른 뒤 지연시간이 지나면 IsCastingSkill을 풀어(코드) 공중 좌클릭 연계를 허용한다.
-            // 한 번 열면 창이 유지되므로(rising은 착지까지 참) 이후 공중에 있는 동안 언제든 연계할 수 있다.
-            if (strongAttackChainPending && rising && Time.time >= strongAttackRiseTime + strongAttackChainDelay)
-            {
-                combat.EndSkillCast();
-                strongAttackChainPending = false;
-            }
 
             // 회피(지상 구르기 / 공중 대시)가 시작되는 순간, 진행 중이던 공격을 캔슬하고 잠금을 푼다.
             // 회피가 공격을 캔슬하는 최우선 동작이며, FreeMoveController가 잠금 중에도 이 둘을 허용한다.
@@ -161,7 +142,6 @@ namespace ProjectS.Combat
             {
                 combat.CancelAction();
                 player.UnlockMovement();
-                strongAttackChainPending = false;   // 캔슬됐으면 연계 창 예약도 취소
                 move.StrongAttackRising = false;     // 올려치기 상승 상태도 해제
             }
             wasDodging = dodging;
@@ -179,7 +159,10 @@ namespace ProjectS.Combat
             // 공중 클릭 = 공중 공격(내려찍기). 점프 1회당 1회만(기획), 높이 제한 없음.
             // 카메라 = 조준이므로 발동 순간 카메라 정면으로 고정하고, 잠금으로 그 방향을 유지한다.
             // Start 구간은 체공, Loop 진입 시 하강(BeginDive)으로 전환된다.
-            if (!move.IsGrounded)
+            //
+            // ★ 접지 판정은 IsEffectivelyGrounded로 한다. controller.isGrounded만 보면 Jump_Attack_End처럼
+            //   이미 착지한 모션에서도 false로 잡혀, 좌클릭 시 공중 공격이 무한 재발동된다.
+            if (!move.IsEffectivelyGrounded())
             {
                 if (jumpAttackUsed) return;
 
@@ -211,12 +194,12 @@ namespace ProjectS.Combat
 
         // 우클릭 강공격(올려치기) 중재. 지상에서만 발동한다.
         // 이후 공중에서 좌클릭하면 OnAttack의 !IsGrounded 분기가 공중 공격으로 자연스럽게 이어받는다.
-        // 연계 창은 strongAttackChainDelay 뒤 Update가 코드로 연다(더 이상 EndSkillCast Animation Event에 의존하지 않는다).
+        // 연계 창은 강공격 State에 붙인 AttackCancelBehaviour(SMB)가 진행도로 연다 — 이 공격 전용 처리는 없다.
         private void OnStrongAttack()
         {
             if (stats.IsDead) return;
             if (move.IsRolling) return;              // 회피 중 공격 금지(회피 커밋 유지)
-            if (combat.IsCastingSkill) return;       // 시전 중 중복 발동 차단
+            if (combat.IsCastingSkill) return;       // 시전 중 중복 발동 차단(캔슬 창이 열리면 통과한다)
             if (!move.IsGrounded) return;            // 올려치기는 지상 전용(공중 우클릭은 무시)
 
             // 쿨타임에 걸리면 발동 실패다. 실패한 입력이 잠금으로 이어지면 안 된다(스킬과 같은 규칙).
@@ -225,12 +208,31 @@ namespace ProjectS.Combat
             move.SnapToCameraForward();   // 카메라 = 조준: 발동 순간 정면 고정
             Lock();                        // 공격 중 이동·회전 차단, 캔슬은 회피(Shift)로만
 
-            // 연계 창을 예약한다. 실제 열림은 떠오른 뒤(RiseStart) strongAttackChainDelay가 지나야 한다(Update에서 처리).
-            strongAttackChainPending = true;
-
             // 상승은 여기서 시작하지 않는다. 준비 동작(windup) 동안 떠오르면 어색하므로,
             // 올려치기 클립의 Animation Event(OnStrongAttackRiseStart)가 발이 땅을 떠나는 프레임에
             // StrongAttackRising을 켜고, 정점의 OnStrongAttackRiseEnd가 끈다. 상승 자체는 클립 루트모션이 담당.
+        }
+
+        // 숫자키 스킬(1~4) 중재. Player.OnSkill의 판정 순서(쿨타임 → 게이지 → 발동)를 그대로 미러한다.
+        // 트리거 애니메이션 재생 자체는 PlayerAnimation.PlaySkill(민준님 코드, combat.UseSkill 내부에서 호출)이 담당하므로,
+        // 애니메이터 State/트리거 이름은 반드시 "Skill1"~"Skill4"(밑줄 없음)와 일치해야 한다.
+        private void OnSkillPressed(int n)
+        {
+            if (stats.IsDead) return;
+            if (move.IsRolling) return;               // 구르기 중 스킬 금지(회피 커밋 유지)
+            // player.IsMovementLocked가 아니라 combat.IsCastingSkill을 게이트로 쓴다. 다른 공격(OnAttack/
+            // OnStrongAttack)과 같은 규칙 — 캔슬 창(AttackCancelBehaviour)이 열리면 이동은 아직 잠긴 채여도
+            // 다음 공격 입력은 통과시켜야, 대시공격→스킬처럼 애니메이션이 끝나길 기다리지 않고 연계된다.
+            if (combat.IsCastingSkill) return;
+            if (!move.IsEffectivelyGrounded()) return; // 공중 스킬은 없음(기획) — Any State 전이라도 공중에선 막는다
+
+            // 판정 순서: 쿨타임 → 게이지 → 발동. 어느 한쪽만 소모되는 사고를 막는다.
+            if (!combat.CanUseSkill(n)) return;
+            if (!stats.TryUseSkillGauge(combat.GetSkillGaugeCost(n))) return;
+            if (!combat.UseSkill(n)) return;           // 쿨타임은 위에서 확인했으므로 사실상 항상 성공
+
+            move.SnapToCameraForward();
+            Lock();                                     // 스킬이 실제로 발동할 때만 이동 잠금
         }
 
         // 콤보 타수가 실제 시작될 때마다(OnAttackStart Animation Event 경유) 잠금을 갱신한다.
