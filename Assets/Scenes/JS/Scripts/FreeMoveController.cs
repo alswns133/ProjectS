@@ -109,12 +109,35 @@ namespace ProjectS.Movement
         private Vector3 airVelocity;
         private Vector3 lastPosition;
 
+        // 공중 피격 체공 상태와 고정할 높이. 공중 공격의 Hovering과 목적이 달라 따로 둔다
+        // (저쪽은 diveRiseHeight만큼 살짝 '떠오르는' 연출이고, 이쪽은 맞은 그 높이에 '멈추는' 것).
+        private bool hitHovering;
+        private float hitHoverHeight;
+
         /// <summary>
         /// 공격/스킬 중 수평 이동·구르기·점프·대시를 막는 외부 잠금.
         /// 전투 조율자(FreeCombatController)가 Player.IsMovementLocked를 반영해 세팅한다.
         /// 중력·접지 처리는 계속되므로 제자리에서 공격/낙하는 정상 동작한다.
         /// </summary>
         public bool ActionLocked { get; set; }
+
+        /// <summary>
+        /// 공중에서 피격 모션이 재생되는 동안 높이를 고정한다(전투 조율자가 Hit 태그를 보고 세팅).
+        /// 켜는 순간의 높이를 캡처해 그 자리에 멈추므로, 맞은 지점이 그대로 유지된다.
+        ///
+        /// 착지 예고(isLanding)는 하강 중(verticalVelocity &lt; 0)에만 켜지는데 체공 중에는 수직 속도를
+        /// 0으로 잡아두므로, 체공하는 동안에는 착지 예고가 뜨지 않아 피격 모션이 중간에 착지 모션으로
+        /// 새지 않는다. 체공이 풀리면 그 지점부터 정상적으로 낙하·착지 예고가 이어진다.
+        /// </summary>
+        public bool HitHovering
+        {
+            get => hitHovering;
+            set
+            {
+                if (value && !hitHovering) hitHoverHeight = transform.position.y;
+                hitHovering = value;
+            }
+        }
 
         /// <summary>
         /// 점프 입력만 따로 막는다(이동·회전은 허용). 공격 모션이 로코모션으로 블렌드되는 구간에서 쓴다.
@@ -185,7 +208,16 @@ namespace ProjectS.Movement
             Diving = true;
         }
 
-        /// <summary>카메라가 보는 수평 방향을 즉시 바라본다(공격 시작 시 방향 정렬용).</summary>
+        /// <summary>
+        /// 카메라가 보는 수평 방향을 즉시 바라본다(공격 시작 시 방향 정렬용).
+        ///
+        /// ★ 반드시 Update 단계에서 즉시 적용해야 한다. LateUpdate로 미루면 안 된다 —
+        /// 카메라가 추적하는 CameraPivot이 플레이어의 자식이라, 플레이어가 돌면 같이 끌려간다.
+        /// 그걸 막으려고 CameraPivotController가 LateUpdate에서 피벗의 월드 회전을 원래대로
+        /// 되돌리는데, 그 전제가 "캐릭터 회전은 Update에서 이미 끝났다"이다. 우리가 LateUpdate에서
+        /// 회전하면 실행 순서에 따라 피벗 보정 뒤에 플레이어가 돌아, 그 프레임만 피벗이 딸려간 채
+        /// 렌더링되고 다음 프레임에 되돌아오는 진동(화면 깜빡임)이 생긴다.
+        /// </summary>
         public void SnapToCameraForward()
         {
             if (!TryCacheCamera()) return;
@@ -234,7 +266,13 @@ namespace ProjectS.Movement
                 Hovering = false;
                 Diving = false;
                 StrongAttackRising = false;   // 착지하면 올려치기 상승 상태 해제(착지 후 공중 대시 오발 방지)
+                HitHovering = false;          // 체공이 남으면 LateUpdate가 Y를 계속 고정해 땅에 붙지 못한다
             }
+
+            // 공중 피격 체공 중에는 수직 속도를 계속 0으로 눌러둔다. 안 그러면 중력이 쌓여
+            // 체공이 풀리는 순간 그동안 누적된 속도로 갑자기 떨어진다(LateUpdate는 위치만 고정하지
+            // 속도는 건드리지 않는다).
+            if (hitHovering) verticalVelocity = 0f;
 
             // 착지 순간(공중 → 접지)에 공중 관성을 확실히 제거한다.
             if (grounded && !wasGrounded)
@@ -444,6 +482,15 @@ namespace ProjectS.Movement
                 Vector3 hoverPos = transform.position;
                 hoverPos.y = hoverHeight;
                 transform.position = hoverPos;
+            }
+
+            // 공중 피격 체공: 맞은 높이를 그대로 유지한다. 위 Hovering과 달리 상승은 없다.
+            // 여기(LateUpdate)에서 처리해야 뒤에 적용되는 루트모션이 다시 끌어내리지 못한다.
+            if (hitHovering)
+            {
+                Vector3 hitPos = transform.position;
+                hitPos.y = hitHoverHeight;
+                transform.position = hitPos;
             }
 
             // 지상에서 이동 중일 때만 갱신. 최댓값을 유지해 회전 중인 느린 프레임에 끌려가지 않게 한다.
