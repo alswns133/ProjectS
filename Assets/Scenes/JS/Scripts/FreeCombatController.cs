@@ -57,6 +57,13 @@ namespace ProjectS.Combat
         private bool jumpAttackUsed;
         private bool wasGrounded;
 
+        // 평타(콤보) 전용 캔슬 창. combat.IsCastingSkill은 스킬/강공격/대시공격/공중공격만 켜고
+        // 평타(CombatAction.Combo)는 켜지 않아서, AttackCancelBehaviour가 Attack_1~3에 붙어도
+        // 그 첫 줄(!IsCastingSkill)에서 항상 막혀 슬라이더가 무효했다. 같은 SMB·같은 슬라이더가
+        // 평타에서도 동작하도록, 콤보 전용으로 별도 플래그를 둔다.
+        private bool inCombo;
+        private bool comboCancelWindowOpen;
+
 
         private void Awake()
         {
@@ -129,6 +136,10 @@ namespace ProjectS.Combat
             move.ActionLocked = (inAttack && !blendingOut) || grace;
             move.JumpBlocked = inAttack || grace;
 
+            // 공격 태그 자체를 벗어나면(로코모션 복귀·회피 등) 콤보도 끝난 것이다.
+            // 다른 공격으로 캔슬해 나간 경우엔 OnStrongAttack/OnSkillPressed 성공 시점에 이미 꺼둔다.
+            if (!inAttack) inCombo = false;
+
             // 착지하면 공중 공격 사용권을 회복한다(점프 1회당 1회).
             bool grounded = move.IsGrounded;
             if (grounded && !wasGrounded) jumpAttackUsed = false;
@@ -200,11 +211,13 @@ namespace ProjectS.Combat
             if (stats.IsDead) return;
             if (move.IsRolling) return;              // 회피 중 공격 금지(회피 커밋 유지)
             if (combat.IsCastingSkill) return;       // 시전 중 중복 발동 차단(캔슬 창이 열리면 통과한다)
+            if (inCombo && !comboCancelWindowOpen) return;  // 평타 캔슬 창(Attack_1~3의 AttackCancelBehaviour)
             if (!move.IsGrounded) return;            // 올려치기는 지상 전용(공중 우클릭은 무시)
 
             // 쿨타임에 걸리면 발동 실패다. 실패한 입력이 잠금으로 이어지면 안 된다(스킬과 같은 규칙).
             if (!combat.UseStrongAttack()) return;
 
+            inCombo = false;   // 평타를 캔슬하고 나온 것이므로 콤보 상태를 명시적으로 종료
             move.SnapToCameraForward();   // 카메라 = 조준: 발동 순간 정면 고정
             Lock();                        // 공격 중 이동·회전 차단, 캔슬은 회피(Shift)로만
 
@@ -224,6 +237,7 @@ namespace ProjectS.Combat
             // OnStrongAttack)과 같은 규칙 — 캔슬 창(AttackCancelBehaviour)이 열리면 이동은 아직 잠긴 채여도
             // 다음 공격 입력은 통과시켜야, 대시공격→스킬처럼 애니메이션이 끝나길 기다리지 않고 연계된다.
             if (combat.IsCastingSkill) return;
+            if (inCombo && !comboCancelWindowOpen) return;  // 평타 캔슬 창(Attack_1~3의 AttackCancelBehaviour)
             if (!move.IsEffectivelyGrounded()) return; // 공중 스킬은 없음(기획) — Any State 전이라도 공중에선 막는다
 
             // 판정 순서: 쿨타임 → 게이지 → 발동. 어느 한쪽만 소모되는 사고를 막는다.
@@ -231,6 +245,7 @@ namespace ProjectS.Combat
             if (!stats.TryUseSkillGauge(combat.GetSkillGaugeCost(n))) return;
             if (!combat.UseSkill(n)) return;           // 쿨타임은 위에서 확인했으므로 사실상 항상 성공
 
+            inCombo = false;   // 평타를 캔슬하고 나온 것이므로 콤보 상태를 명시적으로 종료
             move.SnapToCameraForward();
             Lock();                                     // 스킬이 실제로 발동할 때만 이동 잠금
         }
@@ -240,9 +255,22 @@ namespace ProjectS.Combat
         // 콤보 도중 잠금을 풀어버린다. Player.OnComboStepStarted와 동일한 처리.
         private void OnComboStepStarted()
         {
+            // 새 타수가 시작될 때마다 캔슬 창을 다시 닫는다 — 타수마다 그 State의
+            // AttackCancelBehaviour가 자기 진행도로 다시 열어야 한다(공격별 State 튜닝 원칙과 동일).
+            inCombo = true;
+            comboCancelWindowOpen = false;
+
             move.SnapToCameraForward();
             Lock();
         }
+
+        /// <summary>
+        /// 평타(콤보) 캔슬 창을 연다. Attack_1~3 State에 붙는 AttackCancelBehaviour(SMB)가
+        /// 진행도(Cancel Window Start)를 넘는 순간 호출한다. combat.IsCastingSkill과 달리
+        /// 평타 전용 상태라, 스킬/강공격 State에 붙은 같은 SMB가 호출해도 무해하다(그때는 inCombo가
+        /// 이미 false라 OnStrongAttack/OnSkillPressed의 게이트에 영향이 없다).
+        /// </summary>
+        public void OpenComboCancelWindow() => comboCancelWindowOpen = true;
 
         // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다(Player.OnTargetHit 미러).
         private void OnTargetHit(float gaugeGain) => stats.GainSkillGauge(gaugeGain);
