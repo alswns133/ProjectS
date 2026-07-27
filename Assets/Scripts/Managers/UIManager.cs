@@ -167,6 +167,17 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// T 타입 팝업을 닫는다. 인스턴스를 들고 있지 않은 외부(예: 던전 게이트가 이탈 시 팝업을 닫을 때)에서
+        /// 타입만으로 닫을 수 있게 한다. 열려 있지 않으면 아무것도 하지 않는다.
+        /// </summary>
+        /// <typeparam name="T">BasePopup을 상속받은 클래스</typeparam>
+        public void ClosePopup<T>() where T : BasePopup
+        {
+            if (popupMap.TryGetValue(typeof(T), out var popup))
+                ClosePopup(popup);
+        }
+
+        /// <summary>
         /// 가장 최근에 연(맨 위) 팝업을 닫는다. 뒤로가기가 팝업을 한 번에 하나씩 닫을 때 사용.
         /// </summary>
         private void CloseTopPopup()

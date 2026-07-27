@@ -7,7 +7,9 @@ namespace ProjectS.Combat
     /// 공격 State에 붙여 그 State의 '넘어가는 방식'을 State별로 제어하는 SMB. 두 기능이 독립적으로 들어 있다.
     ///
     /// <b>1) 연계(캔슬) 창</b> — 진행도가 <see cref="cancelWindowStart"/>를 넘으면 다음 공격 입력을 받도록
-    /// 창을 연다(PlayerCombat.EndSkillCast 호출).
+    /// 창을 연다. 스킬/강공격/대시공격/공중공격은 PlayerCombat.EndSkillCast(IsCastingSkill)로,
+    /// 평타(콤보)는 FreeCombatController.OpenComboCancelWindow(별도 플래그)로 연다 — 평타는 애초에
+    /// IsCastingSkill을 켜지 않으므로 그쪽만으로는 평타에 이 기능이 전혀 동작하지 않는다.
     ///
     /// <b>2) 복귀 목적지 갈아타기</b>(선택) — Idle로 빠져나가는 블렌드 도중 이동 입력이 들어오면
     /// 목적지를 걷기/달리기로 덮어쓴다. <see cref="idleState"/>가 비어 있으면 꺼진다(기본값).
@@ -65,6 +67,7 @@ namespace ProjectS.Combat
 
         // SMB는 컨트롤러 에셋에 붙는 객체라, Animator마다 생성되는 인스턴스에서 첫 호출 시 1회만 캐싱한다.
         private PlayerCombat combat;
+        private FreeCombatController combatController;
         private int movingHash;
         private int runningHash;
         private bool hashed;
@@ -100,18 +103,27 @@ namespace ProjectS.Combat
             animator.CrossFadeInFixedTime(target, redirectDuration, layerIndex);
         }
 
+        // 스킬/강공격/대시공격/공중공격(combat.IsCastingSkill)과 평타(FreeCombatController의 별도
+        // 콤보 캔슬 플래그) 둘 다 여기서 같이 연다. 어느 State든 자기한테 해당 없는 쪽은 그냥 무해한
+        // no-op이라(스킬 State면 콤보 플래그가, 평타 State면 IsCastingSkill이 애초에 관계없다) 분기할
+        // 필요가 없다 — 같은 SMB, 같은 슬라이더가 어느 공격 종류에 붙어도 동일하게 동작한다.
         private void TryOpenCancelWindow(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (combat == null)
                 combat = animator.GetComponent<PlayerCombat>();
+            if (combatController == null)
+                combatController = animator.GetComponent<FreeCombatController>();
 
-            // 열 것이 없거나(시전 중 아님) 이미 열렸으면 끝. 전이 중에는 진행도 판정이 의미 없다.
-            if (combat == null || !combat.IsCastingSkill) return;
-            if (animator.IsInTransition(layerIndex)) return;
-
+            if (animator.IsInTransition(layerIndex)) return;   // 전이 중에는 진행도 판정이 의미 없다
             if (stateInfo.normalizedTime < cancelWindowStart) return;
 
-            combat.EndSkillCast();
+            if (combat != null && combat.IsCastingSkill) combat.EndSkillCast();
+
+            // 같은 컨트롤러를 두 계열이 공유한다. Player 계열 오브젝트(FreeCombatController 없음)에선 PlayerCombat가,
+            // JS 오브젝트에선 FreeCombatController가 콤보 캔슬 창을 연다. 각자 없는 쪽은 null no-op이라 안전하다
+            // (코드를 Player 계열로 옮긴 뒤에도 이 컨트롤러를 그대로 쓰기 위한 이중 연결).
+            combat?.OpenComboCancelWindow();
+            combatController?.OpenComboCancelWindow();
         }
     }
 }

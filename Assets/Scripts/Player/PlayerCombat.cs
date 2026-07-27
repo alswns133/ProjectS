@@ -125,6 +125,34 @@ namespace ProjectS.Players
         // 스킬 시전 중에는 일반 공격 입력을 막기 위해 Player가 확인하는 플래그.
         public bool IsCastingSkill { get; private set; }
 
+        // 평타(콤보) 전용 상태. IsCastingSkill은 스킬/강공격/대시·공중공격만 켜고 평타는 켜지 않아서,
+        // 평타의 연계(캔슬) 창을 따로 둘 필요가 있다. 태그 기반 캐릭터의 강공격/스킬 라우팅이
+        // "콤보 도중엔 캔슬 창이 열려야만 통과"를 판정할 때 Player가 읽는다.
+        private bool inCombo;
+        private bool comboCancelWindowOpen;
+
+        /// <summary>
+        /// 지금 평타 콤보 체인에 진입해 있는지. OnAttackStart(실제 타수 진입)에 켜지고,
+        /// ResetCombo/CancelAction 또는 공격 태그 이탈(Player가 SetInCombo(false)) 시 꺼진다.
+        /// </summary>
+        public bool InCombo => inCombo;
+
+        /// <summary>현재 평타 캔슬 창이 열려 있는지. 강공격/스킬로의 콤보 캔슬 허용 판정에 쓴다.</summary>
+        public bool ComboCancelWindowOpen => comboCancelWindowOpen;
+
+        /// <summary>
+        /// 평타(콤보) 캔슬 창을 연다. Attack_1~3 State에 붙는 AttackCancelBehaviour(SMB)가
+        /// 진행도를 넘는 순간 호출한다. 스킬/강공격 State에 붙은 같은 SMB가 호출해도
+        /// 그때는 inCombo가 false라 무해하다.
+        /// </summary>
+        public void OpenComboCancelWindow() => comboCancelWindowOpen = true;
+
+        /// <summary>
+        /// 콤보 진입 상태를 외부(Player)가 강제로 내린다. 공격 태그를 벗어나면(로코모션 복귀·회피 등)
+        /// 콤보도 끝난 것이므로 Player가 매 프레임 판정해 호출한다.
+        /// </summary>
+        public void SetInCombo(bool value) => inCombo = value;
+
         // Animation Event는 취소된 클립이 블렌드 아웃되는 동안에도 늦게 도착할 수 있다.
         // 현재 액션과 이벤트 키가 일치할 때만 판정을 허용해 이전 액션의 유령 타격을 막는다.
         private CombatAction currentAction;
@@ -330,6 +358,14 @@ namespace ProjectS.Players
         }
 
         public void EndSkillCast() => IsCastingSkill = false;
+
+        /// <summary>
+        /// 현재 씬의 투사체 스포너를 주입한다. 스포너는 원칙상 '씬에 하나 두고 프리팹별 풀을 내부 관리'하는
+        /// 씬 단위 서비스라(씬 전환 시 일괄 Release) 플레이어 프리팹에 넣지 않는다. 그래서 씬을 넘어 유지되는
+        /// 플레이어는 씬 진입마다 PlayerManager가 이 메서드로 현재 씬의 스포너로 다시 연결한다.
+        /// 비전투 씬(마을 등)엔 스포너가 없어 null이 들어올 수 있고, 그땐 투사체 발사가 조용히 무시된다.
+        /// </summary>
+        public void SetProjectileSpawner(ProjectileSpawner spawner) => projectileSpawner = spawner;
 
         /// <summary>우클릭 강공격이 쿨타임을 벗어나 사용 가능한지 여부.</summary>
         public bool CanUseStrongAttack => Time.time >= strongAttackReadyTime;
@@ -542,6 +578,12 @@ namespace ProjectS.Players
             // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
             currentAction = CombatAction.Combo;
             comboStep = step;
+
+            // 새 타수 진입 = 콤보 체인 진입. 캔슬 창은 타수마다 다시 닫아, 그 State의
+            // AttackCancelBehaviour가 자기 진행도로 다시 열게 한다(공격별 State 튜닝 원칙과 동일).
+            inCombo = true;
+            comboCancelWindowOpen = false;
+
             ComboStepStarted?.Invoke();
             DevLog.Log(comboStep);
         }
@@ -572,6 +614,8 @@ namespace ProjectS.Players
             comboStep = 0;
             currentAction = CombatAction.None;
             currentSkillNumber = 0;
+            inCombo = false;
+            comboCancelWindowOpen = false;
             EndSkillCast();
             DevLog.Log(comboStep);
         }
@@ -588,6 +632,8 @@ namespace ProjectS.Players
             attackBuffered = false;
             currentAction = CombatAction.None;
             currentSkillNumber = 0;
+            inCombo = false;
+            comboCancelWindowOpen = false;
             EndSkillCast();
             ClearAttackBuffer();
 
