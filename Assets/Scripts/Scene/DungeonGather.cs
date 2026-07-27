@@ -1,5 +1,7 @@
-﻿using ProjectS.Events;
+﻿using UnityEngine;
+using ProjectS.Events;
 using ProjectS.Managers;
+using ProjectS.Players;
 using ProjectS.UI;
 
 
@@ -14,11 +16,24 @@ public class DungeonGather : ProjectS.Scenes.BaseScene
         PlayerEvents.FireExpChanged(0, 100);
         PlayerEvents.FireGoldChanged(50000);
         PlayerEvents.FireLevelUp(5);
+
+        // 지속 플레이어를 이 씬 스폰 지점으로 옮겨 활성화한 뒤, 던전 모드(전투 on + 던전 컨트롤러)로 전환.
+        if (PlayerManager.Instance != null)
+        {
+            PlayerManager.Instance.WarpToSpawn();
+            PlayerManager.Instance.Player?.EnterDungeon();
+        }
+        else
+        {
+            // 부트스트랩 없이 직접 씬 테스트: 씬에 배치된 플레이어를 그대로 사용(워프 없음).
+            Object.FindAnyObjectByType<Player>()?.EnterDungeon();
+        }
     }
 
     public override void Exit()
     {
-
+        // 다음 씬으로 전환하는 동안 지속 플레이어를 잠시 끈다(월드에 방치돼 떨어지지 않게).
+        if (PlayerManager.Instance != null) PlayerManager.Instance.Hide();
     }
 
     public override void Initialize()
