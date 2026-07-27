@@ -18,9 +18,17 @@ namespace ProjectS.Players
             // 단, Move(zero)로 중력·접지 처리는 유지 → 제자리에서 공격/낙하는 정상 동작.
             if (player.IsMovementLocked)
             {
-                player.Movement.Move(Vector2.zero);
+                // actionLocked: true → 원본처럼 이 잠금 경로에서만 올려치기 상승 억제가 걸린다.
+                player.Movement.Move(Vector2.zero, false, true);
                 player.Animation.SetForward(0f);
-                player.Animation.SetLocomotion(false, false);
+
+                // ★ 잠금 중에도 이동 '의도'는 로코모션 bool로 계속 전달한다(자유 이동 컨트롤러).
+                // false로 고정하면 공격 종료(End) State에서 End→Walk_Loop(isMoving=true) 전이가
+                // 절대 안 걸려, 방향키를 쥔 채 착지해도 Idle로 새어버린다. 공격 State는 별도라
+                // isMoving=true여도 걷기로 새지 않고, 오직 End의 전이 분기만 이 값을 읽는다.
+                Vector2 lockedInput = player.Input.MoveInput;
+                bool lockedMoving = lockedInput.sqrMagnitude > 0.0001f;
+                player.Animation.SetLocomotion(lockedMoving, lockedMoving && player.Input.IsRunning);
                 return;
             }
 

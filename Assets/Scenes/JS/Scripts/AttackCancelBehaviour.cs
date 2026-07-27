@@ -118,6 +118,11 @@ namespace ProjectS.Combat
             if (stateInfo.normalizedTime < cancelWindowStart) return;
 
             if (combat != null && combat.IsCastingSkill) combat.EndSkillCast();
+
+            // 같은 컨트롤러를 두 계열이 공유한다. Player 계열 오브젝트(FreeCombatController 없음)에선 PlayerCombat가,
+            // JS 오브젝트에선 FreeCombatController가 콤보 캔슬 창을 연다. 각자 없는 쪽은 null no-op이라 안전하다
+            // (코드를 Player 계열로 옮긴 뒤에도 이 컨트롤러를 그대로 쓰기 위한 이중 연결).
+            combat?.OpenComboCancelWindow();
             combatController?.OpenComboCancelWindow();
         }
     }

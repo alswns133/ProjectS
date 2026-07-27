@@ -23,6 +23,13 @@ namespace ProjectS.Players
         private static readonly int DoHit = Animator.StringToHash("doHit");
         private static readonly int DoHitLarge = Animator.StringToHash("doHitLarge");
 
+        // 자유 이동(FreeMove 이관) 캐릭터 전용 파라미터. 3단 로코모션 컨트롤러(Haru 계열)만 갖고 있고,
+        // Z 블렌드 트리 컨트롤러(Player.controller)에는 없다. 없는 파라미터에 SetTrigger/SetBool을 하면
+        // Unity가 매 프레임 경고를 뱉으므로, Awake에서 존재 여부를 검사해 없으면 조용히 무시한다.
+        private static readonly int DoJump = Animator.StringToHash("doJump");
+        private static readonly int DoJumpDash = Animator.StringToHash("doJumpDash");
+        private static readonly int IsLanding = Animator.StringToHash("isLanding");
+
         // 스킬 트리거 해시 테이블. [0]은 더미 — 스킬 번호(1~)를 인덱스로 바로 쓰기 위함.
         // 따라서 유효 번호는 1..Length-1. 스킬을 늘리면 여기에 추가.
         private static readonly int[] Skill =
@@ -51,18 +58,115 @@ namespace ProjectS.Players
         // 두 규약이 하나로 통일되면 이 플래그와 SetLocomotion의 가드는 지운다.
         private bool hasLocomotionBools;
 
+        // 각 파라미터의 존재 여부. 컨트롤러마다 파라미터 집합이 달라, 없는 것에 Set을 하면
+        // 매 프레임 경고가 나므로 Awake에서 1회 검사해 게이트로 쓴다(hasLocomotionBools와 같은 방침).
+        private bool hasForward;
+        private bool hasJump;
+        private bool hasJumpDash;
+        private bool hasLanding;
+        private bool hasDie;
+        private bool hasDieLarge;
+
         private void Awake()
         {
             animator = GetComponent<Animator>();
             villageController = animator.runtimeAnimatorController;
 
-            // AnimatorOverrideController는 원본의 파라미터 목록을 그대로 물려받으므로
-            // 던전 컨트롤러로 교체돼도 이 판정은 유효하다 → 1회 검사로 충분.
-            hasLocomotionBools = HasParameter(Moving) && HasParameter(Running);
+            RefreshParameterCache();
         }
 
+        // 컨트롤러가 노출하는 파라미터 존재 여부를 다시 계산한다.
+        // 마을/던전은 클립만 다른 한 base의 오버라이드가 아니라 base 컨트롤러 자체가 다르다
+        // (Player_Village에는 doDie/공격계 파라미터가 없고 Player_Dungeon에는 있다).
+        // 따라서 컨트롤러를 교체할 때마다 반드시 다시 계산해야 한다 — Awake 1회 캐시는 교체 후 어긋나
+        // 마을 컨트롤러로 시작하면 hasDie가 false로 굳어 던전에서 사망 모션이 안 나온다(직접 원인이었음).
+        private void RefreshParameterCache()
+        {
+            hasLocomotionBools = HasParameter(Moving) && HasParameter(Running);
+
+            hasForward = HasParameter(Z);
+            hasJump = HasParameter(DoJump);
+            hasJumpDash = HasParameter(DoJumpDash);
+            hasLanding = HasParameter(IsLanding);
+            hasDie = HasParameter(DoDie);
+            hasDieLarge = HasParameter(DoDieLarge);
+        }
+
+        /// <summary>
+        /// 마을 컨트롤러(Awake에서 캡처한 원본 base)로 전환한다. 씬 진입 시 <see cref="Player.EnterVillage"/>가 호출한다.
+        /// 이미 그 컨트롤러면 재대입하지 않는다 — runtimeAnimatorController 대입은 애니메이터를 재초기화해
+        /// 현재 State·파라미터를 기본값(Idle)으로 되돌리므로, 같은 것을 다시 넣으면 매 호출마다 Idle로 튄다.
+        /// </summary>
+        public void UseVillageController()
+        {
+            if (animator == null) animator = GetComponent<Animator>();
+            if (villageController == null || animator.runtimeAnimatorController == villageController) return;
+
+            animator.runtimeAnimatorController = villageController;
+
+            // 마을 base는 던전 base와 파라미터 집합이 다르므로 교체 후 캐시를 다시 계산한다.
+            RefreshParameterCache();
+        }
+
+        /// <summary>
+        /// 던전 컨트롤러(AnimatorOverrideController)로 전환한다. 씬 진입 시 <see cref="Player.EnterDungeon"/>가 호출한다.
+        /// 마을/던전은 base 컨트롤러 자체가 달라(파라미터 집합이 다름) 전환 후 파라미터 캐시를 다시 계산한다.
+        /// 비어 있으면 경고만 남기고 전환하지 않는다(null을 대입하면 애니메이터가 통째로 꺼져 아무 모션도 안 나온다).
+        /// </summary>
+        public void UseDungeonController()
+        {
+            if (animator == null) animator = GetComponent<Animator>();
+            if (dungeonController == null)
+            {
+                Debug.LogWarning("[PlayerAnimation] dungeonController가 비어 있어 던전 컨트롤러로 전환할 수 없습니다.", this);
+                return;
+            }
+            if (animator.runtimeAnimatorController == dungeonController) return;
+
+            animator.runtimeAnimatorController = dungeonController;
+
+            // 던전 base에만 있는 파라미터(doDie/doDieLarge, 공격계 등)를 캐시에 반영한다.
+            RefreshParameterCache();
+        }
+
+        /// <summary>
+        /// 이동 잠금·연계 판정에 태그 기반 모델(FreeMove/FreeCombat 이관)을 쓸지 여부.
+        /// 3단 로코모션 컨트롤러(자유 이동 캐릭터)만 공격 State에 Tag를 달고 doJump/isLanding 등을 쓴다.
+        /// Z 블렌드 트리 컨트롤러(기존 캐릭터)는 ComboResetBehaviour 기반의 기존 잠금 모델을 그대로 쓴다.
+        /// hasLocomotionBools(isMoving/isRunning 존재 여부)를 대리 신호로 삼아 캐릭터별로 잠금 모델을 가른다.
+        ///
+        /// ★ 조회 시점에 직접 계산한다(Awake 캐시 값을 안 쓴다). Player가 이 값을 Awake에서 읽는데,
+        ///   같은 GameObject의 컴포넌트 간 Awake 실행 순서는 보장되지 않아 PlayerAnimation.Awake보다
+        ///   Player.Awake가 먼저 돌면 캐시가 아직 false라 태그 기반 판정이 통째로 꺼졌다(강공격 낙하가
+        ///   안전장치 타이머까지 vv=0으로 굳던 직접 원인). animator만 확보해 바로 계산하면 순서와 무관하다.
+        /// </summary>
+        public bool UsesMotionTags
+        {
+            get
+            {
+                if (animator == null) animator = GetComponent<Animator>();
+                return HasParameter(Moving) && HasParameter(Running);
+            }
+        }
+
+        /// <summary>현재 레이어0가 전이 중인지. Player가 공격/피격 태그 전이를 판정할 때 읽는다.</summary>
+        public bool IsInTransition => animator.IsInTransition(0);
+
+        /// <summary>현재 State의 Tag 해시. Player의 이동 잠금/연계 판정용(Animator 접근은 이 클래스로 일원화).</summary>
+        public int CurrentStateTagHash => animator.GetCurrentAnimatorStateInfo(0).tagHash;
+
+        /// <summary>전이 중일 때 진입할 다음 State의 Tag 해시.</summary>
+        public int NextStateTagHash => animator.GetNextAnimatorStateInfo(0).tagHash;
+
+        /// <summary>지정 Bool 파라미터 값. 지속 조준(continuousAim) 등 State가 노출한 플래그를 읽을 때 쓴다.</summary>
+        public bool GetBool(int hash) => animator.GetBool(hash);
+
         /// <summary>전진량(Z)을 부드럽게 갱신. 자유 시점은 진행 방향 회전이라 Z만 쓴다.</summary>
-        public void SetForward(float z) => animator.SetFloat(Z, z, Damp, Time.deltaTime);
+        public void SetForward(float z)
+        {
+            if (!hasForward) return;   // Z 파라미터가 없는 3단 로코모션 컨트롤러에서는 무시(경고 방지)
+            animator.SetFloat(Z, z, Damp, Time.deltaTime);
+        }
 
         /// <summary>
         /// 이동/달리기 여부를 bool 파라미터로 전달한다(3단 로코모션 컨트롤러 전용 규약).
@@ -97,6 +201,43 @@ namespace ProjectS.Players
         /// SetForward와 달리 감쇠를 걸지 않는 이유: 부호(상승/하강)가 전이 조건이라 즉시 반영돼야 한다.
         /// </summary>
         public void SetVerticalVelocity(float v) => animator.SetFloat(VertVelocity, v);
+
+        /// <summary>
+        /// 착지 예고(isLanding)를 전달한다(자유 이동 컨트롤러 전용). 하강 중 지면이 가까우면 켜서
+        /// 착지 모션을 미리 시작하게 한다. Player가 매 프레임 레이캐스트 결과로 호출한다.
+        /// 파라미터가 없는 컨트롤러에서는 조용히 무시된다.
+        /// </summary>
+        public void SetLanding(bool v)
+        {
+            if (!hasLanding) return;
+            animator.SetBool(IsLanding, v);
+        }
+
+        /// <summary>
+        /// 점프 트리거(자유 이동 컨트롤러 전용). 조건 전이(isGrounded+verticalVelocity) 방식과 달리
+        /// 트리거는 래치되어 좁은 상승 창을 놓치지 않으므로, 공격 종료 블렌드 중 점프도 확실히 재생된다.
+        /// Player.TryJump가 Movement.Jump() 성공 시 호출한다. 파라미터가 없으면 무시(조건 전이 방식과 병행 가능).
+        /// </summary>
+        public void PlayJump()
+        {
+            if (hasJump) animator.SetTrigger(DoJump);
+        }
+
+        public void ResetJumpTrigger()
+        {
+            if (hasJump) animator.ResetTrigger(DoJump);
+        }
+
+        /// <summary>공중 대시(점프 대시) 트리거. PlayerJumpDashState 진입 시 호출한다.</summary>
+        public void PlayJumpDash()
+        {
+            if (hasJumpDash) animator.SetTrigger(DoJumpDash);
+        }
+
+        public void ResetJumpDashTrigger()
+        {
+            if (hasJumpDash) animator.ResetTrigger(DoJumpDash);
+        }
 
         /// <summary>
         /// 구르기 트리거. 구르기 상태 진입 시 1회 호출된다.
@@ -162,7 +303,22 @@ namespace ProjectS.Players
             animator.ResetTrigger(DoHitLarge);
         }
 
-        /// <summary>사망 트리거. 강한 공격에 죽었으면(byLargeHit) 별도 모션(doDieLarge)으로 분기한다.</summary>
-        public void PlayDie(bool byLargeHit) => animator.SetTrigger(byLargeHit ? DoDieLarge : DoDie);
+        /// <summary>
+        /// 사망 트리거. 강한 공격에 죽었으면(byLargeHit) 별도 모션(doDieLarge)으로 분기한다.
+        /// 컨트롤러마다 사망 파라미터 유무가 다르다(Free/JS 컨트롤러엔 doDie/doDieLarge가 없어 가드 없이
+        /// SetTrigger하면 "Parameter does not exist" 경고가 난다). 있는 트리거만 쏘고, 요청한 종류가 없으면
+        /// 다른 사망 트리거로 폴백하며, 둘 다 없으면 경고 없이 조용히 무시한다(사망 로직 자체는 정상 진행).
+        /// </summary>
+        public void PlayDie(bool byLargeHit)
+        {
+            if (byLargeHit ? hasDieLarge : hasDie)
+            {
+                animator.SetTrigger(byLargeHit ? DoDieLarge : DoDie);
+                return;
+            }
+
+            if (hasDie) animator.SetTrigger(DoDie);
+            else if (hasDieLarge) animator.SetTrigger(DoDieLarge);
+        }
     }
 }

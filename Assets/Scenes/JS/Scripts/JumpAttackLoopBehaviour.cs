@@ -1,5 +1,6 @@
 using UnityEngine;
 using ProjectS.Movement;
+using ProjectS.Players;
 
 namespace ProjectS.Combat
 {
@@ -16,13 +17,19 @@ namespace ProjectS.Combat
     {
         // SMB는 컨트롤러 에셋에 붙는 객체라, Animator마다 생성되는 인스턴스에서 첫 호출 시 1회만 캐싱한다.
         private FreeMoveController move;
+        private PlayerMovement playerMove;
 
         public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (move == null)
                 move = animator.GetComponent<FreeMoveController>();
+            if (playerMove == null)
+                playerMove = animator.GetComponent<PlayerMovement>();
 
+            // 같은 컨트롤러를 두 계열이 공유한다. Player 계열 오브젝트(FreeMoveController 없음)에선 PlayerMovement가,
+            // JS 오브젝트에선 FreeMoveController가 하강을 시작한다. 각자 없는 쪽은 null no-op이라 안전하다.
             move?.BeginDive();
+            playerMove?.BeginDive();
         }
     }
 }
