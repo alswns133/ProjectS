@@ -18,6 +18,9 @@ namespace ProjectS.Enemies
     [RequireComponent(typeof(EnemyMovement))]
     [RequireComponent(typeof(EnemyAnimation))]
     [RequireComponent(typeof(EnemyCombat))]
+    // 미니맵 등록도 부품처럼 강제한다. MinimapMarkerSource의 type 기본값이 Enemy라
+    // 몬스터는 자동 추가만으로 별도 설정 없이 미니맵에 잡힌다.
+    [RequireComponent(typeof(MinimapMarkerSource))]
     public class Enemy : MonoBehaviour
     {
         // ── 순찰 ─────────────────────────────────────────────────────────
@@ -31,10 +34,15 @@ namespace ProjectS.Enemies
         // ── 발견 ─────────────────────────────────────────────────────────
         // 감지 설정. Idle/Patrol에서 플레이어가 detectionRange 안에 들어오면 DetectState로 진입한다.
         // 바로 Chase로 가지 않는 이유: "플레이어 발견" 연출과 짧은 대시를 하나의 커밋 동작으로 보장하기 위함.
-        // detectDuration 동안 발견 연출/대시를 처리한 뒤 ChaseState로 넘어간다.
+        // 발견 상태 유지 시간은 별도 값이 아니라 발견 클립 길이를 따른다(DetectState가 애니메이터에서 읽음).
         [Header("감지")]
         [SerializeField] private float detectionRange = 8f;
-        [SerializeField] private float detectDuration = 0.7f;
+
+        // 발견 순간 플레이어 쪽으로 짧게 달려들지 여부. 발견 애니메이션과 한 몸인 설정이다.
+        // 근접 몬스터는 발견 모션이 달려드는 연출이라 켜 두고,
+        // 원거리 몬스터는 발견 즉시 제자리에서 겨누는 모션이라 꺼야 한다.
+        // 켜 두면 겨누는 모션을 재생하면서 몸이 미끄러져 애니메이션과 이동이 따로 논다.
+        [SerializeField] private bool useDetectDash = true;
         [SerializeField] private float detectDashSpeedMultiplier = 1.8f;
         [SerializeField, Min(0f)] private float targetNavMeshSampleRadius = 0.5f;
         [SerializeField, Min(0.02f)] private float targetPathCheckInterval = 0.25f;
@@ -142,8 +150,11 @@ namespace ProjectS.Enemies
         public int PatrolPointCount => patrolPoints != null ? patrolPoints.Length : 0;
         /// <summary>순찰 지점에 도착한 뒤 다음 지점으로 가기 전 대기 시간.</summary>
         public float PatrolWaitTime => patrolWaitTime;
-        /// <summary>발견 연출/대시 상태가 유지되는 시간.</summary>
-        public float DetectDuration => detectDuration;
+        /// <summary>
+        /// 발견 시 짧은 대시 연출을 사용하는지 여부. 발견 애니메이션이 제자리 모션인
+        /// 원거리 몬스터는 꺼서 이동 없이 발견 연출만 재생하게 한다.
+        /// </summary>
+        public bool UseDetectDash => useDetectDash;
         /// <summary>발견 대시 중 NavMeshAgent 기본 속도에 곱할 배수.</summary>
         public float DetectDashSpeedMultiplier => detectDashSpeedMultiplier;
         /// <summary>피격 상태가 유지되는 시간.</summary>

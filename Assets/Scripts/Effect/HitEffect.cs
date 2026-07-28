@@ -25,6 +25,7 @@ namespace ProjectS.Effects
 
         /// <summary>
         /// 지정 위치에서 이펙트를 재생한다. 재생이 끝나면 onFinished로 풀 반환을 알린다.
+        /// 방향이 필요 없는 피격 이펙트용 — 회전은 건드리지 않는다.
         /// </summary>
         public void Play(Vector3 position, Action<HitEffect> onFinished)
         {
@@ -32,6 +33,16 @@ namespace ProjectS.Effects
             transform.position = position;
             gameObject.SetActive(true);
             ps.Play();
+        }
+
+        /// <summary>
+        /// 지정 위치·방향으로 이펙트를 재생한다. 벽 탄흔처럼 표면 바깥으로 세워야 하는 이펙트에 쓴다.
+        /// 파티클의 +Z(forward)가 rotation 방향을 향하므로, 프리팹은 forward로 뿜도록 만든다.
+        /// </summary>
+        public void Play(Vector3 position, Quaternion rotation, Action<HitEffect> onFinished)
+        {
+            transform.rotation = rotation;
+            Play(position, onFinished);
         }
 
         // Stop Action = Callback 설정 덕에 파티클이 모두 사라진 프레임에 Unity가 호출한다.
