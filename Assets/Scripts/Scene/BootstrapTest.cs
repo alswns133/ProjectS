@@ -28,6 +28,7 @@ namespace ProjectS.Scenes
             GameSceneManager.Instance.RegisterScene<Tutorial1>(false);
             GameSceneManager.Instance.RegisterScene<VillageGather>(false);
             GameSceneManager.Instance.RegisterScene<DungeonGather>(false);
+            GameSceneManager.Instance.RegisterScene<Animator_Effect>(false);
         }
 
         // 스테이지별 미니맵 데이터를 조회 등록소에 넣는다. 씬 전환(RequestSceneChange)보다 먼저 호출해야
@@ -62,6 +63,7 @@ namespace ProjectS.Scenes
             //GameSceneManager.Instance.RequestSceneChange<Tutorial1>();
             GameSceneManager.Instance.RequestSceneChange<VillageGather>();
             //GameSceneManager.Instance.RequestSceneChange<DungeonGather>();
+            //GameSceneManager.Instance.RequestSceneChange<Animator_Effect>();
         }
     }
 }

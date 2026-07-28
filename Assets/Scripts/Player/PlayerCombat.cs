@@ -672,9 +672,19 @@ namespace ProjectS.Players
         {
             if (currentSkillNumber <= 0 || string.IsNullOrEmpty(key)) return false;
 
-            string prefix = $"Skill{currentSkillNumber}";
-            return key.Equals(prefix, StringComparison.Ordinal)
-                || key.StartsWith(prefix + "_", StringComparison.Ordinal);
+            // 애님 이벤트 키의 두 표기를 모두 허용한다.
+            //  - 투사체/히트박스 기존 표기: "Skill3", "Skill3_1"
+            //  - 이펙트(OnEffect)와 같은 표기: "Skill_3", "Skill_3_1"
+            // OnEffect는 게이트 없이 "Skill_N_M"을 쓰는데, 같은 클립의 OnProjectileFrame/OnHitFrame에
+            // 그 표기를 그대로 적으면 조용히 막히던 함정을 없애기 위함이다(한 클립의 이벤트 인자 표기를 통일).
+            return MatchesSkillPrefix(key, $"Skill{currentSkillNumber}")
+                || MatchesSkillPrefix(key, $"Skill_{currentSkillNumber}");
         }
+
+        // key가 정확히 prefix이거나 "prefix_"로 시작하는지. 언더바 경계를 요구해
+        // Skill3이 Skill30_1 같은 다른 번호를 잘못 무는 것을 막는다.
+        private static bool MatchesSkillPrefix(string key, string prefix)
+            => key.Equals(prefix, StringComparison.Ordinal)
+            || key.StartsWith(prefix + "_", StringComparison.Ordinal);
     }
 }
