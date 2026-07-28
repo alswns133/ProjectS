@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -37,6 +37,7 @@ namespace ProjectS.Managers
         public IReadOnlyDictionary<int, ItemOptionData> ItemOptionDict => GetTable<ItemOptionData>();
         public IReadOnlyDictionary<int, EnhanceBonusData> EnhanceBonusDict => GetTable<EnhanceBonusData>();
         public IReadOnlyDictionary<int, EnhanceCostData> EnhanceCostDict => GetTable<EnhanceCostData>();
+        public IReadOnlyDictionary<int, QuestTable> QuestDict => GetTable<QuestTable>();
 
         // 에디터에서 로드된 데이터를 확인하기 위한 디버그 리스트
     #if UNITY_EDITOR
@@ -73,6 +74,10 @@ namespace ProjectS.Managers
 
             // ConsumableData는 JSON이 만들어진 뒤 여기에 추가한다.
             // 어드레서블 주소가 없는 상태로 Register하면 로드 실패 로그만 쌓인다.
+
+            // QuestTable도 같은 이유로 JSON(어드레서블 주소 "QuestTable")이 준비되면 주석을 해제한다.
+            // 그 전까지 QuestManager는 Get<QuestTable>이 null을 반환해 "수락 가능한 퀘스트 없음"으로 동작한다.
+             await RegisterAsync<QuestTable>();
 
             IsReady = true;   // ★ 모든 로딩이 끝난 뒤에야 true
 

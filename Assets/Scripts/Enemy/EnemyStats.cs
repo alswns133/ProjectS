@@ -105,6 +105,9 @@ namespace ProjectS.Enemies
                 // 비활성화 '전에' 발행해야 구독자(처치 이펙트 등)가 위치를 신뢰할 수 있다.
                 CombatEvents.FireEnemyDied(transform.position);
 
+                // 퀘스트 처치 목표 집계용. 어떤 몬스터를 잡았는지(종류)를 알린다.
+                CombatEvents.FireEnemyKilled(monsterId);
+
                 // 사망 연출(애니메이션·AI/충돌 해제·제거 타이밍)은 DeadState가 담당한다.
                 // 상태 머신이 없는 단독 배치 대상만 예전처럼 즉시 비활성화한다.
                 if (enemy != null) enemy.OnDied();
