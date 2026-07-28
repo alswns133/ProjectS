@@ -50,6 +50,13 @@ namespace ProjectS.NPCs
         /// <summary>플레이어가 감지 범위 안에 있는지 여부.</summary>
         public bool IsPlayerInside => isPlayerInside;
 
+        /// <summary>
+        /// 근접 진입(true)/이탈(false) 시 발행되는 C# 이벤트. 인스펙터 연결이 필요 없는
+        /// 코드 구독용이다(예: QuestGiver가 Awake에서 이 트리거를 찾아 자동 구독한다).
+        /// onPlayerNearChanged(UnityEvent)와 같은 시점에 발행되며, 서로 독립이라 둘 다 써도 된다.
+        /// </summary>
+        public event Action<bool> PlayerNearChanged;
+
         private void Awake()
         {
             trigger = GetComponent<SphereCollider>();
@@ -92,7 +99,8 @@ namespace ProjectS.NPCs
         private void Notify(bool value)
         {
             isPlayerInside = value;
-            onPlayerNearChanged?.Invoke(value);
+            onPlayerNearChanged?.Invoke(value);   // 인스펙터 연결용(윤곽선 등)
+            PlayerNearChanged?.Invoke(value);      // 코드 구독용(QuestGiver 등)
         }
 
     #if UNITY_EDITOR

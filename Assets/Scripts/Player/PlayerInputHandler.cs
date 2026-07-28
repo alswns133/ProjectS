@@ -25,6 +25,10 @@ namespace ProjectS.Players
         [SerializeField] private InputAction rollAction;   // 구르기(기본 바인딩: Left Shift)
         [SerializeField] private InputAction cursorToggleAction;   // 커서 잠금 토글(기본 바인딩: Left Alt)
 
+        // NPC 상호작용(대화·퀘스트 수락/반납). 새로 추가한 필드라 인스펙터에 값이 없을 때를 대비해
+        // 기본 바인딩(E)을 코드에서 준다. 인스펙터에서 다른 키로 바꿔도 된다.
+        [SerializeField] private InputAction interactAction = new InputAction("Interact", InputActionType.Button, "<Keyboard>/e");
+
         // 달리기 판정: 이동 입력이 끊겼다가 이 시간(초) 안에 다시 시작되면 더블탭으로 본다.
         [Header("달리기")]
         [SerializeField] private float doubleTapWindow = 0.3f;
@@ -55,6 +59,12 @@ namespace ProjectS.Players
         public event Action<int> SkillPressed;   // 인자 = 눌린 스킬 번호
         public event Action CursorTogglePressed; // 커서 잠금 토글. 잠금/해제 상태 소유는 수신측(Player)
 
+        /// <summary>
+        /// NPC 상호작용 키를 누른 순간 발행된다. 근접 판정·대상 선택은 수신측(예: QuestGiver)이 정한다.
+        /// 입력 출처를 몰라도 되도록 이벤트로만 노출한다(입력 경계).
+        /// </summary>
+        public event Action Interacted;
+
         // 구르기는 점프와 같은 '꾹 누르면 연속 발동' 설계라 이벤트가 아닌 RollHeld 폴링으로 처리한다.
         // 이벤트(started) 방식이면 '누른 순간' 1회뿐이라 연속 회피를 만들 수 없다.
 
@@ -69,6 +79,7 @@ namespace ProjectS.Players
             strongAttackAction.Enable();
             rollAction.Enable();
             cursorToggleAction.Enable();
+            interactAction.Enable();
 
             moveAction.started += OnMoveStarted;
             moveAction.canceled += OnMoveCanceled;
@@ -76,6 +87,7 @@ namespace ProjectS.Players
             attackAction.started += OnAttack;
             strongAttackAction.started += OnStrongAttack;
             cursorToggleAction.started += OnCursorToggle;
+            interactAction.started += OnInteract;
         }
 
         // 구독/활성화의 정확한 짝. OnEnable에서 +=/Enable 했으면 여기서 -=/Disable.
@@ -88,6 +100,7 @@ namespace ProjectS.Players
             attackAction.started -= OnAttack;
             strongAttackAction.started -= OnStrongAttack;
             cursorToggleAction.started -= OnCursorToggle;
+            interactAction.started -= OnInteract;
 
             moveAction.Disable();
             zoomAction.Disable();
@@ -97,6 +110,7 @@ namespace ProjectS.Players
             strongAttackAction.Disable();
             rollAction.Disable();
             cursorToggleAction.Disable();
+            interactAction.Disable();
         }
 
         private void OnSkill(InputAction.CallbackContext ctx)
@@ -121,6 +135,11 @@ namespace ProjectS.Players
         private void OnCursorToggle(InputAction.CallbackContext _)
         {
             CursorTogglePressed?.Invoke();
+        }
+
+        private void OnInteract(InputAction.CallbackContext _)
+        {
+            Interacted?.Invoke();
         }
 
         // started는 이동 입력이 '없음 → 있음'으로 바뀌는 순간만 발화한다.
