@@ -1,5 +1,6 @@
 ﻿using ProjectS.Core;
 using ProjectS.Events;
+using ProjectS.Managers;
 using ProjectS.Players;
 
 namespace ProjectS.Enemies
@@ -213,8 +214,13 @@ namespace ProjectS.Enemies
 
         private void Start()
         {
-            // 플레이어는 씬에 1명뿐이라는 전제라 시작 시 1회만 찾는다. 매 프레임 Find는 피한다.
-            Player player = FindAnyObjectByType<Player>();
+            // 참조 단일 창구: 지속 플레이어는 PlayerManager에서 pull한다(부트스트랩 Awake에서 이미 생성됨).
+            // FindAnyObjectByType로 직접 찾으면 안 되는 이유: 스폰 전 지속 플레이어는 SetActive(false)라
+            // FindAnyObjectByType가 비활성 오브젝트를 못 찾아 Target이 null로 굳는다(부트→마을→던전에서 감지 무반응 버그).
+            // PlayerManager가 없으면(부트스트랩 없이 직접 씬 테스트) 씬에 배치된 플레이어를 fallback으로 찾는다.
+            Player player = PlayerManager.Instance != null
+                ? PlayerManager.Instance.Player
+                : FindAnyObjectByType<Player>();
             if (player != null)
             {
                 Target = player.transform;

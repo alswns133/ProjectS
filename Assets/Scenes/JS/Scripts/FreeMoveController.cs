@@ -48,6 +48,10 @@ namespace ProjectS.Movement
         // 지면까지 이 거리 안으로 들어오면 착지 모션을 미리 시작한다(모션 길이에 맞춰 조정).
         [SerializeField] private float landingCheckDistance = 1.5f;
         [SerializeField] private LayerMask groundLayer;
+        // 회피 판정용 '사실상 접지' 거리. controller.isGrounded는 발밑이 0.x cm만 떠도 false가 되어,
+        // 그 틈에 지상 구르기가 공중 대시로 새는 문제가 있다(일반 점프 포함). 발밑 이 거리 안에 지면이
+        // 있으면 접지로 본다. 실제 공중 대시를 의도하는 높이에는 닿지 않을 만큼 작게 둔다.
+        [SerializeField] private float dodgeGroundCheckDistance = 0.3f;
 
         [Header("참조")]
         [SerializeField] private PlayerInputHandler input;
@@ -105,12 +109,35 @@ namespace ProjectS.Movement
         private Vector3 airVelocity;
         private Vector3 lastPosition;
 
+        // 공중 피격 체공 상태와 고정할 높이. 공중 공격의 Hovering과 목적이 달라 따로 둔다
+        // (저쪽은 diveRiseHeight만큼 살짝 '떠오르는' 연출이고, 이쪽은 맞은 그 높이에 '멈추는' 것).
+        private bool hitHovering;
+        private float hitHoverHeight;
+
         /// <summary>
         /// 공격/스킬 중 수평 이동·구르기·점프·대시를 막는 외부 잠금.
         /// 전투 조율자(FreeCombatController)가 Player.IsMovementLocked를 반영해 세팅한다.
         /// 중력·접지 처리는 계속되므로 제자리에서 공격/낙하는 정상 동작한다.
         /// </summary>
         public bool ActionLocked { get; set; }
+
+        /// <summary>
+        /// 공중에서 피격 모션이 재생되는 동안 높이를 고정한다(전투 조율자가 Hit 태그를 보고 세팅).
+        /// 켜는 순간의 높이를 캡처해 그 자리에 멈추므로, 맞은 지점이 그대로 유지된다.
+        ///
+        /// 착지 예고(isLanding)는 하강 중(verticalVelocity &lt; 0)에만 켜지는데 체공 중에는 수직 속도를
+        /// 0으로 잡아두므로, 체공하는 동안에는 착지 예고가 뜨지 않아 피격 모션이 중간에 착지 모션으로
+        /// 새지 않는다. 체공이 풀리면 그 지점부터 정상적으로 낙하·착지 예고가 이어진다.
+        /// </summary>
+        public bool HitHovering
+        {
+            get => hitHovering;
+            set
+            {
+                if (value && !hitHovering) hitHoverHeight = transform.position.y;
+                hitHovering = value;
+            }
+        }
 
         /// <summary>
         /// 점프 입력만 따로 막는다(이동·회전은 허용). 공격 모션이 로코모션으로 블렌드되는 구간에서 쓴다.
@@ -127,6 +154,13 @@ namespace ProjectS.Movement
 
         /// <summary>현재 공중 대시(닷지) 중 여부. 전투 조율자가 공격 캔슬 판정에 읽는다.</summary>
         public bool IsJumpDashing => isJumpDashing;
+
+        /// <summary>
+        /// 우클릭 강공격(올려치기)으로 떠오른 상태인지. FreeCombatController가 발동 시 켜고,
+        /// 착지·캔슬·점프공격 연계 시 끈다. 공중 대시 캔슬을 '올려치기 중에만' 허용하기 위한 구분값이다
+        /// (점프공격 중이나 착지 직후에는 꺼져 있어 공중 대시가 새지 않는다).
+        /// </summary>
+        public bool StrongAttackRising { get; set; }
 
         /// <summary>
         /// 공중 공격 Start 구간의 체공. 켜는 순간 현재 높이를 캡처하고, diveRiseHeight만큼 위를 목표로
@@ -174,7 +208,16 @@ namespace ProjectS.Movement
             Diving = true;
         }
 
-        /// <summary>카메라가 보는 수평 방향을 즉시 바라본다(공격 시작 시 방향 정렬용).</summary>
+        /// <summary>
+        /// 카메라가 보는 수평 방향을 즉시 바라본다(공격 시작 시 방향 정렬용).
+        ///
+        /// ★ 반드시 Update 단계에서 즉시 적용해야 한다. LateUpdate로 미루면 안 된다 —
+        /// 카메라가 추적하는 CameraPivot이 플레이어의 자식이라, 플레이어가 돌면 같이 끌려간다.
+        /// 그걸 막으려고 CameraPivotController가 LateUpdate에서 피벗의 월드 회전을 원래대로
+        /// 되돌리는데, 그 전제가 "캐릭터 회전은 Update에서 이미 끝났다"이다. 우리가 LateUpdate에서
+        /// 회전하면 실행 순서에 따라 피벗 보정 뒤에 플레이어가 돌아, 그 프레임만 피벗이 딸려간 채
+        /// 렌더링되고 다음 프레임에 되돌아오는 진동(화면 깜빡임)이 생긴다.
+        /// </summary>
         public void SnapToCameraForward()
         {
             if (!TryCacheCamera()) return;
@@ -222,7 +265,14 @@ namespace ProjectS.Movement
                 hasAirDashed = false;
                 Hovering = false;
                 Diving = false;
+                StrongAttackRising = false;   // 착지하면 올려치기 상승 상태 해제(착지 후 공중 대시 오발 방지)
+                HitHovering = false;          // 체공이 남으면 LateUpdate가 Y를 계속 고정해 땅에 붙지 못한다
             }
+
+            // 공중 피격 체공 중에는 수직 속도를 계속 0으로 눌러둔다. 안 그러면 중력이 쌓여
+            // 체공이 풀리는 순간 그동안 누적된 속도로 갑자기 떨어진다(LateUpdate는 위치만 고정하지
+            // 속도는 건드리지 않는다).
+            if (hitHovering) verticalVelocity = 0f;
 
             // 착지 순간(공중 → 접지)에 공중 관성을 확실히 제거한다.
             if (grounded && !wasGrounded)
@@ -299,9 +349,21 @@ namespace ProjectS.Movement
             {
                 // 후딜 캔슬: 공격 잠금 중이라도 지상에서 이동+회피키면 구르기로 즉시 캔슬한다(회피 최우선, 기획).
                 // 구르기가 시작되면 FreeCombatController가 공격 캔슬 + 잠금 해제를 처리한다.
-                if (input.RollHeld && grounded && input.MoveInput.sqrMagnitude > 0.0001f)
+                if (input.RollHeld && IsEffectivelyGrounded() && input.MoveInput.sqrMagnitude > 0.0001f)
                 {
                     StartRoll(input.MoveInput);
+                    return;
+                }
+
+                // 공중 후딜 캔슬: 강공격 올려치기 상승 중일 때만 구르기가 아니라 점프 대시로 캔슬한다.
+                // ★ StrongAttackRising으로 '올려치기 중'만 통과시킨다. 점프공격 중이나 착지 직후에는 꺼져 있어
+                //   공중 대시가 새지 않는다(점프공격 하강 중 오발·isGrounded 깜빡임 착지 후 오발 모두 차단).
+                // 공중 1회 제한(hasAirDashed)과 방향 입력 조건은 일반 공중 대시와 동일. StartJumpDash가
+                // IsJumpDashing을 켜면 FreeCombatController가 공격을 캔슬하고 잠금을 푼다(지상 구르기 캔슬과 같은 경로).
+                if (input.RollHeld && !wasRollHeld && StrongAttackRising && !IsEffectivelyGrounded() && !hasAirDashed
+                    && input.MoveInput.sqrMagnitude > 0.0001f)
+                {
+                    StartJumpDash();
                     return;
                 }
 
@@ -321,6 +383,13 @@ namespace ProjectS.Movement
                     // Loop 구간: 중력 대신 고정 속도로 내려꽂는다.
                     verticalVelocity = -diveSpeed;
                     locked.y = verticalVelocity;
+                }
+                else if (StrongAttackRising)
+                {
+                    // 올려치기 상승: 클립의 루트모션(Y Bake 해제)이 상승을 담당하므로 코드 중력을 억제한다.
+                    // 둘이 동시에 Y를 건드리면 상승이 덜컹거린다. 정점의 OnStrongAttackRiseEnd Animation Event가
+                    // 이 플래그를 꺼 중력을 재개하면, 이후 낙하는 일반 점프 낙하(Jump_Loop)로 자연히 이어진다.
+                    verticalVelocity = 0f;
                 }
                 else
                 {
@@ -345,14 +414,16 @@ namespace ProjectS.Movement
 
             // 공중에서 회피 키 → 점프 대시(착지 전까지 1회만).
             // 방향 입력이 없는 중립 상태에서는 발동하지 않는다(지상 구르기와 동일한 규칙).
-            if (rollPressed && !grounded && !hasAirDashed && isMoving)
+            // ★ 접지 판정은 IsEffectivelyGrounded로 한다. controller.isGrounded만 보면 발밑 0.x cm에서
+            //   지상 회피가 공중 대시로 샌다(일반 점프 착지 직전 포함).
+            if (rollPressed && !IsEffectivelyGrounded() && !hasAirDashed && isMoving)
             {
                 StartJumpDash();
                 return;
             }
 
             // 구르기 발동: 지상에서 이동 입력이 있을 때만(꾹 누르면 연속 발동).
-            if (input.RollHeld && isMoving && grounded)
+            if (input.RollHeld && isMoving && IsEffectivelyGrounded())
             {
                 StartRoll(moveInput);
                 return;
@@ -413,6 +484,15 @@ namespace ProjectS.Movement
                 transform.position = hoverPos;
             }
 
+            // 공중 피격 체공: 맞은 높이를 그대로 유지한다. 위 Hovering과 달리 상승은 없다.
+            // 여기(LateUpdate)에서 처리해야 뒤에 적용되는 루트모션이 다시 끌어내리지 못한다.
+            if (hitHovering)
+            {
+                Vector3 hitPos = transform.position;
+                hitPos.y = hitHoverHeight;
+                transform.position = hitPos;
+            }
+
             // 지상에서 이동 중일 때만 갱신. 최댓값을 유지해 회전 중인 느린 프레임에 끌려가지 않게 한다.
             if (Time.deltaTime > 0f && controller.isGrounded && input.MoveInput.sqrMagnitude > 0.0001f)
             {
@@ -440,6 +520,35 @@ namespace ProjectS.Movement
             airVelocity = moveInput.sqrMagnitude > 0.0001f
                 ? CameraRelative(moveInput) * groundSpeedMagnitude
                 : Vector3.zero;
+        }
+
+        /// <summary>
+        /// 올려치기 상승 구간 시작. <b>올려치기 클립의 Animation Event</b>로, 발이 땅을 떠나는 프레임에 호출한다.
+        /// 여기부터 정점(OnStrongAttackRiseEnd)까지 코드 중력을 억제해, 클립의 루트모션(Y Bake 해제)이
+        /// 캐릭터를 그대로 띄우게 한다. 코드가 아니라 애니메이션이 높이를 결정하므로 보이는 위치와 실제
+        /// 위치(루트)가 일치한다 → 카메라 추적·높이·이어치기 캡처가 전부 맞는다.
+        /// (Animation Event가 문자열로 이 이름을 참조하므로 메서드명 변경에 주의.)
+        /// </summary>
+        public void OnStrongAttackRiseStart()
+        {
+            // 잔여 체공/하강 상태가 남아 있으면 상승 처리가 꼬이므로 먼저 정리한다.
+            Hovering = false;
+            Diving = false;
+            verticalVelocity = 0f;      // 코드 낙하 잔재 제거(상승은 루트모션이 담당)
+            StrongAttackRising = true;
+        }
+
+        /// <summary>
+        /// 올려치기 상승 구간 끝. <b>선택적</b> Animation Event다.
+        /// 보통은 필요 없다 — StrongAttack → Jump_Loop 전이가 잠금(Attack 태그)을 벗어나며 중력을 자동 재개하기 때문.
+        /// 전이 Exit Time을 상승 정점(클립 끝 = 1.0)에 맞추면 정점에서 정확히 낙하로 이어진다.
+        /// 클립 안에 '상승 후 하강' 구간이 따로 있어, 전이보다 먼저 특정 프레임에서 중력을 재개하고 싶을 때만 배치한다.
+        /// (Animation Event가 문자열로 이 이름을 참조하므로 메서드명 변경에 주의.)
+        /// </summary>
+        public void OnStrongAttackRiseEnd()
+        {
+            StrongAttackRising = false;
+            verticalVelocity = 0f;      // 정점에서 0부터 낙하 시작(부드러운 인계)
         }
 
         // 점프 대시 시작: 입력 방향(없으면 바라보는 방향)으로 대시한다.
@@ -481,6 +590,10 @@ namespace ProjectS.Movement
             if (dir.sqrMagnitude > 0.0001f)
                 transform.rotation = Quaternion.LookRotation(dir);
 
+            // 남아 있는 상승 속도를 정리한다(안전장치). 구르기는 지상 동작이라 0으로 리셋해도 안전하며,
+            // 공중 상태에서 남은 수직 속도가 구르기 후 유령 점프로 새는 것을 막는다.
+            verticalVelocity = 0f;
+
             isRolling = true;
             rollTimer = 0f;
             animator.SetTrigger(rollHash);
@@ -491,6 +604,23 @@ namespace ProjectS.Movement
             Vector3 f = cam.forward; f.y = 0; f.Normalize();
             Vector3 r = cam.right; r.y = 0; r.Normalize();
             return (f * input.y + r * input.x).normalized;
+        }
+
+        /// <summary>
+        /// 회피·공격 분기용 '사실상 접지' 판정. controller.isGrounded(발밑 0.x cm만 떠도 false)의 틈을
+        /// 짧은 레이캐스트로 메운다. 지상 회피가 공중 대시로 새거나(회피), Jump_Attack_End처럼 이미
+        /// 착지한 모션에서 공중 공격이 재발동되는 것(공격)을 막는다. 물리/중력 판정에는 쓰지 않는다.
+        /// </summary>
+        public bool IsEffectivelyGrounded()
+        {
+            if (controller.isGrounded) return true;
+
+            return Physics.Raycast(
+                transform.position + Vector3.up * 0.1f,
+                Vector3.down,
+                0.1f + dodgeGroundCheckDistance,
+                groundLayer,
+                QueryTriggerInteraction.Ignore);
         }
 
         private void FaceDirection(Vector3 dir)
