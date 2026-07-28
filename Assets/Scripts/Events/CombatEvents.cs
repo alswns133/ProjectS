@@ -105,6 +105,18 @@ namespace ProjectS.Events
             => OnEnemyDied?.Invoke(worldPos);
 
         /// <summary>
+        /// 적 처치 (죽은 몬스터의 테이블 ID). OnEnemyDied가 '어디서'(위치, 연출용)라면
+        /// 이건 '무엇을'(종류)이다. 퀘스트 처치 목표처럼 대상 종류로 집계하는 구독자를 위한 것.
+        /// 관심사가 달라(연출 vs 집계) 같은 이벤트로 묶지 않는다.
+        /// </summary>
+        public static event Action<int> OnEnemyKilled;
+
+        /// <summary>적 처치 이벤트 발행. EnemyStats가 사망 확정 시 자신의 monsterId로 호출한다.</summary>
+        /// <param name="monsterId">죽은 몬스터의 테이블 ID(MonsterStatTable.MonsterId)</param>
+        public static void FireEnemyKilled(int monsterId)
+            => OnEnemyKilled?.Invoke(monsterId);
+
+        /// <summary>
         /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다.
         /// (static 이벤트가 이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지)
         /// </summary>
@@ -116,6 +128,7 @@ namespace ProjectS.Events
             OnEnemyHitLanded = null;
             OnProjectileBlocked = null;
             OnEnemyDied = null;
+            OnEnemyKilled = null;
         }
     }
 }
