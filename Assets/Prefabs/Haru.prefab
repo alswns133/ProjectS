@@ -3907,7 +3907,7 @@ GameObject:
   - component: {fileID: 2582468833589093627}
   - component: {fileID: 6499658812913586072}
   m_Layer: 0
-  m_Name: Attack1
+  m_Name: Attack_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4335,6 +4335,7 @@ Transform:
   m_Children:
   - {fileID: 8684688506222035932}
   - {fileID: 864316519996349511}
+  - {fileID: 2228149348511281960}
   m_Father: {fileID: 8587072143522867035}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4352931033131123330
@@ -4595,6 +4596,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 6214737764812855299}
   m_LocalEulerAnglesHint: {x: -37.557625, y: 69.738174, z: -145.7455}
+--- !u!1 &4973442348393919085
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2228149348511281960}
+  m_Layer: 0
+  m_Name: Skill3
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2228149348511281960
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4973442348393919085}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1130425716026366712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5173222885138314692
 GameObject:
   m_ObjectHideFlags: 0
@@ -5520,6 +5552,23 @@ MonoBehaviour:
       m_Action: Cursor Toggle
       m_Flags: 0
     m_Flags: 0
+  interactAction:
+    m_Name: Interact
+    m_Type: 1
+    m_ExpectedControlType: 
+    m_Id: 4b7434cf-d151-4356-b571-883f60fb6e02
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 8ee6605d-d83a-485a-8a8e-25ee61de0a86
+      m_Path: <Keyboard>/e
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Interact
+      m_Flags: 0
+    m_Flags: 0
   doubleTapWindow: 0.3
 --- !u!114 &1467326487535693258
 MonoBehaviour:
@@ -5579,38 +5628,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
   attackHitBoxes:
-  - key: Attack1
-    area: {fileID: 3724220957184150080, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
+  - key: Attack_1
+    area: {fileID: 4024532354905570189}
     skillId: 1
-  - key: Attack2
-    area: {fileID: 8248436481837832721, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
+  - key: Attack_2
+    area: {fileID: 6540448807826983942}
     skillId: 1
-  - key: Attack3
-    area: {fileID: 2915725528239655513, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
-    skillId: 1
-  - key: Dash_Attack
-    area: {fileID: 950979269780819996, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
-    skillId: 1
-  - key: Strong_Attack
-    area: {fileID: 4834967035622043302, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
-    skillId: 1
-  - key: Skill1_1
-    area: {fileID: 1746563305588305388, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
-    skillId: 1
-  - key: Skill1_2
-    area: {fileID: 2107234282520951605, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
-    skillId: 1
-  - key: Skill1_3
-    area: {fileID: 4421865860251587474, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
+  - key: Attack_3
+    area: {fileID: 1977339400002587800}
     skillId: 1
   enemyMask:
     serializedVersion: 2
     m_Bits: 64
   projectileSpawner: {fileID: 0}
   projectileSlots:
-  - key: Skill3_Wave
-    prefab: {fileID: 5411507273259193358, guid: 14749017f0fef114db060587d404262c, type: 3}
-    muzzle: {fileID: 6816502793693981518, guid: 9de01eb9c47665741a02242eab67e7ca, type: 3}
+  - key: Skill_3_1
+    prefab: {fileID: 4867358468554781781, guid: 336319fbcbb699e4498ac753d7987695, type: 3}
+    muzzle: {fileID: 7782310847348025708}
     rotationOffset: {x: 0, y: 0, z: 0}
     skillId: 101
     canPierce: 1
@@ -6006,7 +6040,7 @@ GameObject:
   - component: {fileID: 6962524793449350055}
   - component: {fileID: 96667951910719299}
   m_Layer: 0
-  m_Name: Attack3
+  m_Name: Attack_3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6372,7 +6406,7 @@ GameObject:
   - component: {fileID: 4056979441915497488}
   - component: {fileID: 4102765566872391468}
   m_Layer: 0
-  m_Name: Attack2
+  m_Name: Attack_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6756,15 +6790,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7861196173205912989}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.6326028, y: 0.31593278, z: -0.3159327, w: 0.6326031}
-  m_LocalPosition: {x: 0.1088, y: 0.0406, z: -0.0998}
+  m_LocalRotation: {x: -0.4378857, y: 0.19200182, z: -0.5924373, w: 0.64838994}
+  m_LocalPosition: {x: 0.0852, y: 0.0311, z: -0.0076}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 761697144243174237}
   - {fileID: 4027859883780895572}
   m_Father: {fileID: 5709944463589315338}
-  m_LocalEulerAnglesHint: {x: -36.923, y: 90, z: -90}
+  m_LocalEulerAnglesHint: {x: -19.898, y: 54.743, z: -95.214}
 --- !u!1 &8067512102148343956
 GameObject:
   m_ObjectHideFlags: 0
