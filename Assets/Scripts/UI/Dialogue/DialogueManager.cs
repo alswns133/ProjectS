@@ -19,9 +19,9 @@ namespace ProjectS.UI
     /// 다음(Space)/이전(Alt)/처음으로(Z)/스킵(Tab)/닫기(Esc)로 진행한다.
     /// 끝까지 보거나 스킵하면 onComplete를 호출하고, 닫기(Esc)는 취소한다(onComplete 안 부름).
     ///
-    /// 레이아웃은 좌=플레이어 / 우=NPC(또는 제3자) 고정이다. 이름표(leftNameText/rightNameText)는 양쪽에 두되,
+    /// 레이아웃은 좌=플레이어 / 우=NPC(또는 제3자) 고정이다. 이름표(leftNameText/rightNameText)와
     /// 초상화(leftPortrait/rightPortrait)는 <b>지금 말하는 쪽만</b> 표시하고 반대쪽은 숨긴다.
-    /// 말하는 쪽 초상화가 없거나 로드 실패하면 그 슬롯도 숨기고 이름·대사만 나온다.
+    /// 말하는 쪽 초상화가 없거나 로드 실패하면 그 슬롯은 숨기고 이름·대사만 나온다.
     ///
     /// 대화 중에는 PlayerInputHandler·카메라 회전을 끄고 마우스 커서를 보여준다(버튼 클릭용).
     /// 배치: 대화창 UI에 붙이고 root/텍스트/좌우 이름·초상화/버튼/입력 바인딩을 연결한다. 씬에 하나만 둔다.
@@ -171,10 +171,7 @@ namespace ProjectS.UI
                 questNameText.gameObject.SetActive(hasQuest);
             }
 
-            // 이름은 양쪽 세팅(왼쪽=플레이어, 오른쪽=NPC). 초상화는 ShowCurrentLine이 '말하는 쪽만' 표시한다.
-            if (leftNameText != null) leftNameText.text = playerName;
-            if (rightNameText != null) rightNameText.text = npcName;
-
+            // 이름표·초상화 모두 ShowCurrentLine이 '말하는 쪽만' 표시한다.
             ShowCurrentLine();
             if (root != null) root.SetActive(true);
 
@@ -227,7 +224,7 @@ namespace ProjectS.UI
             EndSession();
         }
 
-        // 현재 줄의 화자에 맞춰 이름·대사·초상화를 갱신한다. 초상화는 '말하는 쪽만' 보이고 반대쪽은 숨긴다.
+        // 현재 줄의 화자에 맞춰 대사·이름·초상화를 갱신한다. 이름표·초상화 모두 '말하는 쪽만' 보이고 반대쪽은 숨긴다.
         private void ShowCurrentLine()
         {
             DialogueLine line = lines[index];
@@ -236,26 +233,43 @@ namespace ProjectS.UI
             if (line.Speaker == DialogueSpeaker.Player)
             {
                 // 왼쪽(플레이어)만 표시.
-                if (leftNameText != null) leftNameText.text = playerName;
+                ShowName(leftNameText, playerName);
                 SetPortrait(leftPortrait, playerPortrait);
+                HideName(rightNameText);
                 HidePortrait(rightPortrait);
             }
             else if (line.Speaker == DialogueSpeaker.Other)
             {
                 // 제3자: 오른쪽 자리를 잠시 그 사람으로 바꾼다(초상화는 주소로 비동기 로드).
-                if (rightNameText != null) rightNameText.text = line.Name;
+                ShowName(rightNameText, line.Name);
                 SetPortrait(rightPortrait, null);
                 if (!string.IsNullOrEmpty(line.PortraitAddress))
                     LoadOtherPortrait(line.PortraitAddress, rightPortrait, index);
+                HideName(leftNameText);
                 HidePortrait(leftPortrait);
             }
             else // Npc
             {
                 // 오른쪽(NPC)만 표시.
-                if (rightNameText != null) rightNameText.text = npcName;
+                ShowName(rightNameText, npcName);
                 SetPortrait(rightPortrait, npcPortrait);
+                HideName(leftNameText);
                 HidePortrait(leftPortrait);
             }
+        }
+
+        // 이름표를 값과 함께 켠다.
+        private static void ShowName(TMP_Text text, string value)
+        {
+            if (text == null) return;
+            text.text = value;
+            text.gameObject.SetActive(true);
+        }
+
+        // 이름표를 숨긴다(말하지 않는 쪽).
+        private static void HideName(TMP_Text text)
+        {
+            if (text != null) text.gameObject.SetActive(false);
         }
 
         // 정상 종료: 세션을 닫은 뒤 완료 콜백을 부른다(콜백 안에서 다음 대화를 열어도 안전하게).
