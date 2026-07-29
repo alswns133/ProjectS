@@ -1,7 +1,7 @@
 using UnityEngine;
-using ProjectS.Players;
+using ProjectS.Combat;   // FreeCombatController(테스트 전용) 참조용. 이 파일은 Player/ 폴더라 ProjectS.Players 소속.
 
-namespace ProjectS.Combat
+namespace ProjectS.Players
 {
     /// <summary>
     /// 공격 State에 붙여 그 State의 '넘어가는 방식'을 State별로 제어하는 SMB. 두 기능이 독립적으로 들어 있다.

@@ -64,13 +64,10 @@ namespace ProjectS.Players
 
             if (elapsed < player.Movement.RollDuration) return;
 
-            // 구르기 종료 시 현재 입력 방향을 보간 없이 즉시 바라본다.
-            // 안 하면 FreeState의 회전 보간이 구르던 방향에서 새 방향까지 도는 동안
-            // 잠깐 엉뚱한 쪽으로 직진한다(연속 회피에서 특히 눈에 띈다).
-            // 커밋형 회피와 충돌하지 않는다: 방향이 바뀌는 건 구르기가 끝난 뒤다.
-            if (isMoving)
-                player.Movement.FaceInstantly(player.Movement.CameraRelativeDirection(input));
-
+            // 구르기 종료 시 회전은 FreeState의 보간(FaceDirection)에 맡긴다 — 공격 종료 후와
+            // 동일하게 부드럽게 돌아가도록 하는 팀 결정(2026-07-28, 민준님 승인). 기존엔 즉시 스냅으로
+            // 연속 회피 중 잠깐 엉뚱한 쪽으로 미끄러지는 문제를 막았는데, 그 트레이드오프를 감수하고
+            // 구르기 직후 카메라 회전이 뚝 끊기는 문제를 없애는 쪽을 택했다.
             player.ChangeState(player.FreeState);
         }
 

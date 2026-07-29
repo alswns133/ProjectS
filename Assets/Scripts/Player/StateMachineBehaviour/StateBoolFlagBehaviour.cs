@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ProjectS.Combat
+namespace ProjectS.Players
 {
     /// <summary>
     /// 이 State가 활성인 동안 지정한 Bool 파라미터를 true로 켜고, 빠져나가면 false로 되돌린다.

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ProjectS.Movement
+namespace ProjectS.Players
 {
     /// <summary>
     /// 대기(Idle) State에 붙여, 일정 시간 가만히 있으면 특수 대기 모션을 랜덤으로 발동시키는 SMB.

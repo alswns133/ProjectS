@@ -26,7 +26,53 @@ Unity 3D 액션 RPG 프로젝트의 코드 작업 가이드입니다. 런타임 
 - 현재 상태:
   - `PlayerFreeState`: 일반 이동과 이동 애니메이션 갱신.
   - `PlayerDeadState`: 사망 애니메이션 실행 및 조작 차단.
+  - `PlayerRollState`: 구르기(회피). 진입 방향으로 즉시 회전 후 루트모션 전진, 무적 부여.
+  - `PlayerHitState`: 피격 경직. 진행 동작을 캔슬하고 피격 모션 재생.
+  - `PlayerJumpDashState`: 공중 대시(공중 회피). 착지 전 1회 허용.
 - 대시, 피격, 상호작용, 컷신 제어 같은 기능은 `Player.Update()`에 조건문을 늘리기보다 새 상태 클래스로 추가합니다.
+
+#### 이동 잠금·연계 판정의 두 모델 (2026-07 자유이동 캐릭터 이관)
+
+플레이어마다 컨트롤러 규약이 달라, 공격/피격 중 이동 잠금·콤보 연계 판정을 **두 모델로 가릅니다.**
+기준은 `PlayerAnimation.UsesMotionTags`(= 로코모션 bool `isMoving`/`isRunning` 존재 여부)이고,
+`Player.usesTags`로 캐싱합니다.
+
+- **태그 기반 모델(자유이동 3단 로코모션 캐릭터, 예: Haru)**: Animator State **Tag**("Attack"/"Hit")와
+  **클립 종료**가 판정의 원천입니다. `Player.UpdateTagLock()`이 매 프레임 태그로 이동 잠금·점프 차단·
+  콤보 캔슬 창·지속 조준(continuousAim)·공중 대시 캔슬을 재계산합니다. `PlayerHitState`도 고정 타이머가
+  아니라 Hit 모션 종료로 탈출합니다. → **공격/피격 State에는 반드시 태그를 답니다.** 빠지면 이동이
+  안전 타임아웃까지 잠깁니다.
+- **기존 Z 블렌드 모델**: `ComboResetBehaviour`(로코모션 진입 시 `UnlockMovement`/`ResetCombo`)와
+  `Player.maxActionLockTime` 안전장치 타이머로 관리합니다(`LockMovement`/`UnlockMovement` 호출 기반).
+
+#### 씬 단위 애니메이터 컨트롤러 분리 (마을/던전)
+
+- `PlayerAnimation`이 `UseVillageController()`/`UseDungeonController()`로 컨트롤러를 교체합니다
+  (던전은 `AnimatorOverrideController`). 마을/던전은 **파라미터 집합이 다른 별개 base**라, 교체할 때마다
+  `RefreshParameterCache()`로 파라미터 존재 여부를 다시 계산합니다(없는 파라미터 Set 시 매 프레임 경고 방지).
+- 씬 진입은 `Player.EnterVillage()`/`EnterDungeon()`가 호출하며, `combatEnabled`로 공격/스킬 입력을
+  마을=off, 던전=on으로 가릅니다(**마을에선 이동·점프는 허용, 구르기·공중대시(쉬프트 계열)·전투는 금지** —
+  마을 애니메이터에 구르기/공중대시 클립이 없어 기획상 미지원. `TryRoll`/`TryJumpDash`가 `combatEnabled`로 막습니다).
+- 플레이어 생성/유지는 `PlayerManager`(부트스트랩 1회 생성→비활성 유지→씬 진입 시 워프+활성)가 담당합니다.
+
+#### 애니메이터 SMB (StateMachineBehaviour)
+
+태그 기반 모델은 코드뿐 아니라 **Animator State에 붙는 SMB들이 함께 굴러갑니다.** State를 추가/편집할 때 아래
+SMB의 부착·값·필요 파라미터를 함께 챙깁니다. (파일은 `Assets/Scripts/Player/StateMachineBehaviour/`에 있고
+네임스페이스는 폴더 규칙대로 `ProjectS.Players`입니다. SMB가 GetComponent로 참조하는
+`FreeCombatController`/`FreeMoveController`는 `Assets/Scenes/JS/Scripts/`의 **테스트 씬 전용** 클래스라
+실플레이엔 없습니다 — 없는 쪽은 null no-op이라 안전합니다.)
+
+- **`ComboResetBehaviour`**: 로코모션 State 진입 시 `UnlockMovement`/`ResetCombo`. 공격 종료 복귀 처리.
+- **`AttackCancelBehaviour`**: 각 공격 State에 붙여 진행도가 `cancelWindowStart`(State별 튜닝)를 넘으면
+  다음 공격 입력(연계·캔슬 창)을 연다. 선택적으로 Idle 블렌드아웃 중 이동 입력 시 걷기/달리기로 목적지 갈아타기.
+  **★ 캔슬 창 이벤트/진행도는 반드시 히트 프레임보다 뒤에 와야 한다** — 창이 열리면 `IsCastingSkill`이 풀려
+  이후 히트 프레임이 `CanApplyHitFrame`에서 무효화된다(순서 어기면 히트가 조용히 씹힘).
+- **`StateBoolFlagBehaviour`**: State 활성 동안 지정 Bool 파라미터를 켠다. "현재 State가 X인가"를 다른
+  전이 조건으로 쓰기 위함(예: `Hit_Large` 재생 중 약 피격 차단 → 비대칭 경직). 파라미터 이름은 인스펙터 지정.
+- **`IdleVariationBehaviour`**: 대기 중 일정 시간 후 특수 대기 모션을 랜덤 발동. 파라미터 `doIdleSpecial`(Trigger)·
+  `idleVariant`(Int) 필요. 없으면 경고 후 비활성.
+- **`JumpAttackLoopBehaviour`**: 공중 공격 Loop State 진입 시 하강 시작(`BeginDive`). "Start=체공, Loop=하강".
 
 ### Enemy: 플레이어와 동일한 패턴의 몬스터 구조
 
@@ -70,6 +116,12 @@ Unity 3D 액션 RPG 프로젝트의 코드 작업 가이드입니다. 런타임 
 - 데미지를 받는 대상은 구체 클래스가 아니라 `IDamageable` 인터페이스에 의존합니다.
 - 히트 프레임, 콤보 입력 가능 구간, 콤보 리셋처럼 타이밍이 중요한 로직은 Animation Event로 연결합니다.
 - 현재 히트 판정은 인스펙터에서 조정하는 히트 박스를 기준으로 `Physics.OverlapBoxNonAlloc`을 사용합니다.
+- **Animation Event 슬롯 키의 언더바 표기 차이는 무시합니다 (2026-07-29 확정).** 히트박스/투사체/이펙트
+  슬롯 조회와 콤보/강공격/대시 히트 게이트는 `AnimationEventKey.Normalize`(언더바 제거)를 거쳐 비교합니다.
+  클립 저작(팀원)과 인스펙터/코드가 `Attack_1` vs `Attack1`, `Skill_1_1` vs `Skill1_1`처럼 규칙이 갈려도
+  맞물리게 하기 위함입니다. 스킬 키 게이트(`IsCurrentSkillKey`)는 `Skill{n}`/`Skill_{n}` 두 접두어를
+  모두 허용합니다. **단, 언더바가 아니라 토큰 자체가 다른 키(`Skill3` vs `Skill3_Wave`)는 흡수되지 않으므로
+  슬롯 키와 클립 이벤트 인자의 토큰 이름은 반드시 일치시켜야 합니다.**
 
 ### 이벤트 시스템
 

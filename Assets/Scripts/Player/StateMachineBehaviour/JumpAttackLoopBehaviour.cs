@@ -1,8 +1,7 @@
 using UnityEngine;
-using ProjectS.Movement;
-using ProjectS.Players;
+using ProjectS.Movement;   // FreeMoveController(테스트 전용) 참조용. 이 파일은 Player/ 폴더라 ProjectS.Players 소속.
 
-namespace ProjectS.Combat
+namespace ProjectS.Players
 {
     /// <summary>
     /// 공중 공격(JumpAttack)의 <b>Loop State</b>에 붙이는 StateMachineBehaviour.
