@@ -187,14 +187,17 @@ namespace ProjectS.Players
                 {
                     if (slot == null || string.IsNullOrEmpty(slot.key)) continue;
 
+                    // 언더바 표기 차이를 흡수하려 정규화한 키로 등록·조회한다(AnimationEventKey 참조).
+                    string normKey = AnimationEventKey.Normalize(slot.key);
+
                     // 키 중복을 조용히 덮어쓰면 한쪽 판정이 영영 안 나가 원인 찾기 어렵다 → 경고.
-                    if (hitBoxMap.ContainsKey(slot.key))
+                    if (hitBoxMap.ContainsKey(normKey))
                     {
                         Debug.LogWarning($"Duplicate hit box key '{slot.key}'. Only the first slot is used.", this);
                         continue;
                     }
 
-                    hitBoxMap.Add(slot.key, slot);
+                    hitBoxMap.Add(normKey, slot);
                 }
             }
 
@@ -204,14 +207,15 @@ namespace ProjectS.Players
                 {
                     if (slot == null || string.IsNullOrEmpty(slot.key)) continue;
 
-                    // 히트 박스와 같은 방침: 키 중복은 경고를 남기고 첫 슬롯만 쓴다.
-                    if (projectileMap.ContainsKey(slot.key))
+                    // 히트 박스와 같은 방침: 정규화한 키로 등록하고, 키 중복은 경고 후 첫 슬롯만 쓴다.
+                    string normKey = AnimationEventKey.Normalize(slot.key);
+                    if (projectileMap.ContainsKey(normKey))
                     {
                         Debug.LogWarning($"Duplicate projectile key '{slot.key}'. Only the first slot is used.", this);
                         continue;
                     }
 
-                    projectileMap.Add(slot.key, slot);
+                    projectileMap.Add(normKey, slot);
                 }
             }
         }
@@ -423,7 +427,8 @@ namespace ProjectS.Players
         public void OnHitFrame(string key)
         {
             // Animation Event의 인자 실수(오타·빈칸)는 플레이를 멈추지 않고 경고만 남긴다.
-            if (string.IsNullOrEmpty(key) || !hitBoxMap.TryGetValue(key, out HitBoxSlot slot))
+            // 조회는 정규화 키로 한다 → 클립이 "Attack_1", 인스펙터가 "Attack1"이어도 맞물린다.
+            if (string.IsNullOrEmpty(key) || !hitBoxMap.TryGetValue(AnimationEventKey.Normalize(key), out HitBoxSlot slot))
             {
                 Debug.LogWarning($"Hit box key not found ('{key}'). Check the Animation Event string.", this);
                 return;
@@ -487,7 +492,8 @@ namespace ProjectS.Players
         public void OnProjectileFrame(string key)
         {
             // Animation Event의 인자 실수(오타·빈칸)는 플레이를 멈추지 않고 경고만 남긴다.
-            if (string.IsNullOrEmpty(key) || !projectileMap.TryGetValue(key, out ProjectileSlot slot))
+            // 조회는 정규화 키로 한다(히트박스와 같은 방침).
+            if (string.IsNullOrEmpty(key) || !projectileMap.TryGetValue(AnimationEventKey.Normalize(key), out ProjectileSlot slot))
             {
                 Debug.LogWarning($"Projectile key not found ('{key}'). Check the Animation Event string.", this);
                 return;
@@ -651,19 +657,22 @@ namespace ProjectS.Players
             // 시전이 종료된 뒤 도착한 이벤트가 currentAction 값만 보고 통과하지 못하게 한다.
             if (currentAction != CombatAction.Combo && !IsCastingSkill) return false;
 
+            // 정규화 키로 비교한다 → 언더바 표기 차이(Attack_1 vs Attack1, Strong_Attack vs StrongAttack)를 흡수.
+            // 비교 대상 리터럴은 정규화형(언더바 없음)으로 적는다.
+            string nk = AnimationEventKey.Normalize(key);
             return currentAction switch
             {
                 CombatAction.Combo => comboStep switch
                 {
-                    1 => key == "Attack1",
-                    2 => key == "Attack2",
-                    3 => key == "Attack3",
+                    1 => nk == "Attack1",
+                    2 => nk == "Attack2",
+                    3 => nk == "Attack3",
                     _ => false,
                 },
                 CombatAction.Skill => IsCurrentSkillKey(key),
-                CombatAction.StrongAttack => key == "Strong_Attack",
-                CombatAction.RunAttack => key == "Dash_Attack",
-                CombatAction.JumpAttack => key.StartsWith("Jump", StringComparison.Ordinal),
+                CombatAction.StrongAttack => nk == "StrongAttack",
+                CombatAction.RunAttack => nk == "DashAttack",
+                CombatAction.JumpAttack => nk.StartsWith("Jump", StringComparison.Ordinal),
                 _ => false,
             };
         }

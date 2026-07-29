@@ -26,8 +26,8 @@ namespace ProjectS.Players
         [SerializeField] private InputAction cursorToggleAction;   // 커서 잠금 토글(기본 바인딩: Left Alt)
 
         // NPC 상호작용(대화·퀘스트 수락/반납). 새로 추가한 필드라 인스펙터에 값이 없을 때를 대비해
-        // 기본 바인딩(E)을 코드에서 준다. 인스펙터에서 다른 키로 바꿔도 된다.
-        [SerializeField] private InputAction interactAction = new InputAction("Interact", InputActionType.Button, "<Keyboard>/e");
+        // 기본 바인딩(F)을 코드에서 준다. 인스펙터에서 다른 키로 바꿔도 된다.
+        [SerializeField] private InputAction interactAction = new InputAction("Interact", InputActionType.Button, "<Keyboard>/f");
 
         // 달리기 판정: 이동 입력이 끊겼다가 이 시간(초) 안에 다시 시작되면 더블탭으로 본다.
         [Header("달리기")]

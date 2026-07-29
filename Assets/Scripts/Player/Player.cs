@@ -137,9 +137,9 @@ namespace ProjectS.Players
         // 태그 기반 잠금 모델을 쓰는 캐릭터인지. 3단 로코모션 컨트롤러만 공격 Tag를 단다.
         private bool usesTags;
 
-        // 전투 입력 허용 여부(마을=off, 던전=on). 씬 진입 시 EnterVillage/EnterDungeon이 세팅한다.
-        // 원본 AnimatorZone의 CombatEnabled를 씬 경로로 옮긴 것. 이동·점프·구르기는 마을에서도 허용하고,
-        // 공격/강공격/스킬 입력만 막는다(원본 테스터도 FreeCombatController만 껐다).
+        // 전투/액션 입력 허용 여부(마을=off, 던전=on). 씬 진입 시 EnterVillage/EnterDungeon이 세팅한다.
+        // 원본 AnimatorZone의 CombatEnabled를 씬 경로로 옮긴 것. 마을에선 이동·점프는 허용하고,
+        // 구르기·공중대시·공격/강공격/스킬은 막는다(마을 애니메이터에 구르기/공중대시 클립이 없어 기획상 미지원).
         private bool combatEnabled = true;
 
         /// <summary>
@@ -554,6 +554,7 @@ namespace ProjectS.Players
         private void TryRoll()
         {
             if (!Input.RollHeld) return;       // 버튼을 안 누르고 있으면 회피 안 함
+            if (!combatEnabled) return;        // 마을 등 전투 비활성 구역에서는 구르기 금지(기획 의도 — 마을 구르기 미지원)
             if (Stats.IsDead) return;
             if (IsRolling) return;             // 회피 중 재입력 무시 → 끝나는 프레임부터 다음 회피 발동
 
@@ -569,6 +570,7 @@ namespace ProjectS.Players
         private void TryJumpDash()
         {
             if (!usesTags) return;
+            if (!combatEnabled) return;        // 마을 등 전투 비활성 구역에서는 공중 대시(점프 중 쉬프트) 금지 — 구르기와 동일
             if (Stats.IsDead) return;
             if (IsRolling) return;
 
