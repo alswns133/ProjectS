@@ -4,6 +4,7 @@ using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Managers;
 using ProjectS.Players;
+using ProjectS.UI;
 
 namespace ProjectS.NPCs
 {
@@ -35,6 +36,15 @@ namespace ProjectS.NPCs
 
         [Tooltip("근접 감지기. 비워두면 Awake에서 자식 포함으로 자동으로 찾는다.")]
         [SerializeField] private NpcOutlineTrigger proximity;
+
+        [Header("대화")]
+        [Tooltip("NPC 초상화(대화창 왼쪽·Npc 화자 줄). 없으면 초상화 없이 진행한다.")]
+        [SerializeField] private Sprite npcPortrait;
+
+        [Tooltip("줄·받을 퀘스트가 모두 없을 때 재생할 잡담 대사(DialogueTable ID). " +
+                 "비워두면(0) npcName과 DialogueTable.Npc가 일치하는 잡담 대사를 자동으로 찾는다(questIds와 같은 방식). " +
+                 "퀘스트 도입/반납 대사는 각 퀘스트가 가진다.")]
+        [SerializeField] private int idleDialogueId;
 
         // 한 번 찾아 캐싱한다. 씬에 플레이어는 하나뿐이라 재조회할 일이 없다.
         private PlayerInputHandler input;
@@ -137,7 +147,8 @@ namespace ProjectS.NPCs
                 input.Interacted -= HandleInteract;
         }
 
-        // 범위 안에서 상호작용 키를 눌렀을 때. 반납 우선, 없으면 수락 순으로 처리한다.
+        // 범위 안에서 상호작용 키를 눌렀을 때. 그 상황에 맞는 대사를 재생하고, 끝나면 퀘스트를 처리한다.
+        // 대사는 퀘스트에 귀속된다 — 수락 대사는 '수락 가능'일 때만 나오므로, 수락하고 나면 다시 안 나온다.
         private void HandleInteract()
         {
             if (!playerNear) return;
@@ -145,29 +156,71 @@ namespace ProjectS.NPCs
             QuestManager questManager = QuestManager.Instance;
             if (questManager == null) return;
 
+            // 이미 대화 중이면 무시한다(진행은 대화 입력/버튼이 맡는다).
+            DialogueManager dialogue = DialogueManager.Instance;
+            if (dialogue != null && dialogue.IsPlaying) return;
+
             // ID를 손으로 채웠으면 그 목록으로, 비워뒀으면 npcName으로 JSON에서 자동 조회한다.
             bool useIds = questIds.Count > 0;
 
-            // 1) 반납 가능한 완료 퀘스트가 있으면 먼저 처리한다.
+            // 1) 반납 가능한 완료 퀘스트 → 그 퀘스트의 반납 대사 → 반납.
             List<QuestData> completable = useIds
                 ? questManager.GetCompletableQuests(questIds)
                 : questManager.GetCompletableQuestsForNpc(npcName);
             if (completable.Count > 0)
             {
+                QuestData quest = completable[0];
                 QuestsCompletable?.Invoke(completable);
-                questManager.TurnInQuest(completable[0]);
+                PlayDialogueThen(quest.Definition.TurnInDialogueId, quest.Title, () => questManager.TurnInQuest(quest));
                 return;
             }
 
-            // 2) 수락 가능한 퀘스트가 있으면 첫 번째를 수락한다.
+            // 2) 수락 가능한 퀘스트 → 그 퀘스트의 도입 대사 → 수락.
+            //    수락하면 더 이상 '수락 가능'이 아니므로 이 도입 대사는 다시 재생되지 않는다.
             List<int> acceptable = useIds
                 ? questManager.GetAcceptableQuestIds(questIds)
                 : questManager.GetAcceptableQuestIdsForNpc(npcName);
             if (acceptable.Count > 0)
             {
+                int questId = acceptable[0];
                 QuestsAvailable?.Invoke(acceptable);
-                questManager.TryAcceptQuest(acceptable[0], out _);
+                QuestTable definition = JsonManager.Instance != null ? JsonManager.Instance.Get<QuestTable>(questId) : null;
+                int introId = definition != null ? definition.IntroDialogueId : 0;
+                string questName = definition != null ? definition.Title : string.Empty;
+                PlayDialogueThen(introId, questName, () => questManager.TryAcceptQuest(questId, out _));
+                return;
             }
+
+            // 3) 줄 것도 받을 것도 없으면 잡담 대사(있으면)만 재생한다(퀘스트명 없음).
+            PlayDialogueThen(ResolveIdleDialogueId(), string.Empty, null);
+        }
+
+        // 잡담 대사 ID를 정한다. idleDialogueId를 손으로 채웠으면 그걸, 비워뒀으면(0)
+        // npcName과 DialogueTable.Npc가 일치하는 대사를 자동으로 찾는다(questIds 자동 조회와 같은 방식).
+        private int ResolveIdleDialogueId()
+        {
+            if (idleDialogueId > 0) return idleDialogueId;
+
+            JsonManager json = JsonManager.Instance;
+            if (json == null || string.IsNullOrEmpty(npcName)) return 0;
+
+            foreach (var dialogue in json.DialogueDict.Values)
+            {
+                if (npcName.Equals(dialogue.Npc))
+                    return dialogue.DialogueId;
+            }
+            return 0;
+        }
+
+        // 대사(DialogueTable ID)를 재생하고 끝나면 action을 실행한다. questName은 대화창 상단에 표시된다.
+        // 대화 시스템이 없거나 대사 ID가 0이면 대화를 건너뛰고 바로 action을 실행한다.
+        private void PlayDialogueThen(int dialogueId, string questName, Action action)
+        {
+            DialogueManager dialogue = DialogueManager.Instance;
+            if (dialogue != null && dialogueId > 0)
+                dialogue.Play(npcName, npcPortrait, dialogueId, questName, action);
+            else
+                action?.Invoke();
         }
     }
 }

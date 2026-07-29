@@ -38,6 +38,15 @@ namespace ProjectS.Data
         /// <summary>완료 보상 목록.</summary>
         public List<QuestRewardData> Rewards = new();
 
+        /// <summary>
+        /// 수락 전 도입 대사(DialogueTable ID). 이 퀘스트가 '수락 가능'일 때만 재생되므로,
+        /// 수락하고 나면 더는 나오지 않는다. 0이면 대사 없이 바로 수락.
+        /// </summary>
+        public int IntroDialogueId;
+
+        /// <summary>반납(완료) 시 재생할 대사(DialogueTable ID). 0이면 대사 없이 바로 반납.</summary>
+        public int TurnInDialogueId;
+
         /// <summary>표시용 제목. 콘텐츠 확정 후 채운다(현재는 자리만).</summary>
         public string Title = string.Empty;
 
