@@ -50,8 +50,12 @@ namespace ProjectS.Players
             {
                 if (slot == null || string.IsNullOrEmpty(slot.key)) continue;
 
+                // 히트박스·투사체와 같은 방침: 언더바 표기 차이를 흡수하려 정규화한 키로 등록·조회한다
+                // (AnimationEventKey 참조). 클립이 "Attack_1", 인스펙터가 "Attack1"이어도 맞물린다.
+                string normKey = AnimationEventKey.Normalize(slot.key);
+
                 // 키 중복을 조용히 덮어쓰면 한쪽 이펙트가 영영 안 나와 원인 찾기 어렵다 → 경고.
-                if (effectMap.ContainsKey(slot.key))
+                if (effectMap.ContainsKey(normKey))
                 {
                     Debug.LogWarning($"Duplicate effect key '{slot.key}'. Only the first slot is used.", this);
                     continue;
@@ -66,7 +70,7 @@ namespace ProjectS.Players
                     slot.originalLocalRotation = tr.localRotation;
                 }
 
-                effectMap.Add(slot.key, slot);
+                effectMap.Add(normKey, slot);
             }
         }
 
@@ -126,7 +130,8 @@ namespace ProjectS.Players
         private bool TryGetSlot(string key, out EffectSlot slot)
         {
             // OnHitFrame과 같은 방침: 이벤트 인자 실수(오타)는 경고만 남기고 플레이는 계속한다.
-            if (string.IsNullOrEmpty(key) || !effectMap.TryGetValue(key, out slot) || slot.particle == null)
+            // 조회는 정규화 키로 한다 → 언더바 표기 차이(Skill_1_1 vs Skill1_1)를 흡수.
+            if (string.IsNullOrEmpty(key) || !effectMap.TryGetValue(AnimationEventKey.Normalize(key), out slot) || slot.particle == null)
             {
                 Debug.LogWarning($"Effect key not found or empty ('{key}'). Check the Animation Event string.", this);
                 slot = null;

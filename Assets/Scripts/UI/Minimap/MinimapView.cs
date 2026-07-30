@@ -52,6 +52,12 @@ namespace ProjectS.UI
         // 켜면 멀리 있는 적이 테두리에 머물러 방향을 알 수 있다.
         [SerializeField] private bool clampToEdge = true;
 
+        // 플레이어 마커를 캐릭터가 바라보는 방향이 아니라 '마우스(카메라 조준)' 방향으로 돌릴지.
+        // 이 게임은 커서 잠금 상태에서 마우스로 카메라를 돌려 조준하므로(공격·스킬이 모두
+        // SnapToCameraForward = cam.forward 기준), 조준 방향 = 카메라 forward의 yaw다.
+        // 끄면 기존처럼 캐릭터 transform의 실제 바라보는 방향을 따른다.
+        [SerializeField] private bool playerFacesCameraAim = true;
+
         // 배경 스냅샷이 담는 맵 전체 범위(XZ). 배경을 얼마나 크게·어디에 둘지 계산에 쓴다.
         // SetBackground(씬 진입)로 스테이지마다 갱신한다. 스냅샷을 안 쓰면 배경 스크롤 기준으로만 쓰인다.
         [Header("맵 범위 (배경 스냅샷 기준, XZ)")]
@@ -82,6 +88,10 @@ namespace ProjectS.UI
         // 미니맵의 중심 기준점(플레이어). Player 타입 마커가 등록될 때 잡고, 해제되면 놓는다.
         // 이게 없으면(플레이어 마커 없음) 맵 중심을 기준으로 폴백한다.
         private Transform playerTarget;
+
+        // 플레이어 마커의 조준 방향 계산에 쓰는 메인 카메라. Camera.main은 매 프레임 조회 비용이 있어 캐싱하고,
+        // 씬 전환 등으로 파괴되면(캐시 무효) 다음 프레임에 다시 잡는다.
+        private Transform aimCamera;
 
         private void Awake()
         {
@@ -210,7 +220,28 @@ namespace ProjectS.UI
             // 미니맵은 회전하지 않으므로, 방향 표시는 마커 자체를 돌려서만 한다.
             // 월드 +Z(정면)가 미니맵 위(+Y)를 향하도록, 시계방향 월드 yaw를 부호 반전해 UI 회전에 맞춘다.
             if (marker.rotate)
-                marker.rect.localEulerAngles = new Vector3(0f, 0f, -target.eulerAngles.y);
+                marker.rect.localEulerAngles = new Vector3(0f, 0f, -GetMarkerYaw(target, marker));
+        }
+
+        // 마커가 나타낼 방향(월드 yaw, 도 단위)을 고른다.
+        // 플레이어 마커는 옵션에 따라 캐릭터가 실제 바라보는 방향 대신 카메라 조준(마우스) 방향을 쓴다.
+        // 카메라의 pitch는 무시되고 yaw만 뽑히므로, 미니맵 평면 위 조준 방향이 그대로 나온다.
+        private float GetMarkerYaw(Transform target, Marker marker)
+        {
+            if (marker.type == MinimapMarkerType.Player && playerFacesCameraAim && TryCacheAimCamera())
+                return aimCamera.eulerAngles.y;
+
+            return target.eulerAngles.y;
+        }
+
+        // 메인 카메라 Transform을 캐싱한다. 파괴/미존재면 false. PlayerMovement.TryCacheMainCamera와 같은 패턴.
+        private bool TryCacheAimCamera()
+        {
+            if (aimCamera != null) return true;
+            if (Camera.main == null) return false;
+
+            aimCamera = Camera.main.transform;
+            return true;
         }
 
         // 배경 스냅샷을 플레이어 위치의 반대로 밀어, 플레이어가 선 맵 지점이 미니맵 중앙에 오게 한다.
