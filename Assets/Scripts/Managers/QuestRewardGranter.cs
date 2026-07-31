@@ -1,6 +1,7 @@
 using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Events;
+using ProjectS.Players;
 using ProjectS.Debugging;
 
 namespace ProjectS.Managers
@@ -11,8 +12,9 @@ namespace ProjectS.Managers
     /// 지급 주체를 QuestManager에서 분리해(퀘스트 매니저는 상태만 관리), 보상 시스템(인벤토리/경험치/스킬)이
     /// 준비되는 대로 이 클래스만 채우면 되게 한다.
     ///
-    /// 현재는 골드만 실제 지급하고(InventoryManager), 경험치·아이템·스킬해금은 로그 스텁이다
-    /// (각 시스템이 붙는 대로 교체). 배치: 씬을 넘어 유지되는 매니저 오브젝트에 붙인다(QuestManager와 함께).
+    /// 현재 골드(InventoryManager)·경험치(PlayerStats.AddExp, 자동 레벨업)는 실제 지급하고,
+    /// 아이템·스킬해금은 로그 스텁이다(각 시스템이 붙는 대로 교체).
+    /// 배치: 씬을 넘어 유지되는 매니저 오브젝트에 붙인다(QuestManager와 함께).
     /// </summary>
     public class QuestRewardGranter : MonoBehaviour
     {
@@ -39,8 +41,9 @@ namespace ProjectS.Managers
                     break;
 
                 case QuestRewardType.Exp:
-                    // TODO: 경험치 시스템이 붙으면 지급으로 교체(현재 지급 API 없음).
-                    DevLog.Log($"[Reward] '{questTitle}' 경험치 +{reward.Amount} (스텁 — 경험치 시스템 대기)");
+                    PlayerStats stats = PlayerManager.Instance != null ? PlayerManager.Instance.Player?.Stats : null;
+                    if (stats != null) stats.AddExp(reward.Amount);   // 임계치 넘으면 자동 레벨업 + HUD 갱신
+                    DevLog.Log($"[Reward] '{questTitle}' 경험치 +{reward.Amount}");
                     break;
 
                 case QuestRewardType.Item:

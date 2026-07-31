@@ -80,6 +80,9 @@ namespace ProjectS.UI
                 }
             }
 
+            // 받을(선택할) 퀘스트가 없으면 수락 버튼을 숨긴다(눌러도 대상이 없음).
+            if (selectButton != null) selectButton.gameObject.SetActive(entries.Count > 0);
+
             selectedIndex = 0;
             RefreshHighlight();
         }
