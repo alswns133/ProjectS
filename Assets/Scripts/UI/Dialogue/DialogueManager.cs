@@ -65,6 +65,12 @@ namespace ProjectS.UI
         private int index;
         private Action onComplete;
 
+        // 닫기(Esc/버튼)로 취소될 때 호출. 상호작용 컨트롤러가 "대화 중 취소 = 상호작용 종료"로 받는다.
+        private Action onCancel;
+
+        // 이번 대화에서 스킵을 허용할지. 인사말=false, 퀘스트 내용=true(퀘스트 대화부터 스킵 활성).
+        private bool allowSkip;
+
         // 재생 중인 NPC의 이름·초상화(오른쪽 기본값).
         private string npcName;
         private Sprite npcPortrait;
@@ -82,6 +88,13 @@ namespace ProjectS.UI
 
         /// <summary>대화가 재생 중인지. NPC 상호작용이 중복 실행되지 않게 확인한다.</summary>
         public bool IsPlaying { get; private set; }
+
+        /// <summary>
+        /// 대화가 스스로 플레이어 입력·카메라·커서를 얼릴지. 상호작용 컨트롤러가 인사말→허브→대화 전체를
+        /// 한 번에 얼리는 경우, 컨트롤러가 이걸 false로 두어 대화마다 이중으로 얼렸다 푸는 걸 막는다
+        /// (대화↔허브 전환 때 커서가 사라져 버튼을 못 누르는 문제 방지).
+        /// </summary>
+        public bool ManageFreeze { get; set; } = true;
 
         private void Awake()
         {
@@ -108,8 +121,8 @@ namespace ProjectS.UI
             EnableInput(false);
             ReleaseOtherHandles();
 
-            // 대화 중 파괴 시엔 즉시 복구(오브젝트가 사라지므로 지연 복구는 못 한다).
-            if (IsPlaying)
+            // 대화 중 파괴 시엔 즉시 복구(오브젝트가 사라지므로 지연 복구는 못 한다). 컨트롤러 관리 중이면 손 안 댐.
+            if (IsPlaying && ManageFreeze)
             {
                 if (cameraPivot != null) cameraPivot.enabled = true;
                 if (playerInput != null) playerInput.enabled = true;
@@ -125,8 +138,10 @@ namespace ProjectS.UI
         /// <param name="speakerNpcPortrait">오른쪽(NPC) 초상화(없으면 null)</param>
         /// <param name="dialogueId">재생할 대화 ID</param>
         /// <param name="questName">상단에 표시할 퀘스트명(없으면 빈 문자열 → 숨김)</param>
+        /// <param name="allowSkip">스킵 버튼·입력 활성 여부(인사말=false, 퀘스트 내용=true)</param>
         /// <param name="onComplete">끝까지/스킵 시 호출(취소면 호출 안 됨)</param>
-        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, int dialogueId, string questName, Action onComplete)
+        /// <param name="onCancel">닫기(Esc)로 취소 시 호출(없으면 아무 것도 안 함)</param>
+        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, int dialogueId, string questName, bool allowSkip, Action onComplete, Action onCancel = null)
         {
             DialogueTable row = JsonManager.Instance != null ? JsonManager.Instance.Get<DialogueTable>(dialogueId) : null;
             if (row == null)
@@ -135,7 +150,7 @@ namespace ProjectS.UI
                 onComplete?.Invoke();
                 return;
             }
-            Play(speakerNpcName, speakerNpcPortrait, row.Lines, questName, onComplete);
+            Play(speakerNpcName, speakerNpcPortrait, row.Lines, questName, allowSkip, onComplete, onCancel);
         }
 
         /// <summary>
@@ -145,8 +160,10 @@ namespace ProjectS.UI
         /// <param name="speakerNpcPortrait">오른쪽(NPC) 초상화(없으면 null)</param>
         /// <param name="dialogueLines">순서대로 재생할 대사들</param>
         /// <param name="questName">상단에 표시할 퀘스트명(없으면 빈 문자열 → 숨김)</param>
+        /// <param name="allowSkip">스킵 버튼·입력 활성 여부(인사말=false, 퀘스트 내용=true)</param>
         /// <param name="onComplete">끝까지/스킵 시 호출(취소면 호출 안 됨)</param>
-        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, IReadOnlyList<DialogueLine> dialogueLines, string questName, Action onComplete)
+        /// <param name="onCancel">닫기(Esc)로 취소 시 호출(없으면 아무 것도 안 함)</param>
+        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, IReadOnlyList<DialogueLine> dialogueLines, string questName, bool allowSkip, Action onComplete, Action onCancel = null)
         {
             if (IsPlaying) return;
 
@@ -156,11 +173,15 @@ namespace ProjectS.UI
                 return;
             }
 
+            this.allowSkip = allowSkip;
+            if (skipButton != null) skipButton.gameObject.SetActive(allowSkip);   // 스킵은 퀘스트 내용부터
+
             npcName = speakerNpcName;
             npcPortrait = speakerNpcPortrait;
             lines = dialogueLines;
             index = 0;
             this.onComplete = onComplete;
+            this.onCancel = onCancel;
             IsPlaying = true;
 
             // 퀘스트명(있을 때만 표시).
@@ -217,11 +238,14 @@ namespace ProjectS.UI
             Complete();
         }
 
-        /// <summary>대화를 취소한다. 퀘스트창 등으로 넘어가지 않는다(Esc 또는 버튼).</summary>
+        /// <summary>대화를 취소한다. 정상 완료(onComplete)로는 넘어가지 않고 onCancel만 호출한다(Esc 또는 버튼).</summary>
         public void Cancel()
         {
             if (!IsPlaying) return;
+
+            Action callback = onCancel;   // EndSession이 지우기 전에 잡아둔다
             EndSession();
+            callback?.Invoke();
         }
 
         // 현재 줄의 화자에 맞춰 대사·이름·초상화를 갱신한다. 이름표·초상화 모두 '말하는 쪽만' 보이고 반대쪽은 숨긴다.
@@ -285,6 +309,7 @@ namespace ProjectS.UI
             IsPlaying = false;
             lines = null;
             onComplete = null;
+            onCancel = null;
             EnableInput(false);
             UnfreezePlayer();
             ReleaseOtherHandles();
@@ -347,6 +372,8 @@ namespace ProjectS.UI
         // 대화 시작: 이동·공격 입력과 카메라 회전을 끄고 커서를 보여준다.
         private void FreezePlayer()
         {
+            if (!ManageFreeze) return;   // 컨트롤러가 상호작용 전체를 얼리는 경우 대화는 관여 안 함
+
             if (playerInput == null) playerInput = FindAnyObjectByType<PlayerInputHandler>();
             if (playerInput != null) playerInput.enabled = false;
 
@@ -364,6 +391,8 @@ namespace ProjectS.UI
         // (마지막 대사의 Space가 그대로 점프로 새는 것을 막는다.)
         private void UnfreezePlayer()
         {
+            if (!ManageFreeze) return;   // 컨트롤러가 관리 → 대화 종료로 풀지 않는다
+
             if (cameraPivot != null) cameraPivot.enabled = true;
             Cursor.lockState = savedLockState;
             Cursor.visible = savedCursorVisible;
@@ -397,14 +426,19 @@ namespace ProjectS.UI
                 nextAction.Enable();
                 prevAction.Enable();
                 firstAction.Enable();
-                skipAction.Enable();
                 closeAction.Enable();
 
                 nextAction.performed += OnNext;
                 prevAction.performed += OnPrev;
                 firstAction.performed += OnFirst;
-                skipAction.performed += OnSkip;
                 closeAction.performed += OnClose;
+
+                // 스킵은 퀘스트 내용 대화에서만(인사말/허브 대화에선 비활성).
+                if (allowSkip)
+                {
+                    skipAction.Enable();
+                    skipAction.performed += OnSkip;
+                }
             }
             else
             {
