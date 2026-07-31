@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using ProjectS.NPCs;
 
 namespace ProjectS.UI
@@ -65,12 +66,13 @@ namespace ProjectS.UI
             else Hide();
         }
 
-        // 켠다: 데이터를 채운 뒤(OnShow) 패널을 켜고 입력을 연다.
+        // 켠다: 데이터를 채운 뒤(OnShow) 패널을 켜고, 활성화 후 훅(OnShown)·입력을 연다.
         private void Show()
         {
             if (controller == null) return;
             OnShow();
             if (root != null) root.SetActive(true);
+            OnShown();   // 활성화된 뒤라야 되는 작업(EventSystem 선택 등)
             EnableInput(true);
         }
 
@@ -85,11 +87,24 @@ namespace ProjectS.UI
         /// <summary>패널을 켜기 직전 데이터 채우기(이름·인사말·목록 등). 서브클래스가 구현.</summary>
         protected virtual void OnShow() { }
 
+        /// <summary>패널이 활성화된 직후. 활성 상태여야 하는 작업(EventSystem 선택 등)에 쓴다.</summary>
+        protected virtual void OnShown() { }
+
         /// <summary>패널을 끈 직후 뒷정리. 필요 없으면 비워 둔다.</summary>
         protected virtual void OnHide() { }
 
         /// <summary>이 화면의 단축키 입력을 켜고 끈다(짝 맞춰 구독/해제). 서브클래스가 구현.</summary>
         /// <param name="enable">켜면 true</param>
         protected abstract void EnableInput(bool enable);
+
+        /// <summary>NPC 일러스트 슬롯에 스프라이트를 넣고, 없으면 숨긴다(참조 없을 때 하얀 박스 방지). 허브·리스트 공용.</summary>
+        /// <param name="image">초상화 Image(없으면 무시)</param>
+        /// <param name="sprite">넣을 스프라이트(null이면 슬롯을 숨김)</param>
+        protected static void ApplyPortrait(Image image, Sprite sprite)
+        {
+            if (image == null) return;
+            image.sprite = sprite;
+            image.enabled = sprite != null;
+        }
     }
 }

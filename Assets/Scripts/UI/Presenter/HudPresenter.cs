@@ -25,6 +25,9 @@ namespace ProjectS.UI
             PlayerEvents.OnExpChanged += OnExpChanged;
             PlayerEvents.OnLevelChanged += OnLevelChanged;
             PlayerEvents.OnSkillUsed += OnSkillUsed;
+
+            // 숨겨져(비활성) 구독이 끊긴 사이 바뀐 스탯을 다시 받는다(예: 상호작용 중 받은 보상).
+            PlayerEvents.FireStatsRefreshRequested();
         }
 
         protected override void Unsubscribe()
@@ -48,7 +51,7 @@ namespace ProjectS.UI
             => view.SetStamina(cur / max);
 
         private void OnExpChanged(int cur, int max)
-            => view.SetExp((float)cur / max);
+            => view.SetExp(max > 0 ? (float)cur / max : 1f);   // max 0(최대 레벨 등)이면 가득 참으로
 
         private void OnLevelChanged(int level)
             => view.SetLevel(level);
