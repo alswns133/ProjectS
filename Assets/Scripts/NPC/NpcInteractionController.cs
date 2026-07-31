@@ -99,6 +99,9 @@ namespace ProjectS.NPCs
         /// <summary>이 NPC의 이름(대화 화자·표시용).</summary>
         public string NpcName => npcName;
 
+        /// <summary>이 NPC의 일러스트(허브·리스트·대화에서 표시). 없으면 null.</summary>
+        public Sprite NpcPortrait => npcPortrait;
+
         /// <summary>허브 본문에 띄울 인사말 한 줄(상호작용/처음으로마다 새로 뽑힘).</summary>
         public string GreetingText { get; private set; } = string.Empty;
 
@@ -223,8 +226,10 @@ namespace ProjectS.NPCs
             {
                 if (active.IsReadyToTurnIn)
                 {
-                    RewardQuest = active;          // 완료 가능 → 보상 목록
-                    SetScreen(NpcScreen.Reward);
+                    // 완료 가능 → 반납 대화(스킵 on) → 대화가 끝나면 보상 화면.
+                    RewardQuest = active;
+                    PlayDialogue(active.Definition.TurnInDialogueId, active.Title, true,
+                        () => SetScreen(NpcScreen.Reward));
                 }
                 return;                            // 진행 중이면 아무 것도 안 함
             }
@@ -353,7 +358,8 @@ namespace ProjectS.NPCs
             if (dm != null && dialogueId > 0)
             {
                 dm.ManageFreeze = false;   // 상호작용 전체를 컨트롤러가 얼리는 중 → 대화는 얼리기 관여 안 함
-                dm.Play(npcName, npcPortrait, dialogueId, questName, allowSkip, onDone, CloseInteraction);
+                // Esc(취소)=상호작용 종료, Z(처음으로)=첫 상호작용(허브)으로 복귀.
+                dm.Play(npcName, npcPortrait, dialogueId, questName, allowSkip, onDone, CloseInteraction, BackToGreeting);
             }
             else
             {

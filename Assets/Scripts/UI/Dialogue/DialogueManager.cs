@@ -44,7 +44,11 @@ namespace ProjectS.UI
         [SerializeField] private Image rightPortrait;      // NPC·제3자 초상화
 
         [Header("버튼")]
-        [SerializeField] private Button nextButton;   // 다음
+        [SerializeField] private Button nextButton;   // 다음(마지막 줄에선 '확인')
+        [Tooltip("다음 버튼의 라벨. 마지막 줄에서 '다음'→'확인'으로 바꾼다(선택 — 없으면 라벨 안 바꿈).")]
+        [SerializeField] private TMP_Text nextButtonLabel;
+        [SerializeField] private string nextLabel = "다음";
+        [SerializeField] private string confirmLabel = "확인";
         [SerializeField] private Button prevButton;   // 이전
         [SerializeField] private Button firstButton;  // 처음으로
         [SerializeField] private Button skipButton;   // 스킵
@@ -67,6 +71,10 @@ namespace ProjectS.UI
 
         // 닫기(Esc/버튼)로 취소될 때 호출. 상호작용 컨트롤러가 "대화 중 취소 = 상호작용 종료"로 받는다.
         private Action onCancel;
+
+        // 처음으로(Z/버튼)를 눌렀을 때 호출. 지정되면 현재 대화 첫 줄이 아니라 "첫 상호작용(허브)"으로 돌아간다.
+        // 없으면(standalone 대화) 기존처럼 현재 대화의 첫 줄로 되돌린다.
+        private Action onFirst;
 
         // 이번 대화에서 스킵을 허용할지. 인사말=false, 퀘스트 내용=true(퀘스트 대화부터 스킵 활성).
         private bool allowSkip;
@@ -141,7 +149,8 @@ namespace ProjectS.UI
         /// <param name="allowSkip">스킵 버튼·입력 활성 여부(인사말=false, 퀘스트 내용=true)</param>
         /// <param name="onComplete">끝까지/스킵 시 호출(취소면 호출 안 됨)</param>
         /// <param name="onCancel">닫기(Esc)로 취소 시 호출(없으면 아무 것도 안 함)</param>
-        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, int dialogueId, string questName, bool allowSkip, Action onComplete, Action onCancel = null)
+        /// <param name="onFirst">처음으로(Z) 시 호출(지정하면 첫 줄이 아니라 첫 상호작용으로 복귀). 없으면 현재 대화 첫 줄로.</param>
+        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, int dialogueId, string questName, bool allowSkip, Action onComplete, Action onCancel = null, Action onFirst = null)
         {
             DialogueTable row = JsonManager.Instance != null ? JsonManager.Instance.Get<DialogueTable>(dialogueId) : null;
             if (row == null)
@@ -150,7 +159,7 @@ namespace ProjectS.UI
                 onComplete?.Invoke();
                 return;
             }
-            Play(speakerNpcName, speakerNpcPortrait, row.Lines, questName, allowSkip, onComplete, onCancel);
+            Play(speakerNpcName, speakerNpcPortrait, row.Lines, questName, allowSkip, onComplete, onCancel, onFirst);
         }
 
         /// <summary>
@@ -163,7 +172,8 @@ namespace ProjectS.UI
         /// <param name="allowSkip">스킵 버튼·입력 활성 여부(인사말=false, 퀘스트 내용=true)</param>
         /// <param name="onComplete">끝까지/스킵 시 호출(취소면 호출 안 됨)</param>
         /// <param name="onCancel">닫기(Esc)로 취소 시 호출(없으면 아무 것도 안 함)</param>
-        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, IReadOnlyList<DialogueLine> dialogueLines, string questName, bool allowSkip, Action onComplete, Action onCancel = null)
+        /// <param name="onFirst">처음으로(Z) 시 호출(지정하면 첫 줄이 아니라 첫 상호작용으로 복귀). 없으면 현재 대화 첫 줄로.</param>
+        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, IReadOnlyList<DialogueLine> dialogueLines, string questName, bool allowSkip, Action onComplete, Action onCancel = null, Action onFirst = null)
         {
             if (IsPlaying) return;
 
@@ -182,6 +192,7 @@ namespace ProjectS.UI
             index = 0;
             this.onComplete = onComplete;
             this.onCancel = onCancel;
+            this.onFirst = onFirst;
             IsPlaying = true;
 
             // 퀘스트명(있을 때만 표시).
@@ -222,10 +233,21 @@ namespace ProjectS.UI
             ShowCurrentLine();
         }
 
-        /// <summary>대화의 첫 대사로 되돌아간다(Z 또는 버튼).</summary>
+        /// <summary>
+        /// 처음으로(Z 또는 버튼). onFirst가 지정된 상호작용 대화면 첫 상호작용(허브)으로 돌아가고,
+        /// 아니면(standalone) 현재 대화의 첫 대사로 되돌린다.
+        /// </summary>
         public void First()
         {
             if (!IsPlaying) return;
+
+            if (onFirst != null)
+            {
+                Action callback = onFirst;   // EndSession이 지우기 전에 잡아둔다
+                EndSession();
+                callback?.Invoke();
+                return;
+            }
 
             index = 0;
             ShowCurrentLine();
@@ -253,6 +275,13 @@ namespace ProjectS.UI
         {
             DialogueLine line = lines[index];
             if (lineText != null) lineText.text = line.Text;
+
+            // 첫 줄이면 이전 버튼을 숨긴다(눌러도 갈 데가 없음). 키는 Previous()의 가드로도 막힌다.
+            if (prevButton != null) prevButton.gameObject.SetActive(index > 0);
+
+            // 마지막 줄이면 다음 버튼 라벨을 '확인'으로(누르면 대화가 완료되므로). 키(Space)는 그대로 완료시킨다.
+            if (nextButtonLabel != null)
+                nextButtonLabel.text = (index >= lines.Count - 1) ? confirmLabel : nextLabel;
 
             if (line.Speaker == DialogueSpeaker.Player)
             {
@@ -310,6 +339,7 @@ namespace ProjectS.UI
             lines = null;
             onComplete = null;
             onCancel = null;
+            onFirst = null;
             EnableInput(false);
             UnfreezePlayer();
             ReleaseOtherHandles();

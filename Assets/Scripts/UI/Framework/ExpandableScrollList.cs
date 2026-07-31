@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -49,6 +50,12 @@ namespace ProjectS.UI.Framework
         [SerializeField] private bool startCollapsed = false;
 
         private RectTransform self;
+        private bool dirty;
+
+        /// <summary>
+        /// 접힘 상태가 바뀔 때 발행(true=접힘). 구독자가 이 시점에 항목의 표시 형태를 정한다.
+        /// </summary>
+        public event Action<bool> CollapsedChanged;
 
         /// <summary>목록이 접혀 있는지.</summary>
         public bool IsCollapsed { get; private set; }
@@ -59,6 +66,14 @@ namespace ProjectS.UI.Framework
         private void Awake()
         {
             self = (RectTransform)transform;
+        }
+
+        private void LateUpdate()
+        {
+            if (!dirty) return;
+
+            dirty = false;
+            Refresh();
         }
 
         private void OnEnable()
@@ -76,20 +91,42 @@ namespace ProjectS.UI.Framework
         public void ToggleCollapsed() => SetCollapsed(!IsCollapsed);
 
         /// <summary>
-        /// 접힘 상태를 지정한다. 접으면 스크롤 영역을 끄므로 창은 헤더 높이만 남는다
-        /// (Layout Group은 비활성 자식을 무시한다). 항목 데이터는 그대로라 펼치면 복원된다.
+        /// 접기 버튼과 스크롤 조작의 활성 여부를 지정한다.
+        /// 마우스 모드가 아닐 때 꺼서, 커서가 잠긴 상태의 화면 중앙 레이캐스트로 눌리는 것을 막는다.
+        /// </summary>
+        /// <param name="value">true=조작 가능</param>
+        public void SetInteractable(bool value)
+        {
+            if (foldButton != null) foldButton.interactable = value;
+            if (scrollRect != null) scrollRect.enabled = value;
+        }
+
+        /// <summary>
+        /// 접힘 상태를 지정하고 <see cref="CollapsedChanged"/>를 발행한다.
+        ///
+        /// <b>이 컴포넌트는 항목을 직접 숨기지 않는다.</b> 접었을 때 무엇을 남길지는 목록마다 다르기 때문이다
+        /// (퀘스트 트래커는 고정한 퀘스트만 축소 형태로 남긴다). 소비자가 이벤트를 받아 항목 표시를 정하면,
+        /// 그 결과로 줄어든 Content 높이를 이 창이 다시 재서 따라간다.
+        /// 전부 숨기는 단순한 목록이라면 이벤트에 항목 루트의 SetActive를 연결하면 된다.
         /// </summary>
         /// <param name="value">true=접힘, false=펼침</param>
         public void SetCollapsed(bool value)
         {
             IsCollapsed = value;
 
-            if (scrollRect != null) scrollRect.gameObject.SetActive(!value);
             if (foldArrow != null)
                 foldArrow.localRotation = Quaternion.Euler(0f, 0f, value ? collapsedArrowZ : expandedArrowZ);
 
+            CollapsedChanged?.Invoke(value);
             Refresh();
         }
+
+        /// <summary>
+        /// 이번 프레임 끝에 <see cref="Refresh"/>를 한 번만 실행하도록 예약한다.
+        /// 카드 접힘 연출처럼 매 프레임 높이가 바뀌는 경우, 카드마다 즉시 Refresh를 부르면
+        /// 한 프레임에 강제 리빌드가 몇 번씩 돌아 낭비가 크다. 몇 번을 불러도 LateUpdate에서 1회로 합쳐진다.
+        /// </summary>
+        public void SetDirty() => dirty = true;
 
         /// <summary>
         /// 항목이 추가·삭제되거나 항목 내용(줄 수)이 바뀐 뒤 호출한다. 창 높이를 다시 계산한다.

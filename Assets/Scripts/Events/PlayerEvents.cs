@@ -52,6 +52,13 @@ namespace ProjectS.Events
         /// </summary>
         public static event Action OnPlayerDied;
 
+        /// <summary>
+        /// 마우스 모드 전환(true=커서 해제·마우스 조작 가능, false=커서 잠금·TPS 조작).
+        /// HUD 위젯이 이 신호로 클릭 가능 여부를 가른다 — 커서가 잠긴 상태에서 화면 중앙 레이캐스트가
+        /// UI에 걸려 의도치 않게 눌리는 것을 막기 위함이다.
+        /// </summary>
+        public static event Action<bool> OnCursorModeChanged;
+
         // Fire 메서드 (Player쪽에서 호출)
 
         /// <summary>
@@ -122,6 +129,13 @@ namespace ProjectS.Events
             => OnPlayerDied?.Invoke();
 
         /// <summary>
+        /// 마우스 모드 전환 이벤트 발행. 커서 잠금 상태가 실제로 바뀔 때 호출한다.
+        /// </summary>
+        /// <param name="isMouseMode">true=마우스 조작 가능, false=커서 잠금(TPS 조작)</param>
+        public static void FireCursorModeChanged(bool isMouseMode)
+            => OnCursorModeChanged?.Invoke(isMouseMode);
+
+        /// <summary>
         /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다.
         /// (static 이벤트가 이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지)
         /// </summary>
@@ -136,7 +150,8 @@ namespace ProjectS.Events
             OnExpChanged = null;
             OnGoldChanged = null;
             OnSkillUsed = null;
-            OnPlayerDied = null;   // ★ 새 이벤트는 여기에도 반드시 추가
+            OnPlayerDied = null;
+            OnCursorModeChanged = null;   // ★ 새 이벤트는 여기에도 반드시 추가
         }
     }
 }
