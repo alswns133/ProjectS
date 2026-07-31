@@ -281,10 +281,20 @@ namespace ProjectS.Players
             SetCursorLocked(Cursor.lockState != CursorLockMode.Locked);
         }
 
+        /// <summary>
+        /// 커서 모드를 직접 지정한다. HUD 단축키가 창을 열면서 마우스 모드로 함께 전환할 때 쓴다
+        /// (Alt 토글과 같은 경로를 타야 <see cref="PlayerEvents.OnCursorModeChanged"/>가 빠지지 않는다).
+        /// </summary>
+        /// <param name="mouseMode">true=커서 해제(마우스 조작), false=커서 잠금(TPS 조작)</param>
+        public void SetCursorMode(bool mouseMode) => SetCursorLocked(!mouseMode);
+
         private void SetCursorLocked(bool locked)
         {
             Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !locked;
+
+            // HUD 위젯(퀘스트 트래커 등)이 클릭 가능 여부를 이 신호로 가른다.
+            PlayerEvents.FireCursorModeChanged(!locked);
         }
 
         private void Update()
