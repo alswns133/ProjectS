@@ -1,6 +1,9 @@
+using System;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.UI.Framework;
 
@@ -10,8 +13,10 @@ namespace ProjectS.UI
     /// 퀘스트 트래커의 카드를 클릭했을 때 뜨는 상세 팝업. 제목·상세 스토리·보상을 보여준다.
     /// 어느 카드에서 열렸는지 보이도록, 팝업과 그 카드를 잇는 연결선을 함께 그린다.
     ///
-    /// 배치: UIManager 하위에 두어야 팝업 맵에 자동 등록된다(UIManager가 자식에서 BasePopup을 수집).
-    /// 여는 쪽은 <see cref="QuestTrackerHud"/>이며 <see cref="Setup"/>으로 대상을 먼저 넘긴다.
+    /// 배치: 트래커와 같은 캔버스 아래 아무 곳에나 둔다. UIManager의 <i>자식</i>일 필요가 없다 —
+    /// <see cref="QuestTrackerHud"/>가 UIManager.RegisterPopup으로 등록시키기 때문이다
+    /// (UIManager는 자기 자식만 수집해서, 나중에 로드되는 씬의 팝업은 스스로 등록해야 한다).
+    /// 여는 쪽은 <see cref="Setup"/>으로 내용을 먼저 채운 뒤 ShowPopup을 부른다.
     /// </summary>
     public class QuestDetailPopup : BasePopup
     {
@@ -27,6 +32,17 @@ namespace ProjectS.UI
         [Tooltip("연결선이 시작될 지점(보통 팝업 오른쪽 가장자리의 빈 오브젝트).")]
         [SerializeField] private RectTransform connectorOrigin;
 
+        [Header("닫기")]
+        [Tooltip("팝업 우상단 닫기(X) 버튼. 조작을 몰라도 눈으로 보이는 유일한 닫기 수단이라 넣어 둔다.")]
+        [SerializeField] private Button closeButton;
+
+        [Tooltip("팝업 바깥을 클릭하면 닫는다. 전체화면 블로커를 깔지 않으므로 다른 UI 클릭은 그대로 통과한다.")]
+        [SerializeField] private bool closeOnClickOutside = true;
+
+        // 팝업을 연(또는 다른 카드로 갈아탄) 그 클릭이 곧바로 '바깥 클릭'으로 잡히는 것을 막는다.
+        // 카드는 팝업 바깥에 있으므로 이 가드가 없으면 열리는 즉시 닫힌다.
+        private int contentFrame = -1;
+
         // 연결선이 따라갈 카드. 스크롤로 카드가 움직여도 선이 붙어 있게 매 프레임 추적한다.
         private RectTransform target;
 
@@ -34,13 +50,53 @@ namespace ProjectS.UI
         public QuestData Quest { get; private set; }
 
         /// <summary>
-        /// 표시할 퀘스트와 연결선이 가리킬 카드를 지정한다. Show 호출 전에 먼저 부른다
-        /// (Show 시점에는 이미 내용이 채워져 있어야 첫 프레임에 빈 팝업이 보이지 않는다).
+        /// 어떤 경로로든 팝업이 닫힐 때 발행(X 버튼·Esc·바깥 클릭·트래커 접기 등).
+        /// 여는 쪽이 이것만 구독하면 닫기 수단이 몇 개로 늘어나든 동기화 지점이 하나로 유지된다.
+        /// </summary>
+        public event Action Closed;
+
+        private void OnEnable()
+        {
+            if (closeButton != null) closeButton.onClick.AddListener(RequestClose);
+        }
+
+        private void OnDisable()
+        {
+            if (closeButton != null) closeButton.onClick.RemoveListener(RequestClose);
+        }
+
+        // 바깥 클릭 판정. 전체화면 블로커를 깔면 다른 카드로 갈아탈 때 두 번 클릭해야 하고
+        // 미니맵·메뉴 버튼까지 먹히므로, 포인터가 팝업 사각형 안인지만 보고 클릭 자체는 통과시킨다.
+        private void Update()
+        {
+            if (!closeOnClickOutside) return;
+            if (Time.frameCount <= contentFrame) return;   // 열린 그 클릭은 무시
+
+            Mouse mouse = Mouse.current;
+            if (mouse == null || !mouse.leftButton.wasPressedThisFrame) return;
+
+            Canvas canvas = GetComponentInParent<Canvas>();
+            Camera cam = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                ? canvas.worldCamera
+                : null;
+
+            if (RectTransformUtility.RectangleContainsScreenPoint(
+                    (RectTransform)transform, mouse.position.ReadValue(), cam))
+                return;
+
+            RequestClose();
+        }
+
+        /// <summary>
+        /// 표시할 퀘스트와 연결선이 가리킬 카드를 지정한다. ShowPopup 호출 전에 먼저 부른다 —
+        /// 켜지는 시점에 내용이 이미 채워져 있어야 첫 프레임에 빈 팝업이 보이지 않는다.
         /// </summary>
         /// <param name="quest">표시할 퀘스트</param>
         /// <param name="cardVisual">연결선이 가리킬 카드 본체(없으면 선을 숨긴다)</param>
         public void Setup(QuestData quest, RectTransform cardVisual)
         {
+            if (quest == null) return;
+
             Quest = quest;
             target = cardVisual;
 
@@ -49,14 +105,16 @@ namespace ProjectS.UI
             if (rewardText != null) rewardText.text = BuildRewards(quest.Definition);
 
             if (connector != null) connector.gameObject.SetActive(cardVisual != null);
+            contentFrame = Time.frameCount;
             UpdateConnector();
         }
 
+        // 다음에 열릴 때 이전 카드를 계속 가리키지 않도록 참조를 끊고, 닫혔음을 알린다.
         protected override void OnHide()
         {
-            // 다음에 열릴 때 이전 카드를 계속 가리키지 않도록 참조를 끊는다.
             Quest = null;
             target = null;
+            Closed?.Invoke();
         }
 
         // 카드는 스크롤·선택 연출로 계속 움직이므로 위치를 매 프레임 다시 잡는다.

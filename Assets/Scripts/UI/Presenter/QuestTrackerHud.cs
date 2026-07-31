@@ -6,6 +6,7 @@ using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 using ProjectS.Data;
+using ProjectS.Debugging;
 using ProjectS.Events;
 using ProjectS.Managers;
 using ProjectS.Players;
@@ -55,7 +56,7 @@ namespace ProjectS.UI
         [SerializeField] private int maxPinned = 3;
 
         [Header("상세 팝업")]
-        [Tooltip("내용 영역을 눌렀을 때 열 팝업. UIManager 하위에 있어야 ShowPopup으로 열 수 있다.")]
+        [Tooltip("내용 영역을 눌렀을 때 열 팝업. 같은 캔버스 아래 아무 곳에나 두면 된다(이 클래스가 직접 열고 닫는다).")]
         [SerializeField] private QuestDetailPopup detailPopup;
 
         [Header("여닫기")]
@@ -86,6 +87,8 @@ namespace ProjectS.UI
             PlayerEvents.OnCursorModeChanged += OnCursorModeChanged;
             if (window != null) window.CollapsedChanged += OnWindowCollapsedChanged;
 
+            if (detailPopup != null) detailPopup.Closed += OnPopupClosed;
+
             toggleAction.Enable();
             toggleAction.started += OnToggleShortcut;
 
@@ -102,6 +105,14 @@ namespace ProjectS.UI
             QuestEvents.OnQuestCompleted -= OnCompleted;
             PlayerEvents.OnCursorModeChanged -= OnCursorModeChanged;
             if (window != null) window.CollapsedChanged -= OnWindowCollapsedChanged;
+
+            // UIManager는 씬을 넘어 살아남으므로, 이 씬이 내려갈 때 등록을 반드시 빼야 한다.
+            // 안 그러면 popupMap이 파괴된 팝업을 계속 들고 있게 된다.
+            if (detailPopup != null)
+            {
+                detailPopup.Closed -= OnPopupClosed;
+                UIManager.Instance?.UnregisterPopup(detailPopup);
+            }
 
             toggleAction.started -= OnToggleShortcut;
             toggleAction.Disable();
@@ -304,25 +315,47 @@ namespace ProjectS.UI
             selected = card;
             card.SetSelected(true);
 
-            if (detailPopup != null && TryFindQuest(card, out QuestData quest))
+            if (detailPopup == null || !TryFindQuest(card, out QuestData quest)) return;
+
+            UIManager manager = UIManager.Instance;
+            if (manager == null)
             {
-                // 내용을 먼저 채우고 연다 — 첫 프레임에 빈 팝업이 보이지 않게 하기 위함.
-                detailPopup.Setup(quest, card.Visual);
-                UIManager.Instance?.ShowPopup<QuestDetailPopup>();
+                DevLog.Warning("[QuestTracker] UIManager가 없어 상세 팝업을 열 수 없습니다. " +
+                               "Bootstrap에서 시작하거나, 이 씬에 UIManager 오브젝트를 추가하세요.");
+                return;
             }
+
+            // 등록은 멱등이라 열 때마다 불러도 안전하다. Awake 순서에 기대지 않기 위해 여기서 확인한다
+            // (UIManager가 이 씬에 있으면 QuestTrackerHud.OnEnable보다 늦게 깨어날 수 있다).
+            manager.RegisterPopup(detailPopup);
+            // 내용을 먼저 채우고 연다 — 첫 프레임에 빈 팝업이 보이지 않게 하기 위함.
+            detailPopup.Setup(quest, card.Visual);
+
+            // 이미 열려 있는데 다시 ShowPopup을 부르면 UIManager의 활성 목록에 중복으로 쌓인다.
+            // 카드만 갈아탈 때는 내용만 바꾸면 된다.
+            if (!detailPopup.IsVisible) manager.ShowPopup<QuestDetailPopup>();
         }
 
-        // 선택 해제 + 팝업 닫기. 카드가 사라지거나 마우스 모드가 꺼질 때도 쓴다.
+        // 팝업이 어떤 경로로든 닫혔을 때(X 버튼·Esc·바깥 클릭) 카드 선택만 되돌린다.
+        // 여기서 다시 닫기를 요청하면 UIManager.Hide → OnHide → Closed로 되돌아와 무한 재귀가 된다.
+        private void OnPopupClosed() => DeselectCard();
+
+        // 선택 해제 + 팝업 닫기. 카드가 사라지거나 마우스 모드가 꺼질 때처럼 이쪽에서 먼저 닫는 경우에 쓴다.
         private void CloseDetail()
         {
-            if (selected != null)
-            {
-                selected.SetSelected(false);
-                selected = null;
-            }
+            DeselectCard();
 
             if (detailPopup != null && detailPopup.IsVisible)
                 UIManager.Instance?.ClosePopup<QuestDetailPopup>();
+        }
+
+        // 접혀 있던 카드를 원래 모습으로 되돌린다. 팝업 상태는 건드리지 않는다.
+        private void DeselectCard()
+        {
+            if (selected == null) return;
+
+            selected.SetSelected(false);
+            selected = null;
         }
 
         private bool TryFindQuest(QuestTrackerEntry card, out QuestData quest)
@@ -434,22 +467,24 @@ namespace ProjectS.UI
             return sb.ToString();
         }
 
-        // 내용 영역에 들어갈 본문. 설명을 첫 줄에 두고 목표별 진행을 한 줄씩 쌓는다.
-        // 줄바꿈으로 쌓기 때문에 목표가 많은 퀘스트일수록 카드가 그만큼 세로로 늘어난다.
+        // 내용 영역에 들어갈 본문. 목표 카운트는 제목 줄(BuildObjectiveCount)이 이미 보여주므로
+        // 여기는 "무엇을 하라"는 한 문장만 둔다. 목표별로 줄을 쌓으면 목표가 늘어나는 만큼 카드가 자라
+        // 카드 한 장이 트래커를 다 차지하게 된다.
+        //
+        // TrackerText가 비어 있으면 Description을 잘라서 쓴다. 기존 JSON을 한 번에 고치지 않고도
+        // 넘어가되, 잘린 티(…)가 나야 데이터를 채워야 한다는 걸 눈으로 알 수 있다.
         private static string BuildProgress(QuestData quest)
         {
-            var sb = new StringBuilder();
+            QuestTable definition = quest.Definition;
 
-            string description = quest.Definition.Description;
-            if (!string.IsNullOrEmpty(description)) sb.Append(description);
+            if (!string.IsNullOrEmpty(definition.TrackerText)) return definition.TrackerText;
 
-            foreach (var objective in quest.Objectives)
-            {
-                if (sb.Length > 0) sb.Append('\n');
-                sb.Append(objective.CurrentCount).Append('/').Append(objective.Target.RequiredCount);
-            }
+            string description = definition.Description;
+            if (string.IsNullOrEmpty(description)) return string.Empty;
 
-            return sb.ToString();
+            return description.Length <= QuestTable.MaxTrackerTextLength
+                ? description
+                : description.Substring(0, QuestTable.MaxTrackerTextLength) + "…";
         }
     }
 }

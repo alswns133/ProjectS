@@ -155,6 +155,47 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// 자식이 아닌 팝업을 등록한다. UIManager는 Bootstrap에서 DontDestroyOnLoad로 살아남으면서
+        /// <b>자기 자식에서만</b> BasePopup을 수집하므로, 나중에 로드되는 씬(HUD·던전 등)에 배치된 팝업은
+        /// 어느 흐름에서도 popupMap에 들어가지 못한다. 그 팝업들이 스스로 등록할 수 있게 열어 둔다.
+        ///
+        /// 같은 호출을 여러 번 해도 안전하다(멱등). Awake 순서에 기대지 않도록, 여는 쪽에서
+        /// 열기 직전에 불러도 되게 만든 것이다.
+        /// </summary>
+        /// <param name="popup">등록할 팝업</param>
+        public void RegisterPopup(BasePopup popup)
+        {
+            if (popup == null) return;
+
+            Type type = popup.GetType();
+            if (popupMap.TryGetValue(type, out var existing) && existing != popup)
+                Debug.LogWarning($"[UIManager] {type.Name} 팝업이 이미 등록돼 있어 교체함");
+
+            popupMap[type] = popup;
+
+            if (basePopups != null && !basePopups.Contains(popup))
+                basePopups.Add(popup);
+        }
+
+        /// <summary>
+        /// 등록을 해제한다. 씬이 언로드될 때 반드시 호출해야 한다 —
+        /// UIManager는 씬을 넘어 살아남으므로, 안 하면 popupMap이 파괴된 팝업을 계속 들고 있게 된다.
+        /// </summary>
+        /// <param name="popup">해제할 팝업</param>
+        public void UnregisterPopup(BasePopup popup)
+        {
+            if (popup == null) return;
+
+            ClosePopup(popup);   // 열려 있으면 닫고 활성 목록에서도 뺀다
+
+            Type type = popup.GetType();
+            if (popupMap.TryGetValue(type, out var existing) && existing == popup)
+                popupMap.Remove(type);
+
+            basePopups?.Remove(popup);
+        }
+
+        /// <summary>
         /// 지정한 팝업 하나를 닫고 활성 목록에서 제거한다. 목록에 없는 팝업이면 아무것도 하지 않는다.
         /// </summary>
         /// <param name="popup">닫을 팝업</param>

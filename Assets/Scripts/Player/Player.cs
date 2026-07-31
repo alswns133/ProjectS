@@ -142,6 +142,13 @@ namespace ProjectS.Players
         // 구르기·공중대시·공격/강공격/스킬은 막는다(마을 애니메이터에 구르기/공중대시 클립이 없어 기획상 미지원).
         private bool combatEnabled = true;
 
+        // 마우스 모드(커서 해제) 상태. HUD를 클릭하는 중이므로 그 클릭이 공격으로 새면 안 된다.
+        // 구르기·공중대시는 키보드라 클릭이 샐 일이 없고, 막으면 조작이 얼어붙은 느낌이 나서 그대로 둔다.
+        private bool mouseMode;
+
+        // 공격/강공격/스킬을 받을 수 있는 상태인지. 두 조건을 한곳에 모아 판정이 갈라지지 않게 한다.
+        private bool CombatAllowed => combatEnabled && !mouseMode;
+
         /// <summary>
         /// 이동이 잠겨 있는지 여부. 공격/스킬 발동 중 true.
         /// FreeState가 매 프레임 이 값을 확인해, 잠금 중이면 수평 이동을 멈춘다.
@@ -285,13 +292,14 @@ namespace ProjectS.Players
         /// 커서 모드를 직접 지정한다. HUD 단축키가 창을 열면서 마우스 모드로 함께 전환할 때 쓴다
         /// (Alt 토글과 같은 경로를 타야 <see cref="PlayerEvents.OnCursorModeChanged"/>가 빠지지 않는다).
         /// </summary>
-        /// <param name="mouseMode">true=커서 해제(마우스 조작), false=커서 잠금(TPS 조작)</param>
-        public void SetCursorMode(bool mouseMode) => SetCursorLocked(!mouseMode);
+        /// <param name="useMouse">true=커서 해제(마우스 조작), false=커서 잠금(TPS 조작)</param>
+        public void SetCursorMode(bool useMouse) => SetCursorLocked(!useMouse);
 
         private void SetCursorLocked(bool locked)
         {
             Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !locked;
+            mouseMode = !locked;
 
             // HUD 위젯(퀘스트 트래커 등)이 클릭 가능 여부를 이 신호로 가른다.
             PlayerEvents.FireCursorModeChanged(!locked);
@@ -436,7 +444,7 @@ namespace ProjectS.Players
 
         private void OnSkill(int n)
         {
-            if (!combatEnabled) return;        // 마을 등 전투 비활성 구역에서는 스킬 입력 무시
+            if (!CombatAllowed) return;        // 마을(전투 비활성) 또는 마우스 모드에서는 스킬 입력 무시
             if (Stats.IsDead) return;
             if (IsRolling) return;             // 구르기 중 스킬 금지(회피 커밋 유지)
             if (IsHitBlocked) return;          // 피격 중 스킬 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
@@ -472,7 +480,7 @@ namespace ProjectS.Players
         // 좌클릭 중재. 상황을 보고 점프 공격/달리기 공격/일반 콤보 중 하나로 라우팅한다.
         private void OnAttack()
         {
-            if (!combatEnabled) return;      // 마을 등 전투 비활성 구역에서는 공격 입력 무시
+            if (!CombatAllowed) return;      // 마을(전투 비활성) 또는 마우스 모드에서는 공격 입력 무시
             if (Stats.IsDead) return;        // 죽었으면 공격 무시
             if (IsRolling) return;           // 구르기 중 공격 금지(회피 커밋 유지)
             if (IsHitBlocked) return;        // 피격 중 공격 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
@@ -541,7 +549,7 @@ namespace ProjectS.Players
         // 우클릭 강공격 중재.
         private void OnStrongAttack()
         {
-            if (!combatEnabled) return;          // 마을 등 전투 비활성 구역에서는 강공격 입력 무시
+            if (!CombatAllowed) return;          // 마을(전투 비활성) 또는 마우스 모드에서는 강공격 입력 무시
             if (Stats.IsDead) return;
             if (IsRolling) return;               // 구르기 커밋 유지
             if (IsHitBlocked) return;            // 피격 중 강공격 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
