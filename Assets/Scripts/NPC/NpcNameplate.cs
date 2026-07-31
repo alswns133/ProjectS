@@ -14,7 +14,7 @@ namespace ProjectS.NPCs
     public class NpcNameplate : MonoBehaviour
     {
         [Header("표시 값")]
-        [Tooltip("고유 이름(예: 칼슨). 비워두면 같은 오브젝트의 QuestGiver.NpcName을 쓴다.")]
+        [Tooltip("고유 이름(예: 칼슨). 비워두면 같은 오브젝트의 NpcInteractionController.NpcName을 쓴다.")]
         [SerializeField] private string displayName = "";
 
         [Tooltip("역할/직함(예: 촌장, 상점, 강화). 표시는 <>로 감싼다. 비우면 역할 줄은 숨긴다.")]
@@ -35,11 +35,11 @@ namespace ProjectS.NPCs
 
         private void Start()
         {
-            // 이름을 비워두면 퀘스트 NPC는 QuestGiver 이름을 재사용한다(중복 입력 최소화).
+            // 이름을 비워두면 퀘스트 NPC는 NpcInteractionController 이름을 재사용한다(중복 입력 최소화).
             if (string.IsNullOrEmpty(displayName))
             {
-                QuestGiver giver = GetComponent<QuestGiver>();
-                if (giver != null) displayName = giver.NpcName;
+                NpcInteractionController npc = GetComponent<NpcInteractionController>();
+                if (npc != null) displayName = npc.NpcName;
             }
 
             Apply();
