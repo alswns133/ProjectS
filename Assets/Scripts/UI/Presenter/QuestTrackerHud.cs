@@ -3,23 +3,29 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 using ProjectS.Data;
 using ProjectS.Events;
+using ProjectS.Managers;
+using ProjectS.Players;
 using ProjectS.UI.Framework;
 
 namespace ProjectS.UI
 {
     /// <summary>
-    /// HUD 퀘스트 목록(QuestList). 진행 중인 퀘스트마다 카드 한 장(<see cref="QuestTrackerEntry"/>)을
-    /// Content에 생성해 제목·진행 내용을 표시한다. 수락하면 카드가 늘고 완료(반납)하면 사라진다.
+    /// HUD 퀘스트 트래커(QuestList). 진행 중인 퀘스트마다 카드 한 장(<see cref="QuestTrackerEntry"/>)을
+    /// Content에 생성하고, 카드의 어느 영역을 눌렀는지에 따라 다르게 반응한다.
+    ///   - <b>제목 영역</b> → 고정(핀) 토글. 고정한 퀘스트는 트래커를 접어도 축소 형태로 남는다(최대 <see cref="maxPinned"/>개).
+    ///   - <b>내용 영역</b> → 상세 팝업(<see cref="QuestDetailPopup"/>) + 카드 선택 연출.
     ///
-    /// 창의 크기·스크롤·접기는 <see cref="ExpandableScrollList"/>가 담당한다. 여기서는 카드를 넣고 뺀 뒤
-    /// Refresh만 호출한다 — 레이아웃 규칙이 퀘스트 로직 안으로 새어 들어가지 않게 하기 위한 분리다.
-    /// <see cref="QuestEvents"/>만 구독하므로 매니저·데이터 로직과도 분리돼 있다.
+    /// 책임을 셋으로 나눠 둔다 — 레이아웃 규칙이 퀘스트 로직 안으로 새어 들어가지 않게 하기 위한 분리다.
+    ///   - 창의 크기·스크롤·접기: <see cref="ExpandableScrollList"/>
+    ///   - 카드 한 장의 표시와 선택 연출: <see cref="QuestTrackerEntry"/>
+    ///   - 그 둘을 언제 부를지(퀘스트 이벤트·고정·선택·팝업): 이 클래스
     ///
-    /// 배치: 창 루트에 ExpandableScrollList와 함께 붙이고, 카드가 쌓일 Content를 content에,
-    /// 카드 프리팹을 cardPrefab에 연결한다.
+    /// 여닫기와 카드 클릭은 <b>마우스 모드에서만</b> 허용한다. 커서가 잠긴 TPS 조작 중에는 화면 중앙
+    /// 레이캐스트가 UI에 걸려 의도치 않게 눌릴 수 있어서다(<see cref="PlayerEvents.OnCursorModeChanged"/>).
     /// </summary>
     public class QuestTrackerHud : MonoBehaviour
     {
@@ -39,12 +45,35 @@ namespace ProjectS.UI
         [FormerlySerializedAs("entryPrefab")]
         [SerializeField] private QuestTrackerEntry cardPrefab;
 
+        [Header("단축키")]
+        [Tooltip("트래커를 펼치면서 마우스 모드로 함께 전환하는 키. 다시 누르면 접고 커서를 잠근다.")]
+        [SerializeField] private InputAction toggleAction =
+            new InputAction("QuestTrackerToggle", InputActionType.Button, "<Keyboard>/j");
+
+        [Header("고정(핀)")]
+        [Tooltip("트래커를 접어도 남길 수 있는 퀘스트 최대 개수. 넘으면 가장 오래 고정된 것이 자동으로 풀린다.")]
+        [SerializeField] private int maxPinned = 3;
+
+        [Header("상세 팝업")]
+        [Tooltip("내용 영역을 눌렀을 때 열 팝업. UIManager 하위에 있어야 ShowPopup으로 열 수 있다.")]
+        [SerializeField] private QuestDetailPopup detailPopup;
+
         [Header("여닫기")]
         [Tooltip("접힘/펼침이 바뀔 때 발행(true=접힘). 사운드 등 추가 연출에 연결(화살표 회전은 창이 처리).")]
         [SerializeField] private BoolEvent onCollapsedChanged = new BoolEvent();
 
         // 진행 중 퀘스트 → 그 카드. 진행/완료 때 해당 카드를 찾고 지우는 데 쓴다.
-        private readonly Dictionary<QuestData, QuestTrackerEntry> entries = new();
+        private readonly Dictionary<QuestData, QuestTrackerEntry> cards = new();
+
+        // 고정된 퀘스트를 '고정한 순서대로' 담는다. 가득 찼을 때 무엇을 풀지 정하려면 순서가 필요하다.
+        private readonly List<QuestData> pinned = new();
+
+        // 수락한 순서. Dictionary는 순회 순서를 보장하지 않으므로, 정렬·요약의 기준 순서는 이 리스트가 갖는다.
+        private readonly List<QuestData> order = new();
+
+        private QuestTrackerEntry selected;
+        private bool isMouseMode;
+        private Player player;
 
         /// <summary>목록이 접혀 있는지.</summary>
         public bool IsCollapsed => window != null && window.IsCollapsed;
@@ -54,6 +83,16 @@ namespace ProjectS.UI
             QuestEvents.OnQuestAccepted += OnAccepted;
             QuestEvents.OnQuestProgressUpdated += OnProgress;
             QuestEvents.OnQuestCompleted += OnCompleted;
+            PlayerEvents.OnCursorModeChanged += OnCursorModeChanged;
+            if (window != null) window.CollapsedChanged += OnWindowCollapsedChanged;
+
+            toggleAction.Enable();
+            toggleAction.started += OnToggleShortcut;
+
+            // Player가 커서 상태를 알리기 전이므로 실제 커서로 초기 상태를 잡는다.
+            ApplyMouseMode(Cursor.lockState != CursorLockMode.Locked);
+            // 창의 startCollapsed는 이 구독보다 먼저 처리될 수 있어 초기 표시는 직접 맞춘다.
+            ApplyCollapsedView();
         }
 
         private void OnDisable()
@@ -61,6 +100,43 @@ namespace ProjectS.UI
             QuestEvents.OnQuestAccepted -= OnAccepted;
             QuestEvents.OnQuestProgressUpdated -= OnProgress;
             QuestEvents.OnQuestCompleted -= OnCompleted;
+            PlayerEvents.OnCursorModeChanged -= OnCursorModeChanged;
+            if (window != null) window.CollapsedChanged -= OnWindowCollapsedChanged;
+
+            toggleAction.started -= OnToggleShortcut;
+            toggleAction.Disable();
+        }
+
+        // ---------- 단축키 ----------
+
+        // 한 번에 '창 펼침 + 마우스 모드'를 함께 처리한다. 둘을 따로 하면 Alt → 트래커 클릭 → 카드 클릭으로
+        // 상세를 보기까지 3스텝이 걸려, 저널을 없앤 이 설계의 이점이 사라진다.
+        private void OnToggleShortcut(InputAction.CallbackContext _)
+        {
+            bool opening = IsCollapsed;
+
+            // 커서를 먼저 바꿔야 ApplyMouseMode가 돌아 카드가 눌리는 상태로 펼쳐진다.
+            if (player == null) player = FindAnyObjectByType<Player>();
+            if (player != null) player.SetCursorMode(opening);
+
+            SetCollapsed(!opening);
+        }
+
+        // ---------- 마우스 모드 ----------
+
+        private void OnCursorModeChanged(bool mouseMode) => ApplyMouseMode(mouseMode);
+
+        // 마우스 모드가 꺼지면 조작을 잠그고, 열려 있던 상세 팝업과 카드 선택을 되돌린다.
+        // (선택된 카드가 접힌 채로 남아 TPS 조작 중에 이상한 모양으로 굳는 것을 막는다.)
+        // 고정 상태는 표시 설정이므로 건드리지 않는다 — 접힌 트래커에 계속 남아야 한다.
+        private void ApplyMouseMode(bool mouseMode)
+        {
+            isMouseMode = mouseMode;
+
+            if (window != null) window.SetInteractable(mouseMode);
+            foreach (var card in cards.Values) card.SetInteractable(mouseMode);
+
+            if (!mouseMode) CloseDetail();
         }
 
         // ---------- 여닫기 ----------
@@ -68,14 +144,199 @@ namespace ProjectS.UI
         /// <summary>접힘/펼침을 토글한다. 여닫기 버튼의 OnClick에 연결한다.</summary>
         public void ToggleCollapsed() => SetCollapsed(!IsCollapsed);
 
-        /// <summary>접힘 상태를 지정한다. 카드 데이터는 유지되므로 펼치면 그대로 보인다.</summary>
+        /// <summary>
+        /// 접힘 상태를 지정한다. 접으면 고정한 퀘스트만 축소 형태(제목+목표 개수)로 남고 나머지는 숨는다.
+        /// 카드 데이터는 그대로라 펼치면 전부 복원된다.
+        /// </summary>
         /// <param name="value">true=접힘, false=펼침</param>
         public void SetCollapsed(bool value)
         {
-            if (window == null) return;
+            if (window != null) window.SetCollapsed(value);
+        }
 
-            window.SetCollapsed(value);
-            onCollapsedChanged?.Invoke(value);
+        // 창이 접힘 상태를 바꿀 때마다 호출된다. 창의 접기 버튼은 ExpandableScrollList에 직접 물려 있으므로,
+        // 표시 갱신을 SetCollapsed가 아니라 이 이벤트에 걸어야 버튼으로 접었을 때도 빠지지 않는다.
+        private void OnWindowCollapsedChanged(bool collapsed)
+        {
+            // 접으면 선택 연출을 걸어 둘 카드가 사라지므로 상세 팝업도 함께 닫는다.
+            if (collapsed) CloseDetail();
+
+            ApplyCollapsedView();
+            onCollapsedChanged?.Invoke(collapsed);
+        }
+
+        // 접힘 여부·고정·완료로 카드마다 '보일지 / 축소할지 / +N을 달지'를 정한다.
+        //
+        // 펼침: 전부 보이고 전부 전체 형태.
+        // 접힘: 맨 위에 완료 퀘스트 요약 한 줄(나머지는 +N), 그 아래에 고정 퀘스트.
+        //       완료 퀘스트를 여러 줄로 늘어놓으면 그만큼 고정 퀘스트가 아래로 밀려 나가므로 한 줄로 접는다.
+        private void ApplyCollapsedView()
+        {
+            if (!IsCollapsed)
+            {
+                foreach (var card in cards.Values)
+                {
+                    card.gameObject.SetActive(true);
+                    card.SetCompact(false);
+                    card.SetExtraCount(0);
+                }
+
+                if (window != null) window.Refresh();
+                return;
+            }
+
+            // 완료(반납 대기) 퀘스트 중 맨 앞 하나만 대표로 남기고 개수를 센다.
+            QuestData headline = null;
+            int completedCount = 0;
+            foreach (var quest in order)
+            {
+                if (!quest.IsReadyToTurnIn) continue;
+
+                completedCount++;
+                if (headline == null) headline = quest;
+            }
+
+            int shownPinned = 0;
+            foreach (var quest in order)
+            {
+                if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) continue;
+
+                bool visible;
+                int extra = 0;
+
+                if (quest.IsReadyToTurnIn)
+                {
+                    // 완료 퀘스트는 고정 여부와 무관하게 요약 줄로만 다룬다(고정 슬롯을 먹지 않는다).
+                    visible = quest == headline;
+                    extra = completedCount - 1;
+                }
+                else
+                {
+                    visible = pinned.Contains(quest) && shownPinned < maxPinned;
+                    if (visible) shownPinned++;
+                }
+
+                card.gameObject.SetActive(visible);
+                if (!visible) continue;
+
+                // 비활성 상태에서는 레이아웃 계산이 안 되므로, 켜 준 다음에 형태를 바꾼다.
+                card.SetCompact(true);
+                card.SetExtraCount(extra);
+            }
+
+            if (window != null) window.Refresh();
+        }
+
+        // 완료(반납 대기) 퀘스트를 목록 맨 위로 올린다. 그룹 안에서는 수락 순서를 유지해,
+        // 목표를 채울 때마다 남은 퀘스트들의 자리가 덩달아 뒤섞이지 않게 한다.
+        private void ApplySortOrder()
+        {
+            int index = 0;
+
+            foreach (var quest in order)
+            {
+                if (quest.IsReadyToTurnIn && cards.TryGetValue(quest, out QuestTrackerEntry card))
+                    card.transform.SetSiblingIndex(index++);
+            }
+
+            foreach (var quest in order)
+            {
+                if (!quest.IsReadyToTurnIn && cards.TryGetValue(quest, out QuestTrackerEntry card))
+                    card.transform.SetSiblingIndex(index++);
+            }
+        }
+
+        // ---------- 고정(핀) ----------
+
+        // 제목 영역 클릭: 고정을 토글한다. 이미 최대 개수면 가장 오래 고정된 것을 자동으로 푼다.
+        // "먼저 하나 푸세요"라고 막으면 플레이어가 무엇을 풀어야 할지 몰라 흐름이 끊기기 때문이다.
+        private void OnTitleClicked(QuestTrackerEntry card)
+        {
+            if (!isMouseMode) return;
+
+            // 접힌 상태에서는 고정을 건드리지 않고 트래커를 펼치기만 한다.
+            // 접힘 상태에 남아 있는 카드는 곧 고정된 카드이므로, 여기서 토글을 허용하면
+            // 누르자마자 그 카드가 목록에서 사라져 무엇을 눌렀는지 알 수 없게 된다.
+            if (IsCollapsed)
+            {
+                SetCollapsed(false);
+                return;
+            }
+
+            if (!TryFindQuest(card, out QuestData quest)) return;
+
+            if (pinned.Remove(quest))
+            {
+                card.SetPinned(false);
+            }
+            else
+            {
+                if (pinned.Count >= maxPinned)
+                {
+                    QuestData oldest = pinned[0];
+                    pinned.RemoveAt(0);
+                    if (cards.TryGetValue(oldest, out QuestTrackerEntry oldCard)) oldCard.SetPinned(false);
+                }
+
+                pinned.Add(quest);
+                card.SetPinned(true);
+            }
+
+            // 접힌 상태에서 고정을 바꿨다면 지금 바로 표시가 달라져야 한다.
+            ApplyCollapsedView();
+        }
+
+        // ---------- 카드 선택과 상세 팝업 ----------
+
+        // 내용 영역 클릭: 같은 카드를 다시 누르면 닫고, 다른 카드를 누르면 이전 선택을 되돌린 뒤 새로 연다.
+        private void OnDetailClicked(QuestTrackerEntry card)
+        {
+            if (!isMouseMode) return;
+
+            if (selected == card)
+            {
+                CloseDetail();
+                return;
+            }
+
+            if (selected != null) selected.SetSelected(false);
+
+            selected = card;
+            card.SetSelected(true);
+
+            if (detailPopup != null && TryFindQuest(card, out QuestData quest))
+            {
+                // 내용을 먼저 채우고 연다 — 첫 프레임에 빈 팝업이 보이지 않게 하기 위함.
+                detailPopup.Setup(quest, card.Visual);
+                UIManager.Instance?.ShowPopup<QuestDetailPopup>();
+            }
+        }
+
+        // 선택 해제 + 팝업 닫기. 카드가 사라지거나 마우스 모드가 꺼질 때도 쓴다.
+        private void CloseDetail()
+        {
+            if (selected != null)
+            {
+                selected.SetSelected(false);
+                selected = null;
+            }
+
+            if (detailPopup != null && detailPopup.IsVisible)
+                UIManager.Instance?.ClosePopup<QuestDetailPopup>();
+        }
+
+        private bool TryFindQuest(QuestTrackerEntry card, out QuestData quest)
+        {
+            foreach (var pair in cards)
+            {
+                if (pair.Value != card) continue;
+
+                quest = pair.Key;
+                return true;
+            }
+
+            quest = null;
+            return false;
         }
 
         // ---------- 목록 갱신 ----------
@@ -84,51 +345,97 @@ namespace ProjectS.UI
         private void OnAccepted(QuestData quest)
         {
             if (cardPrefab == null || content == null) return;
-            if (entries.ContainsKey(quest)) return;   // 중복 생성 방지
+            if (cards.ContainsKey(quest)) return;   // 중복 생성 방지
 
             QuestTrackerEntry card = Instantiate(cardPrefab, content);
             card.SetTitle(quest.Title);
             card.SetProgress(BuildProgress(quest));
+            card.SetObjectiveCount(BuildObjectiveCount(quest));
             // 수락 직후는 보통 미완료라 체크는 꺼진다(목표 0개 같은 예외 대비해 실제 상태로 초기화).
             card.SetQuestCompletedCheck(quest.IsReadyToTurnIn);
-            entries.Add(quest, card);
+            card.SetPinned(false);
+            card.SetInteractable(isMouseMode);
 
-            if (window != null) window.Refresh();
+            card.TitleClicked += OnTitleClicked;
+            card.DetailClicked += OnDetailClicked;
+            card.HeightChanged += OnCardHeightChanged;
+            cards.Add(quest, card);
+            order.Add(quest);
+
+            ApplySortOrder();
+            // 접힌 상태에서 새 퀘스트를 받으면 고정 전이므로 숨겨진 채로 시작한다.
+            ApplyCollapsedView();
         }
 
         // 목표 카운트가 바뀔 때: 해당 카드의 진행 내용과 완료 체크를 갱신한다.
         private void OnProgress(QuestData quest, int cur, int max)
         {
-            if (!entries.TryGetValue(quest, out QuestTrackerEntry card)) return;
+            if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) return;
 
             card.SetProgress(BuildProgress(quest));
+            card.SetObjectiveCount(BuildObjectiveCount(quest));
             // 모든 목표를 채워 '반납 대기(완료가능)'가 되면 체크를 켠다. 실제 반납되면 OnCompleted가 카드를 지운다.
             card.SetQuestCompletedCheck(quest.IsReadyToTurnIn);
 
-            // 진행도 문자열의 줄 수가 바뀌면 카드 높이도 바뀌므로 창을 다시 잰다.
+            // 이 진행으로 완료가 됐을 수 있다 → 맨 위로 올리고, 접힘 요약 줄(+N)도 다시 계산한다.
+            ApplySortOrder();
+            ApplyCollapsedView();
+
+            // 진행도 문자열의 줄 수가 바뀌면 카드 높이도 바뀌므로 다시 잰다.
+            card.MeasureNaturalHeight();
             if (window != null) window.Refresh();
         }
 
         // 반납(완료) 시: 그 카드를 목록에서 제거한다.
         private void OnCompleted(QuestData quest)
         {
-            if (!entries.TryGetValue(quest, out QuestTrackerEntry card)) return;
+            if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) return;
 
-            entries.Remove(quest);
+            cards.Remove(quest);
+            pinned.Remove(quest);
+            order.Remove(quest);
+
             if (card != null)
             {
+                if (selected == card) CloseDetail();
+
+                card.TitleClicked -= OnTitleClicked;
+                card.DetailClicked -= OnDetailClicked;
+                card.HeightChanged -= OnCardHeightChanged;
+
                 // Destroy는 프레임 끝에 처리돼, 그대로 두면 사라진 카드의 자리가 한 프레임 남는다.
                 // 비활성 자식은 Layout Group이 즉시 무시하므로 먼저 끄고 지운다.
                 card.gameObject.SetActive(false);
                 Destroy(card.gameObject);
             }
 
-            if (window != null) window.Refresh();
+            // 완료 줄이 하나 빠졌으니 남은 완료 퀘스트의 +N도 다시 계산한다.
+            ApplyCollapsedView();
         }
 
-        // 설명을 첫 줄에 두고, 목표별 "현재/목표"를 한 줄씩 쌓는다.
+        // 선택 연출로 슬롯 높이가 매 프레임 바뀌는 동안 호출된다.
+        // 즉시 Refresh가 아니라 예약이라, 카드 여러 장이 동시에 움직여도 리빌드는 프레임당 1회로 합쳐진다.
+        private void OnCardHeightChanged()
+        {
+            if (window != null) window.SetDirty();
+        }
+
+        // 제목 줄에 붙는 요약. 축소 형태에서 유일하게 남는 진행 정보라 한 줄로 짧게 만든다.
+        // 예) 목표 1개 "1/3", 목표 2개 "1/3 · 0/2"
+        private static string BuildObjectiveCount(QuestData quest)
+        {
+            var sb = new StringBuilder();
+            foreach (var objective in quest.Objectives)
+            {
+                if (sb.Length > 0) sb.Append(" · ");
+                sb.Append(objective.CurrentCount).Append('/').Append(objective.Target.RequiredCount);
+            }
+
+            return sb.ToString();
+        }
+
+        // 내용 영역에 들어갈 본문. 설명을 첫 줄에 두고 목표별 진행을 한 줄씩 쌓는다.
         // 줄바꿈으로 쌓기 때문에 목표가 많은 퀘스트일수록 카드가 그만큼 세로로 늘어난다.
-        // 예) "들판의 슬라임을 처치하라\n1/3"
         private static string BuildProgress(QuestData quest)
         {
             var sb = new StringBuilder();
