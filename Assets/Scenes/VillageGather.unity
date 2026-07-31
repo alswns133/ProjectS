@@ -8409,10 +8409,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1791223945}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 90.19, y: -25}
-  m_SizeDelta: {x: 140.38, y: 35.34}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &62925086
 MonoBehaviour:
@@ -103030,7 +103030,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &845931745
 RectTransform:
   m_ObjectHideFlags: 0
@@ -103994,10 +103994,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1232344008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 71.205, y: -25}
-  m_SizeDelta: {x: 102.41, y: 35.34}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &852442348
 MonoBehaviour:
@@ -128018,7 +128018,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1029491117
 RectTransform:
   m_ObjectHideFlags: 0
@@ -142349,7 +142349,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1151418750
 RectTransform:
   m_ObjectHideFlags: 0
@@ -149037,7 +149037,6 @@ GameObject:
   - component: {fileID: 1212277613}
   - component: {fileID: 1212277619}
   - component: {fileID: 1212277618}
-  - component: {fileID: 1212277620}
   m_Layer: 5
   m_Name: 'InteractionUI '
   m_TagString: Untagged
@@ -149065,13 +149064,20 @@ MonoBehaviour:
   leftPortrait: {fileID: 317931367}
   rightPortrait: {fileID: 354269881}
   nextButton: {fileID: 1493933708}
-  nextButtonLabel: {fileID: 0}
-  nextLabel: "\uB2E4\uC74C"
-  confirmLabel: "\uD655\uC778"
+  nextButtonLabel: {fileID: 434865253}
+  nextLabel: "\uB2E4\uC74C(Space)"
+  confirmLabel: "\uD655\uC778(Space)"
   prevButton: {fileID: 1451540377}
   firstButton: {fileID: 1953088011}
   skipButton: {fileID: 582865671}
   closeButton: {fileID: 741747150}
+  rewardArea: {fileID: 1151418749}
+  rewardContent: {fileID: 1151418750}
+  rewardSlotPrefab: {fileID: 6242051732135940785, guid: a9128ac6a36fe3a40a5903b6c71dcfaa, type: 3}
+  goldIcon: {fileID: 21300000, guid: 97beb65accdb1cc4ead103c673103ac5, type: 3}
+  expIcon: {fileID: 21300000, guid: 0bca278d9f0f0c44ea3392232ade7061, type: 3}
+  itemIcon: {fileID: 21300000, guid: cfcc959bcb606a446b94048712570f97, type: 3}
+  skillIcon: {fileID: 21300000, guid: f98c44a60406cac449bd1c025d165cff, type: 3}
   playerName: "\uB098"
   playerPortrait: {fileID: 21300000, guid: 56b8ba7a9e7ff724f9537d5ae707ab9a, type: 3}
   nextAction:
@@ -149403,80 +149409,6 @@ MonoBehaviour:
       m_Processors: 
       m_Groups: 
       m_Action: HubClose
-      m_Flags: 0
-    m_Flags: 0
---- !u!114 &1212277620
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1212277612}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eb50e96ca2a980847a073de93a702071, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.NpcRewardView
-  root: {fileID: 380255413}
-  titleText: {fileID: 309553612}
-  content: {fileID: 512836090}
-  slotPrefab: {fileID: 6242051732135940785, guid: a9128ac6a36fe3a40a5903b6c71dcfaa, type: 3}
-  goldIcon: {fileID: 21300000, guid: 97beb65accdb1cc4ead103c673103ac5, type: 3}
-  expIcon: {fileID: 21300000, guid: ce3719b784689ea499fb92da461324ec, type: 3}
-  itemIcon: {fileID: 21300000, guid: 1930f1f506d46264d877182d61db481f, type: 3}
-  skillIcon: {fileID: 21300000, guid: 5778b9bfcb43b7345ad5c9bda4608e79, type: 3}
-  claimButton: {fileID: 330083688}
-  backButton: {fileID: 369505033}
-  closeButton: {fileID: 480169213}
-  claimAction:
-    m_Name: RewardClaim
-    m_Type: 1
-    m_ExpectedControlType: 
-    m_Id: a3d9d508-9c7e-49dc-9655-9f108f361d6a
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 51ac71f8-a786-4a53-a459-ea9cbf58f695
-      m_Path: <Keyboard>/space
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: RewardClaim
-      m_Flags: 0
-    m_Flags: 0
-  backAction:
-    m_Name: RewardBack
-    m_Type: 1
-    m_ExpectedControlType: 
-    m_Id: 744d964e-7e4e-49f9-8595-4431c6311fcf
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 2a7b2f03-ce6e-4a86-b0f0-963ca292548b
-      m_Path: <Keyboard>/z
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: RewardBack
-      m_Flags: 0
-    m_Flags: 0
-  closeAction:
-    m_Name: RewardClose
-    m_Type: 1
-    m_ExpectedControlType: 
-    m_Id: 7556144b-7695-4625-a55b-0784fd622e66
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 0958e984-ac37-4274-8794-2d36b79ca322
-      m_Path: <Keyboard>/escape
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: RewardClose
       m_Flags: 0
     m_Flags: 0
 --- !u!1001 &1212424371
@@ -152176,7 +152108,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: -380, y: -337.5}
-  m_SizeDelta: {x: 142.41, y: 50}
+  m_SizeDelta: {x: 0, y: 50}
   m_Pivot: {x: 1, y: 0.5}
 --- !u!114 &1232344009
 MonoBehaviour:
@@ -207031,6 +206963,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Slot (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 2887265772418536267, guid: a9128ac6a36fe3a40a5903b6c71dcfaa, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -219816,7 +219752,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 380, y: -337.5}
-  m_SizeDelta: {x: 180.38, y: 50}
+  m_SizeDelta: {x: 0, y: 50}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &1791223946
 MonoBehaviour:
@@ -248412,6 +248348,10 @@ PrefabInstance:
     - target: {fileID: 2887265772418536267, guid: a9128ac6a36fe3a40a5903b6c71dcfaa, type: 3}
       propertyPath: m_Name
       value: Slot
+      objectReference: {fileID: 0}
+    - target: {fileID: 2887265772418536267, guid: a9128ac6a36fe3a40a5903b6c71dcfaa, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
