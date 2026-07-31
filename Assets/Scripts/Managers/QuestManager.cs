@@ -139,6 +139,46 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// NPC 퀘스트 목록(상태 포함)을 만든다. 그 NPC의 퀘스트를 훑어 안받음(수락가능)/진행중/완료가능만 담는다
+        /// (완료해 재수락 불가한 것은 제외). 퀘스트 선택 리스트 UI가 그대로 뿌린다.
+        /// </summary>
+        /// <param name="npcName">조회할 NPC 이름</param>
+        /// <returns>표시할 항목 목록(없으면 빈 목록)</returns>
+        public List<NpcQuestEntry> GetNpcQuestEntries(string npcName)
+        {
+            var result = new List<NpcQuestEntry>();
+            if (string.IsNullOrEmpty(npcName) || JsonManager.Instance == null) return result;
+
+            foreach (var definition in JsonManager.Instance.QuestDict.Values)
+            {
+                if (!npcName.Equals(definition.QuestNpc)) continue;
+
+                QuestData active = FindActive(definition.QuestId);
+                NpcQuestStatus status;
+                if (active != null)
+                    status = active.IsReadyToTurnIn ? NpcQuestStatus.Completable : NpcQuestStatus.InProgress;
+                else if (CanAccept(definition.QuestId))
+                    status = NpcQuestStatus.Acceptable;
+                else
+                    continue;   // 완료(비반복)·조건 미달 등 → 목록에서 제외
+
+                result.Add(new NpcQuestEntry(definition.QuestId, definition.Title, definition.QuestType, status));
+            }
+            return result;
+        }
+
+        /// <summary>진행 중 퀘스트 중 해당 ID를 찾는다(없으면 null).</summary>
+        public QuestData FindActive(int questId)
+        {
+            foreach (var quest in activeQuests)
+            {
+                if (quest.QuestId == questId)
+                    return quest;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// 이 퀘스트를 지금 수락할 수 있는지 판정한다.
         /// 공통: 진행 중 아님 + 레벨 + 선행 퀘스트. 메인은 완료 시 재수락 불가, 반복은 3슬롯 제한.
         /// </summary>
