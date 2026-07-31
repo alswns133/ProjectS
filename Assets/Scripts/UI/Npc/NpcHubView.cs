@@ -18,6 +18,8 @@ namespace ProjectS.UI
         [Header("표시")]
         [Tooltip("NPC 이름(선택 — 월드 이름표를 쓰면 비워도 됨).")]
         [SerializeField] private TMP_Text npcNameText;
+        [Tooltip("NPC 일러스트(선택). 컨트롤러의 npcPortrait를 표시하고, 없으면 숨긴다.")]
+        [SerializeField] private Image npcPortrait;
         [Tooltip("인사말 한 줄.")]
         [SerializeField] private TMP_Text greetingText;
 
@@ -47,6 +49,7 @@ namespace ProjectS.UI
         {
             if (npcNameText != null) npcNameText.text = Controller.NpcName;
             if (greetingText != null) greetingText.text = Controller.GreetingText;
+            ApplyPortrait(npcPortrait, Controller.NpcPortrait);
 
             // 그 NPC가 가진 기능 버튼만 켠다(나머지는 숨김). 씬에 미리 둔 버튼을 활성/비활성만.
             // None(기능 없음/미설정) 버튼은 항상 숨긴다.
