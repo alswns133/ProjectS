@@ -66,6 +66,16 @@ namespace ProjectS.Managers
             PlayerEvents.FireGoldChanged(gold);
         }
 
+        /// <summary>골드를 지급하고 변경을 브로드캐스트한다(퀘스트 보상 등). 0 이하면 무시한다.</summary>
+        /// <param name="amount">추가할 골드량</param>
+        public void AddGold(int amount)
+        {
+            if (amount <= 0) return;
+
+            gold += amount;
+            PlayerEvents.FireGoldChanged(gold);
+        }
+
         /// <summary>
         /// 스캐폴드용 진입점: 강화 대상 후보를 코드에서 채워넣는다.
         /// 실제 인벤토리(아이템 획득/장착)가 붙으면 이 메서드는 그쪽으로 대체된다.
