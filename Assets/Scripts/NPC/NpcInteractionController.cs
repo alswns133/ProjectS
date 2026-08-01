@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using ProjectS.Data;
 using ProjectS.Managers;
 using ProjectS.Players;
@@ -12,10 +14,9 @@ namespace ProjectS.NPCs
     /// <summary>NPC 상호작용 화면. 뷰는 <see cref="NpcInteractionController.ScreenChanged"/>로 자기 화면일 때만 켠다.</summary>
     public enum NpcScreen
     {
-        None,       // 대화 중이거나 상호작용 밖 — 허브/리스트/보상 모두 숨김
+        None,       // 대화 중이거나 상호작용 밖 — 허브/리스트 숨김
         Hub,        // 상점/퀘스트목록/닫기 버튼
-        QuestList,  // 퀘스트 선택 리스트
-        Reward      // 완료 가능 퀘스트 보상 목록
+        QuestList   // 퀘스트 선택 리스트 (보상은 별도 화면이 아니라 수락/반납 대화 마지막 줄에 표시)
     }
 
     /// <summary>NPC 머리 위 퀘스트 표시 상태. <see cref="QuestMarker"/>가 이 값으로 아이콘을 정한다.</summary>
@@ -80,6 +81,9 @@ namespace ProjectS.NPCs
         private readonly List<NpcQuestEntry> questEntries = new();
         private int lastGreetingIndex = -1;   // 직전 인사말 줄(연속 중복 회피)
 
+        private QuestData rewardTurnInTarget;   // 반납 모드일 때의 반납 대상(수락 미리보기면 null)
+        private int rewardAcceptId;             // 수락 미리보기일 때 수락할 퀘스트 id
+
         // ---- 공유 뷰가 물리는 static 훅 ----
 
         /// <summary>지금 상호작용 중인 컨트롤러(동시 하나). 허브/리스트 뷰는 싱글톤이라 이걸로 대상 NPC를 안다.</summary>
@@ -99,6 +103,9 @@ namespace ProjectS.NPCs
         /// <summary>이 NPC의 이름(대화 화자·표시용).</summary>
         public string NpcName => npcName;
 
+        /// <summary>이 NPC의 일러스트(허브·리스트·대화에서 표시). 없으면 null.</summary>
+        public Sprite NpcPortrait => npcPortrait;
+
         /// <summary>허브 본문에 띄울 인사말 한 줄(상호작용/처음으로마다 새로 뽑힘).</summary>
         public string GreetingText { get; private set; } = string.Empty;
 
@@ -112,9 +119,6 @@ namespace ProjectS.NPCs
 
         /// <summary>퀘스트 리스트에 뿌릴 항목(제목·종류·상태).</summary>
         public IReadOnlyList<NpcQuestEntry> QuestEntries => questEntries;
-
-        /// <summary>보상 화면에서 보여줄 완료 가능 퀘스트.</summary>
-        public QuestData RewardQuest { get; private set; }
 
         /// <summary>화면이 바뀔 때 발행. 뷰는 자기 화면이면 켜고 아니면 끈다(데이터는 프로퍼티에서 읽는다).</summary>
         public event Action<NpcScreen> ScreenChanged;
@@ -195,10 +199,21 @@ namespace ProjectS.NPCs
             SetScreen(NpcScreen.QuestList);
         }
 
+        // 수락 후 되돌아갈 곳. 목록을 갱신해 남은(받거나 반납할) 퀘스트가 있으면 목록으로,
+        // 하나도 없으면 상호작용을 닫는다(빈 목록을 띄우지 않는다).
+        private void OpenQuestListOrClose()
+        {
+            RefreshQuestEntries();
+            if (questEntries.Count > 0)
+                SetScreen(NpcScreen.QuestList);
+            else
+                CloseInteraction();
+        }
+
         /// <summary>허브/리스트/보상: 상호작용 종료(닫기).</summary>
         public void CloseInteraction()
         {
-            RewardQuest = null;
+            ClearReward();
             SetScreen(NpcScreen.None);   // 뷰 숨김
             interacting = false;
             UnfreezeAfterInteraction();
@@ -223,42 +238,49 @@ namespace ProjectS.NPCs
             {
                 if (active.IsReadyToTurnIn)
                 {
-                    RewardQuest = active;          // 완료 가능 → 보상 목록
-                    SetScreen(NpcScreen.Reward);
+                    // 완료 가능 → 반납 대화. 마지막 대사에 보상 미리보기가 함께 뜨고, 확인 시 반납·지급.
+                    rewardTurnInTarget = active;
+                    rewardAcceptId = 0;
+                    PlayDialogue(active.Definition.TurnInDialogueId, active.Title, active.Definition.Rewards, ConfirmReward);
                 }
                 return;                            // 진행 중이면 아무 것도 안 함
             }
 
             if (!qm.CanAccept(questId)) return;
 
-            // 안 받음 → 도입 대화(스킵 on) → 수락 → 목록 갱신
+            // 안 받음 → 도입 대화. 마지막 대사에 보상 미리보기가 함께 뜨고, 확인 시 수락.
+            //  유저가 받을 보상을 먼저 보고 수락 여부를 정하게 한다(특히 반복 퀘 가성비 판단).
             QuestTable definition = JsonManager.Instance != null ? JsonManager.Instance.Get<QuestTable>(questId) : null;
             int introId = definition != null ? definition.IntroDialogueId : 0;
             string title = definition != null ? definition.Title : string.Empty;
 
-            PlayDialogue(introId, title, true, () =>
-            {
-                qm.TryAcceptQuest(questId, out _);
-                OpenQuestList();                   // 상태가 바뀐 목록으로 되돌아온다
-            });
+            rewardTurnInTarget = null;
+            rewardAcceptId = questId;
+            PlayDialogue(introId, title, definition != null ? definition.Rewards : null, ConfirmReward);
         }
 
-        /// <summary>보상 화면: 보상 수령(반납). 실제 지급은 QuestEvents.OnQuestCompleted 구독자가 처리한다.</summary>
-        public void ClaimReward()
+        // 대화의 마지막 대사에서 확인을 눌렀을 때. 반납 대상이 있으면 반납·지급, 아니면 수락한다.
+        // 반납 지급은 QuestEvents.OnQuestCompleted 구독자가 처리한다.
+        private void ConfirmReward()
         {
             QuestManager qm = QuestManager.Instance;
-            if (qm != null && RewardQuest != null)
-                qm.TurnInQuest(RewardQuest);
+            if (qm != null)
+            {
+                if (rewardTurnInTarget != null)
+                    qm.TurnInQuest(rewardTurnInTarget);
+                else if (rewardAcceptId > 0)
+                    qm.TryAcceptQuest(rewardAcceptId, out _);
+            }
 
-            RewardQuest = null;
-            OpenQuestList();                       // 반납 후 갱신된 목록으로
+            ClearReward();
+            OpenQuestListOrClose();   // 남은 퀘스트 있으면 목록, 없으면 상호작용 종료
         }
 
-        /// <summary>보상 화면: 뒤로(목록으로).</summary>
-        public void CloseReward()
+        // 보상 대상 상태를 비운다(확인·취소·상호작용 종료 시).
+        private void ClearReward()
         {
-            RewardQuest = null;
-            OpenQuestList();
+            rewardTurnInTarget = null;
+            rewardAcceptId = 0;
         }
 
         /// <summary>
@@ -343,17 +365,18 @@ namespace ProjectS.NPCs
             ActiveChanged?.Invoke(controller);
         }
 
-        // 대사 재생. 대화 동안 허브/리스트는 숨긴다(None). 컨트롤러가 얼리므로 DialogueManager 자체 얼리기는 끈다.
-        // 대사가 없으면(ID 0 / 시스템 없음) 바로 onDone. 대화 중 Esc(취소)는 상호작용 자체를 끝낸다.
-        private void PlayDialogue(int dialogueId, string questName, bool allowSkip, Action onDone)
+        // 수락/반납 대사 재생. 마지막 대사 줄에 보상 미리보기(rewards)가 대화창 안에 함께 뜨고, 확인 시 onDone.
+        // 대화 동안 허브/리스트는 숨긴다(None). 컨트롤러가 얼리므로 DialogueManager 자체 얼리기는 끈다.
+        // 대사가 없으면(ID 0) 미리보기 없이 바로 onDone. 대화 중 Esc(취소)=상호작용 종료, Z(처음으로)=허브 복귀.
+        private void PlayDialogue(int dialogueId, string questName, IReadOnlyList<QuestRewardData> rewards, Action onDone)
         {
             SetScreen(NpcScreen.None);
 
             DialogueManager dm = DialogueManager.Instance;
             if (dm != null && dialogueId > 0)
             {
-                dm.ManageFreeze = false;   // 상호작용 전체를 컨트롤러가 얼리는 중 → 대화는 얼리기 관여 안 함
-                dm.Play(npcName, npcPortrait, dialogueId, questName, allowSkip, onDone, CloseInteraction);
+                dm.ManageFreeze = false;
+                dm.Play(npcName, npcPortrait, dialogueId, questName, true, onDone, CloseInteraction, BackToGreeting, rewards);
             }
             else
             {
@@ -385,7 +408,25 @@ namespace ProjectS.NPCs
             DialogueManager dm = DialogueManager.Instance;
             if (dm != null) dm.ManageFreeze = true;   // 대화 자체 얼리기 원복
 
-            if (input != null) input.enabled = true;
+            // 카메라·커서는 즉시 복구하되, 이동/공격 입력은 상호작용을 닫은 공유 키(Space/Esc)가
+            // 떼어질 때까지 기다렸다 켠다. 마지막 수락/확인의 Space가 그대로 점프로 새는 것을 막는다.
+            // (대화가 ManageFreeze=false로 돌아 DialogueManager의 같은 처리를 안 타므로 여기서 한다.)
+            if (input != null)
+            {
+                StopAllCoroutines();
+                StartCoroutine(ReenableInputWhenReleased());
+            }
+        }
+
+        private IEnumerator ReenableInputWhenReleased()
+        {
+            Keyboard kb = Keyboard.current;
+            while (kb != null && (kb.spaceKey.isPressed || kb.escapeKey.isPressed))
+                yield return null;
+
+            // 그 사이 새 상호작용이 시작됐으면 건드리지 않는다(그 상호작용이 얼리기를 소유).
+            if (!interacting && input != null)
+                input.enabled = true;
         }
     }
 }

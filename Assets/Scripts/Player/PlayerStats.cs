@@ -16,6 +16,9 @@ namespace ProjectS.Players
         // 이 값으로 PlayerLevelTable을 조회해 HP/AD/방어도가 정해진다.
         [SerializeField] private int level = 1;
 
+        // 현재 레벨에서 쌓은 경험치(0 ~ RequiredExp). AddExp로 쌓이고 임계치를 넘으면 자동 레벨업한다.
+        private int currentExp;
+
         // 아래 전투 스탯은 테이블이 덮어쓴다(HP·AD·방어도는 PlayerLevelTable, 치명타는 PlayerStatTable).
         // 인스펙터 값은 테이블 로딩이 끝나기 전과 행 조회 실패 시에만 쓰이는 폴백이다.
         // maxHp를 0으로 두면 로딩 대기 중 IsDead가 true가 되어 스폰 즉시 사망 판정이 나므로 0으로 두지 않는다.
@@ -81,11 +84,11 @@ namespace ProjectS.Players
         /// </summary>
         public string SkillSetPrefix { get; private set; }
 
-        /// <summary>
-        /// 현재 레벨에서 다음 레벨까지 필요한 경험치.
-        /// 경험치 획득·레벨업 로직은 아직 없고, 값만 테이블에서 읽어 들고 있다.
-        /// </summary>
+        /// <summary>현재 레벨에서 다음 레벨까지 필요한 경험치(PlayerLevelTable에서 읽는다).</summary>
         public int RequiredExp { get; private set; }
+
+        /// <summary>현재 레벨에서 쌓은 경험치(0 ~ RequiredExp).</summary>
+        public int CurrentExp => currentExp;
 
         /// <summary>
         /// 총 AD. 무기·공퍼·패시브·깡공이 모두 미구현이라 현재는 테이블의 기본 AD가 그대로 들어간다.
@@ -152,6 +155,11 @@ namespace ProjectS.Players
             // 폴백 값으로 자원을 먼저 채워, currentHp가 0인 채 IsDead가 true가 되는 창(=스폰 즉시 사망)을 없앤다.
             FillResourcesToMax();
         }
+
+        // HUD 등 UI가 (재)구독 시 현재 스탯을 다시 달라고 요청하면 전체를 재발행한다.
+        // 상호작용 중 HUD가 비활성되어 놓친 변경(퀘스트 보상 등)을 다시 켜질 때 복구하기 위함이다.
+        private void OnEnable() => PlayerEvents.OnStatsRefreshRequested += PublishAllStats;
+        private void OnDisable() => PlayerEvents.OnStatsRefreshRequested -= PublishAllStats;
 
         // async void는 Awake/Start 같은 진입점에서만 예외적으로 허용한다(JsonManager와 같은 방침).
         private async void Start()
@@ -241,6 +249,35 @@ namespace ProjectS.Players
             PublishAllStats();
         }
 
+        /// <summary>
+        /// 경험치를 지급한다(퀘스트 보상 등). 임계치(RequiredExp)를 넘으면 자동으로 레벨업하고,
+        /// 남은 경험치는 다음 레벨로 이월한다(한 번에 여러 레벨도 가능). 최대 레벨이면 경험치 바를 가득 채운다.
+        /// 레벨업 시 SetLevel이 HP·레벨 변경을 발행하고, 여기서 경험치 변경(FireExpChanged)을 발행하므로
+        /// 구독 중인 HUD는 자동으로 갱신된다.
+        /// </summary>
+        /// <param name="amount">추가할 경험치(0 이하는 무시)</param>
+        public void AddExp(int amount)
+        {
+            if (amount <= 0) return;
+
+            currentExp += amount;
+
+            // 임계치를 넘는 동안 레벨업. RequiredExp는 SetLevel→ApplyLevelRow에서 새 레벨 값으로 갱신된다.
+            while (RequiredExp > 0 && currentExp >= RequiredExp)
+            {
+                int consumed = RequiredExp;
+                int before = level;
+                SetLevel(level + 1);
+                if (level == before) break;   // 더 오를 레벨이 없음(최대 레벨) → 중단
+                currentExp -= consumed;
+            }
+
+            // 최대 레벨에서 넘친 경험치는 바를 가득 찬 상태로 고정한다(정상 진행 중엔 이미 RequiredExp 미만).
+            if (RequiredExp > 0) currentExp = Mathf.Min(currentExp, RequiredExp);
+
+            PlayerEvents.FireExpChanged(currentExp, RequiredExp);
+        }
+
         // 기획: 시작 시 HP·스태미나·게이지는 모두 가득 찬 상태다.
         private void FillResourcesToMax()
         {
@@ -255,6 +292,7 @@ namespace ProjectS.Players
             PlayerEvents.FireHpChanged(currentHp, maxHp);
             PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
             PlayerEvents.FireSgChanged(currentSkillGauge, maxSkillGauge);
+            if (RequiredExp > 0) PlayerEvents.FireExpChanged(currentExp, RequiredExp);
         }
 
         private void Update()

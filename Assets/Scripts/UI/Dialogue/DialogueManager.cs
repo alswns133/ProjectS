@@ -44,11 +44,27 @@ namespace ProjectS.UI
         [SerializeField] private Image rightPortrait;      // NPC·제3자 초상화
 
         [Header("버튼")]
-        [SerializeField] private Button nextButton;   // 다음
+        [SerializeField] private Button nextButton;   // 다음(마지막 줄에선 '확인')
+        [Tooltip("다음 버튼의 라벨. 마지막 줄에서 '다음'→'확인'으로 바꾼다(선택 — 없으면 라벨 안 바꿈).")]
+        [SerializeField] private TMP_Text nextButtonLabel;
+        [SerializeField] private string nextLabel = "다음(Space)";
+        [SerializeField] private string confirmLabel = "확인(Space)";
         [SerializeField] private Button prevButton;   // 이전
         [SerializeField] private Button firstButton;  // 처음으로
         [SerializeField] private Button skipButton;   // 스킵
         [SerializeField] private Button closeButton;  // 닫기
+
+        [Header("보상 미리보기 (마지막 대사 줄에만 표시)")]
+        [Tooltip("보상 미리보기 영역 루트. 마지막 줄이고 보상이 있을 때만 켠다.")]
+        [SerializeField] private GameObject rewardArea;
+        [Tooltip("보상 칸이 담기는 부모.")]
+        [SerializeField] private RectTransform rewardContent;
+        [Tooltip("복제해 쓸 보상 칸 프리팹.")]
+        [SerializeField] private NpcRewardSlot rewardSlotPrefab;
+        [SerializeField] private Sprite goldIcon;
+        [SerializeField] private Sprite expIcon;
+        [SerializeField] private Sprite itemIcon;
+        [SerializeField] private Sprite skillIcon;
 
         [Header("플레이어 (임시 기본값 — 나중에 세이브 캐릭터로 교체)")]
         [SerializeField] private string playerName = "나";
@@ -67,6 +83,15 @@ namespace ProjectS.UI
 
         // 닫기(Esc/버튼)로 취소될 때 호출. 상호작용 컨트롤러가 "대화 중 취소 = 상호작용 종료"로 받는다.
         private Action onCancel;
+
+        // 처음으로(Z/버튼)를 눌렀을 때 호출. 지정되면 현재 대화 첫 줄이 아니라 "첫 상호작용(허브)"으로 돌아간다.
+        // 없으면(standalone 대화) 기존처럼 현재 대화의 첫 줄로 되돌린다.
+        private Action onFirst;
+
+        // 마지막 대사 줄에서 대화창 안에 함께 띄울 보상 미리보기(없으면 안 띄움). 상호작용이 수락/반납 대화에
+        // 넘겨준다 — 유저가 마지막 대사에서 일러스트·대사와 함께 받을 보상을 보고 확인하게 한다.
+        private IReadOnlyList<QuestRewardData> rewardPreview;
+        private readonly List<NpcRewardSlot> rewardSlots = new();
 
         // 이번 대화에서 스킵을 허용할지. 인사말=false, 퀘스트 내용=true(퀘스트 대화부터 스킵 활성).
         private bool allowSkip;
@@ -141,7 +166,9 @@ namespace ProjectS.UI
         /// <param name="allowSkip">스킵 버튼·입력 활성 여부(인사말=false, 퀘스트 내용=true)</param>
         /// <param name="onComplete">끝까지/스킵 시 호출(취소면 호출 안 됨)</param>
         /// <param name="onCancel">닫기(Esc)로 취소 시 호출(없으면 아무 것도 안 함)</param>
-        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, int dialogueId, string questName, bool allowSkip, Action onComplete, Action onCancel = null)
+        /// <param name="onFirst">처음으로(Z) 시 호출(지정하면 첫 줄이 아니라 첫 상호작용으로 복귀). 없으면 현재 대화 첫 줄로.</param>
+        /// <param name="rewardPreview">마지막 대사 줄에 대화창 안에 함께 띄울 보상 목록(없으면 안 띄움).</param>
+        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, int dialogueId, string questName, bool allowSkip, Action onComplete, Action onCancel = null, Action onFirst = null, IReadOnlyList<QuestRewardData> rewardPreview = null)
         {
             DialogueTable row = JsonManager.Instance != null ? JsonManager.Instance.Get<DialogueTable>(dialogueId) : null;
             if (row == null)
@@ -150,7 +177,7 @@ namespace ProjectS.UI
                 onComplete?.Invoke();
                 return;
             }
-            Play(speakerNpcName, speakerNpcPortrait, row.Lines, questName, allowSkip, onComplete, onCancel);
+            Play(speakerNpcName, speakerNpcPortrait, row.Lines, questName, allowSkip, onComplete, onCancel, onFirst, rewardPreview);
         }
 
         /// <summary>
@@ -163,7 +190,9 @@ namespace ProjectS.UI
         /// <param name="allowSkip">스킵 버튼·입력 활성 여부(인사말=false, 퀘스트 내용=true)</param>
         /// <param name="onComplete">끝까지/스킵 시 호출(취소면 호출 안 됨)</param>
         /// <param name="onCancel">닫기(Esc)로 취소 시 호출(없으면 아무 것도 안 함)</param>
-        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, IReadOnlyList<DialogueLine> dialogueLines, string questName, bool allowSkip, Action onComplete, Action onCancel = null)
+        /// <param name="onFirst">처음으로(Z) 시 호출(지정하면 첫 줄이 아니라 첫 상호작용으로 복귀). 없으면 현재 대화 첫 줄로.</param>
+        /// <param name="rewardPreview">마지막 대사 줄에 대화창 안에 함께 띄울 보상 목록(없으면 안 띄움).</param>
+        public void Play(string speakerNpcName, Sprite speakerNpcPortrait, IReadOnlyList<DialogueLine> dialogueLines, string questName, bool allowSkip, Action onComplete, Action onCancel = null, Action onFirst = null, IReadOnlyList<QuestRewardData> rewardPreview = null)
         {
             if (IsPlaying) return;
 
@@ -173,8 +202,7 @@ namespace ProjectS.UI
                 return;
             }
 
-            this.allowSkip = allowSkip;
-            if (skipButton != null) skipButton.gameObject.SetActive(allowSkip);   // 스킵은 퀘스트 내용부터
+            this.allowSkip = allowSkip;   // 스킵 버튼 표시는 ShowCurrentLine이 줄마다 관리(마지막 줄엔 숨김)
 
             npcName = speakerNpcName;
             npcPortrait = speakerNpcPortrait;
@@ -182,6 +210,8 @@ namespace ProjectS.UI
             index = 0;
             this.onComplete = onComplete;
             this.onCancel = onCancel;
+            this.onFirst = onFirst;
+            this.rewardPreview = rewardPreview;
             IsPlaying = true;
 
             // 퀘스트명(있을 때만 표시).
@@ -222,20 +252,33 @@ namespace ProjectS.UI
             ShowCurrentLine();
         }
 
-        /// <summary>대화의 첫 대사로 되돌아간다(Z 또는 버튼).</summary>
+        /// <summary>
+        /// 처음으로(Z 또는 버튼). onFirst가 지정된 상호작용 대화면 첫 상호작용(허브)으로 돌아가고,
+        /// 아니면(standalone) 현재 대화의 첫 대사로 되돌린다.
+        /// </summary>
         public void First()
         {
             if (!IsPlaying) return;
+
+            if (onFirst != null)
+            {
+                Action callback = onFirst;   // EndSession이 지우기 전에 잡아둔다
+                EndSession();
+                callback?.Invoke();
+                return;
+            }
 
             index = 0;
             ShowCurrentLine();
         }
 
-        /// <summary>남은 대사를 건너뛰고 바로 완료한다(Tab 또는 버튼).</summary>
+        /// <summary>남은 대사를 건너뛰고 마지막 대사로 이동한다(Tab 또는 버튼). 완료는 마지막에서 '확인'으로 한다.</summary>
         public void Skip()
         {
             if (!IsPlaying) return;
-            Complete();
+
+            index = lines.Count - 1;
+            ShowCurrentLine();
         }
 
         /// <summary>대화를 취소한다. 정상 완료(onComplete)로는 넘어가지 않고 onCancel만 호출한다(Esc 또는 버튼).</summary>
@@ -253,6 +296,19 @@ namespace ProjectS.UI
         {
             DialogueLine line = lines[index];
             if (lineText != null) lineText.text = line.Text;
+
+            // 첫 줄이면 이전 버튼을 숨긴다(눌러도 갈 데가 없음). 키는 Previous()의 가드로도 막힌다.
+            if (prevButton != null) prevButton.gameObject.SetActive(index > 0);
+
+            // 마지막 줄이면 다음 버튼 라벨을 '확인'으로(누르면 대화가 완료되므로). 키(Space)는 그대로 완료시킨다.
+            if (nextButtonLabel != null)
+                nextButtonLabel.text = (index >= lines.Count - 1) ? confirmLabel : nextLabel;
+
+            // 스킵은 허용된 대화에서만, 그리고 마지막 줄에선 숨긴다(더 건너뛸 게 없음).
+            if (skipButton != null) skipButton.gameObject.SetActive(allowSkip && index < lines.Count - 1);
+
+            // 마지막 줄에서만 보상 미리보기를 대화창 안에 함께 띄운다(있을 때).
+            UpdateRewardPreview(index >= lines.Count - 1);
 
             if (line.Speaker == DialogueSpeaker.Player)
             {
@@ -310,9 +366,12 @@ namespace ProjectS.UI
             lines = null;
             onComplete = null;
             onCancel = null;
+            onFirst = null;
+            rewardPreview = null;
             EnableInput(false);
             UnfreezePlayer();
             ReleaseOtherHandles();
+            if (rewardArea != null) rewardArea.SetActive(false);
             if (root != null) root.SetActive(false);
         }
 
@@ -366,6 +425,61 @@ namespace ProjectS.UI
             }
             otherHandles.Clear();
         }
+
+        // ---------- 보상 미리보기 ----------
+
+        // 마지막 줄이고 보상이 있을 때만 보상 영역을 켜고 채운다. 아니면 끈다.
+        private void UpdateRewardPreview(bool isLastLine)
+        {
+            bool show = isLastLine && rewardPreview != null && rewardPreview.Count > 0;
+
+            if (rewardArea != null) rewardArea.SetActive(show);
+            if (show) PopulateRewards();
+        }
+
+        // 보상 칸을 보상 수에 맞춰 켜고 채운다(부족하면 늘리고 남으면 끈다).
+        private void PopulateRewards()
+        {
+            int count = rewardPreview.Count;
+
+            while (rewardSlots.Count < count && rewardSlotPrefab != null && rewardContent != null)
+                rewardSlots.Add(Instantiate(rewardSlotPrefab, rewardContent));
+
+            for (int i = 0; i < rewardSlots.Count; i++)
+            {
+                if (i < count)
+                {
+                    rewardSlots[i].gameObject.SetActive(true);
+                    QuestRewardData reward = rewardPreview[i];
+                    rewardSlots[i].Bind(RewardName(reward), RewardAmount(reward), RewardIcon(reward.Type));
+                }
+                else
+                {
+                    rewardSlots[i].gameObject.SetActive(false);
+                }
+            }
+        }
+
+        private static string RewardName(QuestRewardData reward) => reward.Type switch
+        {
+            QuestRewardType.Gold => "골드",
+            QuestRewardType.Exp => "경험치",
+            QuestRewardType.Item => $"아이템 {reward.TargetId}",
+            QuestRewardType.SkillUnlock => "스킬 해금",
+            _ => reward.Type.ToString(),
+        };
+
+        private static string RewardAmount(QuestRewardData reward)
+            => reward.Type == QuestRewardType.SkillUnlock ? string.Empty : $"x{reward.Amount}";
+
+        private Sprite RewardIcon(QuestRewardType type) => type switch
+        {
+            QuestRewardType.Gold => goldIcon,
+            QuestRewardType.Exp => expIcon,
+            QuestRewardType.Item => itemIcon,
+            QuestRewardType.SkillUnlock => skillIcon,
+            _ => null,
+        };
 
         // ---------- 플레이어 얼리기 ----------
 
