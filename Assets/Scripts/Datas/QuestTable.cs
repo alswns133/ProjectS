@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ProjectS.Debugging;
 
 namespace ProjectS.Data
 {
@@ -50,8 +51,19 @@ namespace ProjectS.Data
         /// <summary>표시용 제목. 콘텐츠 확정 후 채운다(현재는 자리만).</summary>
         public string Title = string.Empty;
 
-        /// <summary>표시용 설명. 콘텐츠 확정 후 채운다.</summary>
+        /// <summary>표시용 설명(상세 팝업의 스토리). 길어도 된다 — 팝업은 넓다.</summary>
         public string Description = string.Empty;
+
+        /// <summary>
+        /// HUD 퀘스트 트래커 카드에 들어갈 한 문장 요약. 카드는 폭이 좁아 <b>두 줄을 넘기면 안 되고</b>,
+        /// 한 장이 길어지면 다른 퀘스트가 스크롤 밖으로 밀려 트래커가 제 역할을 잃는다.
+        /// 그래서 <see cref="MaxTrackerTextLength"/>를 넘으면 Validate가 로딩 시점에 경고와 함께 잘라낸다.
+        /// 비워 두면 <see cref="Description"/>을 잘라서 쓴다(기존 데이터를 한 번에 고치지 않아도 되게).
+        /// </summary>
+        public string TrackerText = string.Empty;
+
+        /// <summary>트래커 요약의 최대 길이. 카드 폭 기준 두 줄에 들어가는 한도다.</summary>
+        public const int MaxTrackerTextLength = 40;
 
         int IDataRow.Index => QuestId;
 
@@ -109,6 +121,16 @@ namespace ProjectS.Data
             {
                 if (target.RequiredCount < 1)
                     target.RequiredCount = 1;
+            }
+
+            // 트래커 카드는 두 줄이 한계라 길이를 제한한다. 다만 탈락시키지 않고 잘라서 통과시킨다 —
+            // RequiredCount 보정과 같은 급이다. 표시용 문구가 길다는 이유로 행을 버리면 그 퀘스트 자체가
+            // 사라져(JsonManager가 continue) NPC가 주지 못하고 선행 체인까지 끊긴다. 원인에 비해 피해가 크다.
+            if (TrackerText != null && TrackerText.Length > MaxTrackerTextLength)
+            {
+                DevLog.Warning($"[QuestTable] QuestId {QuestId}: TrackerText가 {MaxTrackerTextLength}자를 넘어" +
+                               $"({TrackerText.Length}자) 잘랐습니다. 긴 설명은 Description(팝업 스토리)에 넣으세요.");
+                TrackerText = TrackerText.Substring(0, MaxTrackerTextLength);
             }
 
             Rewards ??= new List<QuestRewardData>();

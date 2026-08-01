@@ -38,6 +38,9 @@ namespace ProjectS.UI
         [Tooltip("선택 시 흐리게 만들기 위한 CanvasGroup. visual에 붙인다.")]
         [SerializeField] private CanvasGroup visualGroup;
 
+        [Tooltip("visual의 Content Size Fitter. 선택 연출이 카드 높이를 몰고 갈 동안 잠시 꺼야 한다(비우면 Awake에서 찾는다).")]
+        [SerializeField] private ContentSizeFitter visualFitter;
+
         [Header("제목 영역 — 누르면 고정")]
         [Tooltip("제목 영역 전체를 덮는 버튼.")]
         [SerializeField] private Button titleButton;
@@ -68,7 +71,13 @@ namespace ProjectS.UI
         [Tooltip("내용 영역을 덮는 버튼.")]
         [SerializeField] private Button detailButton;
 
-        [SerializeField] private TMP_Text progressText;         // 진행 내용(여러 줄이면 카드가 늘어난다)
+        [SerializeField] private TMP_Text progressText;         // 진행 내용(줄 수만큼 카드가 늘어난다)
+
+        [Tooltip("진행 내용의 LayoutElement. 두 줄 상한을 여기 preferredHeight로 써 넣는다.")]
+        [SerializeField] private LayoutElement progressLayout;
+
+        [Tooltip("진행 내용이 차지할 수 있는 최대 줄 수. 넘치면 …으로 잘린다.")]
+        [SerializeField] private int maxProgressLines = 2;
 
         [Header("선택 연출")]
         [Tooltip("선택됐을 때 슬롯이 줄어들 높이. 카드가 세로로 접히는 정도를 정한다.")]
@@ -134,11 +143,21 @@ namespace ProjectS.UI
         private void Awake()
         {
             slot = GetComponent<LayoutElement>();
-            if (visual != null) basePosition = visual.anchoredPosition;
+
+            if (visual != null)
+            {
+                basePosition = visual.anchoredPosition;
+                // 인스펙터에 연결하지 않은 기존 프리팹도 그대로 동작하게 여기서 찾아 둔다.
+                if (visualFitter == null) visualFitter = visual.GetComponent<ContentSizeFitter>();
+            }
 
             // 상태 표시 전용이라 클릭을 막는다. 눌러서 꺼버리면 표시가 실제 퀘스트 상태와 어긋난다.
             // (Toggle의 Transition을 None으로 둬야 비활성 색으로 어두워지지 않는다.)
             if (completedToggle != null) completedToggle.interactable = false;
+
+            // 상한을 넘긴 문장은 잘린 티(…)가 나야 한다. 그냥 두면 세 번째 줄이 카드 밖으로 나가
+            // 마스크에 글자 중간이 뭉텅 잘린다.
+            if (progressText != null) progressText.overflowMode = TextOverflowModes.Ellipsis;
 
             ApplyTitleColor();
         }
@@ -212,9 +231,32 @@ namespace ProjectS.UI
             if (disintegrating) return;
             if (visual == null || !visual.gameObject.activeInHierarchy) return;
 
+            // 폭이 정해져야 TMP가 몇 줄이 되는지 알 수 있으므로, 먼저 한 번 세우고 상한을 적용한 뒤 다시 세운다.
             LayoutRebuilder.ForceRebuildLayoutImmediate(visual);
+            ClampProgressLines();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(visual);
+
             naturalHeight = LayoutUtility.GetPreferredHeight(visual);
             Apply();
+        }
+
+        // 진행 내용의 높이를 최대 줄 수로 자른다. LayoutElement는 Graphic(우선순위 0)보다 우선순위가 높아
+        // 여기 써 넣은 값이 TMP가 보고하는 높이를 이긴다.
+        //
+        // 데이터 쪽에서 이미 TrackerText 길이를 막고 있으므로(QuestTable.Validate) 평소에는 걸릴 일이 없다.
+        // 이건 폰트·해상도·언어가 바뀌어 예상보다 줄이 늘어났을 때를 위한 안전장치다.
+        private void ClampProgressLines()
+        {
+            if (progressText == null || progressLayout == null) return;
+            if (maxProgressLines < 1) return;
+
+            TMP_FontAsset font = progressText.font;
+            if (font == null || font.faceInfo.pointSize <= 0f) return;
+
+            float lineHeight = font.faceInfo.lineHeight / font.faceInfo.pointSize * progressText.fontSize;
+            float cap = maxProgressLines * lineHeight;
+
+            progressLayout.preferredHeight = Mathf.Min(progressText.preferredHeight, cap);
         }
 
         /// <summary>클릭 가능 여부. 마우스 모드가 아닐 때 꺼서 오조작을 막는다.</summary>
@@ -340,11 +382,18 @@ namespace ProjectS.UI
             if (disintegrating) return;
 
             float t = ease.Evaluate(animProgress);
+            float height = Mathf.Lerp(naturalHeight, selectedSlotHeight, t);
 
-            if (slot != null) slot.preferredHeight = Mathf.Lerp(naturalHeight, selectedSlotHeight, t);
+            if (slot != null) slot.preferredHeight = height;
 
             if (visual != null)
             {
+                // 슬롯만 줄이면 아래 카드는 올라오지만 카드 자체는 그대로라 요약글이 계속 보인다.
+                // 보이는 카드도 같이 줄여야 visual의 RectMask2D가 내용 영역을 잘라내 '접히는' 그림이 된다.
+                // Content Size Fitter를 켜 둔 채로는 매 프레임 내용 높이로 되돌리므로 연출 중에는 꺼야 한다.
+                if (visualFitter != null) visualFitter.enabled = t <= 0f;
+                if (t > 0f) visual.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+
                 visual.localScale = Vector3.one * Mathf.Lerp(1f, selectedScale, t);
                 visual.anchoredPosition = Vector2.Lerp(basePosition, basePosition + selectedOffset, t);
             }
