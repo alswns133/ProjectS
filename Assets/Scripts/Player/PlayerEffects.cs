@@ -102,13 +102,19 @@ namespace ProjectS.Players
         }
 
         /// <summary>
-        /// 해당 이펙트의 방출을 멈춘다(이미 나온 파티클은 수명대로 자연 소멸).
+        /// 해당 이펙트를 즉시 제거한다(방출 중지 + 이미 나온 파티클까지 삭제).
         /// 차징·오라 같은 루프 이펙트를 꺼야 하는 프레임에 Animation Event로 호출한다.
+        ///
+        /// 2026-08-02까지는 방출만 멈추는 Stop()이라 이미 나온 파티클이 수명대로 남았는데,
+        /// Loop가 켜진 무기 트레일이 OffEffect 뒤에도 꼬리를 끌어 AllStopEffect와 같은
+        /// StopEmittingAndClear로 바꿨다. 즉 이 함수는 "이 프레임에 화면에서 지운다"는 뜻이다.
+        /// 서서히 사그라드는 연출이 필요하면 여기서 처리하지 말고,
+        /// OffEffect를 늦게 찍거나 파티클 수명을 줄이는 쪽으로 조정한다.
         /// </summary>
         public void OffEffect(string key)
         {
             if (!TryGetSlot(key, out EffectSlot slot)) return;
-            slot.particle.Stop();
+            slot.particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
 
         /// <summary>
