@@ -109,6 +109,17 @@ namespace ProjectS.Players
         /// </summary>
         public bool IsStablyGrounded => IsGrounded && verticalVelocity <= 0f;
 
+        /// <summary>
+        /// 회피(구르기) 발동용 접지 판정. IsStablyGrounded와 목적은 같지만 접지 '근거'를
+        /// controller.isGrounded 대신 짧은 레이캐스트(IsEffectivelyGrounded)로 삼는다.
+        /// controller.isGrounded는 프레임당 하강 이동량(move*deltaTime)에 의존해, 고프레임에서
+        /// 그 이동량이 작아지면 바닥을 충분히 파고들지 못해 간헐적으로 false가 된다. 그 프레임에
+        /// TryRoll이 씹히던 문제(고사양 PC에서 스킬을 회피로 캔슬할 수 없던 직접 원인)를 없애기 위해
+        /// 프레임레이트와 무관한 레이캐스트 기반으로 바꾼다.
+        /// 상승 중(점프)엔 지상 회피가 아니라 공중 대시(TryJumpDash)가 맞으므로 verticalVelocity>0은 제외한다.
+        /// </summary>
+        public bool IsGroundedForDodge => IsEffectivelyGrounded() && verticalVelocity <= 0f;
+
         public bool CanJump => IsStablyGrounded;
 
         /// <summary>

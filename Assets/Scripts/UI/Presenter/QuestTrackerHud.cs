@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -91,6 +92,11 @@ namespace ProjectS.UI
 
             toggleAction.Enable();
             toggleAction.started += OnToggleShortcut;
+
+            // 이 트래커는 씬마다 새로 생성되는 씬 오브젝트라, 켜질 때 이미 진행 중인 퀘스트를 다시 그려 넣는다.
+            // 카드를 이벤트(수락/진행/완료)로만 만들어서, 이전 씬에서 수락한 퀘스트는 이 복원이 없으면
+            // 씬 전환 후 목록에서 사라진다(이벤트가 다시 오지 않기 때문). 커서/접힘 상태를 맞추기 전에 카드를 채운다.
+            RebuildActiveQuests();
 
             // Player가 커서 상태를 알리기 전이므로 실제 커서로 초기 상태를 잡는다.
             ApplyMouseMode(Cursor.lockState != CursorLockMode.Locked);
@@ -278,6 +284,7 @@ namespace ProjectS.UI
 
             if (pinned.Remove(quest))
             {
+                quest.IsPinned = false;   // QuestData에 저장 → 씬 전환 후에도 유지
                 card.SetPinned(false);
             }
             else
@@ -286,9 +293,11 @@ namespace ProjectS.UI
                 {
                     QuestData oldest = pinned[0];
                     pinned.RemoveAt(0);
+                    oldest.IsPinned = false;   // 자동으로 풀리는 것도 데이터에 반영
                     if (cards.TryGetValue(oldest, out QuestTrackerEntry oldCard)) oldCard.SetPinned(false);
                 }
 
+                quest.IsPinned = true;
                 pinned.Add(quest);
                 card.SetPinned(true);
             }
@@ -373,6 +382,61 @@ namespace ProjectS.UI
         }
 
         // ---------- 목록 갱신 ----------
+
+        // 켜질 때(주로 씬 전환으로 새로 생성될 때) QuestManager의 현재 진행 중인 퀘스트를 다시 그려 넣는다.
+        // OnAccepted를 그대로 재사용한다 — 진행도·완료 체크를 퀘스트의 현재 상태에서 다시 읽어 만들고,
+        // 중복 카드 생성은 OnAccepted 내부의 cards.ContainsKey 가드가 막는다.
+        private void RebuildActiveQuests()
+        {
+            QuestManager manager = QuestManager.Instance;
+            if (manager == null) return;   // 부트스트랩 없이 직접 씬 테스트 등: 매니저가 없으면 복원 생략
+
+            foreach (QuestData quest in manager.ActiveQuests)
+            {
+                OnAccepted(quest);
+
+                // 핀 복원: 핀은 QuestData(씬을 넘어 유지)에 저장되므로 새 트래커에서도 되살린다.
+                // maxPinned를 넘는 잉여 핀은 데이터에서도 풀어, 표시와 저장 상태가 어긋나지 않게 한다.
+                if (!quest.IsPinned) continue;
+
+                if (pinned.Count < maxPinned && cards.TryGetValue(quest, out QuestTrackerEntry card))
+                {
+                    pinned.Add(quest);
+                    card.SetPinned(true);
+                }
+                else
+                {
+                    quest.IsPinned = false;
+                }
+            }
+
+            // 카드를 한꺼번에 만든 직후엔 각 카드의 슬롯 높이(LayoutElement.preferredHeight)가 아직 0이라,
+            // Content 높이가 0으로 계산돼 스크롤 뷰포트에 잘려 '활성인데 안 보이는' 상태가 된다.
+            // (평소엔 수락 후 OnProgress가 높이를 재줘서 보였다.) 카드마다 높이를 확정하고
+            // — 비활성 카드는 MeasureNaturalHeight 내부의 activeInHierarchy 가드로 무시된다 —
+            // 창 높이 재계산은 SetDirty로 프레임 끝(LateUpdate)에 한 번 돌게 예약한다(레이아웃이 안정된 뒤).
+            foreach (QuestTrackerEntry card in cards.Values)
+                card.MeasureNaturalHeight();
+
+            if (window != null) window.SetDirty();
+
+            // 패널이 막 켜진 이 프레임엔 TMP 메시·레이아웃이 아직 준비 전이라 위 측정이 0을 돌려줄 수 있다.
+            // 그러면 카드 슬롯 높이가 0으로 남아 Content 높이가 0이 되고, 카드가 스크롤 마스크에 잘려
+            // '활성인데 안 보이는' 상태가 된다. 다음 프레임에 다시 재고 창을 갱신해 확실히 높이를 잡는다.
+            if (isActiveAndEnabled) StartCoroutine(RemeasureNextFrame());
+        }
+
+        // 다음 프레임(=레이아웃/TMP 준비 완료)에 카드 높이를 다시 재고 창을 갱신한다.
+        // 씬 전환처럼 '켜지는 프레임에 카드를 한꺼번에 만드는' 경우의 0 높이 문제를 해결하기 위함이다.
+        private IEnumerator RemeasureNextFrame()
+        {
+            yield return null;
+
+            foreach (QuestTrackerEntry card in cards.Values)
+                card.MeasureNaturalHeight();
+
+            if (window != null) window.Refresh();
+        }
 
         // 퀘스트 수락 시: 카드를 하나 만들어 목록에 추가한다.
         private void OnAccepted(QuestData quest)

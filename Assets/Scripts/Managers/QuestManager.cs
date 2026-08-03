@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Events;
@@ -6,6 +7,7 @@ using ProjectS.Players;
 
 namespace ProjectS.Managers
 {
+
     /// <summary>
     /// 진행 중/완료한 퀘스트의 소유자이자 진행 규칙의 단일 창구.
     /// 퀘스트 '정의'는 JsonManager(QuestTable)에서 읽고, 여기서는 수락·진행·반납만 다룬다.
@@ -14,6 +16,7 @@ namespace ProjectS.Managers
     /// 재화·아이템·경험치·스킬해금 지급은 각 소유자가 구독해서 처리한다(기획서 7장). 퀘스트 로직이
     /// 재화/스킬 시스템을 직접 참조하지 않게 하는 경계다.
     /// </summary>
+    [RequireComponent(typeof(QuestRewardGranter))]
     public class QuestManager : MonoBehaviour
     {
         /// <summary>반복 퀘스트 동시 수락 슬롯 한도(기획서 2.2).</summary>
@@ -24,6 +27,13 @@ namespace ProjectS.Managers
 
         // 현재 진행 중인 퀘스트. NPC 조회·진행 보고가 이 목록을 훑는다.
         private readonly List<QuestData> activeQuests = new();
+
+        /// <summary>
+        /// 현재 진행 중인 퀘스트 목록(읽기 전용). 씬마다 새로 생성되는 UI(퀘스트 트래커 등)가
+        /// 켜질 때 현재 상태를 다시 그리는 데 쓴다 — 이벤트는 '변화'만 알리므로 과거에 수락한 퀘스트는
+        /// 이 목록을 훑어 복원해야 씬 전환 후에도 목록에 남는다.
+        /// </summary>
+        public IReadOnlyList<QuestData> ActiveQuests => activeQuests;
 
         // 반납까지 끝낸 퀘스트 ID. 선행 체인 판정의 기준이 된다(반복 퀘스트는 등록하지 않는다).
         private readonly HashSet<int> completedQuestIds = new();
@@ -54,8 +64,85 @@ namespace ProjectS.Managers
                 CombatEvents.OnEnemyKilled -= HandleEnemyKilled;
         }
 
+        // 세이브 복원은 퀘스트 정의(QuestTable)가 필요하므로 JsonManager 로딩을 기다린 뒤 수행한다.
+        // async void는 Unity 진입점(Start)에서만 예외적으로 허용(JsonManager·PlayerStats와 같은 방침).
+        private async void Start()
+        {
+            if (Instance != this) return;   // 중복 인스턴스(곧 파괴됨)는 복원하지 않는다
+
+            JsonManager json = JsonManager.Instance;
+            if (json != null && !json.IsReady) await json.ReadyTask;
+            if (this == null) return;
+
+            RestoreFrom(GameSession.SelectedCharacter);
+        }
+
         // 처치 이벤트 콜백: 죽은 몬스터 ID를 Kill 목표 보고로 넘긴다.
         private void HandleEnemyKilled(int monsterId) => ReportKill(monsterId);
+
+        // ---------- 세이브 / 복원 ----------
+
+        /// <summary>
+        /// 현재 퀘스트 진행(완료 목록 + 진행 중 목표 카운트·핀)을 세이브에 기록한다. 저장 시점에 호출한다.
+        /// </summary>
+        /// <param name="save">기록 대상 세이브(선택된 캐릭터). null이면 무시.</param>
+        public void WriteTo(CharacterSaveData save)
+        {
+            if (save == null) return;
+
+            save.completedQuestIds = new List<int>(completedQuestIds);
+
+            save.activeQuests = new List<QuestSave>(activeQuests.Count);
+            foreach (QuestData quest in activeQuests)
+            {
+                QuestSave entry = new QuestSave { questId = quest.QuestId, pinned = quest.IsPinned };
+                foreach (ObjectiveProgress objective in quest.Objectives)
+                    entry.objectiveCounts.Add(objective.CurrentCount);
+                save.activeQuests.Add(entry);
+            }
+        }
+
+        /// <summary>
+        /// 세이브의 퀘스트 진행을 현재 상태로 복원한다(부트스트랩에서 JsonManager 로딩 후 1회).
+        /// 정의가 사라진 퀘스트는 건너뛴다. 트래커 등 UI는 씬 생성 시 ActiveQuests를 훑어 다시 그리므로
+        /// 여기서 이벤트는 발행하지 않는다(복원은 '수락'이 아니라 상태 재구성이다).
+        /// </summary>
+        /// <param name="save">복원할 세이브. null이면 아무것도 하지 않는다.</param>
+        public void RestoreFrom(CharacterSaveData save)
+        {
+            if (save == null) return;
+
+            completedQuestIds.Clear();
+            if (save.completedQuestIds != null)
+            {
+                foreach (int id in save.completedQuestIds)
+                    completedQuestIds.Add(id);
+            }
+
+            activeQuests.Clear();
+            if (save.activeQuests != null)
+            {
+                foreach (QuestSave entry in save.activeQuests)
+                {
+                    if (entry == null) continue;
+
+                    QuestTable definition = GetDefinition(entry.questId);
+                    if (definition == null) continue;   // 정의 없음(테이블 변경 등) → 건너뜀
+
+                    QuestData quest = new QuestData(definition);
+
+                    // 목표별 저장 카운트로 진행 복원(Advance가 목표치 도달 시 완료로 굳힌다).
+                    int count = entry.objectiveCounts != null
+                        ? Mathf.Min(entry.objectiveCounts.Count, quest.Objectives.Count)
+                        : 0;
+                    for (int i = 0; i < count; i++)
+                        quest.Objectives[i].Advance(entry.objectiveCounts[i]);
+
+                    quest.IsPinned = entry.pinned;
+                    activeQuests.Add(quest);
+                }
+            }
+        }
 
         // 플레이어를 못 찾으면 레벨 제한을 통과시킨다(퀘스트가 막히는 것보다 낫다).
         private int PlayerLevel
@@ -236,6 +323,9 @@ namespace ProjectS.Managers
             quest = new QuestData(definition);
             activeQuests.Add(quest);
             QuestEvents.FireQuestAccepted(quest);
+
+            // 커밋(①): 수락은 중요 이벤트 → 즉시 저장(씬 전환 전에 종료돼도 유실 방지).
+            PlayerSaveService.SaveNow();
             return true;
         }
 
@@ -255,6 +345,10 @@ namespace ProjectS.Managers
                 completedQuestIds.Add(quest.QuestId);
 
             QuestEvents.FireQuestCompleted(quest);
+
+            // 커밋(①): 보상 지급(OnQuestCompleted 구독자가 동기 처리 — 골드·경험치 등)이 끝난 뒤 즉시 저장한다.
+            // 그래야 이 저장 스냅샷에 반납 보상까지 함께 담긴다.
+            PlayerSaveService.SaveNow();
             return true;
         }
 
@@ -291,6 +385,10 @@ namespace ProjectS.Managers
 
                     objective.Advance(1);
                     QuestEvents.FireQuestProgressUpdated(quest, objective.CurrentCount, objective.Target.RequiredCount);
+
+                    // 부분 진행은 dirty로 묶어 오토세이브(②)에 맡기고, 목표 완주는 마일스톤이라 즉시 저장(①).
+                    if (objective.IsCompleted) PlayerSaveService.SaveNow();
+                    else PlayerSaveService.MarkDirty();
                     break;
                 }
             }

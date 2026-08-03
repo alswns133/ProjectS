@@ -20,7 +20,7 @@ namespace ProjectS.UI
         [SerializeField] private TextMeshProUGUI levelText;
 
         // {0}에 레벨 숫자가 들어간다.
-        [SerializeField] private string levelFormat = "{0}";
+        private const string levelFormat = "{0}";
 
         // 스태미나는 FillGauge(Image/Text 참조)와 별개로 껐다 켤 루트 오브젝트가 필요하다.
         // FillGauge는 컴포넌트가 아닌 직렬화 클래스라 자기 GameObject를 모른다.

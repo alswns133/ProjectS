@@ -18,6 +18,13 @@ namespace ProjectS.Data
         /// <summary>목표별 진행 상태(정의의 ObjectiveTargets와 1:1, 순서 동일).</summary>
         public IReadOnlyList<ObjectiveProgress> Objectives => objectives;
 
+        /// <summary>
+        /// 트래커에서 고정(핀)했는지 여부. 핀은 표시 상태지만 이 런타임 인스턴스에 두어
+        /// 씬을 넘어 유지되는 QuestManager와 함께 살아남게 한다 — 트래커는 씬마다 새로 생성되므로
+        /// 여기에 저장해야 씬 전환 후에도 고정이 복원된다. 설정은 UI(트래커)가 한다.
+        /// </summary>
+        public bool IsPinned { get; set; }
+
         /// <summary>퀘스트 고유 ID(정의에서 그대로 노출).</summary>
         public int QuestId => Definition.QuestId;
 
