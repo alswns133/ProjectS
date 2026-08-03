@@ -108,13 +108,22 @@ namespace ProjectS.UI
         [Tooltip("슬롯 높이가 0까지 줄어드는 시간(초). 아래 카드들이 자리를 메우는 속도다.")]
         [SerializeField] private float collapseDuration = 0.20f;
 
+        [Tooltip("완료가 하나 더 늘었을 때 \"+N\"이 튕기는 시간(초).")]
+        [SerializeField] private float pulseDuration = 0.25f;
+
+        [Tooltip("\"+N\"이 튕길 때의 최대 배율.")]
+        [SerializeField] private float pulseScale = 1.4f;
+
         private LayoutElement slot;
         private float animProgress;    // 0 = 평상시, 1 = 완전히 선택됨
         private float target;
         private float naturalHeight;   // 비주얼이 스스로 잰 높이(내용에 따라 변한다)
         private Vector2 basePosition;  // 평상시 비주얼 위치(프리팹에서 0이 아닐 수 있다)
         private bool interactable = true;
-        private bool disintegrating;   // 분해 중에는 슬롯 높이의 주인이 연출로 넘어간다
+        private bool fxDrivingHeight;   // 분해·등장 중에는 슬롯 높이의 주인이 연출로 넘어간다
+        private Coroutine fxRoutine;    // 분해/등장 중복 실행 방지
+        private Coroutine pulseRoutine;
+        private Color extraBaseColor = Color.white;
 
         /// <summary>제목 영역이 눌렸을 때 발행. 고정 토글에 쓴다.</summary>
         public event Action<QuestTrackerEntry> TitleClicked;
@@ -137,6 +146,9 @@ namespace ProjectS.UI
         /// <summary>현재 선택(접힘+튀어나옴) 상태인지.</summary>
         public bool IsSelected { get; private set; }
 
+        /// <summary>분해·등장 연출이 재생 중인지. 새 연출을 태우기 전에 끊어야 할지 판단하는 데 쓴다.</summary>
+        public bool IsPlayingFx => fxRoutine != null;
+
         /// <summary>연결선을 그릴 기준이 되는 카드 본체의 RectTransform. 상세 팝업이 참조한다.</summary>
         public RectTransform Visual => visual;
 
@@ -158,6 +170,7 @@ namespace ProjectS.UI
             // 상한을 넘긴 문장은 잘린 티(…)가 나야 한다. 그냥 두면 세 번째 줄이 카드 밖으로 나가
             // 마스크에 글자 중간이 뭉텅 잘린다.
             if (progressText != null) progressText.overflowMode = TextOverflowModes.Ellipsis;
+            if (extraCountText != null) extraBaseColor = extraCountText.color;
 
             ApplyTitleColor();
         }
@@ -228,7 +241,7 @@ namespace ProjectS.UI
         /// </summary>
         public void MeasureNaturalHeight()
         {
-            if (disintegrating) return;
+            if (fxDrivingHeight) return;
             if (visual == null || !visual.gameObject.activeInHierarchy) return;
 
             // 폭이 정해져야 TMP가 몇 줄이 되는지 알 수 있으므로, 먼저 한 번 세우고 상한을 적용한 뒤 다시 세운다.
@@ -321,13 +334,13 @@ namespace ProjectS.UI
         /// <param name="onDone">연출 종료 콜백(카드는 아직 살아 있는 상태로 호출된다)</param>
         public void PlayDisintegrate(Action onDone)
         {
-            if (disintegrating) return;
+            if (fxRoutine != null) return;
 
-            disintegrating = true;
+            fxDrivingHeight = true;
             SetInteractable(false);
-            if (disintegrateFx != null) disintegrateFx.Play();
+            if (disintegrateFx != null) disintegrateFx.Play(false);
 
-            StartCoroutine(DisintegrateRoutine(onDone));
+            fxRoutine = StartCoroutine(DisintegrateRoutine(onDone));
         }
 
         private IEnumerator DisintegrateRoutine(Action onDone)
@@ -351,21 +364,117 @@ namespace ProjectS.UI
             if (slot != null) slot.preferredHeight = 0f;
             HeightChanged?.Invoke();
 
+            fxRoutine = null;
             onDone?.Invoke();
+        }
+
+        /// <summary>
+        /// 분해의 역재생. 지워진 카드가 빛을 따라 다시 그려지고 슬롯 높이가 0에서 원래대로 자란다.
+        /// 완료 요약 줄이 새로 생길 때 쓴다(이미 요약 줄이 있으면 <see cref="PulseExtraCount"/>가 대신 쓰인다).
+        /// </summary>
+        public void PlayMaterialize()
+        {
+            if (fxRoutine != null) StopCoroutine(fxRoutine);
+
+            if (disintegrateFx != null) disintegrateFx.Play(true);
+            fxRoutine = StartCoroutine(MaterializeRoutine());
+        }
+
+        private IEnumerator MaterializeRoutine()
+        {
+            // 목표 높이를 알아야 0에서 키울 수 있다. 잠시 소유권을 놓고 재고 다시 가져온다.
+            fxDrivingHeight = false;
+            MeasureNaturalHeight();
+            float targetHeight = naturalHeight;
+            fxDrivingHeight = true;
+
+            float total = disintegrateFx != null ? disintegrateFx.Duration : collapseDuration;
+            float elapsed = 0f;
+
+            while (elapsed < total)
+            {
+                elapsed += Time.unscaledDeltaTime;
+
+                float t = ease.Evaluate(Mathf.Clamp01(elapsed / Mathf.Max(0.01f, total)));
+                if (slot != null) slot.preferredHeight = Mathf.Lerp(0f, targetHeight, t);
+                HeightChanged?.Invoke();
+
+                yield return null;
+            }
+
+            fxRoutine = null;
+            fxDrivingHeight = false;
+            MeasureNaturalHeight();
+            SetInteractable(interactable);
+        }
+
+        /// <summary>
+        /// 분해로 지워진 상태를 연출 없이 즉시 되돌린다.
+        /// 요약에서 밀려나 숨겨져 있던 카드가 다시 보이게 될 때 호출한다 —
+        /// 마스크가 닫힌 채로 켜지면 자리는 차지하는데 아무것도 안 보인다.
+        /// </summary>
+        public void ResetDisintegrate()
+        {
+            if (fxRoutine != null)
+            {
+                StopCoroutine(fxRoutine);
+                fxRoutine = null;
+            }
+
+            fxDrivingHeight = false;
+            if (disintegrateFx != null) disintegrateFx.ResetVisual();
+            MeasureNaturalHeight();
+            SetInteractable(interactable);
+        }
+
+        /// <summary>
+        /// "+N"을 한 번 튕겨 강조한다. 완료 요약 줄이 이미 있어 카드가 새로 생기지 않을 때,
+        /// 그래도 뭔가 늘었다는 것을 알리기 위한 최소한의 피드백이다.
+        /// </summary>
+        public void PulseExtraCount()
+        {
+            if (extraCountText == null || !extraCountText.gameObject.activeSelf) return;
+
+            if (pulseRoutine != null) StopCoroutine(pulseRoutine);
+            pulseRoutine = StartCoroutine(PulseRoutine());
+        }
+
+        private IEnumerator PulseRoutine()
+        {
+            RectTransform rect = extraCountText.rectTransform;
+            float elapsed = 0f;
+
+            while (elapsed < pulseDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+
+                // 0 → 1 → 0으로 한 번 왕복시켜 튕기는 느낌을 만든다.
+                float t = Mathf.Sin(Mathf.Clamp01(elapsed / pulseDuration) * Mathf.PI);
+                rect.localScale = Vector3.one * Mathf.Lerp(1f, pulseScale, t);
+                extraCountText.color = Color.Lerp(extraBaseColor, completedColor, t);
+
+                yield return null;
+            }
+
+            rect.localScale = Vector3.one;
+            extraCountText.color = extraBaseColor;
+            pulseRoutine = null;
         }
 
         // 인스펙터 우클릭으로 재생해 감각을 확인한다(플레이 모드에서만 의미가 있다).
         [ContextMenu("분해 연출 테스트")]
         private void TestDisintegrate()
         {
-            disintegrating = false;
-            if (disintegrateFx != null) disintegrateFx.ResetVisual();
+            ResetDisintegrate();
             PlayDisintegrate(null);
         }
 
+        [ContextMenu("등장 연출 테스트")]
+        private void TestMaterialize() => PlayMaterialize();
+
         private void Update()
         {
-            if (disintegrating) return;
+            if (fxDrivingHeight) return;
             if (Mathf.Approximately(animProgress, target)) return;
 
             // 일시정지(timeScale 0) 중에도 HUD 조작은 가능해야 하므로 unscaled를 쓴다.
@@ -379,7 +488,7 @@ namespace ProjectS.UI
         private void Apply()
         {
             // 분해 중에는 슬롯 높이를 연출이 몰고 간다. 여기서 같이 쓰면 두 값이 매 프레임 서로를 덮어쓴다.
-            if (disintegrating) return;
+            if (fxDrivingHeight) return;
 
             float t = ease.Evaluate(animProgress);
             float height = Mathf.Lerp(naturalHeight, selectedSlotHeight, t);

@@ -72,6 +72,10 @@ namespace ProjectS.UI
         // 수락한 순서. Dictionary는 순회 순서를 보장하지 않으므로, 정렬·요약의 기준 순서는 이 리스트가 갖는다.
         private readonly List<QuestData> order = new();
 
+        // 완료 연출이 진행 중인 퀘스트. 연출이 끝나기 전에 정렬·요약이 카드를 건드리면
+        // 분해되던 카드가 도중에 위로 점프하거나 숨겨져 연출이 끊긴다.
+        private readonly HashSet<QuestData> completing = new();
+
         private QuestTrackerEntry selected;
         private bool isMouseMode;
         private Player player;
@@ -183,22 +187,63 @@ namespace ProjectS.UI
         //       완료 퀘스트를 여러 줄로 늘어놓으면 그만큼 고정 퀘스트가 아래로 밀려 나가므로 한 줄로 접는다.
         private void ApplyCollapsedView()
         {
-            if (!IsCollapsed)
-            {
-                foreach (var card in cards.Values)
-                {
-                    card.gameObject.SetActive(true);
-                    card.SetCompact(false);
-                    card.SetExtraCount(0);
-                }
-
-                if (window != null) window.Refresh();
-                return;
-            }
+            bool collapsed = IsCollapsed;
 
             // 완료(반납 대기) 퀘스트 중 맨 앞 하나만 대표로 남기고 개수를 센다.
+            // 펼침/접힘 어느 쪽이든 완료 영역은 '한 줄 + N'으로 통일한다 — 여러 줄로 늘어놓으면
+            // 그만큼 진행 중 퀘스트가 아래로 밀려나고, "이미 카드가 있으면 +N" 연출도 성립하지 않는다.
+            QuestData headline = FindHeadlineQuest(out int completedCount);
+
+            int shownPinned = 0;
+            foreach (var quest in order)
+            {
+                if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) continue;
+                if (completing.Contains(quest)) continue;   // 연출 중인 카드는 건드리지 않는다
+
+                bool visible;
+                bool compact;
+                int extra = 0;
+
+                if (quest.IsReadyToTurnIn)
+                {
+                    // 완료 퀘스트는 고정 여부와 무관하게 요약 줄로만 다룬다(고정 슬롯을 먹지 않는다).
+                    visible = quest == headline;
+                    compact = true;
+                    extra = completedCount - 1;
+                }
+                else if (collapsed)
+                {
+                    visible = pinned.Contains(quest) && shownPinned < maxPinned;
+                    if (visible) shownPinned++;
+                    compact = true;
+                }
+                else
+                {
+                    visible = true;
+                    compact = false;
+                }
+
+                bool wasHidden = !card.gameObject.activeSelf;
+                card.gameObject.SetActive(visible);
+                if (!visible) continue;
+
+                // 분해된 채로 숨겨졌던 카드는 마스크가 닫혀 있어, 그냥 켜면 자리만 차지하고 안 보인다.
+                if (wasHidden) card.ResetDisintegrate();
+
+                // 비활성 상태에서는 레이아웃 계산이 안 되므로, 켜 준 다음에 형태를 바꾼다.
+                card.SetCompact(compact);
+                card.SetExtraCount(extra);
+            }
+
+            if (window != null) window.Refresh();
+        }
+
+        // 완료 요약 줄로 쓸 퀘스트(수락 순서상 맨 앞의 완료 퀘스트)와 완료 총 개수를 찾는다.
+        private QuestData FindHeadlineQuest(out int completedCount)
+        {
             QuestData headline = null;
-            int completedCount = 0;
+            completedCount = 0;
+
             foreach (var quest in order)
             {
                 if (!quest.IsReadyToTurnIn) continue;
@@ -207,35 +252,7 @@ namespace ProjectS.UI
                 if (headline == null) headline = quest;
             }
 
-            int shownPinned = 0;
-            foreach (var quest in order)
-            {
-                if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) continue;
-
-                bool visible;
-                int extra = 0;
-
-                if (quest.IsReadyToTurnIn)
-                {
-                    // 완료 퀘스트는 고정 여부와 무관하게 요약 줄로만 다룬다(고정 슬롯을 먹지 않는다).
-                    visible = quest == headline;
-                    extra = completedCount - 1;
-                }
-                else
-                {
-                    visible = pinned.Contains(quest) && shownPinned < maxPinned;
-                    if (visible) shownPinned++;
-                }
-
-                card.gameObject.SetActive(visible);
-                if (!visible) continue;
-
-                // 비활성 상태에서는 레이아웃 계산이 안 되므로, 켜 준 다음에 형태를 바꾼다.
-                card.SetCompact(true);
-                card.SetExtraCount(extra);
-            }
-
-            if (window != null) window.Refresh();
+            return headline;
         }
 
         // 완료(반납 대기) 퀘스트를 목록 맨 위로 올린다. 그룹 안에서는 수락 순서를 유지해,
@@ -405,12 +422,21 @@ namespace ProjectS.UI
         {
             if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) return;
 
+            bool wasCompleted = card.IsCompleted;
+
             card.SetProgress(BuildProgress(quest));
             card.SetObjectiveCount(BuildObjectiveCount(quest));
-            // 모든 목표를 채워 '반납 대기(완료가능)'가 되면 체크를 켠다. 실제 반납되면 OnCompleted가 카드를 지운다.
+            // 모든 목표를 채워 '반납 대기(완료가능)'가 되면 체크를 켜고 제목이 녹색이 된다.
+            // 실제 반납되면 OnCompleted가 카드를 지운다.
             card.SetQuestCompletedCheck(quest.IsReadyToTurnIn);
 
-            // 이 진행으로 완료가 됐을 수 있다 → 맨 위로 올리고, 접힘 요약 줄(+N)도 다시 계산한다.
+            // 이번 진행으로 '완료가 아니었다 → 완료'로 넘어간 순간에만 연출을 태운다.
+            if (!wasCompleted && quest.IsReadyToTurnIn)
+            {
+                PlayCompletionSequence(quest, card);
+                return;   // 정렬·요약 갱신은 연출이 끝난 뒤에
+            }
+
             ApplySortOrder();
             ApplyCollapsedView();
 
@@ -419,31 +445,95 @@ namespace ProjectS.UI
             if (window != null) window.Refresh();
         }
 
-        // 반납(완료) 시: 그 카드를 목록에서 제거한다.
+        // ---------- 완료 연출 시퀀스 ----------
+
+        // 완료된 카드를 분해로 없앤 뒤, 그 자리를 메우고 완료 요약 줄을 갱신한다.
+        // 분해가 끝나기 전에 정렬하면 카드가 도중에 위로 점프해 연출이 끊기므로 순서를 지킨다.
+        private void PlayCompletionSequence(QuestData quest, QuestTrackerEntry card)
+        {
+            completing.Add(quest);
+            card.PlayDisintegrate(() => OnDisintegrated(quest, card));
+        }
+
+        private void OnDisintegrated(QuestData quest, QuestTrackerEntry card)
+        {
+            completing.Remove(quest);
+
+            // 연출 중에 반납돼 카드가 사라졌으면 할 일이 없다.
+            if (card == null || !cards.ContainsKey(quest)) return;
+
+            ApplySortOrder();
+            ApplyCollapsedView();
+
+            QuestData headline = FindHeadlineQuest(out _);
+
+            if (headline == quest)
+            {
+                // 완료 요약 줄이 이 카드로 새로 생긴다 → 빛을 따라 다시 그려지며 등장.
+                card.PlayMaterialize();
+            }
+            else if (headline != null && cards.TryGetValue(headline, out QuestTrackerEntry headlineCard))
+            {
+                // 이미 요약 줄이 있으면 이 카드는 숨겨진 채 개수로만 잡힌다 → "+N"을 튕겨 알린다.
+                headlineCard.PulseExtraCount();
+            }
+        }
+
+        // 반납(완료) 시: 그 카드를 분해 연출로 없앤다.
         private void OnCompleted(QuestData quest)
         {
             if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) return;
 
+            QuestData previousHeadline = FindHeadlineQuest(out _);
+
+            // 목록에서는 즉시 뺀다. 카드는 아직 화면에 남아 연출을 재생하지만, 그 사이 같은 퀘스트를
+            // 다시 수락하거나 요약을 계산할 때 이미 반납된 것이 끼어들면 안 된다.
             cards.Remove(quest);
             pinned.Remove(quest);
             order.Remove(quest);
+            completing.Remove(quest);
 
             if (card != null)
             {
                 if (selected == card) CloseDetail();
 
+                // 클릭은 즉시 막고, HeightChanged는 연출이 슬롯을 줄이는 동안 창이 따라오도록 남겨 둔다.
                 card.TitleClicked -= OnTitleClicked;
                 card.DetailClicked -= OnDetailClicked;
-                card.HeightChanged -= OnCardHeightChanged;
 
-                // Destroy는 프레임 끝에 처리돼, 그대로 두면 사라진 카드의 자리가 한 프레임 남는다.
-                // 비활성 자식은 Layout Group이 즉시 무시하므로 먼저 끄고 지운다.
-                card.gameObject.SetActive(false);
-                Destroy(card.gameObject);
+                // 완료 연출이 아직 돌고 있었다면 끊고 처음부터 다시 태운다.
+                // 그대로 두면 중복 실행 가드에 막혀 콜백이 오지 않아 카드가 영영 안 지워진다.
+                if (card.IsPlayingFx) card.ResetDisintegrate();
+                card.PlayDisintegrate(() => DestroyCard(card));
             }
 
-            // 완료 줄이 하나 빠졌으니 남은 완료 퀘스트의 +N도 다시 계산한다.
+            // 남은 카드들의 정렬과 완료 요약(+N)은 기다리지 않고 지금 갱신한다.
+            // 사라지는 카드는 이미 목록 밖이라 여기서 건드려지지 않는다.
+            ApplySortOrder();
             ApplyCollapsedView();
+
+            // 반납된 것이 완료 요약 줄이었다면, 뒤를 이어받은 카드도 빛과 함께 나타나야 흐름이 이어진다.
+            QuestData nextHeadline = FindHeadlineQuest(out _);
+            if (nextHeadline != null && nextHeadline != previousHeadline &&
+                cards.TryGetValue(nextHeadline, out QuestTrackerEntry nextCard))
+            {
+                nextCard.PlayMaterialize();
+            }
+        }
+
+        // 연출이 끝난 카드를 실제로 없앤다.
+        private void DestroyCard(QuestTrackerEntry card)
+        {
+            if (card == null) return;
+
+            card.HeightChanged -= OnCardHeightChanged;
+
+            // Destroy는 프레임 끝에 처리돼, 그대로 두면 사라진 카드의 자리가 한 프레임 남는다.
+            // 비활성 자식은 Layout Group이 즉시 무시하므로 먼저 끄고 지운다.
+            card.gameObject.SetActive(false);
+            Destroy(card.gameObject);
+
+            if (window != null) window.Refresh();
         }
 
         // 선택 연출로 슬롯 높이가 매 프레임 바뀌는 동안 호출된다.
