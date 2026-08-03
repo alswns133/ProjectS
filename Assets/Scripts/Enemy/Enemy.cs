@@ -363,10 +363,18 @@ namespace ProjectS.Enemies
 
         /// <summary>
         /// 피격 반응 진입점. EnemyStats가 데미지를 적용하고 사망하지 않았을 때 호출한다.
-        /// 경직 사용 여부와 쿨다운을 확인한 뒤 HitState로 전환한다.
+        /// 반응 등급과 경직 사용 여부, 쿨다운을 확인한 뒤 HitState로 전환한다.
         /// </summary>
-        public void OnDamaged()
+        /// <param name="reaction">
+        /// 이 타격이 유발하는 피격 반응. None이면 경직시키지 않고 데미지만 받은 것으로 둔다
+        /// (스킬은 기본 None이라 몬스터가 경직되지 않고, 강피격으로 지정된 스킬·일반 공격만 반응한다).
+        /// </param>
+        public void OnDamaged(HitReaction reaction)
         {
+            // 반응 없는 타격(대부분의 스킬)은 데미지만 들어가고 경직/피격 모션을 유발하지 않는다.
+            // → 스킬 연타 중 몬스터가 계속 경직으로 밀려나거나 행동이 끊기지 않게 하기 위함.
+            if (reaction == HitReaction.None) return;
+
             // 피격 경직은 선택 기능이다. 사망/쿨다운 중에는 상태를 흔들지 않는다.
             // 데미지 적용과 사망 판정은 EnemyStats가 단일 소유하고, 여기는 "살아남은 뒤 반응"만 맡는다.
             if (!useHitStun) return;
@@ -383,6 +391,19 @@ namespace ProjectS.Enemies
         /// DeadState는 다른 상태로 전환되지 않는 최종 상태다.
         /// </summary>
         public void OnDied() => StateMachine.ChangeState(DeadState);
+
+        /// <summary>
+        /// 씬 전환(예: 던전→마을)으로 이 몬스터가 곧 사라지기 직전, AI와 이동을 즉시 멈춘다.
+        /// 씬 Exit는 로딩 시작 시점에 불리고 씬 언로드까지 로딩 바가 도는 동안 이 오브젝트는 살아 있어,
+        /// 그대로 두면 이미 숨겨진 플레이어의 마지막 위치로 계속 이동해 로딩 화면 사이 잔상 이동이 보인다.
+        /// enabled=false로 상태머신 Update를 끊고, NavMeshAgent도 세워 잔여 경로/속도로 미끄러지지 않게 한다.
+        /// 곧 씬과 함께 파괴되므로 재개(Resume)는 제공하지 않는다.
+        /// </summary>
+        public void HaltForSceneExit()
+        {
+            Movement.StopAndClearPath();   // 남은 경로·속도 제거(잔상 미끄러짐 방지)
+            enabled = false;               // Update() 중단 → 상태머신이 다시 목적지를 찍지 않음
+        }
 
         /// <summary>
         /// 플레이어 사망 시 교전을 멈추고 대기(또는 순찰)로 돌아간다.

@@ -44,6 +44,11 @@ namespace ProjectS.Players
             // 데미지를 슬롯에 직접 넣지 않는 이유: 밸런스 수치는 기획이 시트에서 바꾸는 값이라
             // 인스펙터와 테이블 두 곳에 두면 어느 쪽이 진짜인지 알 수 없게 된다.
             public int skillId = 1;
+
+            // 스킬 타격에만 의미가 있는 '강피격' 지정. 스킬은 기본적으로 몬스터 경직을 유발하지 않는데,
+            // 이 슬롯을 켜면 그 스킬 타격만 강 피격(경직 유발)으로 취급한다.
+            // 일반 공격·대시·점프·강공격은 이 값과 무관하게 항상 일반 피격을 유발한다(ResolveHitReaction 참조).
+            public bool strongHit;
         }
 
         // 검기처럼 몸에서 떨어져 날아가는 판정은 히트 박스 대신 투사체로 내보낸다.
@@ -69,6 +74,10 @@ namespace ProjectS.Players
 
             // 관통 여부. true면 경로 위 여러 적을 연속 타격, false면 첫 적중에 소멸한다.
             public bool canPierce = true;
+
+            // 히트 박스 슬롯과 같은 규칙의 '강피격' 지정. 켜면 이 투사체 스킬 타격이 몬스터 경직을 유발한다.
+            // 투사체는 발사 시점의 이 값을 AttackContext에 실어 날아가므로, 적중 몬스터가 그대로 읽는다.
+            public bool strongHit;
         }
 
         [SerializeField] private HitBoxSlot[] attackHitBoxes;
@@ -361,6 +370,27 @@ namespace ProjectS.Players
             return true;
         }
 
+        /// <summary>
+        /// 이 타격이 맞은 몬스터에게 유발할 피격 반응을 현재 액션으로 정한다.
+        /// 일반 공격·대시 공격·점프 공격·강공격은 항상 일반 피격(경직 유발)을 유발하고,
+        /// 스킬은 기본적으로 반응이 없되 슬롯이 강피격으로 지정된 경우에만 강 피격을 유발한다.
+        /// currentAction으로 가르는 이유: 반응 종류는 클립/슬롯이 아니라 "지금 무슨 공격을 쓰는가"에 달렸고,
+        /// 그래야 같은 히트박스 슬롯을 여러 액션이 공유해도 반응이 액션을 따라간다.
+        /// </summary>
+        /// <param name="slotStrongHit">이 타격 슬롯이 강피격으로 지정됐는지. 스킬일 때만 의미가 있다.</param>
+        private HitReaction ResolveHitReaction(bool slotStrongHit)
+        {
+            return currentAction switch
+            {
+                CombatAction.Combo => HitReaction.Normal,
+                CombatAction.RunAttack => HitReaction.Normal,
+                CombatAction.JumpAttack => HitReaction.Normal,
+                CombatAction.StrongAttack => HitReaction.Normal,
+                CombatAction.Skill => slotStrongHit ? HitReaction.Strong : HitReaction.None,
+                _ => HitReaction.None,
+            };
+        }
+
         public void EndSkillCast() => IsCastingSkill = false;
 
         /// <summary>
@@ -448,6 +478,9 @@ namespace ProjectS.Players
             // 대상 루프 밖에서 한 번만 만든다(스탯은 타격 내내 같다).
             if (!TryBuildAttack(slot.skillId, out AttackContext attack, out float gaugeGain)) return;
 
+            // 이 타격이 유발할 피격 반응을 공격 종류로 정해 실어 보낸다. 맞은 몬스터가 경직 진입을 이 값으로 가른다.
+            attack.Reaction = ResolveHitReaction(slot.strongHit);
+
             int count = Physics.OverlapBoxNonAlloc(
                 box.position,
                 box.lossyScale * 0.5f,
@@ -530,6 +563,9 @@ namespace ProjectS.Players
             // 투사체는 발사 후에 적을 만나므로, 완성된 데미지 숫자가 아니라 계산 재료를 들려 보낸다.
             // 방어 경감은 맞는 대상마다 달라 발사 시점에는 최종 피해를 알 수 없기 때문이다.
             if (!TryBuildAttack(slot.skillId, out AttackContext attack, out float gaugeGain)) return;
+
+            // 피격 반응도 AttackContext에 실어 보낸다. 투사체가 이 값을 그대로 들고 날아가 적중 몬스터에 전달한다.
+            attack.Reaction = ResolveHitReaction(slot.strongHit);
 
             // muzzle 방향에 슬롯별 회전 오프셋을 더해 검기 방향(가로/세로/대각)을 맞춘다.
             Quaternion rotation = slot.muzzle.rotation * Quaternion.Euler(slot.rotationOffset);

@@ -576,7 +576,10 @@ namespace ProjectS.Players
             if (Stats.IsDead) return;
             if (IsRolling) return;             // 회피 중 재입력 무시 → 끝나는 프레임부터 다음 회피 발동
 
-            if (!Movement.IsStablyGrounded) return;       // 공중에서는 구르기를 발동하지 않음
+            // 공중에서는 구르기를 발동하지 않음. 접지 근거는 controller.isGrounded(IsStablyGrounded)가
+            // 아니라 레이캐스트 기반(IsGroundedForDodge)을 쓴다 — isGrounded는 고프레임에서 프레임당
+            // 하강량이 작아지면 간헐적으로 false가 되어, 그 프레임에 회피가 씹혔다(고사양 PC 스킬 캔슬 실패 원인).
+            if (!Movement.IsGroundedForDodge) return;
 
             if (Input.MoveInput.sqrMagnitude < 0.0001f) return;  // 무입력(Idle) 구르기 금지(기획)
 
