@@ -79,3 +79,11 @@ crashlytics-build.properties
 # .meta 포함 통째로 압축해서 팀원에게 공유할 것 (GUID 동기화)
 /[Aa]ssets/ExternalAssets/
 /[Aa]ssets/ExternalAssets.meta
+
+# ===== Firebase 비-Windows 데스크톱 네이티브 (Windows 타깃이라 미사용, 대용량) =====
+# macOS(.bundle 107MB)/Linux(.so 77MB) 데스크톱 라이브러리는 GitHub 100MB 제한 초과 + Windows에선 미사용.
+# Windows는 x86_64/*.dll(17MB) 사용. Mac/Linux 개발 시 Firebase SDK를 각자 재임포트할 것.
+/[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.bundle
+/[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.bundle.meta
+/[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.so
+/[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.so.meta
