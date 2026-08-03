@@ -385,6 +385,19 @@ namespace ProjectS.Enemies
         public void OnDied() => StateMachine.ChangeState(DeadState);
 
         /// <summary>
+        /// 씬 전환(예: 던전→마을)으로 이 몬스터가 곧 사라지기 직전, AI와 이동을 즉시 멈춘다.
+        /// 씬 Exit는 로딩 시작 시점에 불리고 씬 언로드까지 로딩 바가 도는 동안 이 오브젝트는 살아 있어,
+        /// 그대로 두면 이미 숨겨진 플레이어의 마지막 위치로 계속 이동해 로딩 화면 사이 잔상 이동이 보인다.
+        /// enabled=false로 상태머신 Update를 끊고, NavMeshAgent도 세워 잔여 경로/속도로 미끄러지지 않게 한다.
+        /// 곧 씬과 함께 파괴되므로 재개(Resume)는 제공하지 않는다.
+        /// </summary>
+        public void HaltForSceneExit()
+        {
+            Movement.StopAndClearPath();   // 남은 경로·속도 제거(잔상 미끄러짐 방지)
+            enabled = false;               // Update() 중단 → 상태머신이 다시 목적지를 찍지 않음
+        }
+
+        /// <summary>
         /// 플레이어 사망 시 교전을 멈추고 대기(또는 순찰)로 돌아간다.
         /// 없으면 시체를 계속 쫓아가 때리는 그림이 된다 — 데미지는 IDamageable이 막아 0이지만
         /// 추격·공격 모션은 그대로 나가기 때문이다.

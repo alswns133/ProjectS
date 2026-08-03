@@ -46,6 +46,12 @@ namespace ProjectS.Scenes
 
         private async void Start()
         {
+            // 0) 첫 프레임부터 로딩 화면으로 화면을 덮는다.
+            //    이 시점엔 게임 카메라(플레이어 프리팹 안, 부트스트랩에선 비활성)가 아직 없어,
+            //    안 가리면 카메라 기본 배경(파란색)이 데이터 로딩~첫 씬 활성화 사이에 노출된다.
+            //    씬 전환(GameSceneManager)에서도 ShowLoading을 다시 부르지만, 그 전 구간까지 앞당겨 덮는다.
+            UIManager.Instance.ShowLoading();
+
             // 1) 매니저들이 Awake에서 초기화를 '시작'할 시간을 줌
             //    (JsonManager.Awake가 ReadyTask 발사)
 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Core;
+using ProjectS.Data;
 using ProjectS.Enhance;
 using ProjectS.Events;
 
@@ -47,11 +48,44 @@ namespace ProjectS.Managers
             DontDestroyOnLoad(gameObject);
         }
 
+        // HUD가 (재)표시되며 스탯 스냅샷 재발행을 요청할 때(씬 진입 등) 골드도 함께 다시 쏜다.
+        // 골드는 PlayerStats가 아니라 이 매니저가 소유하므로, 리프레시 요청을 여기서도 받아야
+        // 씬 진입 시 실제 보유 골드가 HUD에 반영된다(예전 씬들이 하드코딩 값으로 덮던 것을 대체).
+        private void OnEnable() => PlayerEvents.OnStatsRefreshRequested += PublishGold;
+        private void OnDisable() => PlayerEvents.OnStatsRefreshRequested -= PublishGold;
+
         private void Start()
         {
-            // HUD 등 구독자가 초기 골드를 받도록 1회 발행. (실제 로드 로직으로 교체 예정)
-            PlayerEvents.FireGoldChanged(gold);
+            // 선택된 캐릭터 세이브가 있으면 그 재화를 반영한 뒤, 구독자(HUD)에게 발행한다.
+            ApplySelectedCharacterSave();
+            PublishGold();
         }
+
+        // 선택된 캐릭터 세이브(GameSession)의 재화를 반영한다. 재화는 캐릭터별로 분리 저장된다.
+        // 세션이 없으면(직접 씬 테스트) 인스펙터 초기값을 그대로 둔다.
+        private void ApplySelectedCharacterSave()
+        {
+            CharacterSaveData save = GameSession.SelectedCharacter;
+            if (save == null) return;
+
+            gold = save.gold;
+            lowMaterial = save.lowMaterial;
+            highMaterial = save.highMaterial;
+        }
+
+        /// <summary>현재 보유 재화를 세이브 데이터에 기록한다. 저장 시점에 호출한다.</summary>
+        /// <param name="save">기록 대상 세이브(선택된 캐릭터). null이면 무시.</param>
+        public void WriteTo(CharacterSaveData save)
+        {
+            if (save == null) return;
+
+            save.gold = gold;
+            save.lowMaterial = lowMaterial;
+            save.highMaterial = highMaterial;
+        }
+
+        // 현재 보유 골드를 발행한다. 초기 1회(Start)와 스냅샷 재요청(씬 진입) 양쪽에서 쓴다.
+        private void PublishGold() => PlayerEvents.FireGoldChanged(gold);
 
         /// <summary>지정 비용을 감당할 수 있는지.</summary>
         public bool CanAfford(int zeny, int low, int high)
@@ -64,6 +98,9 @@ namespace ProjectS.Managers
             lowMaterial -= low;
             highMaterial -= high;
             PlayerEvents.FireGoldChanged(gold);
+
+            // 커밋(①): 구매·강화는 의도된 재화 소모 → 즉시 저장.
+            PlayerSaveService.SaveNow();
         }
 
         /// <summary>골드를 지급하고 변경을 브로드캐스트한다(퀘스트 보상 등). 0 이하면 무시한다.</summary>
@@ -74,6 +111,9 @@ namespace ProjectS.Managers
 
             gold += amount;
             PlayerEvents.FireGoldChanged(gold);
+
+            // 획득은 잦을 수 있어(드랍 등) dirty로 묶는다(②). 퀘스트 반납 보상은 반납 시 SaveNow가 함께 담는다.
+            PlayerSaveService.MarkDirty();
         }
 
         /// <summary>

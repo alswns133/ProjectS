@@ -14,8 +14,9 @@ namespace ProjectS.Managers
     ///   Start 시점엔 이미 존재한다. 카메라처럼 '플레이어-로컬' 의존은 씬이 아니라 플레이어 프리팹 안에 두어
     ///   내부 참조로 만들면 스폰돼도 깨지지 않는다(씬 배치 참조가 깨지는 문제의 근본 해결).
     ///
-    /// ★ 캐릭터 선택/Firebase 세이브 연동(선택한 characterId로 CharacterConfig·스탯 주입)은 예정 단계다.
-    ///   지금은 characterPrefabs 중 placeholderCharacterIndex로 골라 생성하고, 데이터 주입 지점만 <see cref="EnsurePlayer"/>에 seam으로 남겨둔다.
+    /// ★ 캐릭터 선택/세이브 연동: 선택된 캐릭터(<see cref="GameSession"/>)의 타입으로 프리팹을 고르고,
+    ///   레벨/경험치·재화는 PlayerStats/InventoryManager가 GameSession에서 pull해 주입한다(스킬·장비는 예정 단계).
+    ///   로그인 없이 직접 씬 테스트하면 세션이 비어 placeholderCharacterIndex + 인스펙터 폴백으로 굴러간다.
     /// </summary>
     public class PlayerManager : MonoBehaviour
     {
@@ -71,12 +72,13 @@ namespace ProjectS.Managers
             DontDestroyOnLoad(Player.gameObject);
             Player.gameObject.SetActive(false);
 
-            // TODO(예정): 인스턴스 고유 id로 Firebase 세이브(레벨/스킬/인벤토리)를 이 플레이어에 주입한다.
+            // 레벨/경험치·재화 주입은 PlayerStats/InventoryManager가 GameSession에서 pull해 처리한다.
+            // (남은 예정: 스킬·장비 세이브 주입.)
         }
 
-        // 생성할 캐릭터 프리팹을 고른다. 타입 id → 프리팹 매핑을 하드코딩 없이 배열 인덱스로 둔다.
-        // ★ 지금은 선택 시스템(GameSession) 전이라 placeholderCharacterIndex로 고른다.
-        //   나중에: int type = GameSession.Instance.SelectedCharacterType; 로 교체하면 코드 구조는 그대로다.
+        // 생성할 캐릭터 프리팹을 고른다. 캐릭터 선택으로 접속했으면 그 타입(GameSession)에 맞는 프리팹을,
+        // 아니면(로그인 없이 직접 씬 테스트) placeholderCharacterIndex로 고른다. 타입 → 프리팹 매핑은
+        // 하드코딩 없이 각 프리팹의 PlayerStats.CharacterId로 찾는다(새 직업 = 프리팹만 추가하면 됨).
         private Player ResolveSelectedPrefab()
         {
             if (characterPrefabs == null || characterPrefabs.Length == 0)
@@ -85,6 +87,20 @@ namespace ProjectS.Managers
                 return null;
             }
 
+            // 캐릭터 선택으로 접속했으면 그 타입(=PlayerStats.CharacterId)에 맞는 프리팹을 고른다.
+            int selectedType = GameSession.SelectedCharacterType;
+            if (selectedType > 0)
+            {
+                foreach (Player candidate in characterPrefabs)
+                {
+                    if (candidate == null) continue;
+                    PlayerStats stats = candidate.GetComponent<PlayerStats>();
+                    if (stats != null && stats.CharacterId == selectedType) return candidate;
+                }
+                Debug.LogWarning($"[PlayerManager] 선택 타입 {selectedType}에 맞는 프리팹이 없어 폴백 인덱스를 사용합니다.", this);
+            }
+
+            // 세션 없음(직접 씬 테스트) 또는 매칭 실패 → placeholderCharacterIndex 폴백.
             int index = Mathf.Clamp(placeholderCharacterIndex, 0, characterPrefabs.Length - 1);
             Player prefab = characterPrefabs[index];
             if (prefab == null)

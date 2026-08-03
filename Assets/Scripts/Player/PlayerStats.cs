@@ -164,6 +164,10 @@ namespace ProjectS.Players
         // async void는 Awake/Start 같은 진입점에서만 예외적으로 허용한다(JsonManager와 같은 방침).
         private async void Start()
         {
+            // 캐릭터 선택으로 접속했다면, 저장된 성장 값(타입/레벨/경험치)을 테이블 로딩 전에 반영한다.
+            // 세션이 없으면(직접 씬 테스트) 인스펙터 폴백을 그대로 둔다.
+            ApplySelectedCharacterSave();
+
             // 테이블 로딩이 늦어져도 HUD가 빈 채로 남지 않도록 폴백 값으로 먼저 발행한다.
             PublishAllStats();
 
@@ -175,6 +179,32 @@ namespace ProjectS.Players
             // 테이블로 최대치가 바뀌었으므로 자원을 다시 채우고 UI를 갱신한다.
             FillResourcesToMax();
             PublishAllStats();
+        }
+
+        // 선택된 캐릭터 세이브(GameSession)의 성장 값을 반영한다. 스탯 테이블 로딩 '전에' 호출해야
+        // 저장된 레벨로 PlayerLevelTable을 조회한다. 세션이 없으면 인스펙터 값을 유지한다.
+        private void ApplySelectedCharacterSave()
+        {
+            CharacterSaveData save = GameSession.SelectedCharacter;
+            if (save == null) return;
+
+            characterId = save.characterType;
+            level = Mathf.Max(1, save.level);
+            currentExp = Mathf.Max(0, save.currentExp);
+        }
+
+        /// <summary>
+        /// 현재 성장 상태(타입/레벨/경험치)를 세이브 데이터에 기록한다. 저장 시점에 호출한다.
+        /// HP·스태미나·게이지는 씬 진입 시 풀충전 설계라 저장하지 않는다.
+        /// </summary>
+        /// <param name="save">기록 대상 세이브(선택된 캐릭터). null이면 무시.</param>
+        public void WriteTo(CharacterSaveData save)
+        {
+            if (save == null) return;
+
+            save.characterType = characterId;
+            save.level = level;
+            save.currentExp = currentExp;
         }
 
         /// <summary>
@@ -247,6 +277,9 @@ namespace ProjectS.Players
 
             currentHp = Mathf.Min(maxHp, currentHp + Mathf.Max(0, maxHp - previousMaxHp));
             PublishAllStats();
+
+            // 레벨 변화는 저장 대상. AddExp 경로는 그 직후 SaveNow로 즉시 올리고, 외부 직접 호출은 오토세이브가 받는다.
+            PlayerSaveService.MarkDirty();
         }
 
         /// <summary>
@@ -260,6 +293,7 @@ namespace ProjectS.Players
         {
             if (amount <= 0) return;
 
+            int startLevel = level;
             currentExp += amount;
 
             // 임계치를 넘는 동안 레벨업. RequiredExp는 SetLevel→ApplyLevelRow에서 새 레벨 값으로 갱신된다.
@@ -276,6 +310,10 @@ namespace ProjectS.Players
             if (RequiredExp > 0) currentExp = Mathf.Min(currentExp, RequiredExp);
 
             PlayerEvents.FireExpChanged(currentExp, RequiredExp);
+
+            // 레벨업은 커밋(①) → 즉시 저장, 경험치만 오른 경우는 dirty(②)로 묶는다.
+            if (level > startLevel) PlayerSaveService.SaveNow();
+            else PlayerSaveService.MarkDirty();
         }
 
         // 기획: 시작 시 HP·스태미나·게이지는 모두 가득 찬 상태다.
@@ -284,6 +322,18 @@ namespace ProjectS.Players
             currentHp = maxHp;
             currentStamina = maxStamina;
             currentSkillGauge = maxSkillGauge;
+        }
+
+        /// <summary>
+        /// 씬 진입 시 HP·스태미나·스킬 게이지를 최대치로 회복한다(기획: 씬 전환 시 자원 풀 충전).
+        /// 값만 세팅하고 발행은 하지 않는다 — 호출측이 곧바로 <see cref="PlayerEvents.FireStatsRefreshRequested"/>로
+        /// 전체 스탯을 다시 쏘므로, 여기서 또 발행하면 같은 프레임에 중복 갱신이 된다.
+        /// 사망 상태에서는 회복하지 않는다(부활은 별도 흐름).
+        /// </summary>
+        public void RefillOnSceneEnter()
+        {
+            if (IsDead) return;
+            FillResourcesToMax();
         }
 
         private void PublishAllStats()
