@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using ProjectS.Debugging;
 
 namespace ProjectS.Players
 {
@@ -258,6 +259,8 @@ namespace ProjectS.Players
         {
             if (n >= 1 && n < Skill.Length)
                 animator.SetTrigger(Skill[n]);
+            DevLog.Log(Skill[n].ToString());
+            
         }
 
         public void PlayAttackTrigger()
