@@ -363,18 +363,10 @@ namespace ProjectS.Enemies
 
         /// <summary>
         /// 피격 반응 진입점. EnemyStats가 데미지를 적용하고 사망하지 않았을 때 호출한다.
-        /// 반응 등급과 경직 사용 여부, 쿨다운을 확인한 뒤 HitState로 전환한다.
+        /// 경직 사용 여부와 쿨다운을 확인한 뒤 HitState로 전환한다.
         /// </summary>
-        /// <param name="reaction">
-        /// 이 타격이 유발하는 피격 반응. None이면 경직시키지 않고 데미지만 받은 것으로 둔다
-        /// (스킬은 기본 None이라 몬스터가 경직되지 않고, 강피격으로 지정된 스킬·일반 공격만 반응한다).
-        /// </param>
-        public void OnDamaged(HitReaction reaction)
+        public void OnDamaged()
         {
-            // 반응 없는 타격(대부분의 스킬)은 데미지만 들어가고 경직/피격 모션을 유발하지 않는다.
-            // → 스킬 연타 중 몬스터가 계속 경직으로 밀려나거나 행동이 끊기지 않게 하기 위함.
-            if (reaction == HitReaction.None) return;
-
             // 피격 경직은 선택 기능이다. 사망/쿨다운 중에는 상태를 흔들지 않는다.
             // 데미지 적용과 사망 판정은 EnemyStats가 단일 소유하고, 여기는 "살아남은 뒤 반응"만 맡는다.
             if (!useHitStun) return;

@@ -115,9 +115,7 @@ namespace ProjectS.Enemies
             }
             else
             {
-                // 피격 반응 등급은 때린 쪽이 정해 실어 보낸다. 여기선 경직 진입 여부를 Enemy가 판단하게 넘기기만 한다
-                // (None이면 데미지만, 일반/강 피격이면 HitState로 이어진다).
-                enemy?.OnDamaged(result.Reaction);
+                enemy?.OnDamaged();
             }
 
             return true;
