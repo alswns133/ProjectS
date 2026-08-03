@@ -5887,9 +5887,63 @@ MonoBehaviour:
   - key: Skill_1_1
     shakeForce: 0.3
     shakeDirection: {x: 0, y: 1, z: 0}
+    duration: 0
+    interval: 0.06
+    strengthOverTime:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    directionJitter: 0.35
   - key: Skill_2_3
     shakeForce: 1
     shakeDirection: {x: 3, y: 3, z: 0}
+    duration: 0
+    interval: 0.06
+    strengthOverTime:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    directionJitter: 0.35
 --- !u!1 &6468475852384579778
 GameObject:
   m_ObjectHideFlags: 0
@@ -6369,8 +6423,8 @@ GameObject:
   - component: {fileID: 3386925869625297108}
   - component: {fileID: 5054866999206870792}
   - component: {fileID: 3098777463369675379}
-  - component: {fileID: 2560047901458025671}
   - component: {fileID: 2086103311201186281}
+  - component: {fileID: 2560047901458025671}
   m_Layer: 0
   m_Name: FreeLookCamera
   m_TagString: Untagged
@@ -6462,22 +6516,6 @@ MonoBehaviour:
     CameraRadius: 0.2
     DampingIntoCollision: 0
     DampingFromCollision: 0.5
---- !u!114 &2560047901458025671
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7157295217285055095}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 724f41eb2681abd45aaddd6cae7ba47c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraRig
-  input: {fileID: 8939642014155905306}
-  zoomSpeed: 50
-  minDistance: 2
-  maxDistance: 10
 --- !u!114 &2086103311201186281
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6502,6 +6540,22 @@ MonoBehaviour:
     FrequencyGain: 1
     Duration: 1
     m_NoiseOffsets: {x: 0, y: 0, z: 0}
+--- !u!114 &2560047901458025671
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7157295217285055095}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 724f41eb2681abd45aaddd6cae7ba47c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraRig
+  input: {fileID: 8939642014155905306}
+  zoomSpeed: 50
+  minDistance: 2
+  maxDistance: 10
 --- !u!1 &7263219998852225081
 GameObject:
   m_ObjectHideFlags: 0
@@ -11519,7 +11573,7 @@ PrefabInstance:
   m_SourcePrefab: {fileID: 100100000, guid: b29bc1b0e014492419ea88cbb7d103df, type: 3}
 --- !u!4 &8359461417436449810 stripped
 Transform:
-  m_CorrespondingSourceObject: {fileID: 4775681412446352, guid: b29bc1b0e014492419ea88cbb7d103df, type: 3}
+  m_CorrespondingSourceObject: {fileID: 4307288376031944, guid: b29bc1b0e014492419ea88cbb7d103df, type: 3}
   m_PrefabInstance: {fileID: 8363803166151816322}
   m_PrefabAsset: {fileID: 0}
 --- !u!198 &8562140213041873574 stripped

@@ -96,6 +96,11 @@ namespace ProjectS.Managers
             // 끝내야 한다. 막은 뒤에 하면 비동기 큐가 통째로 멈춰 데드락이 난다.
             if (sceneDic.ContainsKey(current))
             {
+                // 경계 flush(③): 씬을 떠나기 전에 진행 전체(레벨·경험치·재화·퀘스트)를 즉시 저장한다.
+                // 값 수집은 동기라 기다리지 않아도 스냅샷은 정확하고, 업로드는 백그라운드로 이어진다.
+                // 세션이 없으면(직접 씬 테스트) 내부에서 조용히 건너뛴다.
+                PlayerSaveService.SaveNow();
+
                 sceneDic[current].Exit();                // 이전 씬의 Exit 호출
                 SoundManager.Instance.ReleaseAllClips(); // 이전 씬 사운드 메모리 해제
                 UIManager.Instance.ClearPanelStack();    // 이전 씬 패널 스택 클리어
@@ -246,6 +251,7 @@ namespace ProjectS.Managers
         // 어플리케이션이 종료될 때 호출되는 메서드입니다.
         private void OnApplicationQuit()
         {
+            // 종료 직전 세이브는 AutoSaveTicker.OnApplicationQuit이 담당한다(세이브 정책 일원화).
             OnExited?.Invoke();
         }
         // 어플리케이션이 중지되거나 다시 활성화될 때 호출되는 메서드입니다.

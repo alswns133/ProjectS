@@ -125,6 +125,14 @@ namespace ProjectS.Players
         // 스킬 시전 중에는 일반 공격 입력을 막기 위해 Player가 확인하는 플래그.
         public bool IsCastingSkill { get; private set; }
 
+        /// <summary>
+        /// 지금 캐릭터 스킬(궁 포함)을 시전 중인지. 강공격·대시 공격·점프 공격은 IsCastingSkill을 켜지만
+        /// 여기서는 제외한다(그것들은 CombatAction이 Skill이 아니다). 피격 시 슈퍼아머 판정에 쓴다 —
+        /// 스킬 시전 중에만 약한 피격을 흘리고, 그 외 공격(일반/대시/점프/강공격) 중에는 정상적으로 경직된다.
+        /// Player.OnDamaged가 이 값과 강피격 여부(LastHitWasStrong)를 함께 보고 경직 진입을 가른다.
+        /// </summary>
+        public bool IsCastingSkillMove => currentAction == CombatAction.Skill;
+
         // 평타(콤보) 전용 상태. IsCastingSkill은 스킬/강공격/대시·공중공격만 켜고 평타는 켜지 않아서,
         // 평타의 연계(캔슬) 창을 따로 둘 필요가 있다. 태그 기반 캐릭터의 강공격/스킬 라우팅이
         // "콤보 도중엔 캔슬 창이 열려야만 통과"를 판정할 때 Player가 읽는다.

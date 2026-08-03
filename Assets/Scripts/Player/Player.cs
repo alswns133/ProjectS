@@ -576,7 +576,10 @@ namespace ProjectS.Players
             if (Stats.IsDead) return;
             if (IsRolling) return;             // 회피 중 재입력 무시 → 끝나는 프레임부터 다음 회피 발동
 
-            if (!Movement.IsStablyGrounded) return;       // 공중에서는 구르기를 발동하지 않음
+            // 공중에서는 구르기를 발동하지 않음. 접지 근거는 controller.isGrounded(IsStablyGrounded)가
+            // 아니라 레이캐스트 기반(IsGroundedForDodge)을 쓴다 — isGrounded는 고프레임에서 프레임당
+            // 하강량이 작아지면 간헐적으로 false가 되어, 그 프레임에 회피가 씹혔다(고사양 PC 스킬 캔슬 실패 원인).
+            if (!Movement.IsGroundedForDodge) return;
 
             if (Input.MoveInput.sqrMagnitude < 0.0001f) return;  // 무입력(Idle) 구르기 금지(기획)
 
@@ -627,6 +630,11 @@ namespace ProjectS.Players
         {
             if (Stats.IsDead) return;
             if (IsRolling) return;
+
+            // 스킬 시전 중 슈퍼아머: 약한 피격은 데미지만 받고(TakeDamage에서 이미 적용) 경직시키지 않는다.
+            // 스킬을 한 번 지르면 잡몹 평타에 계속 끊기지 않게 하려는 기획이다. 강피격(LastHitWasStrong)은
+            // 슈퍼아머를 뚫고 경직시킨다. 일반/대시/점프/강공격 중에는 IsCastingSkillMove가 false라 정상 경직된다.
+            if (Combat.IsCastingSkillMove && !Stats.LastHitWasStrong) return;
 
             ChangeState(HitState);
         }
