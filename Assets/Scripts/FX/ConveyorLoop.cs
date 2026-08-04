@@ -38,6 +38,7 @@ namespace ProjectS.FX
 
         private Transform[] items;
         private float[] baseX;       // 순환 계산의 기준이 되는 배치 위치
+        private float[] pivotToLeft; // 피벗에서 메시 왼쪽 끝까지의 거리 (순환 판정 기준)
         private float[] originalX;   // 스크립트를 끄면 되돌릴 원래 위치
         private float span;          // 한 바퀴 도는 거리 = 전체 띠 길이
         private float travelled;
@@ -68,9 +69,9 @@ namespace ProjectS.FX
             items = new Transform[count];
             baseX = new float[count];
             originalX = new float[count];
+            pivotToLeft = new float[count];
 
             float[] widths = new float[count];
-            float[] pivotToLeft = new float[count];
 
             for (int i = 0; i < count; i++)
             {
@@ -78,6 +79,8 @@ namespace ProjectS.FX
                 originalX[i] = items[i].localPosition.x;
                 MeasureX(items[i], out widths[i], out pivotToLeft[i]);
             }
+
+            WarnIfStatic();
 
             if (arrangeChildren)
             {
@@ -116,6 +119,27 @@ namespace ProjectS.FX
             ApplyPositions();
         }
 
+        /// <summary>
+        /// Batching Static으로 표시된 자식은 정적 배칭 때문에 메시가 월드 좌표에 구워진다.
+        /// 그러면 Transform은 정상적으로 움직이는데 화면에는 전혀 반영되지 않아서,
+        /// "스크립트가 아무 일도 안 하는 것"처럼 보인다. 원인을 바로 알 수 있게 로딩 시점에 알린다.
+        /// </summary>
+        private void WarnIfStatic()
+        {
+            if (!Application.isPlaying) return;
+
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (items[i] == null || !items[i].gameObject.isStatic) continue;
+
+                Debug.LogWarning(
+                    $"[ConveyorLoop] {name}: 자식 '{items[i].name}'이(가) Static으로 표시돼 있습니다. " +
+                    "정적 배칭으로 메시가 고정돼 움직여도 화면에 보이지 않습니다. " +
+                    "자식들의 Static(최소 Batching Static, Contribute GI)을 해제하세요.", items[i]);
+                return;   // 한 줄에 간판이 여럿이므로 첫 건만 알린다. 콘솔 도배 방지.
+            }
+        }
+
         /// <summary>재배치 시작점. 원래 배치의 가장 왼쪽을 유지해서 줄 위치가 안 튀게 한다.</summary>
         private float FindLeftmostEdge()
         {
@@ -134,7 +158,8 @@ namespace ProjectS.FX
             width = 0f;
             pivotToLeft = 0f;
 
-            var renderers = child.GetComponentsInChildren<Renderer>();
+            // 비활성 자식도 포함한다. 빠뜨리면 폭이 0으로 잡혀 그 칸만 겹쳐 붙는다.
+            var renderers = child.GetComponentsInChildren<Renderer>(true);
             if (renderers.Length == 0) return;
 
             // 부모(this) 기준 로컬 공간에서의 최소/최대 X를 구한다.
@@ -188,10 +213,16 @@ namespace ProjectS.FX
 
                 // 기준 위치에서 travelled 만큼 밀되, span을 넘으면 반대쪽으로 감는다.
                 // Repeat을 쓰면 "끝에 닿으면 앞으로 보내기" 같은 분기 없이 순환한다.
-                float t = Mathf.Repeat(baseX[i] - origin + travelled, span);
+                //
+                // 감는 기준은 피벗이 아니라 반드시 "메시 왼쪽 끝"이어야 한다.
+                // 배치를 왼쪽 끝 기준으로 맞닿게 해놨으므로, 순환도 같은 기준이어야
+                // 빠져나간 자리에 다음 간판이 정확히 들어온다. 피벗 기준으로 감으면
+                // (피벗이 메시 중앙일 때) 오른쪽 절반이 아직 띠 안에 있는데도 통째로
+                // 튀어버려서, 간판 폭만큼의 빈칸이 주기적으로 생겼다 사라진다.
+                float edge = Mathf.Repeat(baseX[i] + pivotToLeft[i] - origin + travelled, span);
 
                 Vector3 p = items[i].localPosition;
-                p.x = origin + t;
+                p.x = origin + edge - pivotToLeft[i];
                 items[i].localPosition = p;
             }
         }

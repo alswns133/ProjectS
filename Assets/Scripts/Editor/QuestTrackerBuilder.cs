@@ -24,11 +24,22 @@ namespace ProjectS.EditorTools
         private const string CardPrefabPath = "Assets/Prefabs/UI/QuestCard.prefab";
         private const string FragmentPrefabPath = "Assets/Prefabs/UI/HexFragment.prefab";
         private const string TogglePrefabPath = "Assets/Prefabs/UI/Toggle.prefab";
+        private const string SweepPrefabPath = "Assets/Prefabs/UI/SweepLight.prefab";
+        private const string SweepSpritePath = "Assets/Textures/UI/SPR_UI_SweepGradient.png";
+        private const string SweepMaterialPath = "Assets/Materials/UI_SweepAdditive.mat";
+        private const string AdditiveShaderName = "ProjectS/UI Additive";
 
         // 창 폭에서 카드가 차지하지 않고 비워 두는 왼쪽 여유. 선택 연출로 카드가 왼쪽으로 튀어나올 때
         // Viewport의 RectMask2D에 잘리지 않게 하려는 공간이다(QuestTrackerEntry.selectedOffset와 짝).
         private const float PopMargin = 100f;
-        private const float WindowWidth = 300f;
+
+        // 눈에 보이는 카드의 폭. 미니맵 가로(230)와 맞춰 HUD 우측 열의 세로선을 하나로 만든다.
+        private const float CardWidth = 230f;
+
+        // 창 rect는 카드보다 PopMargin만큼 넓다. 그 왼쪽 여백은 투명하며, 선택 연출로 카드가
+        // 왼쪽으로 튀어나올 때 Viewport의 RectMask2D에 잘리지 않게 하는 자리다.
+        // PopMargin을 줄이면 QuestTrackerEntry.selectedOffset.x도 그 안으로 들어와야 한다.
+        private const float WindowWidth = CardWidth + PopMargin;
         private const float ScrollMaxHeight = 230f;
 
         private static readonly Color TitleBlue = new Color(0.11f, 0.36f, 0.62f, 1f);
@@ -79,6 +90,115 @@ namespace ProjectS.EditorTools
             EditorSceneManager.MarkSceneDirty(parent.gameObject.scene);
             Debug.Log($"[QuestTrackerBuilder] 생성 완료. 카드 프리팹={CardPrefabPath}, 파편 프리팹={FragmentPrefabPath}, " +
                       $"FX 레이어={spawner.name}. 스프라이트와 스윕 프리팹은 인스펙터에서 채우세요.");
+        }
+
+        /// <summary>
+        /// 스윕 라이트(카드 분해 때 왼쪽으로 흐르는 빛) 프리팹을 만들고 카드 프리팹에 연결한다.
+        /// 그라디언트 스프라이트의 임포트 설정과 가산 합성 머티리얼까지 함께 맞춘다 —
+        /// 셋 중 하나만 어긋나도 빛이 안 보이거나 흰 사각형으로 나온다.
+        /// </summary>
+        [MenuItem("Tools/ProjectS/스윕 라이트 프리팹 만들기", false, 104)]
+        public static void BuildSweepPrefab()
+        {
+            Sprite sprite = ImportSweepSprite();
+            if (sprite == null)
+            {
+                EditorUtility.DisplayDialog("스윕 라이트",
+                    $"그라디언트 스프라이트를 찾지 못했습니다:\n{SweepSpritePath}", "확인");
+                return;
+            }
+
+            Material material = EnsureAdditiveMaterial();
+
+            RectTransform sweep = NewRect("SweepLight", null);
+            // 오른쪽 끝(밝은 쪽)이 카드의 왼쪽 가장자리에 붙고, 꼬리가 왼쪽으로 흐르도록 피벗을 오른쪽에 둔다.
+            sweep.pivot = new Vector2(1f, 0.5f);
+            sweep.sizeDelta = new Vector2(160f, 64f);   // 높이는 재생 시 카드 높이로 덮어쓴다
+
+            Image image = sweep.gameObject.AddComponent<Image>();
+            image.sprite = sprite;
+            image.type = Image.Type.Simple;
+            image.color = new Color(0.45f, 1f, 0.6f, 1f);   // 완료 녹색보다 밝게 — 가산이라 흰빛으로 번진다
+            image.raycastTarget = false;
+            if (material != null) image.material = material;
+
+            GameObject asset = SaveAsPrefab(sweep.gameObject, SweepPrefabPath);
+            Object.DestroyImmediate(sweep.gameObject);
+
+            if (asset == null) return;
+
+            int wired = WireSweepIntoCard(asset.GetComponent<RectTransform>());
+            Debug.Log($"[QuestTrackerBuilder] 스윕 라이트 프리팹 생성: {SweepPrefabPath} " +
+                      $"(머티리얼={(material != null ? material.name : "기본")}, 카드 연결 {wired}건)");
+        }
+
+        // PNG를 UI 스프라이트로 임포트되게 맞춘다. 기본 임포트 설정이면 Texture로 들어와 Image에 못 넣는다.
+        private static Sprite ImportSweepSprite()
+        {
+            var importer = AssetImporter.GetAtPath(SweepSpritePath) as TextureImporter;
+            if (importer == null) return null;
+
+            bool dirty = importer.textureType != TextureImporterType.Sprite ||
+                         importer.spriteImportMode != SpriteImportMode.Single ||
+                         importer.mipmapEnabled ||
+                         !importer.alphaIsTransparency ||
+                         importer.wrapMode != TextureWrapMode.Clamp;
+
+            if (dirty)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.mipmapEnabled = false;              // UI라 밉맵은 흐려지기만 한다
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;   // 반복되면 꼬리 끝에 밝은 띠가 생긴다
+                importer.SaveAndReimport();
+            }
+
+            return AssetDatabase.LoadAssetAtPath<Sprite>(SweepSpritePath);
+        }
+
+        // 가산 셰이더가 있으면 그것으로 머티리얼을 만든다. 없으면 null(=UI 기본 머티리얼)로 두고 경고만 남긴다.
+        private static Material EnsureAdditiveMaterial()
+        {
+            Material existing = AssetDatabase.LoadAssetAtPath<Material>(SweepMaterialPath);
+            if (existing != null) return existing;
+
+            Shader shader = Shader.Find(AdditiveShaderName);
+            if (shader == null)
+            {
+                Debug.LogWarning($"[QuestTrackerBuilder] '{AdditiveShaderName}' 셰이더를 찾지 못했습니다. " +
+                                 "기본 UI 머티리얼로 만듭니다(빛이 겹쳐도 밝아지지 않습니다).");
+                return null;
+            }
+
+            string directory = System.IO.Path.GetDirectoryName(SweepMaterialPath);
+            if (!AssetDatabase.IsValidFolder(directory))
+            {
+                Debug.LogWarning($"[QuestTrackerBuilder] 폴더가 없어 머티리얼을 만들지 못했습니다: {directory}");
+                return null;
+            }
+
+            Material material = new Material(shader);
+            AssetDatabase.CreateAsset(material, SweepMaterialPath);
+            return material;
+        }
+
+        // 카드 프리팹 원본의 QuestCardDisintegrateFx에 스윕 프리팹을 연결한다.
+        private static int WireSweepIntoCard(RectTransform sweepPrefab)
+        {
+            GameObject card = PrefabUtility.LoadPrefabContents(CardPrefabPath);
+            if (card == null) return 0;
+
+            int wired = 0;
+            foreach (var fx in card.GetComponentsInChildren<QuestCardDisintegrateFx>(true))
+            {
+                new Wire(fx).Ref("sweepPrefab", sweepPrefab).Apply();
+                wired++;
+            }
+
+            if (wired > 0) PrefabUtility.SaveAsPrefabAsset(card, CardPrefabPath);
+            PrefabUtility.UnloadPrefabContents(card);
+            return wired;
         }
 
         /// <summary>
@@ -510,11 +630,10 @@ namespace ProjectS.EditorTools
 
         private static GameObject BuildCardPrefab()
         {
-            float cardWidth = WindowWidth - PopMargin;
-
             // 슬롯: 레이아웃이 배치하는 빈 껍데기. 높이만 차지하고 그림은 없다.
+            // 여기 폭은 초기값일 뿐이고, 런타임에는 Content의 Layout Group이 정한다.
             RectTransform slot = NewRect("QuestCard", null);
-            slot.sizeDelta = new Vector2(cardWidth, 60f);
+            slot.sizeDelta = new Vector2(CardWidth, 60f);
             LayoutElement slotLayout = slot.gameObject.AddComponent<LayoutElement>();
             slotLayout.preferredHeight = 60f;
 
