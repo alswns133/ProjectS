@@ -221,11 +221,7 @@ namespace ProjectS.Debugging
             {
                 Index = -1,
                 EquipSlot = EquipSlot.Weapon,
-                // 정규화된 이름을 쓰는 이유: 외부 에셋(TPSRobot/WeaponManager.cs)이 전역 네임스페이스에
-                // 같은 이름의 enum(총기용)을 정의한다. C#은 전역 멤버를 using으로 수입한 타입보다 먼저
-                // 찾으므로, 짧게 WeaponType.Sword로 쓰면 그 총기 enum이 잡혀 CS0117로 컴파일이 깨진다.
-                // (ProjectS.Data 안에 있는 파일은 자기 네임스페이스에서 먼저 찾아 이 문제를 겪지 않는다.)
-                WeaponType = ProjectS.Data.WeaponType.Sword,
+                WeaponType = WeaponType.Sword,
                 MainStatType = MainStatType.AttackDamage,
                 MainStatBase = mainStatBase
             };

@@ -119,7 +119,8 @@ namespace ProjectS.Debugging
             Player target = ResolvePlayer();
             if (target == null) return;
 
-            target.Revive(1f);
+            // 부활 HP는 정식 규칙(전량 회복)을 따른다 — Player.Revive는 인자를 받지 않는다.
+            target.Revive();
             PrintState();
         }
 

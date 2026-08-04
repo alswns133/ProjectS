@@ -38078,6 +38078,8 @@ RectTransform:
   - {fileID: 1559513094}
   - {fileID: 1331662524}
   - {fileID: 1963745991}
+  - {fileID: 1614898264}
+  - {fileID: 1639589339}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -49635,8 +49637,6 @@ RectTransform:
   - {fileID: 1039492432}
   - {fileID: 1296027663}
   - {fileID: 1156358367}
-  - {fileID: 1614898264}
-  - {fileID: 1639589339}
   m_Father: {fileID: 1165652780}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -51673,7 +51673,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1559513094}
+  m_Father: {fileID: 1165652780}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1614898265
 MonoBehaviour:
@@ -52466,7 +52466,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1639589335
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52488,7 +52488,6 @@ MonoBehaviour:
   chooseMessage: "\uBD80\uD65C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"
   autoReturnMessage: "\uBD80\uD65C \uAE30\uD68C\uB97C \uBAA8\uB450 \uC0AC\uC6A9\uD588\uC2B5\uB2C8\uB2E4.\n\uB9C8\uC744\uB85C
     \uB3CC\uC544\uAC11\uB2C8\uB2E4."
-  reviveHpRatio: 0.5
   returnDelay: 5
 --- !u!114 &1639589336
 MonoBehaviour:
@@ -52557,12 +52556,12 @@ RectTransform:
   - {fileID: 2095785740}
   - {fileID: 2016815665}
   - {fileID: 137577872}
-  m_Father: {fileID: 1559513094}
+  m_Father: {fileID: 1165652780}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1280, y: 720}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1639742658
 GameObject:
@@ -64608,6 +64607,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1932987202}
   - component: {fileID: 1932987204}
+  - component: {fileID: 1932987205}
   - component: {fileID: 1932987203}
   m_Layer: 0
   m_Name: TitleText
@@ -64633,7 +64633,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 180}
-  m_SizeDelta: {x: 720, y: 90}
+  m_SizeDelta: {x: 720, y: 250}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1932987203
 MonoBehaviour:
@@ -64657,8 +64657,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\uC0AC\uB9DD"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: cdcb117b22626f843998d553312603fe, type: 2}
-  m_sharedMaterial: {fileID: -6923793362663324378, guid: cdcb117b22626f843998d553312603fe, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 796655855363c0f45852572873d0debf, type: 2}
+  m_sharedMaterial: {fileID: 7998942074268223248, guid: 796655855363c0f45852572873d0debf, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -64682,8 +64682,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 72
-  m_fontSizeBase: 72
+  m_fontSize: 100
+  m_fontSizeBase: 100
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -64735,6 +64735,55 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1932987201}
   m_CullTransparentMesh: 1
+--- !u!114 &1932987205
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1932987201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6dd5910936d7e640baad935e9549bdc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.GlitchTextFx
+  glitchShader: {fileID: 4800000, guid: 0b3f955de14dc6840a70c0400e89bcdd, type: 3}
+  finalText: "\uC0AC\uB9DD"
+  cycleTexts:
+  - DEAD
+  - "\u6B7B\u4EA1"
+  - DEAD
+  - "\u6B7B\u4EA1"
+  scrambleCharset: "\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE\u6B7B\u4EA1\u7D42\u7109\u6EC5\u7D76\u65AD\u88C2\u58CA\u5D29\u96F6\u865A\u7121\u95C7ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&*+-/<=>?@[]^_{|}~"
+  settleDuration: 1.6
+  settledGlitch: 0.1
+  settleCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  scrambleInterval: 0.04
+  chaosRatio: 0.55
+  playOnEnable: 1
 --- !u!1 &1935285607
 GameObject:
   m_ObjectHideFlags: 0
