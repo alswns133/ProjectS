@@ -6,7 +6,6 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.UI.Framework;
-using Synty.SidekickCharacters.Database;
 using ProjectS.Managers;
 
 namespace ProjectS.UI
