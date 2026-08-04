@@ -679,7 +679,7 @@ namespace ProjectS.Players
                 },
                 CombatAction.Skill => IsCurrentSkillKey(key),
                 CombatAction.StrongAttack => nk == "StrongAttack",
-                CombatAction.RunAttack => nk == "DashAttack",
+                CombatAction.RunAttack => nk == "RunAttack",
                 CombatAction.JumpAttack => nk.StartsWith("Jump", StringComparison.Ordinal),
                 _ => false,
             };
