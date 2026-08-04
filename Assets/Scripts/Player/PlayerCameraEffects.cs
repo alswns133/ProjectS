@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Cinemachine;
 using UnityEngine;
+using ProjectS.Cameras;
 
 namespace ProjectS.Players
 {
@@ -67,9 +68,63 @@ namespace ProjectS.Players
             // 매 발사마다 방향을 랜덤하게 틀어 주는 정도(0=항상 같은 방향, 1=완전 랜덤).
             // 0이면 같은 축으로만 밀려 기계적으로 보인다. 지진·차징 진동은 0.3~0.6이 자연스럽다.
             [Range(0f, 1f)] public float directionJitter = 0.35f;
+
+            [Header("궤도 회전 (0이면 사용 안 함)")]
+            // 연출 동안 카메라가 도는 각도. 360이면 한 바퀴 돌아 시작 방향으로 정확히 돌아온다.
+            // 음수면 반대 방향으로 돈다.
+            public float orbitDegrees;
+
+            // 도는 데 걸리는 시간(초). 각도/시간이 곧 회전 속도다.
+            [Min(0.01f)] public float orbitDuration = 4f;
+
+            // 연출 중 마우스 조작을 막을지. 안 막으면 플레이어가 카메라를 돌려 궤도 연출이 깨진다.
+            public bool lockCameraInput = true;
+
+            [Header("높이·각도 (연출 중 상하 각도)")]
+            // true면 도는 동안 카메라 각도(부감/앙각)도 지정 값으로 옮긴다.
+            // ThirdPersonFollow는 이 각도로 캐릭터를 도는 반경 위쪽/아래쪽에서 비추므로,
+            // 별도 '높이' 값 없이 각도만으로 "얼마나 높은 곳에서 내려다보며 비출지"가 정해진다.
+            public bool useOrbitPitch;
+
+            // 연출 중 상하 각도(도). 양수면 위에서 내려다본다(높은 곳에서 비추는 느낌),
+            // 음수면 아래에서 올려다본다.
+            [Range(-70f, 70f)] public float orbitPitch = 20f;
+
+            [Header("거리 (0이면 사용 안 함)")]
+            // 연출 동안 고정할 카메라 거리. 각성기처럼 화면을 넓게 보여줘야 하는 연출에 쓴다.
+            // 플레이어 줌 한계(CameraRig의 min/max)를 무시하므로 기획 값을 그대로 적으면 된다.
+            [Min(0f)] public float overrideDistance;
+
+            // 그 거리까지 옮겨가는 시간(초). 0이면 즉시 바뀌어 화면이 순간이동한 것처럼 보인다.
+            [Min(0f)] public float distanceBlend = 0.4f;
+
+            [Header("위치 (0이면 사용 안 함)")]
+            // 연출 동안 카메라 중심(= 궤도 회전의 축)을 옮길 오프셋.
+            // 기준은 캐릭터가 바라보는 방향이다 — +Z 캐릭터 정면, +Y 위, +X 오른쪽.
+            // 캐릭터 앞에 생기는 마법진처럼 '캐릭터가 아닌 것'을 중심으로 돌려야 할 때 쓴다
+            // (예: 마법진이 정면 4m 앞에 생기면 Z를 4로).
+            // 값은 시전 순간에 월드 좌표로 확정되므로, 회전이 도는 동안 중심점이 흔들리지 않는다.
+            public Vector3 followOffset;
+
+            // 그 위치까지 옮겨가는 시간(초). 0이면 즉시 바뀌어 화면이 순간이동한 것처럼 보인다.
+            [Min(0f)] public float followOffsetBlend = 0.4f;
+
+            [Header("추적 정지")]
+            // true면 연출 동안 카메라가 캐릭터를 따라가지 않고 지금 자리에 멈춘다.
+            // 왔다갔다 하는 스킬에서 추적 때문에 화면이 심하게 흔들리는 것을 막는다.
+            public bool freezeFollow;
         }
 
         [SerializeField] private CameraEffectSlot[] effects;
+
+        // 궤도 회전·입력 잠금·거리·추적 정지는 카메라 쪽 컴포넌트가 수행한다(흔들림과 달리 임펄스로는 표현할 수 없다).
+        // 플레이어와 다른 오브젝트라 인스펙터로 연결하고, 비워 두면 씬에서 찾는다.
+        [SerializeField] private CameraPivotController cameraPivot;
+        [SerializeField] private CameraRig cameraRig;
+
+        // 해제 신호를 놓쳤을 때 마우스 잠금을 되돌리는 안전장치. 연출이 아무리 길어도 이 시간을
+        // 넘기면 강제로 풀린다 — 없으면 조작 불능 상태로 게임을 진행할 수 없게 된다.
+        [SerializeField, Min(0.5f)] private float maxOrbitTime = 8f;
 
         // 매 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
         private readonly Dictionary<string, CameraEffectSlot> effectMap = new Dictionary<string, CameraEffectSlot>();
@@ -83,10 +138,20 @@ namespace ProjectS.Players
         // (겹치면 세기가 눈덩이처럼 불어나 화면이 통제 불능으로 흔들린다).
         private Coroutine sustainRoutine;
 
+        // 궤도 회전·거리 연출 중 하나라도 잡고 있는 중인지. 해제(OffCameraEffect)와
+        // 안전장치의 기준이 된다. 이름은 orbitLock이지만 거리 연출도 같은 생명주기로 묶인다 —
+        // 하나의 스킬 연출이 카메라 각도·거리를 함께 잡았다가 함께 놓는 구조이기 때문이다.
+        private bool hasOrbitLock;
+        private float orbitLockStartTime;
+
         private void Awake()
         {
             player = GetComponent<Player>();
             impulseSource = GetComponent<CinemachineImpulseSource>();
+
+            // 인스펙터 연결을 깜빡해도 동작하도록 씬에서 찾아 둔다.
+            if (cameraPivot == null) cameraPivot = FindFirstObjectByType<CameraPivotController>();
+            if (cameraRig == null) cameraRig = FindFirstObjectByType<CameraRig>();
 
             if (effects == null) return;
 
@@ -125,13 +190,116 @@ namespace ProjectS.Players
                 StartSustain(slot.shakeDirection, slot.shakeForce, slot.duration, slot.interval, slot.directionJitter, slot.strengthOverTime);
             else
                 Shake(slot.shakeDirection, slot.shakeForce);
+
+            StartOrbitIfNeeded(slot);
+        }
+
+        /// <summary>
+        /// 궤도 회전과 마우스 잠금을 풀고 평소 카메라 조작으로 되돌린다.
+        /// 스킬이 끝나는 프레임에 Animation Event로 호출한다.
+        /// </summary>
+        /// <param name="key">인자는 받지만 실제로는 무시한다 — 지금 걸려 있는 잠금을 그냥 푼다.</param>
+        public void OffCameraEffect(string key)
+        {
+            ReleaseOrbitLock();
+        }
+
+        private void Update()
+        {
+            if (!hasOrbitLock) return;
+
+            // 구르기·피격·사망으로 스킬이 끊기면 해제 이벤트가 담긴 프레임까지 재생되지 않는다.
+            // 흔들림이 같은 조건으로 멈추는 것과 같은 기준으로 카메라 잠금도 풀어준다.
+            if (player != null && player.IsActionInterrupted)
+            {
+                // 캔슬은 즉시 복구한다. 플레이어가 이미 회피 모션에 들어갔으므로
+                // 카메라가 천천히 되돌아오면 그 시간 동안 조작이 겉도는 것처럼 느껴진다.
+                ReleaseOrbitLock();
+                return;
+            }
+
+            if (Time.time - orbitLockStartTime >= maxOrbitTime)
+            {
+                Debug.LogWarning($"Camera orbit lock lasted {maxOrbitTime}s. Releasing by safety timeout — check the OffCameraEffect Animation Event.", this);
+                ReleaseOrbitLock();
+            }
         }
 
         private void OnDisable()
         {
+            // 비활성화되면 Update가 멈춰 안전장치도 함께 멈춘다.
+            // 마우스 조작이 잠긴 채 남지 않도록 여기서 즉시 풀어준다(씬 전환 대비).
+            // 보간할 시간 자체가 없으므로 무조건 즉시 복구다.
+            ReleaseOrbitLock();
+
             // 비활성화되면 Unity가 코루틴을 알아서 멈추지만, 핸들은 남아 다음 활성화 때
             // 죽은 코루틴을 붙잡고 있게 된다 → 여기서 비운다.
             sustainRoutine = null;
+        }
+
+        // 슬롯에 궤도·거리 값이 있으면 카메라에 적용하고 필요 시 조작을 잠근다.
+        // 둘 다 0이면 아무 일도 하지 않는다(흔들림만 쓰는 기존 슬롯은 영향을 받지 않는다).
+        private void StartOrbitIfNeeded(CameraEffectSlot slot)
+        {
+            // 각도만 바꾸는 연출(회전 0 + Use Orbit Pitch)도 카메라 쪽에 전달해야 하므로
+            // '회전이 있는가'가 아니라 '카메라 회전 제어를 쓰는가'로 판단한다.
+            bool useOrbit = cameraPivot != null
+                && (!Mathf.Approximately(slot.orbitDegrees, 0f) || slot.useOrbitPitch);
+            bool useDistance = slot.overrideDistance > 0f && cameraRig != null;
+            bool useFreeze = slot.freezeFollow && cameraRig != null;
+            bool useOffset = slot.followOffset != Vector3.zero && cameraRig != null;
+
+            if (!useOrbit && !useDistance && !useFreeze && !useOffset) return;
+
+            // 오프셋을 먼저 건 뒤 얼려야 한다. 순서가 반대면 오프셋이 반영되지 않은 자리에서
+            // 얼어붙어(추적 정지 중에는 앵커를 갱신하지 않으므로) 위치 값이 무시된다.
+            //
+            // 캐릭터 기준 값을 지금 이 순간의 캐릭터 방향으로 월드 좌표로 바꿔서 넘긴다.
+            // 이렇게 확정해 두면 궤도가 도는 동안에도 중심점이 그 자리에 그대로 있는다.
+            if (useOffset)
+                cameraRig.SetFollowOffset(transform.rotation * slot.followOffset, slot.followOffsetBlend);
+
+            // 추적 정지를 거리 변경보다 먼저 걸어야 한다. 순서가 반대면 거리 전환이 진행되는
+            // 동안 카메라가 여전히 캐릭터를 따라가다가 그 다음 프레임에야 멈춰 한 번 덜컹인다.
+            if (useFreeze) cameraRig.FreezeFollow();
+
+            if (useDistance) cameraRig.SetDistanceOverride(slot.overrideDistance, slot.distanceBlend);
+
+            if (useOrbit)
+                cameraPivot.StartOrbit(slot.orbitDegrees, slot.orbitDuration, slot.useOrbitPitch, slot.orbitPitch);
+
+            // 잠금은 궤도 회전 여부와 무관하게 건다. "연출 중에는 카메라 조작 금지"가 규칙이므로,
+            // 회전 없이 거리·위치만 바꾸는 연출도 똑같이 잠긴다.
+            if (slot.lockCameraInput && cameraPivot != null) cameraPivot.SetInputLocked(true);
+
+            // 궤도든 거리든 하나라도 걸렸으면 같은 생명주기(해제·안전 타임아웃)로 관리한다.
+            // 거리만 쓰는 슬롯도 Off 이벤트를 놓치면 원래 줌으로 돌아오지 못하는 사고가 나므로,
+            // 회전이 없다는 이유로 안전장치를 빼면 안 된다.
+            hasOrbitLock = true;
+            orbitLockStartTime = Time.time;
+        }
+
+        // 연출 해제는 항상 '그 프레임에 즉시'다.
+        // 부드럽게 되돌리면 연출이 끝난 뒤에도 카메라가 혼자 미끄러지며 따라와 어색하고,
+        // 그 사이 플레이어 조작과 복귀 보간이 서로 밀어내 통제감이 무너진다.
+        // 들어갈 때(연출 시작)만 블렌드를 쓴다.
+        private void ReleaseOrbitLock()
+        {
+            // 연출이 끝나면(정상 종료든 캔슬이든) 조건 없이 회전을 멈추고 조작을 돌려준다.
+            if (cameraPivot != null)
+            {
+                cameraPivot.StopOrbit();
+                cameraPivot.SetInputLocked(false);
+            }
+
+            if (cameraRig != null)
+            {
+                if (cameraRig.HasDistanceOverride) cameraRig.ClearDistanceOverride(0f);
+                if (cameraRig.HasFollowOffset) cameraRig.ClearFollowOffset(true);
+                if (cameraRig.IsFollowFrozen) cameraRig.ReleaseFollow();
+            }
+
+            hasOrbitLock = false;
         }
 
         /// <summary>
