@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace ProjectS.Players
 {
@@ -13,8 +14,23 @@ namespace ProjectS.Players
     [RequireComponent(typeof(CharacterController))]
     public class PlayerMovement : MonoBehaviour
     {
-        [SerializeField] private float moveSpeed = 3f;
-        [SerializeField] private float runSpeed = 6f;
+        // 걷기/달리기 속도는 마을/던전에서 다르게 튜닝한다(기획). 씬 진입 시 EnterVillage/EnterDungeon가
+        // UseVillageSpeed/UseDungeonSpeed로 아래 세트 중 하나를 활성 속도(moveSpeed/runSpeed)에 복사한다.
+        // 애니메이터 컨트롤러를 마을/던전으로 가르는 것(Animation.UseVillageController/UseDungeonController)과 같은 패턴.
+        [Header("이동 속도 - 마을")]
+        [SerializeField, FormerlySerializedAs("moveSpeed")] private float villageMoveSpeed = 3f;   // 마을 걷기
+        [SerializeField, FormerlySerializedAs("runSpeed")] private float villageRunSpeed = 6f;     // 마을 달리기
+
+        [Header("이동 속도 - 던전")]
+        [SerializeField] private float dungeonMoveSpeed = 3f;   // 던전 걷기
+        [SerializeField] private float dungeonRunSpeed = 6f;    // 던전 달리기
+
+        // 현재 씬에 맞춰 선택된 활성 속도. 인스펙터가 아니라 UseVillageSpeed/UseDungeonSpeed가 세팅한다.
+        // Awake에서 마을 세트로 초기화해, 씬 진입 호출 전에도 0속도로 굳지 않게 한다.
+        private float moveSpeed;
+        private float runSpeed;
+
+        [Header("이동 - 공통")]
         [SerializeField] private float rotationDamping = 10f;
         [SerializeField] private float jumpHeight = 3f;
         [SerializeField] private float gravity = 9.8f;
@@ -242,8 +258,29 @@ namespace ProjectS.Players
             inputHandler = GetComponent<PlayerInputHandler>();
             TryCacheMainCamera();
 
+            // 씬 진입 호출(EnterVillage/EnterDungeon) 전에도 유효한 속도가 있도록 마을 세트로 초기화한다.
+            UseVillageSpeed();
+
             // 첫 LateUpdate에서 (현재위치 - 0) 큰 델타로 속도가 튀지 않게 시작 위치로 초기화한다.
             lastPosition = transform.position;
+        }
+
+        /// <summary>
+        /// 활성 걷기/달리기 속도를 마을 세트로 전환한다. <see cref="Player.EnterVillage"/>가 호출한다.
+        /// </summary>
+        public void UseVillageSpeed()
+        {
+            moveSpeed = villageMoveSpeed;
+            runSpeed = villageRunSpeed;
+        }
+
+        /// <summary>
+        /// 활성 걷기/달리기 속도를 던전 세트로 전환한다. <see cref="Player.EnterDungeon"/>가 호출한다.
+        /// </summary>
+        public void UseDungeonSpeed()
+        {
+            moveSpeed = dungeonMoveSpeed;
+            runSpeed = dungeonRunSpeed;
         }
 
         public void Move(Vector2 input, bool isRunning = false, bool actionLocked = false)
