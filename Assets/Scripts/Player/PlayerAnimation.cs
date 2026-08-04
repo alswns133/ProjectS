@@ -323,5 +323,22 @@ namespace ProjectS.Players
             if (hasDie) animator.SetTrigger(DoDie);
             else if (hasDieLarge) animator.SetTrigger(DoDieLarge);
         }
+
+        /// <summary>
+        /// 사망 모션에서 빠져나와 기본(로코모션) 상태로 되돌린다. 부활(<see cref="Player.Revive"/>) 시 호출한다.
+        /// 사망 State는 스스로 빠져나가는 전이가 없어, 죽은 자리에서 부활할 때 명시적으로 리셋해야 한다.
+        /// 래치된 사망 트리거를 지운 뒤 애니메이터를 재바인드해 기본 State(Idle)로 되돌리고, 그 자리에서
+        /// 한 프레임 평가(Update(0))해 바인드 포즈(T포즈)가 한 프레임 번쩍이는 것을 막는다.
+        /// (마을 복귀 경로는 컨트롤러 교체가 애니메이터를 어차피 Idle로 되돌리지만, 죽은 자리 부활은 이 경로가 필요하다.)
+        /// </summary>
+        public void ResetDeath()
+        {
+            if (animator == null) animator = GetComponent<Animator>();
+
+            animator.ResetTrigger(DoDie);
+            animator.ResetTrigger(DoDieLarge);
+            animator.Rebind();
+            animator.Update(0f);
+        }
     }
 }

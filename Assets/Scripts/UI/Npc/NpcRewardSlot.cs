@@ -25,11 +25,17 @@ namespace ProjectS.UI
                 amountText.gameObject.SetActive(!string.IsNullOrEmpty(amount));
             }
 
-            if (icon != null)
-            {
-                icon.sprite = iconSprite;
-                icon.enabled = iconSprite != null;
-            }
+            SetIcon(iconSprite);
+        }
+
+        /// <summary>아이콘만 갈아끼운다(아이템 보상 아이콘의 비동기 로드가 늦게 끝났을 때 덮어쓰기용).</summary>
+        /// <param name="iconSprite">아이콘(없으면 숨김)</param>
+        public void SetIcon(Sprite iconSprite)
+        {
+            if (icon == null) return;
+
+            icon.sprite = iconSprite;
+            icon.enabled = iconSprite != null;
         }
     }
 }

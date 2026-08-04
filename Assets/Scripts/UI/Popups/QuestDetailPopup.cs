@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -6,6 +6,8 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.UI.Framework;
+using Synty.SidekickCharacters.Database;
+using ProjectS.Managers;
 
 namespace ProjectS.UI
 {
@@ -138,7 +140,8 @@ namespace ProjectS.UI
             connector.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
         }
 
-        // 보상을 종류별로 한 줄씩 쌓는다. 아이템·스킬은 ID만 있으므로 이름 조회는 추후 아이템 테이블 연동 시 붙인다.
+        // 보상을 종류별로 한 줄씩 쌓는다. 아이템은 ItemData.Name, 스킬은 SkillTable.NameKey를 테이블에서
+        // 조회해 이름으로 표시한다(정의가 없거나 로딩 전이면 ID로 폴백).
         private static string BuildRewards(QuestTable definition)
         {
             if (definition.Rewards == null || definition.Rewards.Count == 0) return string.Empty;
@@ -157,10 +160,21 @@ namespace ProjectS.UI
                         sb.Append("경험치 ").Append(reward.Amount);
                         break;
                     case QuestRewardType.Item:
-                        sb.Append("아이템 ").Append(reward.TargetId).Append(" x").Append(reward.Amount);
+                        // 아이템 정의가 있으면 이름을, 없으면(로딩 전·삭제된 ID) ID로 폴백한다(NRE 방지).
+                        string itemName = JsonManager.Instance != null
+                                          && JsonManager.Instance.ItemDict.TryGetValue(reward.TargetId, out ItemData itemData)
+                            ? itemData.Name
+                            : reward.TargetId.ToString();
+                        sb.Append("아이템 ").Append(itemName).Append(" x").Append(reward.Amount);
                         break;
                     case QuestRewardType.SkillUnlock:
-                        sb.Append("스킬 해금 ").Append(reward.TargetId);
+                        // 스킬 정의가 있으면 이름(NameKey)을, 없으면 ID로 폴백한다.
+                        string skillName = JsonManager.Instance != null
+                                           && JsonManager.Instance.SkillDict.TryGetValue(reward.TargetId, out SkillTable skill)
+                                           && !string.IsNullOrEmpty(skill.NameKey)
+                            ? skill.NameKey
+                            : reward.TargetId.ToString();
+                        sb.Append("스킬 해금 ").Append(skillName);
                         break;
                 }
             }

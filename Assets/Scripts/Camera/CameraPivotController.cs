@@ -32,6 +32,12 @@ public class CameraPivotController : MonoBehaviour
 
     void Update()
     {
+        // 마우스 포인터가 보이는 상태(커서 잠금 해제)면 마우스는 UI 조작용이므로
+        // 카메라를 회전시키지 않는다. 창/대화/NPC 상호작용으로 커서가 풀려 있을 때
+        // 화면을 클릭하면 카메라가 홱 도는 문제를 막기 위함.
+        if (Cursor.lockState != CursorLockMode.Locked)
+            return;
+
         // 현재 마우스가 이동한 델타값
         Vector2 delta = Mouse.current.delta.ReadValue();
         yaw += delta.x * sensitivity;
