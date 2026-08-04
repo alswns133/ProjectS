@@ -102,6 +102,49 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// 자식이 아닌 패널을 등록한다. <see cref="RegisterPopup"/>의 패널 판이다.
+        /// </summary>
+        /// <remarks>
+        /// UIManager는 Awake에서 <b>자기 자식에서만</b> BasePanel을 수집하므로, 나중에 로드되는 씬에
+        /// 따로 배치된 패널(HUD 루트 아래의 HUDPanel 등)은 어느 흐름에서도 panelMap에 들어가지 못한다.
+        /// 그 상태로 <see cref="ShowPanel{T}"/>를 부르면 "패널이 없음" 경고만 남고 <c>OnInit</c>이 돌지 않아,
+        /// 게이지 같은 내부 요소가 초기화되지 않은 채 남는다(FillGauge는 코루틴 주인을 OnInit에서 받는다).
+        ///
+        /// 같은 호출을 여러 번 해도 안전하다(멱등). Awake 순서에 기대지 않도록, 여는 쪽에서
+        /// 열기 직전에 불러도 되게 만든 것이다.
+        /// </remarks>
+        /// <param name="panel">등록할 패널</param>
+        public void RegisterPanel(BasePanel panel)
+        {
+            if (panel == null) return;
+
+            Type type = panel.GetType();
+            if (panelMap.TryGetValue(type, out var existing) && existing != panel)
+                Debug.LogWarning($"[UIManager] {type.Name} 패널이 이미 등록돼 있어 교체함");
+
+            panelMap[type] = panel;
+
+            if (basePanels != null && !basePanels.Contains(panel))
+                basePanels.Add(panel);
+        }
+
+        /// <summary>
+        /// 패널 등록을 해제한다. 씬이 언로드될 때 호출해야 한다 —
+        /// UIManager는 씬을 넘어 살아남으므로, 안 하면 panelMap이 파괴된 패널을 계속 들고 있게 된다.
+        /// </summary>
+        /// <param name="panel">해제할 패널</param>
+        public void UnregisterPanel(BasePanel panel)
+        {
+            if (panel == null) return;
+
+            Type type = panel.GetType();
+            if (panelMap.TryGetValue(type, out var existing) && existing == panel)
+                panelMap.Remove(type);
+
+            basePanels?.Remove(panel);
+        }
+
+        /// <summary>
         /// 씬 전환 시 호출. 열려 있던 모든 패널과 팝업을 닫아 UI 상태를 깨끗이 초기화한다.
         /// (이전 씬의 UI가 다음 씬에 남는 것을 방지)
         /// </summary>
@@ -126,6 +169,10 @@ namespace ProjectS.Managers
             // 팝업이 있으면 팝업 먼저 닫기
             if (activePopups.Count > 0)
             {
+                // 모달 팝업(사망 팝업 등)은 뒤로가기를 무시한다. 아래 패널까지 흘려보내지 않고 여기서 끊는 이유는,
+                // "닫히면 안 되는 창이 떠 있는 동안"에는 뒤에 있는 패널도 닫히면 안 되기 때문이다.
+                if (!activePopups[activePopups.Count - 1].CanCloseByBack) return;
+
                 CloseTopPopup();
                 return;
             }

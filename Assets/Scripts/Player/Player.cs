@@ -644,6 +644,35 @@ namespace ProjectS.Players
             sm.ChangeState(DeadState);
         }
 
+        /// <summary>
+        /// 사망 상태에서 제자리 부활시킨다. 사망 팝업의 "부활" 버튼이 호출하는 유일한 진입점.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="PlayerDeadState"/>는 나가는 판단을 스스로 하지 않는 막다른 상태라, 외부에서
+        /// 이렇게 밀어내야 빠져나온다(그 클래스 주석의 "부활은 외부가 다른 상태로 전환시켜 빠져나간다").
+        ///
+        /// 순서가 중요하다. 자원 복구(IsDead 해제) → 애니메이터 복귀 → 이동/콤보 잠금 해제 → FreeState.
+        /// IsDead를 먼저 풀지 않으면 FreeState 진입 첫 프레임의 가드들이 아직 죽은 것으로 보고 되돌린다.
+        /// 사망 중 쌓였던 이동 잠금·콤보 진행을 안 풀면 살아나도 조작이 먹지 않는다.
+        ///
+        /// 살아 있을 때 호출하면 <see cref="PlayerStats.Revive"/>가 무시하므로 여기서도 아무 일도 없다.
+        /// 부활 위치는 죽은 자리 그대로다 — 체크포인트 복귀가 필요해지면 이 메서드에 워프를 덧붙인다.
+        /// </remarks>
+        /// <param name="hpRatio">부활 직후 HP 비율(0~1).</param>
+        public void Revive(float hpRatio)
+        {
+            if (!Stats.IsDead) return;
+
+            Stats.Revive(hpRatio);
+            Animation.PlayRevive();
+
+            Movement.SetHover(false);
+            Combat.ResetCombo();
+            UnlockMovement();
+
+            ChangeState(FreeState);
+        }
+
         // ── 태그 판정 헬퍼(자유 이동 캐릭터 전용) ─────────────────────────────
         // Animator 접근은 PlayerAnimation으로 일원화하고, Player는 캐싱한 태그 해시로 의미를 판정한다.
 

@@ -323,5 +323,29 @@ namespace ProjectS.Players
             if (hasDie) animator.SetTrigger(DoDie);
             else if (hasDieLarge) animator.SetTrigger(DoDieLarge);
         }
+
+        /// <summary>
+        /// 사망 모션에서 기본 상태(로코모션)로 되돌린다. 부활 시 <c>Player.Revive</c>가 호출한다.
+        /// </summary>
+        /// <remarks>
+        /// 컨트롤러에 <b>부활 트리거가 없어</b> 그래프 구조에 의존하지 않는 방법을 쓴다. 사망 State는
+        /// 나가는 전이가 없는 막다른 State라, 트리거를 리셋하는 것만으로는 빠져나오지 못한다. 그래서
+        /// <see cref="Animator.Rebind"/>로 기본 State로 되감고 <c>Update(0)</c>로 그 프레임에 즉시 반영한다
+        /// (안 하면 다음 프레임까지 사망 포즈가 한 프레임 남는다).
+        ///
+        /// Rebind는 파라미터도 전부 기본값으로 되돌리므로, 남아 있던 doDie/공격 트리거가 함께 지워지는 것이
+        /// 여기서는 오히려 이득이다. 대신 애니메이션으로 움직이던 값이 순간적으로 초기 포즈로 튀므로
+        /// 부활 연출을 넣을 때 어색하면, 컨트롤러에 doRevive 트리거와 Die → Idle 전이를 만들고
+        /// 이 메서드를 그 트리거로 바꾸는 것이 정석이다.
+        /// </remarks>
+        public void PlayRevive()
+        {
+            animator.Rebind();
+            animator.Update(0f);
+
+            // Rebind가 파라미터를 날려도 로코모션 bool은 명시적으로 꺼둔다.
+            // 죽을 때 달리던 중이었으면 이동 입력 없이 달리기로 복귀하는 것처럼 보이기 때문이다.
+            SetLocomotion(false, false);
+        }
     }
 }
