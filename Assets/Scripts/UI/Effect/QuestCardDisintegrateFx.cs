@@ -66,14 +66,24 @@ namespace ProjectS.UI
         /// <summary>카드가 완전히 지워지기까지 걸리는 시간(초). 호출부가 후속 처리 타이밍을 맞추는 데 쓴다.</summary>
         public float Duration => eraseDelay + eraseDuration;
 
-        /// <summary>연출을 처음부터 재생한다. 이미 재생 중이면 끊고 다시 시작한다.</summary>
-        public void Play()
+        /// <summary>
+        /// 연출을 처음부터 재생한다. 이미 재생 중이면 끊고 다시 시작한다.
+        /// </summary>
+        /// <param name="reverse">
+        /// false=분해(카드가 왼쪽부터 지워짐), true=등장(지워진 카드가 빛을 따라 다시 그려짐).
+        /// 마스크 진행 방향과 파편이 튀는 순서만 뒤집으면 되므로 같은 루틴을 공유한다.
+        /// </param>
+        public void Play(bool reverse = false)
         {
             if (visual == null) return;
 
             if (routine != null) StopCoroutine(routine);
-            ResetVisual();
-            routine = StartCoroutine(PlayRoutine());
+
+            // 등장은 '완전히 지워진 상태'에서 시작해야 한다. 분해는 그 반대.
+            if (visualMask != null)
+                visualMask.padding = reverse ? new Vector4(visual.rect.width, 0f, 0f, 0f) : Vector4.zero;
+
+            routine = StartCoroutine(PlayRoutine(reverse));
         }
 
         /// <summary>소거를 되돌려 카드를 원래대로 보이게 한다. 재생 전과 테스트 반복에 쓴다.</summary>
@@ -82,14 +92,16 @@ namespace ProjectS.UI
             if (visualMask != null) visualMask.padding = Vector4.zero;
         }
 
-        private IEnumerator PlayRoutine()
+        private IEnumerator PlayRoutine(bool reverse)
         {
             // 오버레이는 씬에 하나만 두므로 처음 한 번만 찾는다.
             if (spawner == null) spawner = FindAnyObjectByType<HexFragmentSpawner>();
 
             Rect area = visual.rect;
             float columnWidth = area.width / Mathf.Max(1, columns);
-            int nextColumn = 0;
+            // 분해는 왼쪽 칸부터, 등장은 오른쪽 칸부터 순서대로 파편이 튄다(경계가 지나는 방향이 반대).
+            int nextColumn = reverse ? columns - 1 : 0;
+            int step = reverse ? -1 : 1;
 
             RectTransform sweep = SpawnSweep(area);
             Graphic sweepGraphic = sweep != null ? sweep.GetComponent<Graphic>() : null;
@@ -116,31 +128,43 @@ namespace ProjectS.UI
                     }
                 }
 
-                float erase = Mathf.Clamp01((elapsed - eraseDelay) / Mathf.Max(0.01f, eraseDuration));
-                if (visualMask != null) visualMask.padding = new Vector4(erase * area.width, 0f, 0f, 0f);
+                float progress = Mathf.Clamp01((elapsed - eraseDelay) / Mathf.Max(0.01f, eraseDuration));
+                // 분해는 0→1(왼쪽부터 지움), 등장은 1→0(지워진 상태에서 되돌림).
+                float clip = reverse ? 1f - progress : progress;
+                if (visualMask != null) visualMask.padding = new Vector4(clip * area.width, 0f, 0f, 0f);
 
-                // 소거 경계가 지나간 칸부터 순서대로 파편을 방출한다.
-                float edgeX = area.xMin + erase * area.width;
-                while (nextColumn < columns && area.xMin + (nextColumn + 0.5f) * columnWidth <= edgeX)
+                // 경계가 지나간 칸부터 순서대로 파편을 방출한다.
+                float edgeX = area.xMin + clip * area.width;
+                while (IsColumnPassed(nextColumn, columnWidth, area, edgeX, reverse))
                 {
                     EmitColumn(nextColumn, columnWidth, area);
-                    nextColumn++;
+                    nextColumn += step;
                 }
 
                 yield return null;
             }
 
             // 프레임이 튀어 마지막 칸들을 건너뛰었어도 파편은 빠짐없이 나가야 한다.
-            while (nextColumn < columns)
+            while (nextColumn >= 0 && nextColumn < columns)
             {
                 EmitColumn(nextColumn, columnWidth, area);
-                nextColumn++;
+                nextColumn += step;
             }
 
-            if (visualMask != null) visualMask.padding = new Vector4(area.width, 0f, 0f, 0f);
+            if (visualMask != null)
+                visualMask.padding = reverse ? Vector4.zero : new Vector4(area.width, 0f, 0f, 0f);
             if (sweep != null) Destroy(sweep.gameObject);
 
             routine = null;
+        }
+
+        // 경계가 이 칸의 중심을 지났는지. 분해는 경계가 오른쪽으로, 등장은 왼쪽으로 움직여 판정이 반대다.
+        private bool IsColumnPassed(int column, float columnWidth, Rect area, float edgeX, bool reverse)
+        {
+            if (column < 0 || column >= columns) return false;
+
+            float center = area.xMin + (column + 0.5f) * columnWidth;
+            return reverse ? center >= edgeX : center <= edgeX;
         }
 
         // 한 칸(세로 한 줄)의 파편을 카드 위치에 맞춰 오버레이에 뿌린다.
