@@ -7,7 +7,7 @@ namespace ProjectS.Players
 {
     /// <summary>
     /// 그 순간의 캐릭터 포즈를 정적 메시로 구워 월드에 남기는 잔상 연출.
-    /// 각성기처럼 궤적을 그리는 동작에서 꼭짓점마다 <see cref="OnAfterImage"/>를
+    /// 각성기처럼 궤적을 그리는 동작에서 꼭짓점마다 <see cref="OnAfterImageAt"/>를
     /// Animation Event로 호출해 "지나간 자리에 캐릭터가 남는" 그림을 만든다.
     ///
     /// ★ 캐릭터 프리팹을 Instantiate 하지 않고 <c>SkinnedMeshRenderer.BakeMesh</c>를 쓰는 이유:
@@ -78,7 +78,7 @@ namespace ProjectS.Players
             // 같은 모양이 그려져야 하기 때문이다.
             public Vector3 offset;
 
-            // 잔상을 좌우로 돌리는 각도(도). OnAfterImage의 Float 인자와 같은 의미다.
+            // 잔상을 좌우로 돌리는 각도(도). 0이면 그 순간 포즈 그대로, 180이면 정반대를 바라본다.
             public float yawOffset;
 
             // true면 이번 묶음의 첫 잔상이 뜬 시점(또는 OnAfterImageAnchor를 찍은 시점)의
@@ -291,18 +291,6 @@ namespace ProjectS.Players
                 return false;
             }
         }
-
-        /// <summary>
-        /// 현재 포즈로 잔상 하나를 월드에 남긴다.
-        /// 별 궤적의 꼭짓점 프레임마다 Animation Event로 호출한다.
-        /// </summary>
-        /// <param name="yawOffset">
-        /// 잔상을 캐릭터 발밑(루트) 기준으로 좌우로 돌리는 각도(도). Animation Event의 Float 칸에 넣는다.
-        /// 0이면 그 순간 포즈 그대로, 180이면 정반대를 바라본다.
-        /// 클립이 전방만 보고 위치만 이동하는 경우, 되돌아가는 구간의 잔상을 뒤로 돌려
-        /// 실제로 그 방향으로 벤 것처럼 보이게 하는 용도다.
-        /// </param>
-        public void OnAfterImage(float yawOffset) => Spawn(yawOffset, Vector3.zero, false);
 
         /// <summary>
         /// 인스펙터 슬롯에 지정해 둔 자리에 잔상을 남긴다. 인자는 슬롯 키.
@@ -646,11 +634,9 @@ namespace ProjectS.Players
 
 #if UNITY_EDITOR
         // 이벤트를 찍기 전에 색·수명·머티리얼을 눈으로 튜닝하기 위한 편의 기능.
+        // 슬롯 값과 무관하게 '지금 캐릭터 자리'에 하나 띄운다.
         [ContextMenu("잔상 남기기 테스트")]
-        private void DebugSpawn() => OnAfterImage(0f);
-
-        [ContextMenu("잔상 남기기 테스트 (180도)")]
-        private void DebugSpawnTurned() => OnAfterImage(180f);
+        private void DebugSpawn() => Spawn(0f, Vector3.zero, false);
 
         // 지정 위치 슬롯의 배치 미리보기. 캐릭터를 기준으로 어디에 어떤 방향으로 설지 보여준다.
         // 별처럼 여러 점을 잡을 때 숫자만 보고 맞추기는 사실상 불가능해서 넣는다.
