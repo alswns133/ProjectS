@@ -195,6 +195,7 @@ namespace ProjectS.Players
         {
             combatEnabled = false;
             Animation.UseVillageController();
+            Movement.UseVillageSpeed();
 
             Combat.CancelAction();
             UnlockMovement();
@@ -208,6 +209,7 @@ namespace ProjectS.Players
         {
             combatEnabled = true;
             Animation.UseDungeonController();
+            Movement.UseDungeonSpeed();
         }
 
         /// <summary>
