@@ -127,6 +127,13 @@ namespace ProjectS.Players
                 Shake(slot.shakeDirection, slot.shakeForce);
         }
 
+        private void OnDisable()
+        {
+            // 비활성화되면 Unity가 코루틴을 알아서 멈추지만, 핸들은 남아 다음 활성화 때
+            // 죽은 코루틴을 붙잡고 있게 된다 → 여기서 비운다.
+            sustainRoutine = null;
+        }
+
         /// <summary>
         /// 카메라를 1회 흔든다. 코드에서 직접 부를 수 있게 public으로 열어 둔다
         /// (몬스터 사망·보스 등장처럼 클립 이벤트가 아닌 곳에서 쓰는 경우).
@@ -169,13 +176,6 @@ namespace ProjectS.Players
             if (sustainRoutine == null) return;
 
             StopCoroutine(sustainRoutine);
-            sustainRoutine = null;
-        }
-
-        private void OnDisable()
-        {
-            // 비활성화되면 Unity가 코루틴을 알아서 멈추지만, 핸들은 남아 다음 활성화 때
-            // 죽은 코루틴을 붙잡고 있게 된다 → 여기서 비운다.
             sustainRoutine = null;
         }
 
