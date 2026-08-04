@@ -195,6 +195,7 @@ namespace ProjectS.Players
         {
             combatEnabled = false;
             Animation.UseVillageController();
+            Movement.UseVillageSpeed();
 
             Combat.CancelAction();
             UnlockMovement();
@@ -208,6 +209,7 @@ namespace ProjectS.Players
         {
             combatEnabled = true;
             Animation.UseDungeonController();
+            Movement.UseDungeonSpeed();
         }
 
         /// <summary>
@@ -276,7 +278,8 @@ namespace ProjectS.Players
 
         private void Start()
         {
-            SetCursorLocked(true);     // 시작은 커서 잠금 상태(이후 Alt로 토글)
+            // 시작은 커서 잠금 상태(= Alt를 눌러 카메라 조작 모드에 들어간 상태). 이후 Alt로 토글.
+            SetCursorLocked(true);
             sm.ChangeState(FreeState); // 시작 상태 진입
         }
 
@@ -645,32 +648,19 @@ namespace ProjectS.Players
         }
 
         /// <summary>
-        /// 사망 상태에서 제자리 부활시킨다. 사망 팝업의 "부활" 버튼이 호출하는 유일한 진입점.
+        /// 플레이어를 부활시킨다. HP를 채워 사망 상태를 풀고, 사망 모션을 정리한 뒤 자유 상태로 되돌린다.
+        /// 죽은 자리에서 즉시 부활하는 경로(부활 버튼)와 마을 복귀 경로가 함께 호출한다
+        /// (마을 복귀는 이 뒤에 씬 전환을 요청한다). 살아 있으면 아무것도 하지 않는다(중복 호출 방지).
         /// </summary>
-        /// <remarks>
-        /// <see cref="PlayerDeadState"/>는 나가는 판단을 스스로 하지 않는 막다른 상태라, 외부에서
-        /// 이렇게 밀어내야 빠져나온다(그 클래스 주석의 "부활은 외부가 다른 상태로 전환시켜 빠져나간다").
-        ///
-        /// 순서가 중요하다. 자원 복구(IsDead 해제) → 애니메이터 복귀 → 이동/콤보 잠금 해제 → FreeState.
-        /// IsDead를 먼저 풀지 않으면 FreeState 진입 첫 프레임의 가드들이 아직 죽은 것으로 보고 되돌린다.
-        /// 사망 중 쌓였던 이동 잠금·콤보 진행을 안 풀면 살아나도 조작이 먹지 않는다.
-        ///
-        /// 살아 있을 때 호출하면 <see cref="PlayerStats.Revive"/>가 무시하므로 여기서도 아무 일도 없다.
-        /// 부활 위치는 죽은 자리 그대로다 — 체크포인트 복귀가 필요해지면 이 메서드에 워프를 덧붙인다.
-        /// </remarks>
-        /// <param name="hpRatio">부활 직후 HP 비율(0~1).</param>
-        public void Revive(float hpRatio)
+        public void Revive()
         {
             if (!Stats.IsDead) return;
 
-            Stats.Revive(hpRatio);
-            Animation.PlayRevive();
-
-            Movement.SetHover(false);
-            Combat.ResetCombo();
-            UnlockMovement();
-
-            ChangeState(FreeState);
+            Stats.Revive();          // HP·자원 충전 → IsDead 해제
+            Animation.ResetDeath();  // 사망 모션에서 로코모션으로 복귀
+            Combat.CancelAction();   // 사망 시 남은 공격/시전 상태 정리
+            UnlockMovement();        // 사망 중 걸려 있던 이동 잠금 해제
+            sm.ChangeState(FreeState);
         }
 
         // ── 태그 판정 헬퍼(자유 이동 캐릭터 전용) ─────────────────────────────

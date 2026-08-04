@@ -62,7 +62,7 @@ namespace ProjectS.EditorTools
             if (Object.FindAnyObjectByType<Player>() == null)
                 result += "· ⚠ 씬에 Player가 없습니다 → 죽일 대상이 없어 3번 메뉴가 동작하지 않습니다.\n";
 
-            DeathPopup popup = Object.FindAnyObjectByType<DeathPopup>(FindObjectsInactive.Include);
+            DeathPopupPrototype popup = Object.FindAnyObjectByType<DeathPopupPrototype>(FindObjectsInactive.Include);
             if (popup == null)
                 result += "· ⚠ DeathPopup이 없습니다 → 'Tools ▸ ProjectS ▸ 사망·부활 팝업 생성'을 먼저 실행하세요.\n";
 

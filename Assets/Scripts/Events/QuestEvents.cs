@@ -20,10 +20,18 @@ namespace ProjectS.Events
         /// </summary>
         public static event Action<QuestData, int, int> OnQuestProgressUpdated;
 
+        /// <summary>
+        /// 세이브에서 퀘스트를 복원한 뒤 발행(부트스트랩 로딩 후 1회). 복원은 수락 이벤트를 쏘지 않으므로,
+        /// 로딩보다 먼저 켜진 트래커 등 UI가 복원 결과를 반영하려면 이 신호로 다시 그리게 한다.
+        /// </summary>
+        public static event Action OnQuestsRestored;
+
         public static void FireQuestAccepted(QuestData data) => OnQuestAccepted?.Invoke(data);
 
         public static void FireQuestCompleted(QuestData data) => OnQuestCompleted?.Invoke(data);
 
         public static void FireQuestProgressUpdated(QuestData data, int cur, int max) => OnQuestProgressUpdated?.Invoke(data, cur, max);
+
+        public static void FireQuestsRestored() => OnQuestsRestored?.Invoke();
     }
 }

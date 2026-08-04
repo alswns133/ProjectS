@@ -336,6 +336,19 @@ namespace ProjectS.Players
             FillResourcesToMax();
         }
 
+        /// <summary>
+        /// 사망 상태에서 부활시킨다. HP·스태미나·스킬 게이지를 최대치로 되돌려 <see cref="IsDead"/>를 해제한다.
+        /// <see cref="Heal"/>와 <see cref="RefillOnSceneEnter"/>는 죽어 있으면 회복을 건너뛰므로, 부활은
+        /// 그 가드를 통과하는 별도 경로가 필요하다. 값 세팅 후 전체 스탯을 발행해 HUD가 즉시 갱신된다.
+        /// 사망 모션 정리와 상태 전환은 호출측(<see cref="Player.Revive"/>)이 함께 처리한다.
+        /// </summary>
+        public void Revive()
+        {
+            FillResourcesToMax();
+            LastHitWasStrong = false;   // 다음 피격 판정에 이전 사망 타격의 강/약이 남지 않게 리셋
+            PublishAllStats();
+        }
+
         private void PublishAllStats()
         {
             PlayerEvents.FireLevelChanged(level);
@@ -402,30 +415,6 @@ namespace ProjectS.Players
 
             currentHp = Mathf.Min(maxHp, currentHp + amount);
             PlayerEvents.FireHpChanged(currentHp, maxHp);
-        }
-
-        /// <summary>
-        /// 사망 상태에서 되살린다. <see cref="Heal"/>이 IsDead를 막고 있어(회복과 부활은 다른 흐름)
-        /// 부활은 이 메서드로만 가능하다. HP를 최대치의 <paramref name="hpRatio"/> 비율로 되돌리고,
-        /// 스태미나·스킬 게이지도 함께 채운다 — 빈 자원으로 살아나면 구르기도 못 해 즉사가 반복된다.
-        /// </summary>
-        /// <remarks>
-        /// UI(사망 팝업)가 직접 호출하지 않고 <c>Player.Revive</c>를 거친다. 애니메이터 복귀와 상태 전환까지
-        /// 함께 처리해야 "HP만 찬 채 사망 모션으로 굳는" 상태가 생기지 않기 때문이다.
-        /// 살아 있을 때 호출하면 아무것도 하지 않는다(중복 부활 방지).
-        /// </remarks>
-        /// <param name="hpRatio">부활 직후 HP 비율(0~1). 1이면 최대치로 부활한다.</param>
-        public void Revive(float hpRatio)
-        {
-            if (!IsDead) return;
-
-            currentHp = Mathf.Max(1, Mathf.RoundToInt(maxHp * Mathf.Clamp01(hpRatio)));
-            currentStamina = maxStamina;
-            currentSkillGauge = maxSkillGauge;
-
-            PlayerEvents.FireHpChanged(currentHp, maxHp);
-            PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
-            PlayerEvents.FireSgChanged(currentSkillGauge, maxSkillGauge);
         }
 
         /// <summary>

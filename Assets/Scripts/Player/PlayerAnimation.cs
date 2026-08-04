@@ -325,27 +325,20 @@ namespace ProjectS.Players
         }
 
         /// <summary>
-        /// 사망 모션에서 기본 상태(로코모션)로 되돌린다. 부활 시 <c>Player.Revive</c>가 호출한다.
+        /// 사망 모션에서 빠져나와 기본(로코모션) 상태로 되돌린다. 부활(<see cref="Player.Revive"/>) 시 호출한다.
+        /// 사망 State는 스스로 빠져나가는 전이가 없어, 죽은 자리에서 부활할 때 명시적으로 리셋해야 한다.
+        /// 래치된 사망 트리거를 지운 뒤 애니메이터를 재바인드해 기본 State(Idle)로 되돌리고, 그 자리에서
+        /// 한 프레임 평가(Update(0))해 바인드 포즈(T포즈)가 한 프레임 번쩍이는 것을 막는다.
+        /// (마을 복귀 경로는 컨트롤러 교체가 애니메이터를 어차피 Idle로 되돌리지만, 죽은 자리 부활은 이 경로가 필요하다.)
         /// </summary>
-        /// <remarks>
-        /// 컨트롤러에 <b>부활 트리거가 없어</b> 그래프 구조에 의존하지 않는 방법을 쓴다. 사망 State는
-        /// 나가는 전이가 없는 막다른 State라, 트리거를 리셋하는 것만으로는 빠져나오지 못한다. 그래서
-        /// <see cref="Animator.Rebind"/>로 기본 State로 되감고 <c>Update(0)</c>로 그 프레임에 즉시 반영한다
-        /// (안 하면 다음 프레임까지 사망 포즈가 한 프레임 남는다).
-        ///
-        /// Rebind는 파라미터도 전부 기본값으로 되돌리므로, 남아 있던 doDie/공격 트리거가 함께 지워지는 것이
-        /// 여기서는 오히려 이득이다. 대신 애니메이션으로 움직이던 값이 순간적으로 초기 포즈로 튀므로
-        /// 부활 연출을 넣을 때 어색하면, 컨트롤러에 doRevive 트리거와 Die → Idle 전이를 만들고
-        /// 이 메서드를 그 트리거로 바꾸는 것이 정석이다.
-        /// </remarks>
-        public void PlayRevive()
+        public void ResetDeath()
         {
+            if (animator == null) animator = GetComponent<Animator>();
+
+            animator.ResetTrigger(DoDie);
+            animator.ResetTrigger(DoDieLarge);
             animator.Rebind();
             animator.Update(0f);
-
-            // Rebind가 파라미터를 날려도 로코모션 bool은 명시적으로 꺼둔다.
-            // 죽을 때 달리던 중이었으면 이동 입력 없이 달리기로 복귀하는 것처럼 보이기 때문이다.
-            SetLocomotion(false, false);
         }
     }
 }

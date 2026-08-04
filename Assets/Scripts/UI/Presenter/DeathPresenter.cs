@@ -6,7 +6,7 @@ using ProjectS.UI.Framework;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 플레이어 사망을 듣고 <see cref="DeathPopup"/>을 여는 프리젠터.
+    /// 플레이어 사망을 듣고 <see cref="DeathPopupPrototype"/>을 여는 프리젠터.
     /// </summary>
     /// <remarks>
     /// 팝업이 직접 구독하지 못하는 이유가 이 클래스의 존재 이유다. <see cref="BasePopup"/>은 닫힐 때
@@ -23,7 +23,7 @@ namespace ProjectS.UI
     public class DeathPresenter : BasePresenter
     {
         [Tooltip("사망 시 열 팝업. 꺼져 있어도 되며, 이 프리젠터가 UIManager에 등록시킨다.")]
-        [SerializeField] private DeathPopup deathPopup;
+        [SerializeField] private DeathPopupPrototype deathPopup;
 
         protected override void Subscribe()
         {
@@ -76,7 +76,7 @@ namespace ProjectS.UI
             manager.RegisterPopup(deathPopup);
 
             // 이미 떠 있는데 다시 부르면 UIManager의 활성 목록에 중복으로 쌓인다.
-            if (!deathPopup.IsVisible) manager.ShowPopup<DeathPopup>();
+            if (!deathPopup.IsVisible) manager.ShowPopup<DeathPopupPrototype>();
         }
     }
 }

@@ -10,7 +10,7 @@ using ProjectS.UI;
 namespace ProjectS.EditorTools
 {
     /// <summary>
-    /// 사망/부활 팝업(<see cref="DeathPopup"/>)과 그것을 여는 <see cref="DeathPresenter"/>를
+    /// 사망/부활 팝업(<see cref="DeathPopupPrototype"/>)과 그것을 여는 <see cref="DeathPresenter"/>를
     /// <b>UIManager 직속</b>에 만들고 인스펙터 참조까지 연결하는 에디터 도구.
     /// 메뉴: Tools ▸ ProjectS ▸ 사망·부활 팝업 생성
     /// </summary>
@@ -30,12 +30,12 @@ namespace ProjectS.EditorTools
     /// UIManager 자식이 되면 UIManager가 Awake에서 자동 수집하므로 RegisterPopup 없이도 열린다
     /// (DeathPresenter의 RegisterPopup 호출은 안전망으로만 남는다).
     ///
-    /// 스프라이트·색은 임시값이다. 다시 실행하면 씬의 기존 DeathPopup/DeathPresenter를 지우고 새로 만든다 —
+    /// 스프라이트·색은 임시값이다. 다시 실행하면 씬의 기존 DeathPopupPrototype/DeathPresenter를 지우고 새로 만든다 —
     /// 아트를 입힌 뒤에는 다시 돌리지 않는다.
     /// </remarks>
     public static class DeathPopupBuilder
     {
-        private const string PopupName = "DeathPopup";
+        private const string PopupName = "DeathPopupPrototype";
         private const string PresenterName = "DeathPresenter";
 
         // HUD(0)보다 위, LoadingPanel(100)보다 아래. 로딩 화면은 사망 팝업을 덮어야 하고
@@ -67,7 +67,7 @@ namespace ProjectS.EditorTools
             // UIManager가 어느 쪽을 등록할지 알 수 없어진다.
             int removed = RemoveExisting();
 
-            DeathPopup popup = BuildPopup(parent);
+            DeathPopupPrototype popup = BuildPopup(parent);
             DeathPresenter presenter = BuildPresenter(parent, popup);
 
             Selection.activeGameObject = popup.gameObject;
@@ -92,7 +92,7 @@ namespace ProjectS.EditorTools
         {
             int count = 0;
 
-            foreach (DeathPopup old in Object.FindObjectsByType<DeathPopup>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (DeathPopupPrototype old in Object.FindObjectsByType<DeathPopupPrototype>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
                 Undo.DestroyObjectImmediate(old.gameObject);
                 count++;
@@ -107,14 +107,14 @@ namespace ProjectS.EditorTools
             return count;
         }
 
-        private static DeathPopup BuildPopup(Transform parent)
+        private static DeathPopupPrototype BuildPopup(Transform parent)
         {
             // 루트: 자기 Canvas를 가진 전체 화면 딤. 클릭이 뒤로 새지 않게 Image의 raycastTarget은 켠 채 둔다.
             GameObject root = new GameObject(PopupName,
                 typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster),
-                typeof(CanvasGroup), typeof(Image), typeof(DeathPopup));
+                typeof(CanvasGroup), typeof(Image), typeof(DeathPopupPrototype));
 
-            Undo.RegisterCreatedObjectUndo(root, "Create DeathPopup");
+            Undo.RegisterCreatedObjectUndo(root, "Create DeathPopupPrototype");
             root.transform.SetParent(parent, false);
 
             Canvas canvas = root.GetComponent<Canvas>();
@@ -158,7 +158,7 @@ namespace ProjectS.EditorTools
             timer.color = new Color(0.9f, 0.8f, 0.4f);
             timer.gameObject.SetActive(false);
 
-            DeathPopup popup = root.GetComponent<DeathPopup>();
+            DeathPopupPrototype popup = root.GetComponent<DeathPopupPrototype>();
             Wire(popup, revive, giveUp, count, message, timer, choice);
 
             // 꺼진 상태로 시작한다. BasePopup은 UIManager가 Show할 때 켜는 것을 전제로 하고,
@@ -169,7 +169,7 @@ namespace ProjectS.EditorTools
 
         // private [SerializeField]는 밖에서 대입할 수 없으므로 SerializedObject로 채운다.
         // 필드 이름이 바뀌면 여기도 같이 고쳐야 한다(이름 문자열 참조라 컴파일러가 안 잡아준다).
-        private static void Wire(DeathPopup popup, Button revive, Button giveUp,
+        private static void Wire(DeathPopupPrototype popup, Button revive, Button giveUp,
                                  TMP_Text count, TMP_Text message, TMP_Text timer, GameObject choice)
         {
             SerializedObject so = new SerializedObject(popup);
@@ -184,7 +184,7 @@ namespace ProjectS.EditorTools
 
         // 프리젠터는 팝업이 아니라 UIManager 직속의 별도 오브젝트다. 팝업 자식으로 넣으면 팝업이 꺼져 있는
         // 동안 사망을 못 듣고, HUD 안에 넣으면 HUD가 닫힐 때 같은 문제가 생긴다. 뷰가 아니라 Canvas는 필요 없다.
-        private static DeathPresenter BuildPresenter(Transform parent, DeathPopup popup)
+        private static DeathPresenter BuildPresenter(Transform parent, DeathPopupPrototype popup)
         {
             GameObject host = new GameObject(PresenterName, typeof(DeathPresenter));
             Undo.RegisterCreatedObjectUndo(host, "Create DeathPresenter");

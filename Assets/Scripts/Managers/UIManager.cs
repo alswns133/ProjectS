@@ -202,6 +202,21 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// T 타입 팝업이 지금 열려 있는지 확인한다. I키처럼 같은 키로 열고 닫는 토글 입력이
+        /// 지금 그 창이 떠 있는지 판단하는 데 쓴다(팝업은 여러 개 공존하므로 스택 최상단이 아니라 존재로 판정).
+        /// </summary>
+        /// <typeparam name="T">확인할 BasePopup 파생 타입</typeparam>
+        /// <returns>해당 타입 팝업이 활성 목록에 있으면 true</returns>
+        public bool IsPopupOpen<T>() where T : BasePopup
+        {
+            foreach (BasePopup popup in activePopups)
+            {
+                if (popup is T) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 자식이 아닌 팝업을 등록한다. UIManager는 Bootstrap에서 DontDestroyOnLoad로 살아남으면서
         /// <b>자기 자식에서만</b> BasePopup을 수집하므로, 나중에 로드되는 씬(HUD·던전 등)에 배치된 팝업은
         /// 어느 흐름에서도 popupMap에 들어가지 못한다. 그 팝업들이 스스로 등록할 수 있게 열어 둔다.
