@@ -3,9 +3,9 @@ using ProjectS.Managers;
 
 namespace ProjectS.UI.Framework
 {
-    // 팝업: 패널 위에 뜨는 작은 UI, 여러 개 동시에 가능
-    // 닫아도 뒤에 패널은 살아있어야 함!
-    // ex) 아이템 상세, 확인창, 레벨업
+    // 팝업: 패널 위에 뜨는 UI. 리스트로 관리해 여러 개가 동시에 공존하고, 서로 밀어내지 않는다
+    //        (Pause/Resume 없음). 닫아도 뒤에 패널은 살아있어야 함!
+    // ex) 아이템 상세, 확인창, 레벨업, 그리고 인벤토리·장비창처럼 동시에 띄워두는 창.
     public abstract class BasePopup : MonoBehaviour
     {
         public bool IsVisible { get; private set; }

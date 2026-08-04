@@ -42,9 +42,15 @@ namespace ProjectS.Data
         /// <summary>진행 중 퀘스트의 목표별 카운트 + 핀 상태.</summary>
         public List<QuestSave> activeQuests = new();
 
-        // TODO: 장비 세이브. InventoryManager의 EquipmentInstance 구조 확정 후
-        //       { 아이템 tableId, enhanceLevel, rarity } 목록으로 추가(규칙에도 필드 추가 필요).
-        // public List<EquipmentSaveData> equipment = new();
+        // ── 인벤토리 (InventoryManager가 저장 WriteTo·복원 RestoreFrom) ─────────
+        /// <summary>보유 장비 목록. 장비는 인스턴스마다 +N이 달라 개별로 저장한다.</summary>
+        public List<EquipmentSave> equipment = new();
+
+        /// <summary>보유 스택형 아이템(소비품·재료) 목록. 같은 아이템은 수량으로 묶어 저장한다.</summary>
+        public List<ItemStackSave> stackItems = new();
+
+        /// <summary>HUD 포션 퀵슬롯에 등록된 소비품 itemId(인덱스=슬롯, 0=빈칸). 캐릭터 로드아웃이라 캐릭터별 저장.</summary>
+        public int[] potionQuickSlots = new int[2];
 
         public CharacterSaveData() { }
 
@@ -66,5 +72,32 @@ namespace ProjectS.Data
         public int questId;
         public List<int> objectiveCounts = new();
         public bool pinned;
+    }
+
+    /// <summary>
+    /// 보유 장비 1개의 세이브. 아이템 정의(이름·주스탯·부위)는 tableId로 ItemData/EquipmentData에서
+    /// 복원하므로 저장하지 않고, 인스턴스마다 다른 강화 단계만 담는다.
+    /// </summary>
+    [Serializable]
+    public class EquipmentSave
+    {
+        /// <summary>아이템 테이블 ID(ItemData/EquipmentData 공통 Index).</summary>
+        public int tableId;
+
+        /// <summary>현재 강화 단계(+N).</summary>
+        public int enhanceStep;
+    }
+
+    /// <summary>
+    /// 보유 스택형 아이템(소비품·재료) 1종의 세이브. 정의는 tableId로 복원하고 수량만 담는다.
+    /// </summary>
+    [Serializable]
+    public class ItemStackSave
+    {
+        /// <summary>아이템 테이블 ID(ItemData.Index).</summary>
+        public int tableId;
+
+        /// <summary>보유 수량.</summary>
+        public int count;
     }
 }

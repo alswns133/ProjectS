@@ -336,6 +336,19 @@ namespace ProjectS.Players
             FillResourcesToMax();
         }
 
+        /// <summary>
+        /// 사망 상태에서 부활시킨다. HP·스태미나·스킬 게이지를 최대치로 되돌려 <see cref="IsDead"/>를 해제한다.
+        /// <see cref="Heal"/>와 <see cref="RefillOnSceneEnter"/>는 죽어 있으면 회복을 건너뛰므로, 부활은
+        /// 그 가드를 통과하는 별도 경로가 필요하다. 값 세팅 후 전체 스탯을 발행해 HUD가 즉시 갱신된다.
+        /// 사망 모션 정리와 상태 전환은 호출측(<see cref="Player.Revive"/>)이 함께 처리한다.
+        /// </summary>
+        public void Revive()
+        {
+            FillResourcesToMax();
+            LastHitWasStrong = false;   // 다음 피격 판정에 이전 사망 타격의 강/약이 남지 않게 리셋
+            PublishAllStats();
+        }
+
         private void PublishAllStats()
         {
             PlayerEvents.FireLevelChanged(level);

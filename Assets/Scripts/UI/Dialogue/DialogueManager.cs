@@ -93,6 +93,9 @@ namespace ProjectS.UI
         private IReadOnlyList<QuestRewardData> rewardPreview;
         private readonly List<NpcRewardSlot> rewardSlots = new();
 
+        // 아이템 보상 아이콘 어드레서블 핸들. 아이템 데이터의 IconAddress로 로드해 모아뒀다가 재구성·종료 시 해제한다.
+        private readonly List<AsyncOperationHandle<Sprite>> rewardIconHandles = new();
+
         // 이번 대화에서 스킵을 허용할지. 인사말=false, 퀘스트 내용=true(퀘스트 대화부터 스킵 활성).
         private bool allowSkip;
 
@@ -138,6 +141,8 @@ namespace ProjectS.UI
             if (firstButton != null) firstButton.onClick.AddListener(First);
             if (skipButton != null) skipButton.onClick.AddListener(Skip);
             if (closeButton != null) closeButton.onClick.AddListener(Cancel);
+
+
         }
 
         private void OnDestroy()
@@ -371,6 +376,7 @@ namespace ProjectS.UI
             EnableInput(false);
             UnfreezePlayer();
             ReleaseOtherHandles();
+            ReleaseRewardIconHandles();
             if (rewardArea != null) rewardArea.SetActive(false);
             if (root != null) root.SetActive(false);
         }
@@ -440,6 +446,8 @@ namespace ProjectS.UI
         // 보상 칸을 보상 수에 맞춰 켜고 채운다(부족하면 늘리고 남으면 끈다).
         private void PopulateRewards()
         {
+            ReleaseRewardIconHandles();   // 이전(마지막 줄 재진입 등) 아이콘 핸들 정리 후 다시 로드
+
             int count = rewardPreview.Count;
 
             while (rewardSlots.Count < count && rewardSlotPrefab != null && rewardContent != null)
@@ -452,6 +460,10 @@ namespace ProjectS.UI
                     rewardSlots[i].gameObject.SetActive(true);
                     QuestRewardData reward = rewardPreview[i];
                     rewardSlots[i].Bind(RewardName(reward), RewardAmount(reward), RewardIcon(reward.Type));
+
+                    // 아이템 보상은 아이템 데이터(ItemData)의 아이콘 주소로 실제 스프라이트를 로드해 덮어쓴다.
+                    if (reward.Type == QuestRewardType.Item)
+                        LoadItemRewardIcon(reward.TargetId, rewardSlots[i]);
                 }
                 else
                 {
@@ -460,14 +472,59 @@ namespace ProjectS.UI
             }
         }
 
+        // 아이템 보상 아이콘을 아이템 데이터의 IconAddress로 비동기 로드해 슬롯에 덮어쓴다.
+        // 로드 완료 시 아직 재생 중이고 슬롯이 살아 있을 때만 반영한다. 핸들은 재구성·종료 때 일괄 해제한다.
+        private async void LoadItemRewardIcon(int itemId, NpcRewardSlot slot)
+        {
+            ItemData item = JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(itemId) : null;
+            if (item == null || string.IsNullOrEmpty(item.IconAddress)) return;
+
+            AsyncOperationHandle<Sprite> handle = Addressables.LoadAssetAsync<Sprite>(item.IconAddress);
+            rewardIconHandles.Add(handle);
+
+            await handle.Task;
+
+            // 로드 중 대화가 끝났거나(핸들 해제됨) 슬롯이 사라졌으면 반영하지 않는다.
+            if (!IsPlaying || slot == null || !handle.IsValid()) return;
+
+            if (handle.Status == AsyncOperationStatus.Succeeded && handle.Result != null)
+                slot.SetIcon(handle.Result);
+            else
+                DevLog.Warning($"[Dialogue] 아이템 {itemId} 보상 아이콘 로드 실패: {item.IconAddress}");
+        }
+
+        private void ReleaseRewardIconHandles()
+        {
+            foreach (var handle in rewardIconHandles)
+            {
+                if (handle.IsValid())
+                    Addressables.Release(handle);
+            }
+            rewardIconHandles.Clear();
+        }
+
         private static string RewardName(QuestRewardData reward) => reward.Type switch
         {
             QuestRewardType.Gold => "골드",
             QuestRewardType.Exp => "경험치",
-            QuestRewardType.Item => $"아이템 {reward.TargetId}",
-            QuestRewardType.SkillUnlock => "스킬 해금",
+            QuestRewardType.Item => ResolveItemName(reward.TargetId),
+            QuestRewardType.SkillUnlock => ResolveSkillName(reward.TargetId),
             _ => reward.Type.ToString(),
         };
+
+        // 아이템 이름을 테이블에서 조회한다(없거나 로딩 전이면 ID로 폴백).
+        private static string ResolveItemName(int itemId)
+            => JsonManager.Instance != null && JsonManager.Instance.ItemDict.TryGetValue(itemId, out ItemData item)
+                ? item.Name
+                : $"아이템 {itemId}";
+
+        // 스킬 이름을 테이블에서 조회한다(없거나 로딩 전이면 ID로 폴백).
+        private static string ResolveSkillName(int skillId)
+            => JsonManager.Instance != null
+               && JsonManager.Instance.SkillDict.TryGetValue(skillId, out SkillTable skill)
+               && !string.IsNullOrEmpty(skill.NameKey)
+                ? skill.NameKey
+                : $"스킬 {skillId}";
 
         private static string RewardAmount(QuestRewardData reward)
             => reward.Type == QuestRewardType.SkillUnlock ? string.Empty : $"x{reward.Amount}";

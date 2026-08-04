@@ -25,6 +25,16 @@ namespace ProjectS.Events
         /// </summary>
         public static event Action<ItemData> OnItemUnequipped;
 
+        /// <summary>
+        /// 포션 퀵슬롯 등록이 바뀌었을 때 발행(index, 등록 소비품 itemId — 0이면 해제) → HUD 슬롯이 갱신
+        /// </summary>
+        public static event Action<int, int> OnQuickSlotChanged;
+
+        /// <summary>
+        /// 소비품을 사용했을 때 발행(itemId, 쿨다운 초) → HUD 퀵슬롯이 쿨다운 연출을 시작
+        /// </summary>
+        public static event Action<int, float> OnConsumableUsed;
+
 
         public static void FireItemAdded(ItemData item) => OnItemAdded?.Invoke(item);
 
@@ -33,5 +43,9 @@ namespace ProjectS.Events
         public static void FireItemEquipped(ItemData item) => OnItemEquipped?.Invoke(item);
 
         public static void FireItemUnequipped(ItemData item) => OnItemUnequipped?.Invoke(item);
+
+        public static void FireQuickSlotChanged(int index, int itemId) => OnQuickSlotChanged?.Invoke(index, itemId);
+
+        public static void FireConsumableUsed(int itemId, float cooldownSec) => OnConsumableUsed?.Invoke(itemId, cooldownSec);
     }
 }
