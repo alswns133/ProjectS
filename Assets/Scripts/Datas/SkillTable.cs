@@ -33,6 +33,14 @@ namespace ProjectS.Data
         /// <summary>시전 딜레이(초). 현재 연출은 애니메이션이 담당하므로 참고용이다.</summary>
         public float CastDelay;
 
+        /// <summary>
+        /// 시전 동안 완전 무적(피격 자체 무효)을 부여하는 스킬인지. 각성기(예: SW_ULTIMATE/GN_ULTIMATE)처럼
+        /// 큰 한 방을 안전하게 지르는 스킬에 켠다. 다른 스킬의 슈퍼아머(데미지는 받되 경직만 생략)와 달리
+        /// 데미지 자체를 씹으며, 무적은 스킬이 끝나 로코모션으로 복귀할 때 해제된다(PlayerCombat 참조).
+        /// 미입력(false) 시 무적 없음.
+        /// </summary>
+        public bool Invincible;
+
         int IDataRow.Index => SkillId;
 
         /// <summary>

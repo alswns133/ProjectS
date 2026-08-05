@@ -99,12 +99,12 @@ namespace ProjectS.Players
         // 우클릭 강공격은 캐릭터 공용 행(SKILL_RCLICK)을 쓴다.
         private const int StrongAttackSkillId = 3;
 
-        // 각성기(4번 스킬)는 시전 동안 '완전 무적'을 부여한다. 다른 스킬의 슈퍼아머(데미지는 받되 경직만
-        // 생략, Player.OnDamaged)와 달리 피격 자체를 씹는다(구르기와 같은 SetInvincible 토글 재사용).
-        // 해제는 스킬이 '진짜로 끝나는' 시점(ResetCombo/CancelAction/UnlockMovement)과 각성기가 아닌
-        // 다음 액션 진입(UseSkill·OnAttackStart) 때만 한다 — AttackCancelBehaviour가 캔슬 창에서 부르는
-        // EndSkillCast(클립 중간)에는 풀지 않아, 후딜까지 무적이 이어진다("4번 스킬 끝난 다음 무적 해제" 기획).
-        private const int InvincibleSkillNumber = 4;
+        // 어떤 스킬이 시전 중 '완전 무적'을 주는지는 SkillTable.Invincible(데이터)로 정한다(예: 각성기).
+        // 다른 스킬의 슈퍼아머(데미지는 받되 경직만 생략, Player.OnDamaged)와 달리 피격 자체를 씹는다
+        // (구르기와 같은 SetInvincible 토글 재사용). 해제는 스킬이 '진짜로 끝나는' 시점
+        // (ResetCombo/CancelAction/UnlockMovement)과 무적이 아닌 다음 액션 진입(UseSkill·OnAttackStart)에만
+        // 한다 — AttackCancelBehaviour가 캔슬 창에서 부르는 EndSkillCast(클립 중간)에는 풀지 않아,
+        // 후딜까지 무적이 이어진다("스킬 끝난 다음 무적 해제" 기획).
 
         // 이 캐릭터의 스킬 행 ID를 SkillId 오름차순으로 캐싱한다(스킬 번호 n → [n-1]).
         // PlayerStats.SkillSetPrefix로 걸러 만들기 때문에, 스킬이 늘거나 ID 체계가 바뀌어도
@@ -173,7 +173,7 @@ namespace ProjectS.Players
         private CombatAction currentAction;
         private int currentSkillNumber;
 
-        // 각성기(InvincibleSkillNumber)가 무적을 켰는지 추적한다. 무적 소스가 여럿(구르기 수동/잔여, 각성기)
+        // 무적 스킬(SkillTable.Invincible)이 무적을 켰는지 추적한다. 무적 소스가 여럿(구르기 수동/잔여, 스킬)
         // 이라, 우리가 켠 것만 우리가 내리려고 표시해 둔다 → 구르기가 켠 SetInvincible을 실수로 끄지 않는다.
         private bool skillGrantedInvincibility;
 
@@ -282,9 +282,9 @@ namespace ProjectS.Players
             currentAction = CombatAction.Skill;
             currentSkillNumber = n;
 
-            // 각성기면 시전 동안 무적을 켠다. 각성기가 아닌 스킬(캔슬 창에서 다른 스킬로 이어감 포함)이면
-            // 직전 각성기 무적이 남아 있었어도 여기서 꺼진다.
-            SetSkillInvincibility(n == InvincibleSkillNumber);
+            // 무적 스킬(SkillTable.Invincible)이면 시전 동안 무적을 켠다. 무적이 아닌 스킬(캔슬 창에서
+            // 다른 스킬로 이어감 포함)이면 직전 무적이 남아 있었어도 여기서 꺼진다.
+            SetSkillInvincibility(skill.Invincible);
 
             anim.PlaySkill(n);
 
