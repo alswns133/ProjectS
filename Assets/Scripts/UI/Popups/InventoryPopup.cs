@@ -32,11 +32,19 @@ namespace ProjectS.UI
         [SerializeField] private Button equipmentTabButton;
         [SerializeField] private Button consumableTabButton;
 
+        [Header("탭 선택 표시 (선택된 탭 이미지 컬러를 바꾼다)")]
+        [SerializeField] private Image equipmentTabImage;
+        [SerializeField] private Image consumableTabImage;
+        [SerializeField] private Color tabNormalColor = new Color(0.4f, 0.42f, 0.5f, 1f);
+        [SerializeField] private Color tabSelectedColor = Color.white;
+
+        // 마지막으로 본 탭을 기기 로컬(PlayerPrefs)에 저장 — 껐다 켜도 보던 탭이 유지된다(창 위치와 같은 방침).
+        private const string TabPrefKey = "inventory.tab";
+
         [Header("슬롯 그리드")]
         [SerializeField] private Transform slotRoot;
         [SerializeField] private InventoryItemSlot slotPrefab;
-        [Tooltip("표시할 총 슬롯(빈칸 포함) 개수")]
-        [SerializeField] private int slotCount = 30;
+        // 슬롯 수는 InventoryManager.Capacity(격자 크기)와 일치시킨다 — 아이템이 슬롯 위치를 갖기 때문.
 
         [Header("기타")]
         [SerializeField] private TMP_Text goldText;
@@ -52,19 +60,28 @@ namespace ProjectS.UI
             if (consumableTabButton != null) consumableTabButton.onClick.AddListener(() => SetTab(Tab.Consumable));
             if (closeButton != null) closeButton.onClick.AddListener(() => RequestClose());
 
+            // 이동식 창 위치 저장 키를 코드로 주입(인벤은 유일하므로 인스펙터 매직 스트링 대신 상수).
+            // OnInit은 SetActive 이전 1회라, 뒤이은 DraggableWindow.OnEnable이 이 키로 위치를 복원한다.
+            if (TryGetComponent(out DraggableWindow window))
+                window.SetWindowId(WindowIds.Inventory);
+
             EnsureSlots();
         }
 
         protected override void OnShow()
         {
-            // 열려 있는 동안 아이템 변화(획득·사용)를 즉시 반영하고, 골드 표시를 실제 보유량으로 맞춘다.
+            // 열려 있는 동안 아이템 변화(획득·사용·이동)를 즉시 반영하고, 골드 표시를 실제 보유량으로 맞춘다.
             InventoryEvents.OnItemAdded += HandleItemsChanged;
             InventoryEvents.OnItemRemoved += HandleItemsChanged;
+            InventoryEvents.OnInventoryChanged += HandleInventoryChanged;
             PlayerEvents.OnGoldChanged += SetGold;
 
             // 골드 소유자(InventoryManager)에게 현재 값 재발행을 요청한다(HUD와 같은 스냅샷 경로).
             PlayerEvents.FireStatsRefreshRequested();
 
+            // 저장된 탭을 복원하고 선택 표시를 맞춘 뒤 그린다(껐다 켜도 보던 탭 유지).
+            currentTab = (Tab)PlayerPrefs.GetInt(TabPrefKey, (int)Tab.Equipment);
+            UpdateTabVisual();
             Rebuild();
         }
 
@@ -72,64 +89,95 @@ namespace ProjectS.UI
         {
             InventoryEvents.OnItemAdded -= HandleItemsChanged;
             InventoryEvents.OnItemRemoved -= HandleItemsChanged;
+            InventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
             PlayerEvents.OnGoldChanged -= SetGold;
 
             // 슬롯 위에 마우스를 둔 채 I키로 닫으면 PointerExit가 안 와 툴팁이 남을 수 있어 강제로 숨긴다.
             ItemTooltip.Instance?.Hide();
         }
 
-        // 탭을 바꾸고 그리드를 다시 채운다. 같은 탭을 다시 눌러도 재빌드만 하므로 안전하다.
+        // 탭을 바꾸고, 선택 표시를 갱신하고, 선택 탭을 저장한 뒤 그리드를 다시 채운다.
         private void SetTab(Tab tab)
         {
             currentTab = tab;
+
+            PlayerPrefs.SetInt(TabPrefKey, (int)tab);
+            PlayerPrefs.Save();
+
+            UpdateTabVisual();
             Rebuild();
         }
 
-        // 슬롯 프리팹을 slotCount만큼 1회 생성해 재사용한다(탭 전환/갱신마다 파괴·재생성하지 않음).
+        // 선택된 탭 이미지를 selected 컬러로, 나머지는 normal 컬러로 바꾼다. 코드가 직접 제어하므로 창 밖을
+        // 클릭해 버튼 선택이 풀려도(EventSystem 디셀렉트) 표시가 사라지지 않는다.
+        // (탭 Button의 Transition은 None으로 두어 버튼 자체 하이라이트와 충돌하지 않게 한다.)
+        private void UpdateTabVisual()
+        {
+            if (equipmentTabImage != null)
+                equipmentTabImage.color = currentTab == Tab.Equipment ? tabSelectedColor : tabNormalColor;
+            if (consumableTabImage != null)
+                consumableTabImage.color = currentTab == Tab.Consumable ? tabSelectedColor : tabNormalColor;
+        }
+
+        // 슬롯 프리팹을 격자 크기(Capacity)만큼 1회 생성해 재사용한다(탭 전환/갱신마다 파괴·재생성하지 않음).
         private void EnsureSlots()
         {
             if (slotRoot == null || slotPrefab == null) return;
 
-            while (slots.Count < slotCount)
+            while (slots.Count < InventoryManager.Capacity)
             {
                 InventoryItemSlot slot = Instantiate(slotPrefab, slotRoot);
                 slot.SetRightClickHandler(OnSlotRightClicked);
+                slot.SetDropHandler(OnSlotDropped);
                 slots.Add(slot);
             }
         }
 
-        // 현재 탭의 보유 아이템으로 앞에서부터 채우고 남는 칸은 빈칸으로 둔다.
+        // 격자 위치대로 그린다 — 슬롯 i는 격자 셀 i를 표시한다(빈 셀은 빈칸). 아이템이 슬롯 위치를 가지므로 압축하지 않는다.
         private void Rebuild()
         {
             EnsureSlots();
 
             InventoryManager inv = InventoryManager.Instance;
-            int filled = 0;
 
-            if (inv != null)
+            for (int i = 0; i < slots.Count; i++)
             {
+                if (inv == null)
+                {
+                    slots[i].SetEmpty();
+                    continue;
+                }
+
                 if (currentTab == Tab.Equipment)
                 {
-                    foreach (var equip in inv.OwnedEquipment)
-                    {
-                        if (filled >= slots.Count) break;
-                        slots[filled].SetEquipment(equip);
-                        filled++;
-                    }
+                    var equip = inv.GetEquipmentAt(i);
+                    if (equip != null) slots[i].SetEquipment(equip);
+                    else slots[i].SetEmpty();
                 }
                 else
                 {
-                    foreach (var stack in inv.StackItems)
-                    {
-                        if (filled >= slots.Count) break;
-                        slots[filled].SetStack(stack);
-                        filled++;
-                    }
+                    var stack = inv.GetStackAt(i);
+                    if (stack != null) slots[i].SetStack(stack);
+                    else slots[i].SetEmpty();
                 }
             }
+        }
 
-            for (int i = filled; i < slots.Count; i++)
-                slots[i].SetEmpty();
+        // 인벤 슬롯끼리 드롭 → 현재 탭 격자에서 위치 이동/교환. 슬롯의 격자 인덱스는 slots 리스트상 위치와 같다.
+        private void OnSlotDropped(InventoryItemSlot source, InventoryItemSlot target)
+        {
+            int from = slots.IndexOf(source);
+            int to = slots.IndexOf(target);
+            if (from < 0 || to < 0 || from == to) return;
+
+            InventoryManager.Instance?.Move(currentTab == Tab.Equipment, from, to);
+            // Move가 OnInventoryChanged를 발행해 HandleInventoryChanged가 그리드를 다시 그린다.
+        }
+
+        // 위치 이동 등 배치 변경 시 현재 탭을 다시 그린다.
+        private void HandleInventoryChanged()
+        {
+            if (IsVisible) Rebuild();
         }
 
         // 소비품 슬롯을 우클릭하면 커서 위치에 컨텍스트 메뉴(등록1/등록2/사용)를 연다.

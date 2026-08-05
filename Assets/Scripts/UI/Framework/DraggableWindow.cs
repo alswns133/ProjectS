@@ -14,7 +14,8 @@ namespace ProjectS.UI.Framework
     public class DraggableWindow : MonoBehaviour, IPointerDownHandler
     {
         [SerializeField] private RectTransform target;   // 이동·저장 대상(비우면 자기 루트)
-        [Tooltip("PlayerPrefs 저장 키. 창마다 유일해야 한다(예: inventory)")]
+        [Tooltip("PlayerPrefs 저장 키. 창마다 유일해야 한다. 전용 스크립트가 있는 창은 코드로 SetWindowId(WindowIds.*) 주입, " +
+                 "범용 창(전용 스크립트 없이 이 컴포넌트만 붙인 창)은 여기서 직접 지정")]
         [SerializeField] private string windowId;
 
         private Canvas canvas;
@@ -27,6 +28,22 @@ namespace ProjectS.UI.Framework
             if (target == null) target = (RectTransform)transform;
             canvas = GetComponentInParent<Canvas>();
             parentRect = target.parent as RectTransform;
+        }
+
+        /// <summary>
+        /// 위치 저장 키를 코드로 지정한다(전용 스크립트가 있는 창은 인스펙터 대신 상수로 주입 — 오타 방지).
+        /// 팝업의 OnInit(SetActive 이전)에서 부르면, 뒤이은 OnEnable이 이 키로 저장 위치를 복원한다.
+        /// 이미 활성 중이면 즉시 다시 로드한다.
+        /// </summary>
+        /// <param name="id">고유 창 키(<see cref="WindowIds"/>)</param>
+        public void SetWindowId(string id)
+        {
+            windowId = id;
+            if (isActiveAndEnabled)
+            {
+                WindowLayoutStore.Load(windowId, target);
+                ClampToParent();
+            }
         }
 
         // 열릴 때마다 저장 위치를 복원한다(팝업 Show → SetActive(true) → 여기). 없으면 배치 그대로 둔다.

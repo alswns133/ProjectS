@@ -86,6 +86,9 @@ namespace ProjectS.Data
 
         /// <summary>현재 강화 단계(+N).</summary>
         public int enhanceStep;
+
+        /// <summary>인벤토리 격자 슬롯 위치(사용자 배치 유지). 구버전 세이브엔 없어 0 → 복원 시 앞에서부터 폴백.</summary>
+        public int slot;
     }
 
     /// <summary>
@@ -99,5 +102,8 @@ namespace ProjectS.Data
 
         /// <summary>보유 수량.</summary>
         public int count;
+
+        /// <summary>인벤토리 격자 슬롯 위치(사용자 배치 유지). 구버전 세이브엔 없어 0 → 복원 시 앞에서부터 폴백.</summary>
+        public int slot;
     }
 }
