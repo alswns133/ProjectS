@@ -20,7 +20,7 @@ namespace ProjectS.UI.Framework
     /// 포인터/드래그 이벤트를 받으려면 이 오브젝트에 raycastTarget인 Graphic(배경/아이콘)이 있어야 한다.
     /// </summary>
     public class InventoryItemSlot : MonoBehaviour,
-        IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler,
+        IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler,
         IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private Image icon;
@@ -30,6 +30,7 @@ namespace ProjectS.UI.Framework
         private ItemStack stack;
         private Action<InventoryItemSlot> onLeftClick;
         private Action<InventoryItemSlot, PointerEventData> onRightClick;
+        private Action<InventoryItemSlot, InventoryItemSlot> onDropReceived;   // (출발 슬롯, 도착 슬롯=this)
 
         private GameObject dragGhost;
 
@@ -52,6 +53,13 @@ namespace ProjectS.UI.Framework
         /// <summary>우클릭 콜백(호스트 패널이 컨텍스트 메뉴를 연다). 커서 위치를 위해 이벤트를 함께 넘긴다.</summary>
         /// <param name="handler">우클릭 콜백</param>
         public void SetRightClickHandler(Action<InventoryItemSlot, PointerEventData> handler) => onRightClick = handler;
+
+        /// <summary>
+        /// 이 슬롯에 다른 인벤 슬롯이 드롭됐을 때의 콜백(출발 슬롯, 도착 슬롯=this)을 지정한다.
+        /// 호스트 패널이 두 슬롯의 격자 인덱스를 구해 이동을 처리한다(슬롯은 매니저를 직접 부르지 않는다).
+        /// </summary>
+        /// <param name="handler">드롭 콜백</param>
+        public void SetDropHandler(Action<InventoryItemSlot, InventoryItemSlot> handler) => onDropReceived = handler;
 
         /// <summary>슬롯을 장비로 채운다. 강화 단계가 1 이상이면 +N을 함께 표시한다.</summary>
         /// <param name="equip">표시할 장비 인스턴스</param>
@@ -156,6 +164,17 @@ namespace ProjectS.UI.Framework
         {
             if (dragGhost != null) Destroy(dragGhost);
             dragGhost = null;
+        }
+
+        /// <summary>다른 인벤 슬롯을 이 슬롯(빈칸 포함)에 드롭하면 이동/교환을 호스트에 알린다.</summary>
+        public void OnDrop(PointerEventData eventData)
+        {
+            InventoryItemSlot source = eventData.pointerDrag != null
+                ? eventData.pointerDrag.GetComponent<InventoryItemSlot>()
+                : null;
+
+            if (source == null || source == this) return;   // 자기 자신·비인벤 드래그는 무시
+            onDropReceived?.Invoke(source, this);
         }
 
         /// <summary>마우스를 올리면 이 아이템 정보를 커서 지점에 툴팁으로 띄운다(빈칸이면 무시).</summary>

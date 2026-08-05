@@ -35,6 +35,11 @@ namespace ProjectS.Events
         /// </summary>
         public static event Action<int, float> OnConsumableUsed;
 
+        /// <summary>
+        /// 아이템 배치가 바뀌었을 때 발행(위치 이동 등) → 인벤 UI가 격자를 다시 그린다. 추가/제거는 기존 이벤트를 쓴다.
+        /// </summary>
+        public static event Action OnInventoryChanged;
+
 
         public static void FireItemAdded(ItemData item) => OnItemAdded?.Invoke(item);
 
@@ -47,5 +52,7 @@ namespace ProjectS.Events
         public static void FireQuickSlotChanged(int index, int itemId) => OnQuickSlotChanged?.Invoke(index, itemId);
 
         public static void FireConsumableUsed(int itemId, float cooldownSec) => OnConsumableUsed?.Invoke(itemId, cooldownSec);
+
+        public static void FireInventoryChanged() => OnInventoryChanged?.Invoke();
     }
 }
