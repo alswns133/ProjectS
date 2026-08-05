@@ -3,12 +3,22 @@ using ProjectS.Managers;
 
 namespace ProjectS.UI.Framework
 {
-    // 팝업: 패널 위에 뜨는 작은 UI, 여러 개 동시에 가능
-    // 닫아도 뒤에 패널은 살아있어야 함!
-    // ex) 아이템 상세, 확인창, 레벨업
+    // 팝업: 패널 위에 뜨는 UI. 리스트로 관리해 여러 개가 동시에 공존하고, 서로 밀어내지 않는다
+    //        (Pause/Resume 없음). 닫아도 뒤에 패널은 살아있어야 함!
+    // ex) 아이템 상세, 확인창, 레벨업, 그리고 인벤토리·장비창처럼 동시에 띄워두는 창.
     public abstract class BasePopup : MonoBehaviour
     {
         public bool IsVisible { get; private set; }
+
+        /// <summary>
+        /// 뒤로가기(ESC)로 닫을 수 있는지. 기본은 true다.
+        /// </summary>
+        /// <remarks>
+        /// 선택을 반드시 시켜야 하는 모달 팝업은 false로 재정의한다(예: 사망 팝업).
+        /// 그런 팝업이 ESC로 닫히면 플레이어는 죽은 채 아무 UI도 없이 조작 불가 상태에 갇힌다 —
+        /// 창을 다시 부를 방법이 없어 재시작 말고는 빠져나올 수 없다.
+        /// </remarks>
+        public virtual bool CanCloseByBack => true;
 
         // 팀원들이 필요하면 override해서 쓰는 것들
         protected virtual void OnShow() { } // 열릴때 연출

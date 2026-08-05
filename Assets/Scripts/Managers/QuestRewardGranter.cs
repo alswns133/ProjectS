@@ -12,8 +12,8 @@ namespace ProjectS.Managers
     /// 지급 주체를 QuestManager에서 분리해(퀘스트 매니저는 상태만 관리), 보상 시스템(인벤토리/경험치/스킬)이
     /// 준비되는 대로 이 클래스만 채우면 되게 한다.
     ///
-    /// 현재 골드(InventoryManager)·경험치(PlayerStats.AddExp, 자동 레벨업)는 실제 지급하고,
-    /// 아이템·스킬해금은 로그 스텁이다(각 시스템이 붙는 대로 교체).
+    /// 현재 골드(InventoryManager)·경험치(PlayerStats.AddExp, 자동 레벨업)·아이템(InventoryManager.AddItem)은
+    /// 실제 지급하고, 스킬해금만 아직 로그 스텁이다(세이브 LearnedSkillIds 붙는 대로 교체).
     /// 배치: 씬을 넘어 유지되는 매니저 오브젝트에 붙인다(QuestManager와 함께).
     /// </summary>
     public class QuestRewardGranter : MonoBehaviour
@@ -47,8 +47,9 @@ namespace ProjectS.Managers
                     break;
 
                 case QuestRewardType.Item:
-                    // TODO: 인벤토리 아이템 획득이 붙으면 지급으로 교체.
-                    DevLog.Log($"[Reward] '{questTitle}' 아이템 {reward.TargetId} x{reward.Amount} (스텁 — 인벤토리 대기)");
+                    if (InventoryManager.Instance != null)
+                        InventoryManager.Instance.AddItem(reward.TargetId, reward.Amount);   // 인벤 추가 + 세이브 dirty
+                    DevLog.Log($"[Reward] '{questTitle}' 아이템 {reward.TargetId} x{reward.Amount}");
                     break;
 
                 case QuestRewardType.SkillUnlock:

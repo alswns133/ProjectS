@@ -89,6 +89,7 @@ namespace ProjectS.UI
             QuestEvents.OnQuestAccepted += OnAccepted;
             QuestEvents.OnQuestProgressUpdated += OnProgress;
             QuestEvents.OnQuestCompleted += OnCompleted;
+            QuestEvents.OnQuestsRestored += RebuildActiveQuests;   // 세이브 복원이 늦게 끝나도 다시 그린다
             PlayerEvents.OnCursorModeChanged += OnCursorModeChanged;
             if (window != null) window.CollapsedChanged += OnWindowCollapsedChanged;
 
@@ -113,6 +114,7 @@ namespace ProjectS.UI
             QuestEvents.OnQuestAccepted -= OnAccepted;
             QuestEvents.OnQuestProgressUpdated -= OnProgress;
             QuestEvents.OnQuestCompleted -= OnCompleted;
+            QuestEvents.OnQuestsRestored -= RebuildActiveQuests;
             PlayerEvents.OnCursorModeChanged -= OnCursorModeChanged;
             if (window != null) window.CollapsedChanged -= OnWindowCollapsedChanged;
 
@@ -415,6 +417,7 @@ namespace ProjectS.UI
                 // 핀 복원: 핀은 QuestData(씬을 넘어 유지)에 저장되므로 새 트래커에서도 되살린다.
                 // maxPinned를 넘는 잉여 핀은 데이터에서도 풀어, 표시와 저장 상태가 어긋나지 않게 한다.
                 if (!quest.IsPinned) continue;
+                if (pinned.Contains(quest)) continue;   // 재호출(OnEnable+복원 이벤트) 시 중복 추가 방지
 
                 if (pinned.Count < maxPinned && cards.TryGetValue(quest, out QuestTrackerEntry card))
                 {
@@ -426,6 +429,10 @@ namespace ProjectS.UI
                     quest.IsPinned = false;
                 }
             }
+
+            // 트래커가 숨겨진(비활성) 사이 반납/완료돼 더는 진행 중이 아닌 퀘스트의 카드를 제거한다
+            // (그 사이 놓친 OnCompleted 복구 — 안 하면 반납한 퀘스트 카드가 재활성 후에도 남는다).
+            PruneStaleCards(manager.ActiveQuests);
 
             // 카드를 한꺼번에 만든 직후엔 각 카드의 슬롯 높이(LayoutElement.preferredHeight)가 아직 0이라,
             // Content 높이가 0으로 계산돼 스크롤 뷰포트에 잘려 '활성인데 안 보이는' 상태가 된다.
@@ -441,6 +448,43 @@ namespace ProjectS.UI
             // 그러면 카드 슬롯 높이가 0으로 남아 Content 높이가 0이 되고, 카드가 스크롤 마스크에 잘려
             // '활성인데 안 보이는' 상태가 된다. 다음 프레임에 다시 재고 창을 갱신해 확실히 높이를 잡는다.
             if (isActiveAndEnabled) StartCoroutine(RemeasureNextFrame());
+        }
+
+        // ActiveQuests에 없는(=반납/완료돼 사라진) 카드를 즉시 없앤다. 화면 밖에서 처리된 것이라
+        // 분해 연출 없이 바로 제거한다. RebuildActiveQuests(재활성·복원 시)가 부른다.
+        private void PruneStaleCards(IReadOnlyList<QuestData> activeQuests)
+        {
+            if (cards.Count == 0) return;
+
+            var active = new HashSet<QuestData>(activeQuests);
+
+            List<QuestData> stale = null;
+            foreach (QuestData quest in cards.Keys)
+            {
+                if (!active.Contains(quest))
+                    (stale ??= new List<QuestData>()).Add(quest);
+            }
+            if (stale == null) return;
+
+            foreach (QuestData quest in stale)
+            {
+                if (cards.TryGetValue(quest, out QuestTrackerEntry card) && card != null)
+                {
+                    if (selected == card) CloseDetail();
+                    card.TitleClicked -= OnTitleClicked;
+                    card.DetailClicked -= OnDetailClicked;
+                    card.HeightChanged -= OnCardHeightChanged;
+                    card.gameObject.SetActive(false);
+                    Destroy(card.gameObject);
+                }
+
+                cards.Remove(quest);
+                pinned.Remove(quest);
+                order.Remove(quest);
+                completing.Remove(quest);
+            }
+
+            if (window != null) window.Refresh();
         }
 
         // 다음 프레임(=레이아웃/TMP 준비 완료)에 카드 높이를 다시 재고 창을 갱신한다.

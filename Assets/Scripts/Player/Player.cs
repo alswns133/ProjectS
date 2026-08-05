@@ -195,6 +195,7 @@ namespace ProjectS.Players
         {
             combatEnabled = false;
             Animation.UseVillageController();
+            Movement.UseVillageSpeed();
 
             Combat.CancelAction();
             UnlockMovement();
@@ -208,6 +209,7 @@ namespace ProjectS.Players
         {
             combatEnabled = true;
             Animation.UseDungeonController();
+            Movement.UseDungeonSpeed();
         }
 
         /// <summary>
@@ -276,7 +278,8 @@ namespace ProjectS.Players
 
         private void Start()
         {
-            SetCursorLocked(true);     // 시작은 커서 잠금 상태(이후 Alt로 토글)
+            // 시작은 커서 잠금 상태(= Alt를 눌러 카메라 조작 모드에 들어간 상태). 이후 Alt로 토글.
+            SetCursorLocked(true);
             sm.ChangeState(FreeState); // 시작 상태 진입
         }
 
@@ -642,6 +645,22 @@ namespace ProjectS.Players
         private void OnDied()
         {
             sm.ChangeState(DeadState);
+        }
+
+        /// <summary>
+        /// 플레이어를 부활시킨다. HP를 채워 사망 상태를 풀고, 사망 모션을 정리한 뒤 자유 상태로 되돌린다.
+        /// 죽은 자리에서 즉시 부활하는 경로(부활 버튼)와 마을 복귀 경로가 함께 호출한다
+        /// (마을 복귀는 이 뒤에 씬 전환을 요청한다). 살아 있으면 아무것도 하지 않는다(중복 호출 방지).
+        /// </summary>
+        public void Revive()
+        {
+            if (!Stats.IsDead) return;
+
+            Stats.Revive();          // HP·자원 충전 → IsDead 해제
+            Animation.ResetDeath();  // 사망 모션에서 로코모션으로 복귀
+            Combat.CancelAction();   // 사망 시 남은 공격/시전 상태 정리
+            UnlockMovement();        // 사망 중 걸려 있던 이동 잠금 해제
+            sm.ChangeState(FreeState);
         }
 
         // ── 태그 판정 헬퍼(자유 이동 캐릭터 전용) ─────────────────────────────

@@ -142,6 +142,9 @@ namespace ProjectS.Managers
                     activeQuests.Add(quest);
                 }
             }
+
+            // 복원 결과를 알린다 — 로딩(async)보다 먼저 켜진 트래커 등이 빈 채로 남지 않도록 다시 그리게 한다.
+            QuestEvents.FireQuestsRestored();
         }
 
         // 플레이어를 못 찾으면 레벨 제한을 통과시킨다(퀘스트가 막히는 것보다 낫다).
