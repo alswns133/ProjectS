@@ -2,6 +2,7 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using ProjectS.Debugging;
 using ProjectS.Managers;
 using ProjectS.Players;
@@ -49,8 +50,9 @@ namespace ProjectS.EditorTools
             Debug.Log("[DeathTestSetup] " + report +
                       "\n· 재생 → __DeathTest의 DeathTester 컨텍스트 메뉴(⋮)를 번호 순서대로 실행하세요." +
                       "\n  ★ 0(HUD 패널 열기)을 먼저 하지 않으면 3에서 FillGauge가 NullReference로 터집니다." +
-                      "\n  부활 분기: 0 → 1(기회 채우기) → 3(죽이기) → 팝업에서 '부활'" +
-                      "\n  자동 복귀 분기: 0 → 2(기회 비우기) → 3(죽이기) → 카운트다운 확인" +
+                      "\n  부활 분기: 0 → 1(기회 채우기) → 3(죽이기) → 팝업에서 '부활' → 카운트다운 뒤 부활" +
+                      "\n  자동 복귀 분기: 0 → 2(기회 비우기) → 3(죽이기) → 선택지 없이 카운트다운 확인" +
+                      "\n· 부활도 즉시가 아니라 대기 시간(기본 3초)을 거칩니다. 대기 값은 팝업 인스펙터에서 조정하세요." +
                       "\n· 테스트용 오브젝트라 머지 전 제거해도 됩니다.");
         }
 
@@ -62,23 +64,48 @@ namespace ProjectS.EditorTools
             if (Object.FindAnyObjectByType<Player>() == null)
                 result += "· ⚠ 씬에 Player가 없습니다 → 죽일 대상이 없어 3번 메뉴가 동작하지 않습니다.\n";
 
-            DeathPopupPrototype popup = Object.FindAnyObjectByType<DeathPopupPrototype>(FindObjectsInactive.Include);
-            if (popup == null)
-                result += "· ⚠ DeathPopup이 없습니다 → 'Tools ▸ ProjectS ▸ 사망·부활 팝업 생성'을 먼저 실행하세요.\n";
+            UIManager manager = Object.FindAnyObjectByType<UIManager>(FindObjectsInactive.Include);
+            if (manager == null)
+                result += "· ⚠ UIManager가 없습니다 → 팝업 등록/표시가 되지 않습니다. Bootstrap에서 시작하거나 씬에 추가하세요.\n";
 
-            DeathPresenter presenter = Object.FindAnyObjectByType<DeathPresenter>(FindObjectsInactive.Include);
-            if (presenter == null)
+            DeathPopup popup = Object.FindAnyObjectByType<DeathPopup>(FindObjectsInactive.Include);
+            if (popup == null)
             {
-                result += "· ⚠ DeathPresenter가 없습니다 → 사망 이벤트를 들을 것이 없어 창이 뜨지 않습니다.\n";
+                result += "· ⚠ 정식 사망 팝업(DeathPopup)이 없습니다 → " +
+                          "'Tools ▸ ProjectS ▸ 사망 팝업 → 정식(DeathPopup)으로 전환'을 먼저 실행하세요.\n";
             }
-            else if (!presenter.gameObject.activeInHierarchy)
+            else
+            {
+                // 정식 트리거는 RegisterPopup을 부르지 않고 UIManager의 자동 수집(자기 자식만)에만 의존한다.
+                // 그래서 '팝업이 UIManager 직속인가'가 곧 등록 여부이고, 어긋나면 죽어도 창이 뜨지 않는다.
+                if (manager != null && popup.transform.parent != manager.transform)
+                    result += "· ⚠ DeathPopup이 UIManager 직속이 아닙니다 → 자동 등록되지 않아 창이 뜨지 않습니다(전환 메뉴로 고쳐집니다).\n";
+
+                if (popup.GetComponentInParent<Canvas>(true) == null)
+                    result += "· ⚠ DeathPopup 위쪽에 Canvas가 없습니다 → 열려도 화면에 아무것도 나오지 않습니다.\n";
+
+                if (popup.gameObject.activeSelf)
+                    result += "· ⚠ DeathPopup이 켜진 채입니다 → 재생하자마자 사망 창이 화면을 덮습니다(꺼 두세요).\n";
+            }
+
+            DeathPopupTrigger trigger = Object.FindAnyObjectByType<DeathPopupTrigger>(FindObjectsInactive.Include);
+            if (trigger == null)
+            {
+                result += "· ⚠ DeathPopupTrigger가 없습니다 → 사망 이벤트를 들을 것이 없어 창이 뜨지 않습니다.\n";
+            }
+            else if (!trigger.gameObject.activeInHierarchy)
             {
                 // 이 경우가 가장 찾기 어렵다. 컴포넌트는 있는데 꺼져 있어 OnEnable이 안 돌고, 구독이 성립하지 않는다.
-                result += "· ⚠ DeathPresenter가 꺼진 오브젝트에 있습니다 → 항상 켜져 있는 곳으로 옮기세요.\n";
+                result += "· ⚠ DeathPopupTrigger가 꺼진 오브젝트에 있습니다 → 항상 켜져 있는 곳으로 옮기세요.\n";
             }
 
-            if (Object.FindAnyObjectByType<UIManager>() == null)
-                result += "· ⚠ UIManager가 없습니다 → 팝업 등록/표시가 되지 않습니다. Bootstrap에서 시작하거나 씬에 추가하세요.\n";
+            // 시안이 함께 살아 있으면 UIManager가 양쪽을 모두 수집하고 사망도 두 번 처리된다.
+            if (Object.FindAnyObjectByType<DeathPopupPrototype>() != null || Object.FindAnyObjectByType<DeathPresenter>() != null)
+                result += "· ⚠ 시안 흐름(DeathPopupPrototype·DeathPresenter)이 아직 살아 있습니다 → 전환 메뉴를 실행해 정리하세요.\n";
+
+            // 없으면 창은 뜨는데 버튼만 안 눌린다. 원인이 팝업 쪽으로 보여서 헤매기 쉬운 항목이라 미리 알린다.
+            if (Object.FindAnyObjectByType<EventSystem>(FindObjectsInactive.Include) == null)
+                result += "· ⚠ 씬에 EventSystem이 없습니다 → 팝업은 떠도 부활/마을 복귀 버튼이 눌리지 않습니다.\n";
 
             // HUD 패널은 존재 여부가 아니라 '표시됐는지'가 문제라 에디터에서는 판정할 수 없다(초기화는 재생 중에 일어난다).
             // 그래서 있으면 있다고만 알리고, 실행 순서를 강조한다. 이걸 놓치면 죽이는 순간

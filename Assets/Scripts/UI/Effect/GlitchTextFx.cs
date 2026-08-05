@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Text;
 using UnityEngine;
 using TMPro;
@@ -32,12 +32,27 @@ namespace ProjectS.UI
     /// 준비물: TMP 텍스트의 Font Material을 복제해 셰이더를 <c>ProjectS/UI Glitch Text</c>로 바꾼 뒤
     /// 그 머티리얼을 이 텍스트에 물린다. 셰이더가 없으면 경고만 남기고 글자 연출만 동작한다.
     /// </para>
+    /// <para>
+    /// <b>모양을 정하는 셰이더 값은 머티리얼이 아니라 이 컴포넌트에서 조절한다</b>(2026-08-05 TH).
+    /// 머티리얼이 재생 중에만 만들어지는 인스턴스라, 값을 머티리얼에 두면 <b>재생 전에는 손댈 방법이 없고
+    /// 재생 중에 맞춘 값은 정지하면 사라졌다.</b> 그래서 값을 직렬화되는 필드로 끌어올리고,
+    /// <see cref="previewInEditor"/>로 재생하지 않아도 결과를 보며 맞출 수 있게 했다.
+    /// </para>
     /// </remarks>
+    [ExecuteAlways]
     [RequireComponent(typeof(TMP_Text))]
     public class GlitchTextFx : MonoBehaviour
     {
         private const string ShaderName = "ProjectS/UI Glitch Text";
+
         private static readonly int GlitchID = Shader.PropertyToID("_Glitch");
+        private static readonly int CellSizeID = Shader.PropertyToID("_CellSize");
+        private static readonly int ScatterID = Shader.PropertyToID("_Scatter");
+        private static readonly int CellOffsetID = Shader.PropertyToID("_CellOffset");
+        private static readonly int RgbSplitID = Shader.PropertyToID("_RgbSplit");
+        private static readonly int FlickerSpeedID = Shader.PropertyToID("_FlickerSpeed");
+        private static readonly int ScanlineID = Shader.PropertyToID("_Scanline");
+        private static readonly int SoftnessID = Shader.PropertyToID("_Softness");
 
         [Header("셰이더")]
         [Tooltip("ProjectS/UI Glitch Text 셰이더. 비워두면 이름으로 찾지만, 빌드에 포함되도록 직접 넣는 것을 권장한다.")]
@@ -73,36 +88,133 @@ namespace ProjectS.UI
         [Tooltip("전체 시간 중 혼란(기호 난장)이 차지하는 비율. 나머지 구간에서 표기가 번갈아 나타난다.")]
         [SerializeField, Range(0f, 1f)] private float chaosRatio = 0.55f;
 
+        [Header("모양 (머티리얼 값)")]
+        [Tooltip("파편 한 조각의 크기(px). 작을수록 잘게 부서진다.")]
+        [SerializeField, Min(1f)] private float cellSize = 9f;
+
+        [Tooltip("글리치가 1일 때 꺼지는 셀의 비율. 높을수록 파편이 드문드문해진다.")]
+        [SerializeField, Range(0f, 1f)] private float scatter = 0.85f;
+
+        [Tooltip("살아남은 셀이 어긋나는 정도. 폰트 아틀라스 UV 기준이라 0.01을 넘기면 옆 칸의 다른 글자를 끌어온다.")]
+        [SerializeField, Range(0f, 0.01f)] private float cellOffset = 0.006f;
+
+        [Tooltip("색수차. 위와 같은 이유로 아주 작은 값만 쓴다.")]
+        [SerializeField, Range(0f, 0.01f)] private float rgbSplit = 0.0022f;
+
+        [Tooltip("초당 파편 재배치 횟수. 높을수록 정신없다.")]
+        [SerializeField, Min(0f)] private float flickerSpeed = 18f;
+
+        [Tooltip("가로 주사선 농도.")]
+        [SerializeField, Range(0f, 1f)] private float scanline = 0.25f;
+
+        [Tooltip("글자 가장자리 부드러움.")]
+        [SerializeField, Range(0f, 1f)] private float softness = 0.15f;
+
         [Header("동작")]
         [Tooltip("켜질 때 자동으로 재생한다. 팝업처럼 SetActive로 등장하는 UI에 맞춘 기본값.")]
         [SerializeField] private bool playOnEnable = true;
+
+        [Header("에디터 미리보기")]
+        [Tooltip("재생하지 않아도 씬/게임 뷰에 글리치를 적용해, 위 값을 눈으로 보며 맞출 수 있게 한다.\n" +
+                 "끄면 예전처럼 재생 중에만 적용된다(텍스트는 원래 폰트 머티리얼로 그려진다).")]
+        [SerializeField] private bool previewInEditor = true;
+
+        [Tooltip("미리보기로 보여줄 글리치 세기. 연출의 어느 지점을 볼지 고르는 값일 뿐, 재생에는 영향이 없다.\n" +
+                 "1=부서진 순간, 0=완전히 잡힌 글자.")]
+        [SerializeField, Range(0f, 1f)] private float previewGlitch = 1f;
 
         private TMP_Text label;
         private Material material;
         private Coroutine routine;
 
+        // 셰이더/머티리얼 경고는 한 번만 남긴다. 에디터 미리보기는 매 프레임 돌아서
+        // 안 그러면 콘솔이 같은 경고로 뒤덮인다.
+        private bool warned;
+
         /// <summary>현재 글리치 세기(0~1). 다른 연출과 맞추고 싶을 때 읽는다.</summary>
         public float Glitch { get; private set; }
 
+        /// <remarks>
+        /// 여기서는 참조만 잡고 머티리얼은 만들지 않는다. <b>같은 GameObject에 붙은 컴포넌트끼리는
+        /// <c>Awake</c> 순서가 보장되지 않아</b>, TMP보다 먼저 깨어나면 아직 준비되지 않은 폰트 머티리얼을
+        /// 집게 된다(그러면 글자 연출만 돌고 비주얼 글리치가 통째로 빠진다).
+        /// 머티리얼은 모든 Awake가 끝난 뒤인 <see cref="Play"/> 시점에 만든다.
+        /// </remarks>
         private void Awake()
         {
             label = GetComponent<TMP_Text>();
+        }
 
-            // fontMaterial은 접근하는 순간 이 텍스트 전용 인스턴스가 만들어진다.
-            // 그래서 여기서 셰이더를 바꿔도 같은 폰트를 쓰는 다른 텍스트는 영향받지 않는다
-            // (fontSharedMaterial을 만지면 화면의 모든 텍스트가 함께 글리치된다).
-            material = label.fontMaterial;
-            if (material == null) return;
+        /// <summary>
+        /// 글리치용 머티리얼 인스턴스를 준비한다. 여러 번 불러도 안전하다.
+        /// </summary>
+        /// <remarks>
+        /// fontMaterial은 접근하는 순간 이 텍스트 전용 인스턴스가 만들어진다. 그래서 여기서 셰이더를
+        /// 바꿔도 같은 폰트를 쓰는 다른 텍스트는 영향받지 않는다
+        /// (fontSharedMaterial을 만지면 화면의 모든 텍스트가 함께 글리치된다).
+        ///
+        /// 에디터 미리보기로 만든 인스턴스에는 <see cref="HideFlags.DontSave"/>를 건다.
+        /// 안 걸면 이 머티리얼이 <b>씬 파일 안에 통째로 저장되어</b> 텍스트를 만질 때마다 씬 diff가 생긴다
+        /// (씬 충돌을 늘리지 않기 위한 처리다). 저장되지 않으므로 씬을 다시 열면 TMP가 폰트 기본
+        /// 머티리얼로 되돌아가고, 이 컴포넌트가 곧바로 다시 인스턴스를 만든다.
+        /// </remarks>
+        /// <returns>글리치 값을 쓸 수 있는 머티리얼이 준비됐으면 true</returns>
+        private bool EnsureMaterial()
+        {
+            if (material != null) return true;
 
+            // 한 번 실패한 조건은 인스펙터를 다시 만지기 전까지 바뀌지 않는다. 매 프레임 재시도하면
+            // 에디터에서 Shader.Find만 계속 돈다(OnValidate가 warned를 풀어 다시 시도하게 한다).
+            if (warned) return false;
+
+            if (label == null) label = GetComponent<TMP_Text>();
+            if (label == null) return false;
+
+            // 미리보기 인스턴스는 저장되지 않으므로(DontSave), 미리보기를 켠 채 저장한 씬은
+            // 텍스트의 머티리얼 참조가 비어 있는 상태로 로드된다. TMP도 자기 Awake에서 폰트 기본값으로
+            // 복구하지만 그 Awake가 우리보다 먼저 돈다는 보장이 없어, 비어 있으면 여기서 먼저 되살린다.
+            // 이걸 빼면 null에서 인스턴스를 만들려다 실패해 글리치가 조용히 사라진다.
+            if (label.fontSharedMaterial == null && label.font != null)
+                label.fontSharedMaterial = label.font.material;
+
+            Material instance = label.fontMaterial;
+            if (instance == null) return false;
+
+            material = instance;
             ApplyGlitchShader();
 
             if (!material.HasProperty(GlitchID))
             {
-                Debug.LogWarning(
-                    $"{name}: _Glitch 속성이 없어 비주얼 글리치는 생략하고 글자 연출만 재생한다. " +
-                    "glitchShader 슬롯에 'ProjectS/UI Glitch Text'를 넣으세요.", this);
+                if (!warned)
+                {
+                    warned = true;
+                    Debug.LogWarning(
+                        $"{name}: _Glitch 속성이 없어 비주얼 글리치는 생략하고 글자 연출만 재생한다. " +
+                        "glitchShader 슬롯에 'ProjectS/UI Glitch Text'를 넣으세요.", this);
+                }
+
                 material = null;
+                return false;
             }
+
+            if (!Application.isPlaying) material.hideFlags = HideFlags.DontSave;
+
+            ApplyLook();
+            return true;
+        }
+
+        /// <summary>인스펙터에서 조절한 모양 값을 머티리얼에 반영한다.</summary>
+        private void ApplyLook()
+        {
+            if (material == null) return;
+
+            material.SetFloat(CellSizeID, cellSize);
+            material.SetFloat(ScatterID, scatter);
+            material.SetFloat(CellOffsetID, cellOffset);
+            material.SetFloat(RgbSplitID, rgbSplit);
+            material.SetFloat(FlickerSpeedID, flickerSpeed);
+            material.SetFloat(ScanlineID, scanline);
+            material.SetFloat(SoftnessID, softness);
         }
 
         /// <remarks>
@@ -119,8 +231,14 @@ namespace ProjectS.UI
 
             if (target == null)
             {
-                Debug.LogWarning($"{name}: '{ShaderName}' 셰이더를 찾지 못했다. " +
-                                 "glitchShader 슬롯에 직접 넣어 주세요(빌드 포함 보장에도 필요).", this);
+                // 에디터 미리보기는 매 프레임 재시도하므로, 경고를 막지 않으면 콘솔이 뒤덮인다.
+                if (!warned)
+                {
+                    warned = true;
+                    Debug.LogWarning($"{name}: '{ShaderName}' 셰이더를 찾지 못했다. " +
+                                     "glitchShader 슬롯에 직접 넣어 주세요(빌드 포함 보장에도 필요).", this);
+                }
+
                 return;
             }
 
@@ -129,11 +247,18 @@ namespace ProjectS.UI
 
         private void OnEnable()
         {
+            // 에디터에서는 코루틴이 돌지 않는다. 미리보기는 Update가 맡는다.
+            if (!Application.isPlaying) return;
+
             if (playOnEnable) Play();
         }
 
         private void OnDisable()
         {
+            // 에디터에서는 아무것도 하지 않는다. 도메인 리로드 때도 이 콜백이 불리는데,
+            // 여기서 label.text를 건드리면 디자이너가 씬에 적어 둔 문구가 finalText로 덮어써진다.
+            if (!Application.isPlaying) return;
+
             // 코루틴은 오브젝트가 꺼지면 어차피 멈추지만, 다시 켰을 때 이전 진행 상태가 남지 않게
             // 참조를 비우고 최종 표시로 되돌려 둔다(꺼진 순간의 깨진 글자가 다음 등장에 한 프레임 보인다).
             routine = null;
@@ -141,10 +266,65 @@ namespace ProjectS.UI
             if (label != null) label.text = finalText;
         }
 
+        /// <remarks>
+        /// 에디터 전용 미리보기 루프. 인스펙터에서 값을 드래그하는 동안 결과가 바로 보이게 한다
+        /// (에디터에서는 코루틴이 돌지 않아 연출 재생 대신 <see cref="previewGlitch"/> 한 지점을 고정해 보여준다).
+        /// 머티리얼 준비를 OnValidate가 아니라 여기서 하는 이유: OnValidate는 에셋 임포트·씬 로드 중에도
+        /// 불리는데 그 타이밍에 오브젝트를 만드는 것은 권장되지 않는다.
+        /// </remarks>
+        private void Update()
+        {
+            if (Application.isPlaying) return;
+
+            if (!previewInEditor)
+            {
+                RestoreEditorPreview();
+                return;
+            }
+
+            if (!EnsureMaterial()) return;
+
+            ApplyLook();
+            ApplyGlitch(previewGlitch);
+        }
+
+        /// <summary>
+        /// 에디터 미리보기를 끄고 텍스트를 원래 폰트 머티리얼로 되돌린다.
+        /// </summary>
+        /// <remarks>
+        /// 미리보기용 인스턴스는 저장되지 않으므로(DontSave), 켜 둔 채 씬을 저장하면 텍스트의 머티리얼
+        /// 참조가 <b>빈 값으로 기록된다</b>. 그 씬을 재생하면 머티리얼이 없는 상태에서 시작해
+        /// 글리치가 조용히 빠지므로, 저장 직전에 <c>GlitchTextFxPreviewGuard</c>(에디터)가 이 메서드를
+        /// 불러 정상 참조를 써 넣는다. 저장이 끝나면 미리보기는 다음 <see cref="Update"/>에서 되살아난다.
+        ///
+        /// public인 이유는 그 에디터 훅이 다른 어셈블리(Assembly-CSharp-Editor)에 있어서다.
+        /// </remarks>
+        public void RestoreEditorPreview()
+        {
+            if (material == null) return;
+
+            material = null;
+            warned = false;
+
+            if (label == null) label = GetComponent<TMP_Text>();
+            if (label != null && label.font != null) label.fontSharedMaterial = label.font.material;
+        }
+
         /// <summary>연출을 처음부터 재생한다. 이미 재생 중이면 다시 시작한다.</summary>
+        /// <remarks>에디터(비재생)에서는 코루틴이 돌지 않으므로 미리보기 값만 반영하고 끝낸다.</remarks>
         public void Play()
         {
             if (!isActiveAndEnabled) return;
+
+            if (!Application.isPlaying)
+            {
+                if (EnsureMaterial()) ApplyGlitch(previewGlitch);
+                return;
+            }
+
+            // 머티리얼은 여기서 확보한다. OnEnable은 그 오브젝트의 모든 Awake가 끝난 뒤에 불리므로
+            // TMP가 먼저 준비를 마쳤음이 보장된다(Awake에서 잡으면 순서에 따라 실패한다).
+            EnsureMaterial();
 
             if (routine != null) StopCoroutine(routine);
             routine = StartCoroutine(PlayRoutine());
@@ -157,7 +337,7 @@ namespace ProjectS.UI
             routine = null;
 
             ApplyGlitch(settledGlitch);
-            label.text = finalText;
+            if (label != null) label.text = finalText;
         }
 
         private IEnumerator PlayRoutine()
@@ -227,10 +407,20 @@ namespace ProjectS.UI
             if (material != null) material.SetFloat(GlitchID, Glitch);
         }
 
+        /// <remarks>
+        /// 이미 머티리얼이 준비된 상태에서만 값을 밀어 넣는다. 재생 중에 인스펙터를 만져도 곧바로 반영되게
+        /// 하기 위한 것이고, 에디터에서 머티리얼을 처음 만드는 일은 <see cref="Update"/>가 맡는다.
+        /// </remarks>
         private void OnValidate()
         {
-            // 인스펙터에서 만지는 동안에도 정착값이 곧바로 보이게 한다(연출 값 맞추기용).
-            if (!Application.isPlaying && material != null) ApplyGlitch(settledGlitch);
+            // 인스펙터를 만졌다는 것은 조건이 바뀌었을 수 있다는 뜻이다(셰이더를 지금 막 넣었다든가).
+            // 경고 억제를 풀어 다음 프레임에 다시 시도하게 한다.
+            warned = false;
+
+            if (material == null) return;
+
+            ApplyLook();
+            if (!Application.isPlaying) ApplyGlitch(previewGlitch);
         }
     }
 }
