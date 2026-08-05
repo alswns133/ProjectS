@@ -390698,8 +390698,8 @@ GameObject:
   - component: {fileID: 3386925869625297108}
   - component: {fileID: 5054866999206870792}
   - component: {fileID: 3098777463369675379}
-  - component: {fileID: 2560047901458025671}
   - component: {fileID: 2086103311201186281}
+  - component: {fileID: 2560047901458025671}
   m_Layer: 0
   m_Name: FreeLookCamera
   m_TagString: Untagged
@@ -390786,27 +390786,11 @@ MonoBehaviour:
     Enabled: 1
     CollisionFilter:
       serializedVersion: 2
-      m_Bits: 129
+      m_Bits: 16512
     IgnoreTag: Player
     CameraRadius: 0.2
     DampingIntoCollision: 0
     DampingFromCollision: 0.5
---- !u!114 &2560047901458025671
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7157295217285055095}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 724f41eb2681abd45aaddd6cae7ba47c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraRig
-  input: {fileID: 8939642014155905306}
-  zoomSpeed: 50
-  minDistance: 2
-  maxDistance: 10
 --- !u!114 &2086103311201186281
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -390831,6 +390815,22 @@ MonoBehaviour:
     FrequencyGain: 1
     Duration: 1
     m_NoiseOffsets: {x: 0, y: 0, z: 0}
+--- !u!114 &2560047901458025671
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7157295217285055095}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 724f41eb2681abd45aaddd6cae7ba47c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraRig
+  input: {fileID: 8939642014155905306}
+  zoomSpeed: 50
+  minDistance: 2
+  maxDistance: 10
 --- !u!1 &7246679608131087587
 GameObject:
   m_ObjectHideFlags: 0
