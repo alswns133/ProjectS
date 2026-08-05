@@ -99,6 +99,13 @@ namespace ProjectS.Players
         // 우클릭 강공격은 캐릭터 공용 행(SKILL_RCLICK)을 쓴다.
         private const int StrongAttackSkillId = 3;
 
+        // 어떤 스킬이 시전 중 '완전 무적'을 주는지는 SkillTable.Invincible(데이터)로 정한다(예: 각성기).
+        // 다른 스킬의 슈퍼아머(데미지는 받되 경직만 생략, Player.OnDamaged)와 달리 피격 자체를 씹는다
+        // (구르기와 같은 SetInvincible 토글 재사용). 해제는 스킬이 '진짜로 끝나는' 시점
+        // (ResetCombo/CancelAction/UnlockMovement)과 무적이 아닌 다음 액션 진입(UseSkill·OnAttackStart)에만
+        // 한다 — AttackCancelBehaviour가 캔슬 창에서 부르는 EndSkillCast(클립 중간)에는 풀지 않아,
+        // 후딜까지 무적이 이어진다("스킬 끝난 다음 무적 해제" 기획).
+
         // 이 캐릭터의 스킬 행 ID를 SkillId 오름차순으로 캐싱한다(스킬 번호 n → [n-1]).
         // PlayerStats.SkillSetPrefix로 걸러 만들기 때문에, 스킬이 늘거나 ID 체계가 바뀌어도
         // 코드가 아니라 테이블만 고치면 된다. 테이블 로딩이 끝난 뒤 첫 사용 시 1회 구축한다.
@@ -165,6 +172,10 @@ namespace ProjectS.Players
         // 현재 액션과 이벤트 키가 일치할 때만 판정을 허용해 이전 액션의 유령 타격을 막는다.
         private CombatAction currentAction;
         private int currentSkillNumber;
+
+        // 무적 스킬(SkillTable.Invincible)이 무적을 켰는지 추적한다. 무적 소스가 여럿(구르기 수동/잔여, 스킬)
+        // 이라, 우리가 켠 것만 우리가 내리려고 표시해 둔다 → 구르기가 켠 SetInvincible을 실수로 끄지 않는다.
+        private bool skillGrantedInvincibility;
 
         /// <summary>
         /// 콤보 타수가 실제로 시작될 때(OnAttackStart Animation Event) 발행된다.
@@ -270,6 +281,11 @@ namespace ProjectS.Players
             IsCastingSkill = true;
             currentAction = CombatAction.Skill;
             currentSkillNumber = n;
+
+            // 무적 스킬(SkillTable.Invincible)이면 시전 동안 무적을 켠다. 무적이 아닌 스킬(캔슬 창에서
+            // 다른 스킬로 이어감 포함)이면 직전 무적이 남아 있었어도 여기서 꺼진다.
+            SetSkillInvincibility(skill.Invincible);
+
             anim.PlaySkill(n);
 
             // UI(쿨타임 표시)가 이 신호로 카운트다운을 시작한다. 발동 성공 시에만 발행.
@@ -370,6 +386,25 @@ namespace ProjectS.Players
         }
 
         public void EndSkillCast() => IsCastingSkill = false;
+
+        /// <summary>
+        /// 각성기(4번 스킬)가 켠 무적을 해제한다. 스킬 시전이 '진짜로 끝나는' 시점(로코모션 복귀 =
+        /// <see cref="Player.UnlockMovement"/>)에 Player가 호출한다. 캔슬 창의 <see cref="EndSkillCast"/>와
+        /// 분리한 것이 핵심 — 캔슬 창(클립 중간)에는 해제하지 않고 후딜까지 무적을 유지하기 위함이다.
+        /// 각성기가 아니었으면(플래그 미설정) no-op이라 아무 스킬 종료에나 호출해도 안전하다.
+        /// </summary>
+        public void ReleaseSkillInvincibility() => SetSkillInvincibility(false);
+
+        // 각성기 무적을 켜고 끈다. 이미 목표 상태면 no-op이라, 매 입력·매 종료 경로에서 불러도
+        // 다른 무적 소스(구르기 SetInvincible/잔여 타이머)를 건드리지 않는다. player.Stats가 실제 무적
+        // 상태를 소유하고, 여기서는 '우리가 켰다'는 사실만 skillGrantedInvincibility로 함께 관리한다.
+        private void SetSkillInvincibility(bool on)
+        {
+            if (skillGrantedInvincibility == on) return;
+
+            skillGrantedInvincibility = on;
+            player.Stats.SetInvincible(on);
+        }
 
         /// <summary>
         /// 현재 씬의 투사체 스포너를 주입한다. 스포너는 원칙상 '씬에 하나 두고 프리팹별 풀을 내부 관리'하는
@@ -593,6 +628,9 @@ namespace ProjectS.Players
             currentAction = CombatAction.Combo;
             comboStep = step;
 
+            // 각성기 캔슬 창에서 평타로 이어 나온 것이면, 각성기는 끝난 것 → 무적 해제.
+            SetSkillInvincibility(false);
+
             // 새 타수 진입 = 콤보 체인 진입. 캔슬 창은 타수마다 다시 닫아, 그 State의
             // AttackCancelBehaviour가 자기 진행도로 다시 열게 한다(공격별 State 튜닝 원칙과 동일).
             inCombo = true;
@@ -630,6 +668,7 @@ namespace ProjectS.Players
             currentSkillNumber = 0;
             inCombo = false;
             comboCancelWindowOpen = false;
+            SetSkillInvincibility(false);   // 로코모션 복귀 = 각성기 진짜 종료 → 무적 해제
             EndSkillCast();
             DevLog.Log(comboStep);
         }
@@ -648,6 +687,7 @@ namespace ProjectS.Players
             currentSkillNumber = 0;
             inCombo = false;
             comboCancelWindowOpen = false;
+            SetSkillInvincibility(false);   // 구르기·피격 등 강제 중단 시에도 각성기 무적을 반드시 내린다
             EndSkillCast();
             ClearAttackBuffer();
 

@@ -30,6 +30,10 @@ public class DungeonGather : ProjectS.Scenes.BaseScene
         // 기획: 씬 진입마다 HP·SG를 최대치로 회복한다. 발행 전에 값을 먼저 세팅한다.
         player?.Stats.RefillOnSceneEnter();
 
+        // 기획: 던전 한 판마다 부활 기회 1회. 여기서 채우지 않으면 사망 팝업이 항상 "기회 없음"으로 떠
+        // 첫 죽음에 바로 마을로 쫓겨난다.
+        ReviveBudget.GrantOnDungeonEnter();
+
         // ★ 하드코딩 초기화 대신, JSON에서 로드된 실제 스탯을 HUD에 반영한다(마을과 동일 방침).
         // 플레이어 활성화 뒤 요청해야 PlayerStats·InventoryManager가 받아 로드된 값을 다시 발행한다.
         PlayerEvents.FireStatsRefreshRequested();
