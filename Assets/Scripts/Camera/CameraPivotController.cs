@@ -68,7 +68,9 @@ public class CameraPivotController : MonoBehaviour
 
     void Update()
     {
-        if (!inputLocked)
+        // 마우스 포인터가 보이는 상태(커서 잠금 해제)면 마우스는 UI 조작용이므로
+        // 카메라 회전에 반영하지 않는다. 연출(orbit)은 아래에서 계속 진행한다.
+        if (!inputLocked && Cursor.lockState == CursorLockMode.Locked)
         {
             // 현재 마우스가 이동한 델타값
             Vector2 delta = Mouse.current.delta.ReadValue();

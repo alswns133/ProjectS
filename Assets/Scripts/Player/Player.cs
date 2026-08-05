@@ -177,6 +177,10 @@ namespace ProjectS.Players
         {
             IsMovementLocked = false;
             Combat.EndSkillCast();
+            // 각성기(4번 스킬) 무적은 로코모션 복귀(= 이 시점)에 반드시 내린다. EndSkillCast는 캔슬 창에서도
+            // 불리므로 무적 해제 창구로 쓰지 않고, 이동 잠금 해제와 같은 '진짜 종료' 경로에 묶는다.
+            // 안전장치 타이머로 잠금이 풀리는 경우에도 함께 해제되어 무적이 영구히 남는 사고를 막는다.
+            Combat.ReleaseSkillInvincibility();
             // 점프 공격 호버링 해제. 모션이 끝나 로코모션으로 복귀하는 이 시점이
             // "모션이 끝나면 다시 내려간다"(기획)에 해당한다. 안전장치 경로로 풀릴 때도 함께 풀린다.
             Movement.SetHover(false);

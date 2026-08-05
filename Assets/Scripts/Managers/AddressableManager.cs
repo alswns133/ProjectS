@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.AddressableAssets;
@@ -82,7 +82,7 @@ namespace ProjectS.Managers
 
         public void NextScene()
         {
-            GameSceneManager.Instance.RequestSceneChange<Tutorial>();
+            //GameSceneManager.Instance.RequestSceneChange<Tutorial>();
         }
 
     }
