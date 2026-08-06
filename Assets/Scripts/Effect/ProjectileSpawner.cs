@@ -20,6 +20,8 @@ namespace ProjectS.Effects
         /// <param name="attack">데미지 계산 재료. 최종 피해는 투사체가 적중 시점에 대상별로 산출한다.</param>
         /// <param name="canPierce">true면 여러 적 관통, false면 첫 적중에 소멸.</param>
         /// <param name="onTargetHit">적중 1회당 호출. 인자는 회복할 스킬 게이지 양. 몬스터는 null을 넘긴다.</param>
+        /// <param name="key">이 투사체를 쏜 슬롯의 키. 적중 시 CombatEvents 히트 이벤트에 그대로 실린다
+        /// (공격마다 다른 타격 이펙트를 고를 수 있게 하기 위함). 없으면 빈 문자열.</param>
         public void Fire(
             Projectile prefab,
             Vector3 position,
@@ -27,12 +29,13 @@ namespace ProjectS.Effects
             in AttackContext attack,
             float gaugeGain,
             bool canPierce,
-            Action<float> onTargetHit)
+            Action<float> onTargetHit,
+            string key = "")
         {
             if (prefab == null) return;
 
             Projectile projectile = GetFromPool(prefab);
-            projectile.Launch(position, rotation, in attack, gaugeGain, canPierce, onTargetHit, GetReturnCallback(prefab));
+            projectile.Launch(position, rotation, in attack, gaugeGain, canPierce, onTargetHit, GetReturnCallback(prefab), key);
         }
     }
 }
