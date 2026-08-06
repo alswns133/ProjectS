@@ -76,6 +76,10 @@ namespace ProjectS.Effects
         private bool canPierce;
         private int hitCount;
 
+        // 이 투사체를 쏜 슬롯의 키. 적중 시 히트 이벤트에 그대로 실어 보내
+        // 공격마다 다른 타격 이펙트를 고를 수 있게 한다.
+        private string sourceKey;
+
         /// <summary>
         /// 투사체를 발사한다. ProjectileSpawner의 Fire를 통해서만 호출된다.
         /// </summary>
@@ -83,6 +87,7 @@ namespace ProjectS.Effects
         /// <param name="canPierce">true면 경로 위 여러 적을 연속 타격, false면 첫 적중에 소멸.</param>
         /// <param name="onTargetHit">적중 1회당 호출. 인자는 회복할 스킬 게이지 양.</param>
         /// <param name="onFinished">수명 종료 시 풀 반환 콜백.</param>
+        /// <param name="sourceKey">이 투사체를 쏜 슬롯의 키. 적중 이벤트에 그대로 실린다.</param>
         public void Launch(
             Vector3 position,
             Quaternion rotation,
@@ -90,13 +95,15 @@ namespace ProjectS.Effects
             float gaugeGain,
             bool canPierce,
             Action<float> onTargetHit,
-            Action<Projectile> onFinished)
+            Action<Projectile> onFinished,
+            string sourceKey = "")
         {
             this.attack = attack;
             this.gaugeGain = gaugeGain;
             this.canPierce = canPierce;
             this.onTargetHit = onTargetHit;
             this.onFinished = onFinished;
+            this.sourceKey = sourceKey;
 
             transform.SetPositionAndRotation(position, rotation);
             startPosition = position;
@@ -181,8 +188,8 @@ namespace ProjectS.Effects
 
                 // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
                 // 내면 플레이어가 적중시킨 것으로 오인한다.
-                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point);
-                else CombatEvents.FireEnemyHitLanded(point);
+                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, sourceKey);
+                else CombatEvents.FireEnemyHitLanded(point, sourceKey);
 
                 onTargetHit?.Invoke(gaugeGain);
                 hitCount++;

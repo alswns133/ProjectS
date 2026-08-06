@@ -8673,6 +8673,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 92261073805300203, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 348816684003536057, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -8721,9 +8725,17 @@ PrefabInstance:
       propertyPath: effects.Array.data[8].lensDistortionIntensity
       value: -0.3
       objectReference: {fileID: 0}
+    - target: {fileID: 5640193164590497646, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6444419969119536879, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_Name
       value: Haru
+      objectReference: {fileID: 0}
+    - target: {fileID: 6865500865357802775, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6953480705040815348, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: punchInTime
@@ -8748,6 +8760,14 @@ PrefabInstance:
     - target: {fileID: 6953480705040815348, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: lensDistortionIntensity
       value: -0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590775846631036525, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7729773882328042003, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -8859,7 +8879,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1607893021}
-  - component: {fileID: 1607893020}
   m_Layer: 0
   m_Name: DeathEffectSpawner
   m_TagString: Untagged
@@ -8867,20 +8886,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1607893020
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1607893019}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 201e9121c4f897842822ced8de0bb4f5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DeathEffectSpawner
-  prefab: {fileID: -492216637980471123, guid: bdd42f515eceef44a93069de46073031, type: 3}
-  initialPoolSize: 5
 --- !u!4 &1607893021
 Transform:
   m_ObjectHideFlags: 0
@@ -9266,7 +9271,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1901975243}
-  - component: {fileID: 1901975242}
   - component: {fileID: 1901975244}
   m_Layer: 0
   m_Name: HitEffectSpawner
@@ -9275,21 +9279,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1901975242
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1901975241}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1932d00b1cd6b424d9750273e5a9eeb4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
-  prefab: {fileID: -6086042992580090171, guid: 202dfb24a8088d242b751a484e4efd1b, type: 3}
-  initialPoolSize: 10
-  source: 0
 --- !u!4 &1901975243
 Transform:
   m_ObjectHideFlags: 0
@@ -9316,10 +9305,27 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1932d00b1cd6b424d9750273e5a9eeb4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
-  prefab: {fileID: 2088054485288642982, guid: 1d5e2c1e39ce28045ba277e2eabb79c4, type: 3}
-  initialPoolSize: 10
-  source: 1
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectSpawner
+  prewarm: []
+  source: 0
+  defaultPrefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+  effects:
+  - key: Attack1
+    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+  - key: Attack2
+    prefab: {fileID: 6708302881962103724, guid: 41ae6ff099e27684a99b1fd6d23941c7, type: 3}
+  - key: Attack3
+    prefab: {fileID: 6294996035555364578, guid: 6338021fcfb16ed4080f35e8a2419541, type: 3}
+  - key: Run_Attack
+    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+  - key: Strong_Attack
+    prefab: {fileID: 7620426476709372169, guid: 7fb10e284ee039944a10e5ed898761a4, type: 3}
+  - key: Jump_Attack_1
+    prefab: {fileID: -5827739164191890754, guid: ab80be6143d129b4682122a9768a151d, type: 3}
+  - key: Jump_Attack_2
+    prefab: {fileID: -5827739164191890754, guid: ab80be6143d129b4682122a9768a151d, type: 3}
+  - key: Skill3_1
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
 --- !u!1 &1937823494
 GameObject:
   m_ObjectHideFlags: 0
