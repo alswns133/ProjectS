@@ -364615,6 +364615,7 @@ MonoBehaviour:
   diveLandingCheckDistance: 1
   landingCheckDistance: 1
   dodgeGroundCheckDistance: 0.3
+  debugStairGrounding: 1
 --- !u!114 &608626111957249380
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -365028,6 +365029,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 0}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Jump_Attack_1
     shakeForce: 1
     shakeDirection: {x: 0, y: 1, z: 0}
@@ -365068,6 +365071,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 0}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Run_Attack
     shakeForce: 0.5
     shakeDirection: {x: 0.3, y: 0.3, z: 0.3}
@@ -365108,6 +365113,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 0}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill_1_1
     shakeForce: 1
     shakeDirection: {x: 0, y: 1, z: 0}
@@ -365148,6 +365155,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 0}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill_2_3
     shakeForce: 3
     shakeDirection: {x: 1, y: 1, z: 5}
@@ -365188,6 +365197,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 0}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill3
     shakeForce: 0.3
     shakeDirection: {x: 0.3, y: 0.3, z: 0.3}
@@ -365228,6 +365239,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 0}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill4_1
     shakeForce: 0.2
     shakeDirection: {x: 1, y: 1, z: 1}
@@ -365268,6 +365281,8 @@ MonoBehaviour:
     followOffset: {x: -1, y: 0, z: 1}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill4_2
     shakeForce: 5
     shakeDirection: {x: 1, y: 1, z: 1}
@@ -365308,6 +365323,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 3}
     followOffsetBlend: 0
     freezeFollow: 1
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill4_3
     shakeForce: 0
     shakeDirection: {x: 0, y: 0, z: 0}
@@ -365348,6 +365365,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 3}
     followOffsetBlend: 0
     freezeFollow: 1
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill4_4
     shakeForce: 0
     shakeDirection: {x: 0, y: 0, z: 0}
@@ -365388,6 +365407,8 @@ MonoBehaviour:
     followOffset: {x: 1, y: 3, z: 1}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   - key: Skill4_5
     shakeForce: 5
     shakeDirection: {x: 3, y: 3, z: 3}
@@ -365428,6 +365449,8 @@ MonoBehaviour:
     followOffset: {x: 0, y: 0, z: 0}
     followOffsetBlend: 0
     freezeFollow: 0
+    lensDistortionIntensity: 0
+    lensDistortionRelease: 0.3
   cameraPivot: {fileID: 5349338157404528658}
   cameraRig: {fileID: 2560047901458025671}
   maxOrbitTime: 15
@@ -365605,6 +365628,7 @@ MonoBehaviour:
   punchInTime: 0.08
   releaseTime: 0.25
   volumePriority: 100
+  speedLinesParticle: {fileID: 0}
 --- !u!1 &6468475852384579778
 GameObject:
   m_ObjectHideFlags: 0

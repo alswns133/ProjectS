@@ -98,7 +98,9 @@ namespace ProjectS.UI.Framework
                 countText.gameObject.SetActive(!string.IsNullOrEmpty(label));
             }
 
-            if (icon != null && item == null)
+            // 로드 전엔 아이콘을 항상 비운다 — 스프라이트 없는 Image는 흰 사각형으로 그려지므로,
+            // 비동기 로드가 끝나기 전 흰색이 잠깐 보이는 팝인을 막는다(로드 완료 시 LoadIcon이 다시 켠다).
+            if (icon != null)
             {
                 icon.sprite = null;
                 icon.enabled = false;
