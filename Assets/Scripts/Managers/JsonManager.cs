@@ -36,6 +36,7 @@ namespace ProjectS.Managers
         public IReadOnlyDictionary<int, EquipmentData> EquipmentDict => GetTable<EquipmentData>();
         public IReadOnlyDictionary<int, ConsumableData> ConsumableDict => GetTable<ConsumableData>();
         public IReadOnlyDictionary<int, ItemOptionData> ItemOptionDict => GetTable<ItemOptionData>();
+        public IReadOnlyDictionary<int, ItemGradeData> ItemGradeDict => GetTable<ItemGradeData>();
         public IReadOnlyDictionary<int, EnhanceBonusData> EnhanceBonusDict => GetTable<EnhanceBonusData>();
         public IReadOnlyDictionary<int, EnhanceCostData> EnhanceCostDict => GetTable<EnhanceCostData>();
         public IReadOnlyDictionary<int, QuestTable> QuestDict => GetTable<QuestTable>();
@@ -72,6 +73,7 @@ namespace ProjectS.Managers
             await RegisterAsync<EquipmentData>();
             await RegisterAsync<ConsumableData>();
             await RegisterAsync<ItemOptionData>();
+            await RegisterAsync<ItemGradeData>();
             await RegisterAsync<EnhanceBonusData>();
             await RegisterAsync<EnhanceCostData>();
             await RegisterAsync<QuestTable>();
