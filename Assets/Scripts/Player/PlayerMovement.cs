@@ -457,6 +457,9 @@ namespace ProjectS.Players
         /// <summary>
         /// 하강 중이고 지면이 가까운지(착지 예고). Player가 매 프레임 Animation.SetLanding으로 연결한다.
         /// 공중 공격 하강 중에는 전용 거리를 써 임팩트 타이밍을 일반 점프와 따로 조절한다.
+        /// 판정은 한 점 레이캐스트가 아니라 CharacterController.radius만큼의 SphereCast를 쓴다 —
+        /// 중심 한 점만 보면 캐릭터가 모서리에 걸쳐 착지하는 순간(중심 아래는 허공, 발끝은 지면)을
+        /// 놓쳐 착지 예고가 안 뜨기 때문. 캐릭터의 실제 발판 부피로 지면을 훑어야 진짜 착지 범위가 나온다.
         /// </summary>
         public bool IsNearGround()
         {
@@ -470,12 +473,31 @@ namespace ProjectS.Players
                 dist = Mathf.Max(diveLandingCheckDistance, perFrameDrop);
             }
 
-            return Physics.Raycast(
-                transform.position + Vector3.up * 0.1f,
-                Vector3.down,
+            // 스피어 반지름 = 캐릭터 발판 반지름. 시작 구가 지면에 이미 겹치면 SphereCast가 거리 0으로
+            // 오작동하므로, 구의 바닥이 발밑 +0.1m가 되도록 중심을 (radius + 0.1)만큼 올려서 여유를 준다.
+            float radius = controller != null ? controller.radius : 0.3f;
+            Vector3 origin = transform.position + Vector3.up * (radius + 0.1f);
+            bool hit = Physics.SphereCast(
+                new Ray(origin, Vector3.down),
+                radius,
                 dist,
                 groundLayer,
                 QueryTriggerInteraction.Ignore);
+
+#if UNITY_EDITOR
+            // 착지 예고 판정 시각화(에디터 전용). Scene 뷰에서 지면을 맞히면 초록, 빗나가면 빨강.
+            // 중심 한 줄뿐 아니라 발판 가장자리(±radius, 앞뒤좌우)까지 그려 실제 검사 부피를 보여준다.
+            // 착지해야 할 위치인데도 계속 빨강이면 바닥이 groundLayer 마스크에 없다는 뜻(isLanding 안 켜지는 원인).
+            Color rayColor = hit ? Color.green : Color.red;
+            Vector3 down = Vector3.down * dist;
+            Debug.DrawRay(origin, down, rayColor);
+            Debug.DrawRay(origin + Vector3.forward * radius, down, rayColor);
+            Debug.DrawRay(origin + Vector3.back * radius, down, rayColor);
+            Debug.DrawRay(origin + Vector3.right * radius, down, rayColor);
+            Debug.DrawRay(origin + Vector3.left * radius, down, rayColor);
+#endif
+
+            return hit;
         }
 
         /// <summary>
