@@ -76,6 +76,13 @@ namespace ProjectS.Players
         // 그 틈에 지상 구르기가 공중 대시로 새는 문제가 있다. 발밑 이 거리 안에 지면이 있으면 접지로 본다.
         [SerializeField] private float dodgeGroundCheckDistance = 0.3f;
 
+        [Header("계단/경사 하강 스냅")]
+        // 발밑 이 거리 안에 지면이 있으면 '계단 내려가는 중'으로 보고 지면에 붙인다(낙하 오판 방지).
+        // 대략 계단 한 칸 높이보다 조금 크게 잡는다. 너무 크면 진짜 낙하해야 할 낮은 턱도 스냅돼 버린다.
+        [SerializeField] private float groundSnapDistance = 0.5f;
+        // 계단에 눌러 붙이는 하강 속도(m/s). 클수록 계단에 딱 붙지만 너무 크면 급강하처럼 보인다.
+        [SerializeField] private float groundSnapSpeed = 6f;
+
         private CharacterController controller;
         private PlayerInputHandler inputHandler;   // 점프 관성 방향·대시 방향 산출에 현재 입력을 읽는다(값만 소비)
         private Transform cam;
@@ -136,7 +143,15 @@ namespace ProjectS.Players
         /// </summary>
         public bool IsGroundedForDodge => IsEffectivelyGrounded() && verticalVelocity <= 0f;
 
-        public bool CanJump => IsStablyGrounded;
+        /// <summary>
+        /// 점프 발동용 접지 판정. IsStablyGrounded(raw isGrounded)와 목적은 같지만, 계단을 내려가며
+        /// controller.isGrounded가 한 프레임씩 false로 튀는 순간 점프키가 씹히는 걸 막기 위해, 발밑 코앞에
+        /// 지면이 있으면(IsGroundWithinSnap, 발판 부피 기준) 접지로 쳐서 점프를 허용한다(코요테 점프).
+        /// 상승 중(vv>0)은 공중 재점프 방지를 위해 제외한다. 이동 스냅(coyoteGround)과 같은 근거라 일관된다.
+        /// </summary>
+        public bool IsGroundedForJump => (IsGrounded || IsGroundWithinSnap()) && verticalVelocity <= 0f;
+
+        public bool CanJump => IsGroundedForJump;
 
         /// <summary>
         /// 현재 수직 속도(+상승 / -하강). 애니메이터가 점프 상승·낙하 모션을
@@ -341,7 +356,14 @@ namespace ProjectS.Players
 
             Vector3 move;
 
-            if (IsGrounded)
+            // '이동 판정용 접지'. controller.isGrounded는 계단을 내려갈 때 매 계단 모서리에서 한 프레임씩
+            // false가 되는데, 그대로 지상/공중을 가르면 그 프레임마다 공중 모델(airVelocity 스무딩)로 새어
+            // 수평 속도가 무너지고 vv가 누적돼(‑20까지) 조작이 튄다. 하강 중(vv<=0)이고 발밑 코앞에 지면이
+            // 있으면(IsGroundWithinSnap) 낙하가 아니라 계단 하강으로 보고 계속 지상 모델을 유지한다(코요테 접지).
+            bool coyoteGround = !IsGrounded && verticalVelocity <= 0f && IsGroundWithinSnap();
+            bool groundedForMove = IsGrounded || coyoteGround;
+
+            if (groundedForMove)
             {
                 // 지상: 목표 속도를 즉시 적용한다(즉각 반응 우선 — 가속 램프를 시험했다가 되돌린 팀 결정, 2026-07).
                 // 루트모션이 위치를 함께 담당하고, 출발 시 부드러움은 애니메이션 블렌드 감쇠가 맡는다.
@@ -359,7 +381,8 @@ namespace ProjectS.Players
             }
 
             FaceDirection(move);
-            ApplyGravity(ref move, actionLocked);
+            // coyoteGround면 낙하 누적을 끊고 계단에 붙이도록 스냅을 켠다.
+            ApplyGravity(ref move, actionLocked, coyoteGround);
             controller.Move(move * Time.deltaTime);
         }
 
@@ -484,19 +507,6 @@ namespace ProjectS.Players
                 groundLayer,
                 QueryTriggerInteraction.Ignore);
 
-#if UNITY_EDITOR
-            // 착지 예고 판정 시각화(에디터 전용). Scene 뷰에서 지면을 맞히면 초록, 빗나가면 빨강.
-            // 중심 한 줄뿐 아니라 발판 가장자리(±radius, 앞뒤좌우)까지 그려 실제 검사 부피를 보여준다.
-            // 착지해야 할 위치인데도 계속 빨강이면 바닥이 groundLayer 마스크에 없다는 뜻(isLanding 안 켜지는 원인).
-            Color rayColor = hit ? Color.green : Color.red;
-            Vector3 down = Vector3.down * dist;
-            Debug.DrawRay(origin, down, rayColor);
-            Debug.DrawRay(origin + Vector3.forward * radius, down, rayColor);
-            Debug.DrawRay(origin + Vector3.back * radius, down, rayColor);
-            Debug.DrawRay(origin + Vector3.right * radius, down, rayColor);
-            Debug.DrawRay(origin + Vector3.left * radius, down, rayColor);
-#endif
-
             return hit;
         }
 
@@ -513,6 +523,25 @@ namespace ProjectS.Players
                 transform.position + Vector3.up * 0.1f,
                 Vector3.down,
                 0.1f + dodgeGroundCheckDistance,
+                groundLayer,
+                QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>
+        /// 계단/경사 하강 스냅용 판정. 발밑 groundSnapDistance 안에 지면이 있는지 발판 부피(SphereCast)로 본다.
+        /// 이동 모델을 지상으로 유지(코요테 접지)하고 하강 중 중력 누적을 끊는 데 쓴다. IsEffectivelyGrounded와
+        /// 목적은 비슷하지만, 한 점 레이가 아니라 발판 넓이로 훑어 계단 모서리에 걸친 순간도 놓치지 않는다.
+        /// </summary>
+        private bool IsGroundWithinSnap()
+        {
+            float radius = controller != null ? controller.radius : 0.3f;
+
+            // 시작 구가 딛고 선 발판에 이미 겹치면 SphereCast가 거리 0으로 오작동하므로, 구 바닥을 발밑 +0.05m로 띄운다.
+            Vector3 origin = transform.position + Vector3.up * (radius + 0.05f);
+            return Physics.SphereCast(
+                new Ray(origin, Vector3.down),
+                radius,
+                groundSnapDistance + 0.05f,
                 groundLayer,
                 QueryTriggerInteraction.Ignore);
         }
@@ -603,7 +632,7 @@ namespace ProjectS.Players
             return fwd.normalized;
         }
 
-        private void ApplyGravity(ref Vector3 move, bool actionLocked)
+        private void ApplyGravity(ref Vector3 move, bool actionLocked, bool snapToGround = false)
         {
             // 체공(공중 공격 Start)·공중 피격 체공은 각자 신뢰할 수 있는 해제 경로가 있어(hovering은
             // BeginDive/착지 정리, hitHovering은 UpdateTagLock 매 프레임 재판정) 잠금과 무관하게 억제한다.
@@ -633,6 +662,17 @@ namespace ProjectS.Players
             {
                 verticalVelocity = -2f;
                 airVelocity = Vector3.zero;   // 착지 시 관성 제거 → 미끄러지지 않음
+            }
+            else if (snapToGround)
+            {
+                // 계단/경사 하강 스냅(코요테 접지). controller.isGrounded가 잠깐 false여도 발밑 코앞에 지면이
+                // 있으면 낙하로 누적시키지 않고 계단에 세게 붙인다. 이게 없으면 중력이 매 모서리마다 쌓여
+                // verticalVelocity가 -20까지 치솟아 낙하 애니메이션 오발동·이동 튐을 유발한다.
+                // 애니메이터에는 '거의 접지'(-2)만 보고(낙하 모션 방지), 실제 하강은 groundSnapSpeed로 세게 준다.
+                verticalVelocity = -2f;
+                airVelocity = Vector3.zero;
+                move.y = -groundSnapSpeed;
+                return;
             }
 
             // 상승보다 낙하를 빠르게 해서 조작감이 늘어지지 않게 한다.
