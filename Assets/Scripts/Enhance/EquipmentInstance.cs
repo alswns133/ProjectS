@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using ProjectS.Data;
+using ProjectS.Items;
 
 namespace ProjectS.Enhance
 {
@@ -49,17 +51,31 @@ namespace ProjectS.Enhance
         /// <summary>연속 실패 횟수. 다음 시도의 자비(pity) 성공률 보너스 계산에 쓰인다. 성공하면 0으로 리셋된다.</summary>
         public int FailStreak { get; private set; }
 
+        /// <summary>드랍 시 롤된 +0강 기준 주 스탯값(MainStatBase × 0.95~1.05). 강화 보너스는 여기 더해 최종값이 된다.</summary>
+        public int RolledMainStat { get; }
+
+        private readonly List<ItemOption> options;
+
+        /// <summary>드랍 시 롤된 옵션 목록(인스턴스 고유). 스탯 집계·툴팁이 읽는다.</summary>
+        public IReadOnlyList<ItemOption> Options => options;
+
         /// <summary>
-        /// 런타임 장비 인스턴스를 만든다.
+        /// 런타임 장비 인스턴스를 만든다. 새 드랍은 <see cref="ProjectS.Items.ItemOptionRoller.Create"/>가,
+        /// 세이브 복원은 저장된 롤값·옵션을 넘겨 이 생성자를 직접 부른다.
         /// </summary>
         /// <param name="item">공통 아이템 행</param>
         /// <param name="equipment">장비 고유 행</param>
         /// <param name="enhanceStep">초기 강화 단계(기본 0)</param>
-        public EquipmentInstance(ItemData item, EquipmentData equipment, int enhanceStep = 0)
+        /// <param name="rolledMainStat">롤된 주 스탯(음수면 MainStatBase로 폴백 — 강화 확률 프로브 등 롤이 필요 없는 경우)</param>
+        /// <param name="options">롤된 옵션(null이면 없음)</param>
+        public EquipmentInstance(ItemData item, EquipmentData equipment, int enhanceStep = 0,
+            int rolledMainStat = -1, List<ItemOption> options = null)
         {
             Item = item;
             Equipment = equipment;
             EnhanceStep = enhanceStep;
+            RolledMainStat = rolledMainStat >= 0 ? rolledMainStat : (equipment?.MainStatBase ?? 0);
+            this.options = options ?? new List<ItemOption>();
         }
 
         /// <summary>
