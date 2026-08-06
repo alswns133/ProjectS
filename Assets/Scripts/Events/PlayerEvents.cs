@@ -47,6 +47,12 @@ namespace ProjectS.Events
         public static event Action OnStatsRefreshRequested;
 
         /// <summary>
+        /// 전투 스탯(공격력·방어·치명·보스뎀·방관·뎀증 등)이 바뀌었을 때 발행(장비 착용/해제 등).
+        /// 장비창이 구독해 스탯 표시를 다시 읽는다. HP/스태미나/SG는 기존 OnHp/Stamina/SgChanged로 별도 갱신된다.
+        /// </summary>
+        public static event Action OnCombatStatsChanged;
+
+        /// <summary>
         /// 스킬 사용 (스킬 번호, 쿨타임 길이(초)). 발동에 성공한 순간 1회 발행된다.
         /// UI는 이 신호로 카운트다운을 시작하고 이후는 자체 타이머로 진행한다
         /// → 남은 시간을 매 프레임 폴링하지 않기 위한 설계.
@@ -124,6 +130,9 @@ namespace ProjectS.Events
         public static void FireStatsRefreshRequested()
             => OnStatsRefreshRequested?.Invoke();
 
+        public static void FireCombatStatsChanged()
+            => OnCombatStatsChanged?.Invoke();
+
         /// <summary>
         /// 스킬 사용 이벤트 발행. 쿨타임·게이지 판정을 모두 통과해 실제 발동했을 때만 호출한다.
         /// </summary>
@@ -160,6 +169,7 @@ namespace ProjectS.Events
             OnExpChanged = null;
             OnGoldChanged = null;
             OnStatsRefreshRequested = null;
+            OnCombatStatsChanged = null;
             OnSkillUsed = null;
             OnPlayerDied = null;
             OnCursorModeChanged = null;   // ★ 새 이벤트는 여기에도 반드시 추가

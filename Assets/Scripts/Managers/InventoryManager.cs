@@ -45,6 +45,9 @@ namespace ProjectS.Managers
         // 포션 퀵슬롯에 등록된 소비품 itemId(0=빈칸). 인덱스 = HUD 슬롯 번호(0=Q, 1=E).
         private readonly int[] quickSlots = new int[QuickSlotCount];
 
+        // 착용 중인 장비(부위별 1개). 가방 격자와 분리 — 착용분은 격자를 차지하지 않는다.
+        private readonly Dictionary<EquipSlot, EquipmentInstance> equipped = new();
+
         /// <summary>현재 보유 골드.</summary>
         public int Gold => gold;
 
@@ -81,9 +84,19 @@ namespace ProjectS.Managers
             DontDestroyOnLoad(gameObject);
         }
 
-        // HUD가 (재)표시되며 스탯 스냅샷 재발행을 요청할 때(씬 진입 등) 골드도 함께 다시 쏜다.
-        private void OnEnable() => PlayerEvents.OnStatsRefreshRequested += PublishGold;
-        private void OnDisable() => PlayerEvents.OnStatsRefreshRequested -= PublishGold;
+        // 스탯 스냅샷 재요청(씬 진입 등) 시 골드와 착용 장비 스탯을 함께 다시 반영한다.
+        // 부트스트랩 복원 때는 플레이어가 아직 없을 수 있어(RecomputeEquipmentStats no-op), 씬 진입에서 이 훅이 확정 반영한다.
+        private void OnEnable()
+        {
+            PlayerEvents.OnStatsRefreshRequested += PublishGold;
+            PlayerEvents.OnStatsRefreshRequested += RecomputeEquipmentStatsSilent;
+        }
+
+        private void OnDisable()
+        {
+            PlayerEvents.OnStatsRefreshRequested -= PublishGold;
+            PlayerEvents.OnStatsRefreshRequested -= RecomputeEquipmentStatsSilent;
+        }
 
         // 재화는 테이블 없이 즉시 반영해 HUD가 바로 맞고, 아이템 복원은 정의 테이블(ItemData 등)이 필요해
         // JsonManager 로딩을 기다린 뒤 수행한다. async void는 Unity 진입점(Start)에서만 예외적으로 허용.
@@ -126,7 +139,29 @@ namespace ProjectS.Managers
             {
                 EquipmentInstance eq = equipGrid[i];
                 if (eq?.Item == null) continue;
-                save.equipment.Add(new EquipmentSave { tableId = eq.Item.Index, enhanceStep = eq.EnhanceStep, slot = i });
+                save.equipment.Add(new EquipmentSave
+                {
+                    tableId = eq.Item.Index,
+                    enhanceStep = eq.EnhanceStep,
+                    slot = i,
+                    mainStat = eq.RolledMainStat,
+                    options = SaveOptions(eq.Options),
+                });
+            }
+
+            save.equipped = new List<EquippedSave>();
+            foreach (KeyValuePair<EquipSlot, EquipmentInstance> kv in equipped)
+            {
+                EquipmentInstance eq = kv.Value;
+                if (eq?.Item == null) continue;
+                save.equipped.Add(new EquippedSave
+                {
+                    equipSlot = (int)kv.Key,
+                    tableId = eq.Item.Index,
+                    enhanceStep = eq.EnhanceStep,
+                    mainStat = eq.RolledMainStat,
+                    options = SaveOptions(eq.Options),
+                });
             }
 
             save.stackItems = new List<ItemStackSave>();
@@ -160,11 +195,20 @@ namespace ProjectS.Managers
                 {
                     if (es == null) continue;
 
-                    ItemData item = json.Get<ItemData>(es.tableId);
-                    EquipmentData equip = json.Get<EquipmentData>(es.tableId);
-                    if (item == null || equip == null) continue;   // 정의 없음 → 건너뜀
+                    EquipmentInstance inst = BuildEquipment(json, es.tableId, es.enhanceStep, es.mainStat, es.options);
+                    if (inst != null) PlaceAt(equipGrid, es.slot, inst);   // 정의 없으면 skip
+                }
+            }
 
-                    PlaceAt(equipGrid, es.slot, new EquipmentInstance(item, equip, es.enhanceStep));
+            equipped.Clear();
+            if (save.equipped != null)
+            {
+                foreach (EquippedSave es in save.equipped)
+                {
+                    if (es == null) continue;
+
+                    EquipmentInstance inst = BuildEquipment(json, es.tableId, es.enhanceStep, es.mainStat, es.options);
+                    if (inst != null) equipped[(EquipSlot)es.equipSlot] = inst;
                 }
             }
 
@@ -202,6 +246,61 @@ namespace ProjectS.Managers
             InventoryEvents.FireInventoryChanged();
             for (int i = 0; i < quickSlots.Length; i++)
                 InventoryEvents.FireQuickSlotChanged(i, quickSlots[i]);
+
+            // 착용 장비 스탯 반영(조용히 — HUD 준비 전이라 발행하면 미초기화 게이지에서 NRE).
+            // 플레이어가 아직 없으면 no-op → 씬 진입 시 OnStatsRefreshRequested가 다시 조용히 건다.
+            RecomputeEquipmentStats(false);
+        }
+
+        // 옵션 목록을 세이브 DTO로 직렬화한다(표시용 퍼센트·라벨은 복원 때 재조립하므로 타입·값만).
+        private static List<ItemOptionSave> SaveOptions(IReadOnlyList<ItemOption> options)
+        {
+            var list = new List<ItemOptionSave>(options?.Count ?? 0);
+            if (options != null)
+                foreach (ItemOption o in options)
+                    list.Add(new ItemOptionSave { type = (int)o.Type, value = o.Value });
+            return list;
+        }
+
+        // 세이브된 옵션을 런타임 ItemOption으로 복원한다. 퍼센트·라벨은 ItemOptionData(타입×등급)에서 재조립.
+        private static List<ItemOption> RebuildOptions(ItemGrade grade, List<ItemOptionSave> saved)
+        {
+            var list = new List<ItemOption>(saved?.Count ?? 0);
+            if (saved == null) return list;
+
+            JsonManager json = JsonManager.Instance;
+            foreach (ItemOptionSave os in saved)
+            {
+                if (os == null) continue;
+
+                var type = (ItemOptionType)os.type;
+                bool isPercent = false;
+                string label = type.ToString();
+
+                if (json != null && json.IsReady)
+                    foreach (ItemOptionData od in json.ItemOptionDict.Values)
+                        if (od.OptionType == type && od.Grade == grade)
+                        {
+                            isPercent = od.IsPercent;
+                            label = od.Label;
+                            break;
+                        }
+
+                list.Add(new ItemOption(type, os.value, isPercent, label));
+            }
+            return list;
+        }
+
+        // 세이브 값으로 장비 인스턴스를 재구성한다. 정의가 사라졌으면 null(호출측이 skip).
+        private static EquipmentInstance BuildEquipment(JsonManager json, int tableId, int enhanceStep, int mainStat, List<ItemOptionSave> optionSaves)
+        {
+            ItemData item = json.Get<ItemData>(tableId);
+            EquipmentData equip = json.Get<EquipmentData>(tableId);
+            if (item == null || equip == null) return null;
+
+            List<ItemOption> options = RebuildOptions(item.Grade, optionSaves);
+            int rolled = mainStat > 0 ? mainStat : -1;   // 구세이브(0)는 생성자에서 MainStatBase로 폴백
+            return new EquipmentInstance(item, equip, enhanceStep, rolled, options);
         }
 
         // 현재 보유 골드를 발행한다. 초기 1회(Start)와 스냅샷 재요청(씬 진입) 양쪽에서 쓴다.
@@ -277,9 +376,9 @@ namespace ProjectS.Managers
                     return;
                 }
 
-                // 장비는 스택 불가 — 개수만큼 별개 인스턴스(+0)를 빈 셀에 담는다.
+                // 장비는 스택 불가 — 개수만큼 별개 인스턴스(옵션·주스탯 롤)를 빈 셀에 담는다.
                 for (int i = 0; i < count; i++)
-                    PlaceAt(equipGrid, -1, new EquipmentInstance(item, equip));
+                    PlaceAt(equipGrid, -1, ItemOptionRoller.Create(item, equip));
             }
             else
             {
@@ -337,6 +436,92 @@ namespace ProjectS.Managers
             InventoryEvents.FireInventoryChanged();
             PlayerSaveService.MarkDirty();
         }
+
+        // ---------- 장착 ----------
+
+        /// <summary>지정 부위에 착용 중인 장비(없으면 null).</summary>
+        /// <param name="slot">장착 부위</param>
+        public EquipmentInstance GetEquipped(EquipSlot slot)
+            => equipped.TryGetValue(slot, out EquipmentInstance eq) ? eq : null;
+
+        /// <summary>
+        /// 장비를 착용한다. 부위는 <see cref="EquipmentData.EquipSlot"/>으로 정하고, 무기는 캐릭터 직업과 무기 종류가
+        /// 맞아야 한다. 기존 착용분은 가방으로 되돌린다. 성공 시 스탯 재계산·<see cref="InventoryEvents.OnItemEquipped"/> 발행.
+        /// </summary>
+        /// <param name="instance">착용할 장비(가방에 있던 것)</param>
+        /// <returns>착용에 성공했으면 true</returns>
+        public bool Equip(EquipmentInstance instance)
+        {
+            if (instance?.Equipment == null) return false;
+
+            EquipSlot slot = instance.Equipment.EquipSlot;
+            if (slot == EquipSlot.None) return false;
+
+            // 무기는 직업 제한: 검사=검, 거너=총.
+            if (slot == EquipSlot.Weapon && !CanUseWeapon(instance.Equipment.WeaponType)) return false;
+
+            // 가방에서 빼고(착용은 격자를 차지하지 않음), 기존 착용분이 있으면 가방으로 되돌린다.
+            RemoveFromGrid(equipGrid, instance);
+            if (equipped.TryGetValue(slot, out EquipmentInstance old) && old != null)
+                PlaceAt(equipGrid, -1, old);
+
+            equipped[slot] = instance;
+
+            InventoryEvents.FireItemEquipped(instance.Item);
+            InventoryEvents.FireInventoryChanged();   // 가방 격자 변경(착용분 제거/기존분 복귀)
+            RecomputeEquipmentStats();
+            PlayerSaveService.MarkDirty();
+            return true;
+        }
+
+        /// <summary>
+        /// 지정 부위의 장비를 해제해 가방으로 되돌린다. 가방이 가득 차 있으면 해제하지 않는다.
+        /// 성공 시 스탯 재계산·<see cref="InventoryEvents.OnItemUnequipped"/> 발행.
+        /// </summary>
+        /// <param name="slot">해제할 부위</param>
+        /// <returns>해제에 성공했으면 true</returns>
+        public bool Unequip(EquipSlot slot)
+        {
+            if (!equipped.TryGetValue(slot, out EquipmentInstance instance) || instance == null) return false;
+            if (FirstEmpty(equipGrid) < 0) return false;   // 가방 가득 → 해제 불가
+
+            equipped[slot] = null;
+            PlaceAt(equipGrid, -1, instance);
+
+            InventoryEvents.FireItemUnequipped(instance.Item);
+            InventoryEvents.FireInventoryChanged();
+            RecomputeEquipmentStats();
+            PlayerSaveService.MarkDirty();
+            return true;
+        }
+
+        // 무기 착용 가능 판정: 캐릭터 타입(1=검사·2=거너)과 무기 종류가 맞아야 한다. 알 수 없으면 허용.
+        private static bool CanUseWeapon(WeaponType weapon)
+        {
+            if (weapon == WeaponType.None) return true;
+
+            Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            int charType = player != null ? player.Stats.CharacterId : 0;
+
+            if (charType == 1) return weapon == WeaponType.Sword;
+            if (charType == 2) return weapon == WeaponType.Gun;
+            return true;
+        }
+
+        // 착용 장비 전체를 합산해 플레이어 스탯에 반영한다. 착용/해제(publish:true)와 복원·리프레시(publish:false)에서 호출.
+        // publish=false면 값만 조용히 반영 — 부트스트랩/HUD 준비 전 발행이 미초기화 FillGauge를 건드리는 NRE를 막는다.
+        private void RecomputeEquipmentStats(bool publish = true)
+        {
+            Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            if (player == null) return;
+
+            EquipmentStats stats = EquipmentStatCalculator.Compute(equipped.Values);
+            player.Stats.ApplyEquipmentStats(stats, publish);
+        }
+
+        // OnStatsRefreshRequested(씬 진입·HUD 재표시)에서 장비 스탯을 다시 반영하되 조용히(발행 없이) 한다.
+        // 발행은 같은 신호로 도는 PlayerStats.PublishAllStats가 담당한다(장비값은 이미 반영돼 있어 정확).
+        private void RecomputeEquipmentStatsSilent() => RecomputeEquipmentStats(false);
 
         /// <summary>
         /// 소비품 1개를 사용한다. 회복 효과를 적용하고 수량을 1 차감한다(즉시형은 총량 한 번, 지속형은 초당 회복).

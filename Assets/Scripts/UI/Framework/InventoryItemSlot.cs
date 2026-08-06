@@ -142,8 +142,10 @@ namespace ProjectS.UI.Framework
             if (canvas == null) return;
 
             // 고스트: 드래그 동안 커서를 따라다니는 반투명 아이콘. 드롭 레이캐스트를 막지 않게 raycastTarget off.
+            // 소스 슬롯의 캔버스가 아니라 "최상단 캔버스"에 얹는다 — 창마다 캔버스가 달라(sortingOrder),
+            // 소스 캔버스에 얹으면 더 높은 창(장비창 등) 뒤로 고스트가 숨는다.
             dragGhost = new GameObject("DragGhost", typeof(RectTransform), typeof(Image));
-            dragGhost.transform.SetParent(canvas.transform, false);
+            dragGhost.transform.SetParent(TopmostCanvas(canvas).transform, false);
             dragGhost.transform.SetAsLastSibling();
 
             Image ghostImg = dragGhost.GetComponent<Image>();
@@ -164,6 +166,28 @@ namespace ProjectS.UI.Framework
         {
             if (dragGhost != null) Destroy(dragGhost);
             dragGhost = null;
+        }
+
+        // 활성 캔버스 중 sortingOrder가 가장 높은 루트 캔버스를 찾는다(없으면 fallback).
+        // 드래그 고스트를 여기 얹어 어떤 창보다도 위에 그려지게 한다. 드래그 시작 1회라 스캔 비용은 무시할 만하다.
+        private static Canvas TopmostCanvas(Canvas fallback)
+        {
+            Canvas top = fallback;
+            int bestOrder = fallback != null ? fallback.sortingOrder : int.MinValue;
+
+            foreach (Canvas c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                if (!c.isActiveAndEnabled) continue;
+
+                Canvas root = c.rootCanvas != null ? c.rootCanvas : c;
+                if (root.sortingOrder > bestOrder)
+                {
+                    bestOrder = root.sortingOrder;
+                    top = root;
+                }
+            }
+
+            return top;
         }
 
         /// <summary>다른 인벤 슬롯을 이 슬롯(빈칸 포함)에 드롭하면 이동/교환을 호스트에 알린다.</summary>
