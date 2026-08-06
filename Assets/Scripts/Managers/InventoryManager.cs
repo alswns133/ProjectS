@@ -250,6 +250,27 @@ namespace ProjectS.Managers
             // 착용 장비 스탯 반영(조용히 — HUD 준비 전이라 발행하면 미초기화 게이지에서 NRE).
             // 플레이어가 아직 없으면 no-op → 씬 진입 시 OnStatsRefreshRequested가 다시 조용히 건다.
             RecomputeEquipmentStats(false);
+
+            // 보유 아이콘을 미리 로드해 캐시에 데워둔다 → 인벤/장비창 첫 오픈 때 "빈칸→채워짐" 팝인 제거.
+            // 아틀라스로 묶여 있으면 첫 주소가 아틀라스를 통째로 올려 나머지도 그 즉시 준비된다.
+            PreloadOwnedIcons();
+        }
+
+        // 보유 장비·스택·착용 장비의 아이콘 주소를 모아 미리 로드한다(부트스트랩 복원 직후).
+        private void PreloadOwnedIcons()
+        {
+            var addresses = new List<string>();
+
+            foreach (EquipmentInstance eq in equipGrid) AddIconAddress(addresses, eq?.Item);
+            foreach (ItemStack stack in consumeGrid) AddIconAddress(addresses, stack?.Item);
+            foreach (EquipmentInstance eq in equipped.Values) AddIconAddress(addresses, eq?.Item);
+
+            ItemIconLoader.Preload(addresses);
+        }
+
+        private static void AddIconAddress(List<string> list, ItemData item)
+        {
+            if (item != null && !string.IsNullOrEmpty(item.IconAddress)) list.Add(item.IconAddress);
         }
 
         // 옵션 목록을 세이브 DTO로 직렬화한다(표시용 퍼센트·라벨은 복원 때 재조립하므로 타입·값만).

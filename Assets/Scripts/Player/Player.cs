@@ -444,7 +444,10 @@ namespace ProjectS.Players
 
         private void UpdateStableGroundedTime()
         {
-            if (Movement.IsStablyGrounded)
+            // 코요테 접지(IsGroundedForJump)를 기준으로 쌓는다. raw IsStablyGrounded를 쓰면 계단을 내려갈 때
+            // controller.isGrounded가 한 프레임씩 false로 튀며 타이머가 계속 0으로 리셋돼, autoJumpDelay를
+            // 못 채워 점프키가 씹혔다. 발밑 코앞에 지면이 있으면 접지로 쳐서 타이머가 이어지게 한다.
+            if (Movement.IsGroundedForJump)
             {
                 stableGroundedTime += Time.deltaTime;
                 return;
