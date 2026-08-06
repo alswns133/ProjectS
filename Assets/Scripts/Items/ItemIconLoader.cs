@@ -80,6 +80,19 @@ namespace ProjectS.Items
             }
         }
 
+        /// <summary>
+        /// 여러 아이콘을 미리 로드해 캐시에 올려둔다(fire-and-forget). 인벤 등을 열기 전에 데워두면
+        /// 첫 오픈 때 "빈칸→채워짐" 팝인이 사라진다. 아틀라스로 묶여 있으면 첫 주소가 아틀라스를 통째로 올려
+        /// 나머지는 그 즉시 준비된다.
+        /// </summary>
+        /// <param name="addresses">미리 로드할 아이콘 주소들</param>
+        public static void Preload(IEnumerable<string> addresses)
+        {
+            if (addresses == null) return;
+            foreach (string address in addresses)
+                _ = LoadAsync(address);   // 결과는 캐시에만 담아둔다(대기 안 함)
+        }
+
         /// <summary>로드해둔 모든 아이콘 핸들을 해제한다. 아이콘 메모리를 정리할 경계에서 호출한다.</summary>
         public static void ReleaseAll()
         {
