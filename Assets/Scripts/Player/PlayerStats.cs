@@ -41,13 +41,15 @@ namespace ProjectS.Players
 
         private float currentStamina;
 
-        // 피격 경직 튜닝. 이 데미지 이상이면 '강한 피격'으로 분류돼
-        // 별도 모션(doHitLarge)과 더 긴 경직이 적용된다.
         // 데미지 텍스트가 뜨는 높이(머리 위). 캐릭터 키에 맞춰 조정한다.
         [SerializeField] private float damageTextHeight = 1.8f;
 
+        // 피격 경직 튜닝. '강한 피격'이면 별도 모션(doHitLarge)과 더 긴 경직이 적용되고,
+        // 스킬 시전 중 슈퍼아머도 뚫는다(Player.OnDamaged 참조).
+        // 강/약 기준은 고정 수치가 아니라 '한 방에 최대 HP의 몇 %를 잃었는가'로 판정한다 —
+        // 레벨업으로 maxHp가 커져도 "큰 한 방"의 감각이 일정하게 유지되게 하기 위함이다.
         [Header("피격 경직")]
-        [SerializeField] private int strongHitThreshold = 20;
+        [SerializeField, Range(0f, 1f)] private float strongHitHpRatio = 0.25f;
         [SerializeField] private float hitStaggerDuration = 0.4f;
         [SerializeField] private float strongHitStaggerDuration = 0.8f;
 
@@ -468,7 +470,8 @@ namespace ProjectS.Players
             int amount = result.Amount;
 
             // 강/약 분류를 HP 반영보다 먼저 확정한다 → 사망 시 DeadState가 바로 읽을 수 있다.
-            LastHitWasStrong = amount >= strongHitThreshold;
+            // 최대 HP의 strongHitHpRatio(기본 25%) 이상을 한 방에 잃으면 강피격이다.
+            LastHitWasStrong = maxHp > 0 && amount >= maxHp * strongHitHpRatio;
 
             currentHp = Mathf.Max(0, currentHp - amount);
             PlayerEvents.FireHpChanged(currentHp, maxHp);
