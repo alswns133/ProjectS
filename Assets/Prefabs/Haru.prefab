@@ -364617,6 +364617,8 @@ MonoBehaviour:
   diveLandingCheckDistance: 1
   landingCheckDistance: 1
   dodgeGroundCheckDistance: 0.3
+  groundSnapDistance: 0.5
+  groundSnapSpeed: 6
 --- !u!114 &608626111957249380
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -364807,7 +364809,7 @@ MonoBehaviour:
   - key: Run_Attack
     particle: {fileID: 6738031826211591195}
     anchorToWorld: 0
-  - key: Getup
+  - key: Getup_Attack
     particle: {fileID: 8812981605790137197}
     anchorToWorld: 0
   - key: Skill_1_1
@@ -495808,15 +495810,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1396377211480061890, guid: 38192af35c848904fa5822a692db4e5f, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.3006479
+      value: 0.219
       objectReference: {fileID: 0}
     - target: {fileID: 1396377211480061890, guid: 38192af35c848904fa5822a692db4e5f, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.92881525
+      value: 0.698
       objectReference: {fileID: 0}
     - target: {fileID: 1396377211480061890, guid: 38192af35c848904fa5822a692db4e5f, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.26347998
+      value: -0.027
       objectReference: {fileID: 0}
     - target: {fileID: 1396377211480061890, guid: 38192af35c848904fa5822a692db4e5f, type: 3}
       propertyPath: m_LocalRotation.w
@@ -496002,7 +496004,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 6e654a5799cf914448d79f0861b0da76, type: 2}
     - target: {fileID: 5510218679677834473, guid: 419097e04b16b7e469dd95a0e4070132, type: 3}
       propertyPath: m_Name
-      value: Getup
+      value: Getup_Attack
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
