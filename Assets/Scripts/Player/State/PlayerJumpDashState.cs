@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Players
 {
@@ -24,6 +24,7 @@ namespace ProjectS.Players
 
             player.Movement.StartJumpDash();
             player.Animation.PlayJumpDash();
+            player.Stats.SetInvincible(true);
         }
 
         public override void Update()
@@ -42,8 +43,13 @@ namespace ProjectS.Players
 
         public override void Exit()
         {
-            // 소비되지 못한 대시 트리거가 래치된 채 남아 유령 대시가 재생되는 것을 막는다
-            // (다른 상태 트리거 정리와 같은 방침).
+            // 어떤 경로로 상태를 떠나든(정상 종료, 피격, 사망) 무적이 남지 않게해제(RollState와 동일)
+            player.Stats.SetInvincible(false);
+            // 대시 직후 프레임에 바로 얻어맞지 않게 잔여 무적을 부여한다(구르기와 동일한 값)
+            player.Stats.GrantPostRollInvincibility();
+            // 중간에 빠져나가도 대시 상태가 남지 않게 정리한다. 안하면 TickJumpDash가 더 이상 불리지 않아 isJumpDashing이 true로 남고 높이와 방향이 고정된 채 공중에 갇힘
+            player.Movement.CancelJumpDash();
+            // 소비되지 못한 대시 트리거가 래치된 채 남아 유령 대시가 재생되는 것을 막는다.
             player.Animation.ResetJumpDashTrigger();
         }
     }

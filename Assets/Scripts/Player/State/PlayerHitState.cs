@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Players
 {
@@ -22,12 +22,17 @@ namespace ProjectS.Players
         // 전이하기 전(태그가 안 올라온 구간)에 "모션이 끝났다"고 오판해 곧바로 탈출하는 것을 막는다.
         private bool enteredHitMotion;
 
+        // 이 피격이 공중에서 시작됐는지. 다운 체인은 Hit 태그를 쓸 수 없어(체공·입력 버퍼링 문제로 Attack 태그)
+        // 모션 종료를 태그로 판정할 수 없다 → 착지를 종료 신호로 쓰기 위해 기록해 둔다.
+        private bool startedAirborne;
+
         public PlayerHitState(Player player) : base(player) { }
 
         public override void Enter()
         {
             elapsed = 0f;
             enteredHitMotion = false;
+            startedAirborne = !player.Movement.IsEffectivelyGrounded();
 
             // 피격은 진행 중이던 동작을 강제로 끊는다. 구르기 캔슬과 같은 정리 절차:
             // 콤보/버퍼/트리거 정리 + 이펙트 제거 + 이동 잠금·호버링 해제.
@@ -60,7 +65,13 @@ namespace ProjectS.Players
                 if (player.IsPlayingHitMotion) enteredHitMotion = true;
 
                 bool motionFinished = enteredHitMotion && !player.IsPlayingHitMotion;
-                if (motionFinished || elapsed >= MotionSafetyTimeout)
+
+                // 공중 강피격(다운)은 Hit 태그를 안 쓰므로 위 판정이 성립하지 않는다.
+                // 공중에서 시작한 피격은 착지한 순간을 경직 종료로 본다
+                // (착지 이후 Hit_End·기상 State의 Attack 태그가 이동 잠금을 이어받는다).
+                bool knockdownLanded = startedAirborne && !enteredHitMotion && player.Movement.IsEffectivelyGrounded();
+
+                if (motionFinished || knockdownLanded || elapsed >= MotionSafetyTimeout)
                     player.ChangeState(player.FreeState);
                 return;
             }
