@@ -478,6 +478,20 @@ namespace ProjectS.Players
         }
 
         /// <summary>
+        /// 진행 중인 점프 대시를 즉시 끝낸다. 피격·사망처럼 대시 State를 중간에 벗어날 때 호출한다.
+        /// 이걸 안 하면 TickJumpDash가 더 이상 불리지 않아 isJumpDashing이 영영 true로 남고,
+        /// 높이가 대시 시작 지점에 고정된 채 대시 방향으로만 이동하는 상태에 갇힌다.
+        /// 남은 속도를 공중 관성으로 넘기는 처리는 정상 종료 경로와 동일하게 유지한다.
+        /// </summary>
+        public void CancelJumpDash()
+        {
+            if (!isJumpDashing) return;
+
+            isJumpDashing = false;
+            airVelocity = jumpDashDirection * jumpDashSpeed;
+        }
+
+        /// <summary>
         /// 하강 중이고 지면이 가까운지(착지 예고). Player가 매 프레임 Animation.SetLanding으로 연결한다.
         /// 공중 공격 하강 중에는 전용 거리를 써 임팩트 타이밍을 일반 점프와 따로 조절한다.
         /// 판정은 한 점 레이캐스트가 아니라 CharacterController.radius만큼의 SphereCast를 쓴다 —
