@@ -33,7 +33,7 @@ namespace ProjectS.Data
         Weapon,
         Top,
         Bottom,
-        Gloves,
+        Helmet,
         Shoes
     }
 
