@@ -4,12 +4,17 @@ using UnityEngine;
 using ProjectS.Core;
 using ProjectS.Data;
 using ProjectS.Events;
+using ProjectS.Items;
 using ProjectS.Managers;
 
 namespace ProjectS.Players
 {
     public class PlayerStats : MonoBehaviour, IDamageable
     {
+        // 착용 장비 보너스 합계(장착/해제 시 InventoryManager가 ApplyEquipmentStats로 갱신).
+        // 기본 스탯(테이블)과 별개로 들고, 아래 getter들이 base와 합성해 최종값을 돌려준다.
+        private EquipmentStats equipStats;
+
         [SerializeField] private int characterId = 1;   // 이 ID로 스탯 테이블 조회
 
         // 시작 레벨. 저장·성장 시스템이 아직 없어 인스펙터로 정한다.
@@ -41,13 +46,15 @@ namespace ProjectS.Players
 
         private float currentStamina;
 
-        // 피격 경직 튜닝. 이 데미지 이상이면 '강한 피격'으로 분류돼
-        // 별도 모션(doHitLarge)과 더 긴 경직이 적용된다.
         // 데미지 텍스트가 뜨는 높이(머리 위). 캐릭터 키에 맞춰 조정한다.
         [SerializeField] private float damageTextHeight = 1.8f;
 
+        // 피격 경직 튜닝. '강한 피격'이면 별도 모션(doHitLarge)과 더 긴 경직이 적용되고,
+        // 스킬 시전 중 슈퍼아머도 뚫는다(Player.OnDamaged 참조).
+        // 강/약 기준은 고정 수치가 아니라 '한 방에 최대 HP의 몇 %를 잃었는가'로 판정한다 —
+        // 레벨업으로 maxHp가 커져도 "큰 한 방"의 감각이 일정하게 유지되게 하기 위함이다.
         [Header("피격 경직")]
-        [SerializeField] private int strongHitThreshold = 20;
+        [SerializeField, Range(0f, 1f)] private float strongHitHpRatio = 0.25f;
         [SerializeField] private float hitStaggerDuration = 0.4f;
         [SerializeField] private float strongHitStaggerDuration = 0.8f;
 
@@ -90,20 +97,41 @@ namespace ProjectS.Players
         /// <summary>현재 레벨에서 쌓은 경험치(0 ~ RequiredExp).</summary>
         public int CurrentExp => currentExp;
 
-        /// <summary>
-        /// 총 AD. 무기·공퍼·패시브·깡공이 모두 미구현이라 현재는 테이블의 기본 AD가 그대로 들어간다.
-        /// 장비를 붙일 때 총AD 합성은 이 프로퍼티 안에서 하면 계산기와 호출부는 손대지 않아도 된다.
-        /// </summary>
-        public float AttackPower => attackPower;
+        /// <summary>총 AD = (기본 AD + 장비 깡공) × (1 + 장비 공퍼). 계산기·호출부는 이 프로퍼티만 읽는다.</summary>
+        public float AttackPower => (attackPower + equipStats.FlatAD) * (1f + equipStats.PercentAD);
 
-        /// <summary>치명타 확률(0~1).</summary>
-        public float CritChance => critChance;
+        /// <summary>치명타 확률(0~1). 기본 + 장비 치확.</summary>
+        public float CritChance => critChance + equipStats.CritChance;
 
-        /// <summary>치명타 배율.</summary>
-        public float CritDamage => critDamage;
+        /// <summary>치명타 배율. 기본 + 장비 치피.</summary>
+        public float CritDamage => critDamage + equipStats.CritDamage;
 
-        /// <summary>IDamageable. 방어 경감은 때린 쪽이 이 값을 읽어 계산한다.</summary>
-        public float Defense => defense;
+        /// <summary>IDamageable. 방어도 = (기본 방어 + 장비 깡방) × (1 + 장비 방퍼). 때린 쪽이 읽어 경감 계산.</summary>
+        public float Defense => (defense + equipStats.FlatDef) * (1f + equipStats.PercentDef);
+
+        /// <summary>최대 HP = (기본 최대HP + 장비 깡체) × (1 + 장비 체퍼). HP 풀·표시·발행이 모두 이 값을 쓴다.</summary>
+        public int MaxHp => Mathf.RoundToInt((maxHp + equipStats.FlatHp) * (1f + equipStats.PercentHp));
+
+        /// <summary>보스 추가 피해(장비 옵션 전용). 전투에서 대상이 보스일 때 곱연산.</summary>
+        public float BossDamage => equipStats.BossDamage;
+
+        /// <summary>방어력 관통(장비 옵션 전용).</summary>
+        public float DefensePenetration => equipStats.DefensePen;
+
+        /// <summary>데미지 증가(장비 옵션 전용). 최종 데미지에 곱연산.</summary>
+        public float DamageIncrease => equipStats.DamageIncrease;
+
+        /// <summary>최대 스태미나(장비 영향 없음 — 옵션에 스태미나 항목이 없다).</summary>
+        public float MaxStamina => maxStamina;
+
+        /// <summary>초당 스태미나 회복.</summary>
+        public float StaminaRegen => staminaRegenPerSecond;
+
+        /// <summary>최대 스킬 게이지(장비 영향 없음).</summary>
+        public float MaxSkillGauge => maxSkillGauge;
+
+        /// <summary>초당 스킬 게이지 회복.</summary>
+        public float SkillGaugeRegen => skillGaugeRegenPerSecond;
 
         /// <summary>IDamageable. 플레이어는 보스 추가뎀% 대상이 아니다.</summary>
         public bool IsBoss => false;
@@ -275,7 +303,7 @@ namespace ProjectS.Players
             level = newLevel;
             ApplyLevelRow(json);
 
-            currentHp = Mathf.Min(maxHp, currentHp + Mathf.Max(0, maxHp - previousMaxHp));
+            currentHp = Mathf.Min(MaxHp, currentHp + Mathf.Max(0, maxHp - previousMaxHp));
             PublishAllStats();
 
             // 레벨 변화는 저장 대상. AddExp 경로는 그 직후 SaveNow로 즉시 올리고, 외부 직접 호출은 오토세이브가 받는다.
@@ -319,7 +347,7 @@ namespace ProjectS.Players
         // 기획: 시작 시 HP·스태미나·게이지는 모두 가득 찬 상태다.
         private void FillResourcesToMax()
         {
-            currentHp = maxHp;
+            currentHp = MaxHp;
             currentStamina = maxStamina;
             currentSkillGauge = maxSkillGauge;
         }
@@ -349,10 +377,30 @@ namespace ProjectS.Players
             PublishAllStats();
         }
 
+        /// <summary>
+        /// 착용 장비 보너스 합계를 반영한다(장착/해제·복원 시 InventoryManager가 호출). 저장 후 currentHp를 새 최대치로
+        /// 클램프한다. <paramref name="publish"/>가 true면 HUD·장비창 갱신을 위해 전체 스탯·전투 스탯 변경을 발행한다.
+        /// </summary>
+        /// <param name="stats">계산된 장비 보너스 합계</param>
+        /// <param name="publish">
+        /// 이벤트 발행 여부. 부트스트랩 세이브 복원처럼 HUD 게이지가 아직 초기화되지 않은 시점엔 false로 값만 조용히
+        /// 반영한다(발행하면 미초기화 FillGauge에서 NRE). HUD는 준비되면 OnStatsRefreshRequested로 다시 받아간다.
+        /// </param>
+        public void ApplyEquipmentStats(EquipmentStats stats, bool publish = true)
+        {
+            equipStats = stats;
+            if (currentHp > MaxHp) currentHp = MaxHp;   // 해제로 최대HP가 줄면 초과분을 잘라낸다
+
+            if (!publish) return;
+
+            PublishAllStats();                          // HUD: HP/스태미나/SG 등
+            PlayerEvents.FireCombatStatsChanged();      // 장비창: AD/방어/치명/옵션 스탯
+        }
+
         private void PublishAllStats()
         {
             PlayerEvents.FireLevelChanged(level);
-            PlayerEvents.FireHpChanged(currentHp, maxHp);
+            PlayerEvents.FireHpChanged(currentHp, MaxHp);
             PlayerEvents.FireStaminaChanged(currentStamina, maxStamina);
             PlayerEvents.FireSgChanged(currentSkillGauge, maxSkillGauge);
             if (RequiredExp > 0) PlayerEvents.FireExpChanged(currentExp, RequiredExp);
@@ -413,8 +461,8 @@ namespace ProjectS.Players
             if (IsDead) return;
             if (amount <= 0) return;
 
-            currentHp = Mathf.Min(maxHp, currentHp + amount);
-            PlayerEvents.FireHpChanged(currentHp, maxHp);
+            currentHp = Mathf.Min(MaxHp, currentHp + amount);
+            PlayerEvents.FireHpChanged(currentHp, MaxHp);
         }
 
         /// <summary>
@@ -468,10 +516,11 @@ namespace ProjectS.Players
             int amount = result.Amount;
 
             // 강/약 분류를 HP 반영보다 먼저 확정한다 → 사망 시 DeadState가 바로 읽을 수 있다.
-            LastHitWasStrong = amount >= strongHitThreshold;
+            // 최대 HP의 strongHitHpRatio(기본 25%) 이상을 한 방에 잃으면 강피격이다.
+            LastHitWasStrong = MaxHp > 0 && amount >= MaxHp * strongHitHpRatio;
 
             currentHp = Mathf.Max(0, currentHp - amount);
-            PlayerEvents.FireHpChanged(currentHp, maxHp);
+            PlayerEvents.FireHpChanged(currentHp, MaxHp);
 
             // 플레이어가 맞은 것이므로 때린 쪽의 치명타 여부와 무관하게 항상 '플레이어 피격'으로 띄운다.
             CombatEvents.FireDamageDealt(

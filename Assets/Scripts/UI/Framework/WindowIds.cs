@@ -10,8 +10,10 @@ namespace ProjectS.UI.Framework
         /// <summary>인벤토리 창.</summary>
         public const string Inventory = "inventory";
 
-        // 후속: 장비창·스킬창 등 이동식 창이 생기면 여기에 추가.
-        // public const string Equipment = "equipment";
+        /// <summary>장비창.</summary>
+        public const string Equipment = "equipment";
+
+        // 후속: 스킬창 등 이동식 창이 생기면 여기에 추가.
         // public const string Skill = "skill";
     }
 }

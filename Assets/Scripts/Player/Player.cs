@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using ProjectS.Core;
 using ProjectS.Events;
 
@@ -412,8 +412,12 @@ namespace ProjectS.Players
             if (wasCastingSkill && !Combat.IsCastingSkill && Input.AttackHeld) OnAttack();
             wasCastingSkill = Combat.IsCastingSkill;
 
-            // 공중 피격 체공: 피격 모션 재생 중 맞은 높이를 유지하고, 빠져나가는 블렌드에선 해제한다.
-            Movement.HitHovering = IsInHitMotion() && !IsBlendingOutOfHit() && !Movement.IsEffectivelyGrounded();
+            // 공중 피격 체공은 쓰지 않는다(2026-08 기획 변경). 예전에는 피격 모션이 재생되는 동안
+            // 맞은 높이를 유지했지만, 공중에서 약피격을 맞으면 모션 내내 공중에 멈춰 있어 어색했다.
+            // 이제 맞아도 중력이 그대로 적용되어 자연스럽게 떨어진다.
+            // (공중 강피격은 애초에 Attack 태그 State라 이 경로를 타지 않았고, 낙하로 동작 중이다.)
+            // 매 프레임 false로 눌러 두는 이유: 켜진 채로 남으면 수직 속도가 0에 묶여 영영 못 떨어진다.
+            Movement.HitHovering = false;
         }
 
         /// <summary>현재 상태를 next로 전환한다. 상태들이 자기 전환을 요청하는 공개 창구.</summary>
@@ -440,7 +444,10 @@ namespace ProjectS.Players
 
         private void UpdateStableGroundedTime()
         {
-            if (Movement.IsStablyGrounded)
+            // 코요테 접지(IsGroundedForJump)를 기준으로 쌓는다. raw IsStablyGrounded를 쓰면 계단을 내려갈 때
+            // controller.isGrounded가 한 프레임씩 false로 튀며 타이머가 계속 0으로 리셋돼, autoJumpDelay를
+            // 못 채워 점프키가 씹혔다. 발밑 코앞에 지면이 있으면 접지로 쳐서 타이머가 이어지게 한다.
+            if (Movement.IsGroundedForJump)
             {
                 stableGroundedTime += Time.deltaTime;
                 return;
@@ -456,12 +463,23 @@ namespace ProjectS.Players
             if (IsRolling) return;             // 구르기 중 스킬 금지(회피 커밋 유지)
             if (IsHitBlocked) return;          // 피격 중 스킬 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
 
+            // 다운(넘어짐) 구간 전체를 막는다. IsHitBlocked는 Hit 태그만 보는데, 공중 강피격
+            // 낙하·다운 State들은 Hit 태그를 쓸 수 없다 — Hit 태그를 붙이면 Movement.HitHovering이
+            // 켜져 수직 속도가 0으로 묶이고, 그러면 바닥에 닿지 못해 isLanding이 영영 오지 않는다.
+            // HitState에 머무는 동안(=넘어져 있는 동안)이라는 사실 자체로 판정하므로 태그와 무관하게 동작한다.
+            if (IsStaggered) return;
+
             if (usesTags)
             {
                 // 캔슬 창(AttackCancelBehaviour)이 열리면 이동은 잠긴 채여도 다음 입력은 통과시켜야
                 // 대시공격→스킬처럼 연계된다. 그래서 IsMovementLocked가 아니라 IsCastingSkill을 게이트로 쓴다.
                 if (Combat.IsCastingSkill) return;
-                if (Combat.InCombo && !Combat.ComboCancelWindowOpen) return;   // 평타 캔슬 창
+
+                // 평타 캔슬 창 판정. Combat.InCombo(수동 추적 콤보 플래그) 대신 IsInAttackMotion()
+                // (태그 기반)을 쓴다 — InCombo는 일반 3콤보 진입(OnAttackStart Animation Event)에서만
+                // 켜져서, 그 이벤트가 없는 Get_Up_Attack(기상 공격) 중에는 켜지지 않는다.
+                // IsInAttackMotion()은 Attack 태그가 붙은 State면 전부 잡으므로 그 구멍이 없다.
+                if (IsInAttackMotion() && !Combat.ComboCancelWindowOpen) return;
                 if (!Movement.IsEffectivelyGrounded()) return;                // 공중 스킬 없음(기획)
             }
             else
@@ -498,7 +516,13 @@ namespace ProjectS.Players
 
             // 공중 클릭 = 점프 공격(단타). 점프 1회당 1회만 허용한다(기획).
             // 태그 기반: 접지 판정을 IsEffectivelyGrounded로 해, 이미 착지한 모션에서 재발동되는 것을 막는다.
-            bool airborne = usesTags ? !Movement.IsEffectivelyGrounded() : !Movement.IsGrounded;
+            //
+            // 단, 넘어져 떨어지는 중(IsStaggered)은 '공중'이어도 점프 공격이 아니다.
+            // 이걸 안 막으면 공중에서 강피격을 당해 낙하하는 동안 누른 클릭이 점프 공격으로 소비되어,
+            // Attack 트리거가 걸리지 않아 착지 후 기상 공격(Get_Up_Attack)이 나가지 않는다
+            // (특히 클릭을 '누르고 있는' 경우, 입력 이벤트는 누른 순간 1회뿐이라 만회할 기회가 없다).
+            // 여기서 걸러내면 아래 콤보 분기로 흘러 Attack 트리거가 래치되고, Hit_End에서 기상 공격으로 이어진다.
+            bool airborne = (usesTags ? !Movement.IsEffectivelyGrounded() : !Movement.IsGrounded) && !IsStaggered;
             if (airborne)
             {
                 if (jumpAttackUsed) return;
@@ -536,6 +560,13 @@ namespace ProjectS.Players
                 // 이미 콤보 체인에 진입한 뒤의 재발동이면 트리거만 지우고 스냅/잠금은 건너뛴다
                 // (새 모션이 안 나가는데 캐릭터만 홱 도는 부수효과 방지).
                 bool alreadyAttacking = Combat.InCombo;
+
+                // 기상 공격처럼 '다른 Attack 태그 모션 도중에 예약된' 입력은 방향을 틀지 않는다.
+                // 쓰러져 있는 동안 카메라만 반대로 돌려두면, 스냅이 몸을 그쪽으로 홱 돌려
+                // 누운 채 갑자기 반대 방향을 보고 일어나는 그림이 된다.
+                // (대시 공격 중 연계는 여기 오기 전에 IsCastingSkill로 이미 걸러진다.)
+                bool bufferedDuringMotion = IsInAttackMotion();
+
                 Combat.OnAttackInput();
                 if (alreadyAttacking)
                 {
@@ -543,7 +574,7 @@ namespace ProjectS.Players
                     return;
                 }
 
-                Movement.SnapToCameraForward();
+                if (!bufferedDuringMotion) Movement.SnapToCameraForward();
                 LockMovement();
                 return;
             }
@@ -560,8 +591,12 @@ namespace ProjectS.Players
             if (Stats.IsDead) return;
             if (IsRolling) return;               // 구르기 커밋 유지
             if (IsHitBlocked) return;            // 피격 중 강공격 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
+            if (IsStaggered) return;             // 다운 구간 차단(OnSkill과 같은 이유 — 그쪽 주석 참조)
             if (Combat.IsCastingSkill) return;   // 시전 중 중복 발동 차단(캔슬 창이 열리면 통과)
-            if (usesTags && Combat.InCombo && !Combat.ComboCancelWindowOpen) return;  // 평타 캔슬 창
+
+            // 평타 캔슬 창 판정. OnSkill과 같은 이유로 Combat.InCombo 대신 IsInAttackMotion()을 쓴다
+            // (Get_Up_Attack·Hit_End처럼 InCombo를 켜는 Animation Event가 없는 Attack 태그 State도 잡기 위함).
+            if (usesTags && IsInAttackMotion() && !Combat.ComboCancelWindowOpen) return;  // 평타 캔슬 창
             if (!Movement.IsGrounded) return;    // 올려치기는 지상 전용(공중 우클릭은 무시)
 
             if (!Combat.UseStrongAttack()) return;   // 쿨타임 중이면 아무 일도 일어나지 않음(잠금 X)
@@ -611,7 +646,7 @@ namespace ProjectS.Players
             // 잠금(공격) 중에는 올려치기 상승 중일 때만 공중 대시 캔슬 허용
             // (점프공격 하강·착지 직후 오발 차단).
             if (IsMovementLocked && !Movement.StrongAttackRising) return;
-
+            if (!Stats.TryUseStamina(rollStaminaCost)) return;
             ChangeState(JumpDashState);
         }
 
