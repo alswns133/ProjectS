@@ -8204,7 +8204,10 @@ GameObject:
   - component: {fileID: 260795445}
   - component: {fileID: 260795444}
   - component: {fileID: 260795443}
-  - component: {fileID: 260795442}
+  - component: {fileID: 260795449}
+  - component: {fileID: 260795448}
+  - component: {fileID: 260795447}
+  - component: {fileID: 260795446}
   m_Layer: 0
   m_Name: DeathPopup
   m_TagString: Untagged
@@ -8219,9 +8222,9 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 260795440}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1899627598}
@@ -8232,32 +8235,10 @@ RectTransform:
   m_Father: {fileID: 2384530492717361204}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 960, y: 540}
-  m_SizeDelta: {x: 1920, y: 1080}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &260795442
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 260795440}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c83c1936e70ba7a4f9369c1a9352474f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.DeathPopup
-  reviveButton: {fileID: 1495296939}
-  giveUpButton: {fileID: 1323897687}
-  reviveCountText: {fileID: 2100651639}
-  messageText: {fileID: 723341222}
-  returnTimerText: {fileID: 1605743372}
-  choiceGroup: {fileID: 2076221923}
-  chooseMessage: "\uBD80\uD65C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"
-  autoReturnMessage: "\uBD80\uD65C \uAE30\uD68C\uB97C \uBAA8\uB450 \uC0AC\uC6A9\uD588\uC2B5\uB2C8\uB2E4.\n\uB9C8\uC744\uB85C
-    \uB3CC\uC544\uAC11\uB2C8\uB2E4."
-  returnDelay: 5
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0, y: 0}
 --- !u!114 &260795443
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8308,6 +8289,95 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
+--- !u!114 &260795446
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 260795440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc42784cf147c0c48a680349fa168899, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.GraphicRaycaster
+  m_IgnoreReversedGraphics: 1
+  m_BlockingObjects: 0
+  m_BlockingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &260795447
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 260795440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
+  m_UiScaleMode: 1
+  m_ReferencePixelsPerUnit: 100
+  m_ScaleFactor: 1
+  m_ReferenceResolution: {x: 1920, y: 1080}
+  m_ScreenMatchMode: 0
+  m_MatchWidthOrHeight: 0
+  m_PhysicalUnit: 3
+  m_FallbackScreenDPI: 96
+  m_DefaultSpriteDPI: 96
+  m_DynamicPixelsPerUnit: 1
+  m_PresetInfoIsWorld: 0
+--- !u!223 &260795448
+Canvas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 260795440}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_RenderMode: 0
+  m_Camera: {fileID: 0}
+  m_PlaneDistance: 100
+  m_PixelPerfect: 0
+  m_ReceivesEvents: 1
+  m_OverrideSorting: 0
+  m_OverridePixelPerfect: 0
+  m_SortingBucketNormalizedSize: 0
+  m_VertexColorAlwaysGammaSpace: 0
+  m_AdditionalShaderChannelsFlag: 25
+  m_UpdateRectTransformForStandalone: 0
+  m_SortingLayerID: 0
+  m_SortingOrder: 50
+  m_TargetDisplay: 0
+--- !u!114 &260795449
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 260795440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 832ce7c172e5a264a9e91b1b88ac671e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.DeathPopup
+  reviveButton: {fileID: 1495296939}
+  returnToVillageButton: {fileID: 1323897687}
+  messageText: {fileID: 723341222}
+  countText: {fileID: 2100651639}
+  countdownText: {fileID: 1605743372}
+  choiceGroup: {fileID: 2076221923}
+  titleFx: {fileID: 1899627600}
+  chooseMessage: "\uBD80\uD65C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"
+  revivingMessage: "\uC7A0\uC2DC \uD6C4 \uBD80\uD65C\uD569\uB2C8\uB2E4."
+  returningMessage: "\uB9C8\uC744\uB85C \uB3CC\uC544\uAC11\uB2C8\uB2E4."
+  autoReturnMessage: "\uBD80\uD65C \uAE30\uD68C\uB97C \uBAA8\uB450 \uC0AC\uC6A9\uD588\uC2B5\uB2C8\uB2E4.\n\uB9C8\uC744\uB85C
+    \uB3CC\uC544\uAC11\uB2C8\uB2E4."
+  reviveDelay: 3
+  returnDelay: 5
 --- !u!1 &261351372
 GameObject:
   m_ObjectHideFlags: 0
@@ -19727,7 +19797,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &599386715
 Transform:
   m_ObjectHideFlags: 0
@@ -32519,51 +32589,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 56130762}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &979149412
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 979149413}
-  - component: {fileID: 979149414}
-  m_Layer: 0
-  m_Name: DeathPresenter
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &979149413
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 979149412}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2384530492717361204}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &979149414
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 979149412}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 81a407b2c8bb2cf4097e17da537f77d2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.DeathPresenter
-  deathPopup: {fileID: 260795442}
 --- !u!1 &980270461
 GameObject:
   m_ObjectHideFlags: 0
@@ -66313,7 +66338,7 @@ MonoBehaviour:
   - DEAD
   - "\u6B7B\u4EA1"
   scrambleCharset: "\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE\u6B7B\u4EA1\u7D42\u7109\u6EC5\u7D76\u65AD\u88C2\u58CA\u5D29\u96F6\u865A\u7121\u95C7ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&*+-/<=>?@[]^_{|}~"
-  settleDuration: 1.6
+  settleDuration: 2
   settledGlitch: 0.1
   settleCurve:
     serializedVersion: 2
@@ -66341,7 +66366,16 @@ MonoBehaviour:
     m_RotationOrder: 4
   scrambleInterval: 0.04
   chaosRatio: 0.55
+  cellSize: 9
+  scatter: 0.85
+  cellOffset: 0.006
+  rgbSplit: 0.0022
+  flickerSpeed: 18
+  scanline: 0.25
+  softness: 0.15
   playOnEnable: 1
+  previewInEditor: 1
+  previewGlitch: 1
 --- !u!222 &1899627601
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -75858,6 +75892,7 @@ GameObject:
   - component: {fileID: 2384530492717361204}
   - component: {fileID: 9055782982925288995}
   - component: {fileID: 9055782982925288996}
+  - component: {fileID: 9055782982925288997}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -76136,7 +76171,6 @@ Transform:
   - {fileID: 5508348661391855043}
   - {fileID: 1995815564}
   - {fileID: 599386715}
-  - {fileID: 979149413}
   - {fileID: 260795441}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -77498,6 +77532,18 @@ MonoBehaviour:
   targets:
     items:
     - {fileID: 0}
+--- !u!114 &9055782982925288997
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 172987399664512048}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5d7d1e5c1435d24497fa5e3dfecd22d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.DeathPopupTrigger
 --- !u!1 &9124479807471883387
 GameObject:
   m_ObjectHideFlags: 0

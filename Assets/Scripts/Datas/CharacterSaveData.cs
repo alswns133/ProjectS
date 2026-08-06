@@ -49,6 +49,9 @@ namespace ProjectS.Data
         /// <summary>보유 스택형 아이템(소비품·재료) 목록. 같은 아이템은 수량으로 묶어 저장한다.</summary>
         public List<ItemStackSave> stackItems = new();
 
+        /// <summary>착용 중인 장비(부위별). 가방(equipment)과 분리 저장한다.</summary>
+        public List<EquippedSave> equipped = new();
+
         /// <summary>HUD 포션 퀵슬롯에 등록된 소비품 itemId(인덱스=슬롯, 0=빈칸). 캐릭터 로드아웃이라 캐릭터별 저장.</summary>
         public int[] potionQuickSlots = new int[2];
 
@@ -89,6 +92,36 @@ namespace ProjectS.Data
 
         /// <summary>인벤토리 격자 슬롯 위치(사용자 배치 유지). 구버전 세이브엔 없어 0 → 복원 시 앞에서부터 폴백.</summary>
         public int slot;
+
+        /// <summary>드랍 시 롤된 +0강 기준 주 스탯값. 구버전 세이브엔 없어 0 → 복원 시 MainStatBase로 폴백.</summary>
+        public int mainStat;
+
+        /// <summary>드랍 시 롤된 옵션(인스턴스 고유).</summary>
+        public List<ItemOptionSave> options = new();
+    }
+
+    /// <summary>착용 중인 장비 1개의 세이브. 가방 장비와 같은 데이터에 부위(equipSlot)만 더한다.</summary>
+    [Serializable]
+    public class EquippedSave
+    {
+        /// <summary>착용 부위(EquipSlot enum 값).</summary>
+        public int equipSlot;
+
+        public int tableId;
+        public int enhanceStep;
+        public int mainStat;
+        public List<ItemOptionSave> options = new();
+    }
+
+    /// <summary>롤된 옵션 하나의 세이브. 표시용(퍼센트·라벨)은 복원 시 ItemOptionData에서 재조립하므로 값만 담는다.</summary>
+    [Serializable]
+    public class ItemOptionSave
+    {
+        /// <summary>옵션 종류(ItemOptionType enum 값).</summary>
+        public int type;
+
+        /// <summary>롤된 값.</summary>
+        public float value;
     }
 
     /// <summary>

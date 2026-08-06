@@ -85,30 +85,30 @@ namespace ProjectS.UI.Framework
 
         private void BringToFront() => target.SetAsLastSibling();
 
-        // 창이 부모(캔버스/뷰포트) 밖으로 나가지 않게 anchoredPosition을 눌러 담는다.
-        // 다른 해상도에서 저장된 좌표가 화면 밖을 가리켜 창을 놓치는 것을 막는다.
+        // GetWorldCorners 결과를 담는 버퍼(매 호출 할당 방지).
+        private readonly Vector3[] cornerBuffer = new Vector3[4];
+
+        // 창이 부모(캔버스/뷰포트) 밖으로 나가지 않게 되돌린다. 창의 실제 경계를 부모 로컬 좌표로 직접 재고
+        // 넘친 만큼만 anchoredPosition을 밀어넣으므로, 창의 앵커·피벗이 무엇이든(중앙이 아니어도) 정확히 동작한다.
+        // 다른 해상도에서 저장된 좌표가 화면 밖을 가리켜 창을 놓치는 것도 함께 막는다.
         private void ClampToParent()
         {
             if (parentRect == null) return;
 
-            Rect parent = parentRect.rect;
-            Rect self = target.rect;
-            Vector2 pivot = target.pivot;
+            // 창의 네 모서리(월드) → 부모 로컬 좌표. 축 정렬 UI라 좌하단[0]·우상단[2]이면 경계가 잡힌다.
+            target.GetWorldCorners(cornerBuffer);
+            Vector2 bottomLeft = parentRect.InverseTransformPoint(cornerBuffer[0]);
+            Vector2 topRight = parentRect.InverseTransformPoint(cornerBuffer[2]);
 
-            // 앵커가 부모 중앙(대부분의 창 기본값)이라는 가정 하의 이동 한계.
-            float halfW = parent.width * 0.5f;
-            float halfH = parent.height * 0.5f;
+            Rect parent = parentRect.rect;   // 부모 로컬 경계(xMin/xMax/yMin/yMax, 부모 피벗 반영)
 
-            float minX = -halfW + self.width * pivot.x;
-            float maxX = halfW - self.width * (1f - pivot.x);
-            float minY = -halfH + self.height * pivot.y;
-            float maxY = halfH - self.height * (1f - pivot.y);
+            Vector2 offset = Vector2.zero;
+            if (bottomLeft.x < parent.xMin) offset.x += parent.xMin - bottomLeft.x;   // 왼쪽으로 넘침
+            else if (topRight.x > parent.xMax) offset.x -= topRight.x - parent.xMax;  // 오른쪽으로 넘침
+            if (bottomLeft.y < parent.yMin) offset.y += parent.yMin - bottomLeft.y;   // 아래로 넘침
+            else if (topRight.y > parent.yMax) offset.y -= topRight.y - parent.yMax;  // 위로 넘침
 
-            // 창이 부모보다 크면 min>max가 되어 뒤집히므로, 그럴 땐 중앙(0)에 둔다.
-            Vector2 pos = target.anchoredPosition;
-            pos.x = minX <= maxX ? Mathf.Clamp(pos.x, minX, maxX) : 0f;
-            pos.y = minY <= maxY ? Mathf.Clamp(pos.y, minY, maxY) : 0f;
-            target.anchoredPosition = pos;
+            if (offset != Vector2.zero) target.anchoredPosition += offset;
         }
     }
 }

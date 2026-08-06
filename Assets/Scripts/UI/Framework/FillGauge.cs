@@ -74,7 +74,7 @@ namespace ProjectS.UI.Framework
         // 값을 실제 화면(셰이더 + 텍스트)에 꽂는 일만 담당
         private void Apply(float ratio)
         {
-            if (hasFillAmountProperty)
+            if (hasFillAmountProperty && material != null)
                 material.SetFloat(FillAmountID, ratio);
             else
             {

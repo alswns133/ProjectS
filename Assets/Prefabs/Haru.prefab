@@ -364265,6 +364265,7 @@ GameObject:
   - component: {fileID: 4048168536856295034}
   - component: {fileID: 833931951691995529}
   - component: {fileID: 6919157614276577212}
+  - component: {fileID: 6953480705040815348}
   m_Layer: 8
   m_Name: Haru
   m_TagString: Player
@@ -364752,8 +364753,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   characterId: 1
   level: 30
-  maxHp: 100
-  currentHp: 100
+  maxHp: 100000000
+  currentHp: 100000000
   defense: 0
   attackPower: 100
   critChance: 0.05
@@ -364761,7 +364762,7 @@ MonoBehaviour:
   maxStamina: 100
   staminaRegenPerSecond: 5
   damageTextHeight: 1.8
-  strongHitThreshold: 20
+  strongHitHpRatio: 0.25
   hitStaggerDuration: 0.4
   strongHitStaggerDuration: 0.8
   postRollInvincibleDuration: 1
@@ -365463,9 +365464,9 @@ MonoBehaviour:
   colorProperty: _BaseColor
   startColor: {r: 1, g: 1, b: 1, a: 0.39215687}
   waitForFadeSignal: 1
-  lifetime: 0.6
+  lifetime: 0.05
   fadeOutDuration: 0
-  maxHoldTime: 6
+  maxHoldTime: 10
   alphaOverLife:
     serializedVersion: 2
     m_Curve:
@@ -365586,6 +365587,24 @@ MonoBehaviour:
     fromAnchor: 0
   sourceRenderers: []
   excludeRoots: []
+--- !u!114 &6953480705040815348
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6444419969119536879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9698be9e776a694184ea893ee4efe28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Players.PlayerSpeedEffect
+  vignetteIntensity: 0.35
+  lensDistortionIntensity: -0.35
+  motionBlurIntensity: 0.4
+  punchInTime: 0.08
+  releaseTime: 0.25
+  volumePriority: 100
 --- !u!1 &6468475852384579778
 GameObject:
   m_ObjectHideFlags: 0
@@ -480479,6 +480498,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: -190.213
       objectReference: {fileID: 0}
+    - target: {fileID: 5899329409178632592, guid: 822e6579b3ec7564ba09725d48182846, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8329197979020182570, guid: 822e6579b3ec7564ba09725d48182846, type: 3}
       propertyPath: m_ResetSeedOnPlay
       value: 0
@@ -480560,6 +480583,10 @@ PrefabInstance:
     - target: {fileID: 2135127820284658717, guid: 822e6579b3ec7564ba09725d48182846, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: -294.479
+      objectReference: {fileID: 0}
+    - target: {fileID: 5899329409178632592, guid: 822e6579b3ec7564ba09725d48182846, type: 3}
+      propertyPath: m_Enabled
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8329197979020182570, guid: 822e6579b3ec7564ba09725d48182846, type: 3}
       propertyPath: m_ResetSeedOnPlay
@@ -495806,6 +495833,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 782012455977291776, guid: 8ae4d2fb353d93147afa1dead47954c9, type: 3}
       propertyPath: m_InitialEventNameOverriden
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2923862649375086010, guid: 8ae4d2fb353d93147afa1dead47954c9, type: 3}
+      propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7272321850326929463, guid: 8ae4d2fb353d93147afa1dead47954c9, type: 3}

@@ -41,7 +41,9 @@ namespace ProjectS.Enhance
             var bonus = FindBonus(target.Item != null ? target.Item.Category : ItemCategory.None,
                                   target.Item != null ? target.Item.Grade : ItemGrade.Normal);
 
-            int baseStat = equip != null ? equip.MainStatBase : 0;
+            // 주스탯 기준은 이 인스턴스의 롤값(RolledMainStat). 강화 보너스를 여기 더한다.
+            // (RolledMainStat은 롤이 없으면 MainStatBase로 폴백하므로 프로브에도 안전.)
+            int baseStat = target.RolledMainStat;
             int curStat = baseStat + (bonus != null ? bonus.GetTotalBonus(step) : 0);
 
             int nextStat = curStat;

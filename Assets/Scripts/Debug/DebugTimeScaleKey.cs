@@ -12,10 +12,11 @@ namespace ProjectS.Debugging
     /// 파일 전체가 #if UNITY_EDITOR라 빌드에는 클래스도 자동 생성도 포함되지 않는다.
     /// </para>
     /// <para>
-    /// - 대괄호 [ : 느리게(배속 단계 한 칸 내림)
-    /// - 대괄호 ] : 빠르게(배속 단계 한 칸 올림)
-    /// - \ : 1배속으로 즉시 복귀
-    /// - P : 일시정지 토글(0배속 ↔ 직전 배속)
+    /// - , (&lt;) : 느리게(배속 단계 한 칸 내림)
+    /// - . (&gt;) : 빠르게(배속 단계 한 칸 올림)
+    /// - / : 일시정지 토글(0배속 ↔ 직전 배속)
+    /// - M : 1배속으로 즉시 복귀
+    /// (P는 장비창 단축키로 옮겨감)
     /// </para>
     /// <para>
     /// Time.timeScale은 씬을 넘어 유지되는 전역 값이라, 느리게 둔 채 플레이를 멈추면 다음 진입도
@@ -62,10 +63,10 @@ namespace ProjectS.Debugging
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null) return;
 
-            if (keyboard.leftBracketKey.wasPressedThisFrame) StepSpeed(-1);
-            if (keyboard.rightBracketKey.wasPressedThisFrame) StepSpeed(1);
-            if (keyboard.backslashKey.wasPressedThisFrame) ResetSpeed();
-            if (keyboard.pKey.wasPressedThisFrame) TogglePause();
+            if (keyboard.commaKey.wasPressedThisFrame) StepSpeed(-1);   // < 줄임
+            if (keyboard.periodKey.wasPressedThisFrame) StepSpeed(1);   // > 높임
+            if (keyboard.slashKey.wasPressedThisFrame) TogglePause();   // / 정지
+            if (keyboard.mKey.wasPressedThisFrame) ResetSpeed();        // m 복귀(1배속)
         }
 
         // 배속 단계를 한 칸 이동한다. 일시정지 중에 조절하면 자동으로 재개하며 새 배속을 적용한다.

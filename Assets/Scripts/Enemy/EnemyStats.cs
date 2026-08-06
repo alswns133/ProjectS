@@ -27,6 +27,9 @@ namespace ProjectS.Enemies
         private int currentHp;
         private Enemy enemy;
 
+        // 피격 순간 하이라이트를 잠깐 켰다 끄는 선택 컴포넌트. 없으면(테스트 더미 등) 무시.
+        private EnemyHitHighlight hitHighlight;
+
         public bool IsDead => currentHp <= 0;
 
         /// <summary>몬스터의 총 AD. 공격 패턴의 계수와 곱해져 피해가 된다.</summary>
@@ -43,6 +46,7 @@ namespace ProjectS.Enemies
             currentHp = maxHp;
             // 상태 머신 없이 단독 배치된 대상(테스트용)도 있을 수 있어 null을 허용한다.
             enemy = GetComponent<Enemy>();
+            hitHighlight = GetComponent<EnemyHitHighlight>();
         }
 
         // async void는 Awake/Start 같은 진입점에서만 예외적으로 허용한다(JsonManager와 같은 방침).
@@ -91,6 +95,9 @@ namespace ProjectS.Enemies
             if (IsDead) return false;                 // 이미 죽었으면 무시(1회 사망 보장)
 
             currentHp = Mathf.Max(0, currentHp - result.Amount);
+
+            // 피격 피드백: 하이라이트를 잠깐 번쩍인다(사망 타격 포함, "맞았다"를 항상 보여준다).
+            hitHighlight?.Flash();
 
             // 연출은 이벤트로만 알린다(데미지 텍스트·이펙트가 각자 구독).
             // 받은 쪽이 발행하는 이유: 방어력까지 반영된 '실제 적용된' 수치를 아는 곳이 여기이기 때문.

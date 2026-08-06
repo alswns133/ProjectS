@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Cinemachine;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using ProjectS.Cameras;
 
 namespace ProjectS.Players
@@ -113,6 +115,15 @@ namespace ProjectS.Players
             // true면 연출 동안 카메라가 캐릭터를 따라가지 않고 지금 자리에 멈춘다.
             // 왔다갔다 하는 스킬에서 추적 때문에 화면이 심하게 흔들리는 것을 막는다.
             public bool freezeFollow;
+
+            [Header("렌즈 왜곡 (0이면 사용 안 함)")]
+            // 타격 순간 화면이 확 빨려들었다가 풀리는 펀치 연출. PlayerSpeedEffect의 대시 이펙트와
+            // 같은 파라미터지만 용도가 다르다 — 저건 '지속 상태(대시 중)'를 따라가고,
+            // 이건 흔들림처럼 '이벤트 한 번에 즉발 후 감쇠'다. 음수면 안으로, 양수면 밖으로 왜곡된다.
+            [Range(-1f, 1f)] public float lensDistortionIntensity;
+
+            // 최대값에서 0으로 풀리는 시간(초). 흔들림의 감쇠와 같은 역할.
+            [Min(0.05f)] public float lensDistortionRelease = 0.3f;
         }
 
         [SerializeField] private CameraEffectSlot[] effects;
@@ -144,6 +155,14 @@ namespace ProjectS.Players
         private bool hasOrbitLock;
         private float orbitLockStartTime;
 
+        // 렌즈 왜곡 전용 Volume/컴포넌트. PlayerSpeedEffect와 같은 이유로 자체 Volume을 들고 다닌다
+        // (씬에 연결된 전역 Volume이 없어 거기 얹으면 아무 데서도 동작하지 않는다).
+        private LensDistortion lensDistortion;
+
+        // 현재 적용 중인 왜곡 값. 트리거되면 목표치로 즉시 튀고, 이후 매 프레임 0으로 감쇠한다.
+        private float lensCurrent;
+        private float lensDecayPerSecond;
+
         private void Awake()
         {
             player = GetComponent<Player>();
@@ -152,6 +171,8 @@ namespace ProjectS.Players
             // 인스펙터 연결을 깜빡해도 동작하도록 씬에서 찾아 둔다.
             if (cameraPivot == null) cameraPivot = FindFirstObjectByType<CameraPivotController>();
             if (cameraRig == null) cameraRig = FindFirstObjectByType<CameraRig>();
+
+            SetupLensDistortionVolume();
 
             if (effects == null) return;
 
@@ -192,6 +213,7 @@ namespace ProjectS.Players
                 Shake(slot.shakeDirection, slot.shakeForce);
 
             StartOrbitIfNeeded(slot);
+            PunchLensDistortion(slot);
         }
 
         /// <summary>
@@ -206,6 +228,8 @@ namespace ProjectS.Players
 
         private void Update()
         {
+            UpdateLensDistortionDecay();
+
             if (!hasOrbitLock) return;
 
             // 구르기·피격·사망으로 스킬이 끊기면 해제 이벤트가 담긴 프레임까지 재생되지 않는다.
@@ -300,6 +324,46 @@ namespace ProjectS.Players
             }
 
             hasOrbitLock = false;
+        }
+
+        // PlayerSpeedEffect와 같은 이유(씬에 연결된 전역 Volume이 없음)로 자체 Volume을 만든다.
+        // 레이어 0(Default) 자식 오브젝트에 붙이는 이유도 동일 — 플레이어 루트가 Player 레이어에
+        // 있으면 카메라의 Volume Layer Mask(보통 Default만 포함)가 이 Volume을 무시해 버린다
+        // (에러 없이 조용히 아무 효과도 안 보이는 사고. PlayerSpeedEffect에서 실제로 겪었다).
+        private void SetupLensDistortionVolume()
+        {
+            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+            lensDistortion = profile.Add<LensDistortion>(true);
+            lensDistortion.intensity.Override(0f);
+
+            var volumeObject = new GameObject("CameraEffectLensDistortionVolume");
+            volumeObject.layer = 0;
+            volumeObject.transform.SetParent(transform, false);
+
+            var volume = volumeObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 110; // PlayerSpeedEffect(100)보다 살짝 높게 — 타격 펀치가 대시 왜곡 위에 겹쳐 보이도록.
+            volume.weight = 1f;
+            volume.profile = profile;
+        }
+
+        // 슬롯에 값이 있으면 그 프레임에 목표치로 즉시 튄다(흔들림과 같은 '즉발' 감각).
+        // 이미 감쇠 중이었다면 그 값 위에 다시 튀지 않고 새 목표치로 덮어써서, 콤보 중 연속
+        // 타격에도 값이 무한히 누적되지 않는다.
+        private void PunchLensDistortion(CameraEffectSlot slot)
+        {
+            if (Mathf.Approximately(slot.lensDistortionIntensity, 0f)) return;
+
+            lensCurrent = slot.lensDistortionIntensity;
+            lensDecayPerSecond = Mathf.Abs(slot.lensDistortionIntensity) / Mathf.Max(0.05f, slot.lensDistortionRelease);
+        }
+
+        private void UpdateLensDistortionDecay()
+        {
+            if (lensDistortion == null || lensCurrent == 0f) return;
+
+            lensCurrent = Mathf.MoveTowards(lensCurrent, 0f, lensDecayPerSecond * Time.deltaTime);
+            lensDistortion.intensity.value = lensCurrent;
         }
 
         /// <summary>
