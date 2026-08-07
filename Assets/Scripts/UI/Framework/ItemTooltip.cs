@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -46,7 +47,11 @@ namespace ProjectS.UI.Framework
         [SerializeField] private TMP_Text reqLevelText;
         [SerializeField] private GameObject mainStatSection;  // 주스탯 + 강화
         [SerializeField] private TMP_Text mainStatText;       // 예: "방어도 900"
-        [SerializeField] private TMP_Text enhanceText;        // 예: "(+0)"
+        [SerializeField] private TMP_Text enhanceText;        // 예: "+9" (0강이면 숨김)
+
+        [Header("장비 옵션 섹션")]
+        [SerializeField] private GameObject optionSection;    // 옵션 묶음(장비 전용, 옵션 없으면 통째로 끔)
+        [SerializeField] private TMP_Text optionText;         // 롤된 옵션 목록
 
         [Header("소모품 전용 섹션")]
         [SerializeField] private GameObject consumableSection;
@@ -92,18 +97,27 @@ namespace ProjectS.UI.Framework
             SetActiveSafe(mainStatSection, e != null);
             SetActiveSafe(consumableSection, false);
 
+            // 장비는 회복 효과가 없다. effectText가 소모품 섹션 밖에 배치돼 있어도 확실히 끈다
+            // (섹션 토글만 믿으면 프리팹 배치에 따라 "회복: 0 (즉시)"가 장비 툴팁에 그대로 남는다).
+            SetActiveSafe(effectText != null ? effectText.gameObject : null, false);
+
             if (e != null)
             {
                 if (classText != null) classText.text = ClassLabel(e.EquipSlot, e.WeaponType);
                 if (reqLevelText != null) reqLevelText.text = $"요구 레벨 {item.Level}";
 
                 if (mainStatText != null) mainStatText.text = $"{MainStatLabel(e.MainStatType)} {e.MainStatBase}";
+
+                // 0강은 "+0"을 보여주지 않는다(기본값이라 정보량이 없음). 1강 이상일 때만 켠다.
                 if (enhanceText != null)
                 {
-                    enhanceText.text = $"(+{equip.EnhanceStep})";
-                    SetActiveSafe(enhanceText.gameObject, true);
+                    bool showEnhance = equip.EnhanceStep > 0;
+                    if (showEnhance) enhanceText.text = $"+{equip.EnhanceStep}";
+                    SetActiveSafe(enhanceText.gameObject, showEnhance);
                 }
             }
+
+            FillOptions(equip.Options);
 
             ShowAt(screenPos);
         }
@@ -120,7 +134,9 @@ namespace ProjectS.UI.Framework
             // 장비 섹션 OFF, 소모품이면 효과 섹션 ON(재료는 효과 없음 → OFF).
             SetActiveSafe(equipMetaSection, false);
             SetActiveSafe(mainStatSection, false);
+            SetActiveSafe(optionSection, false);           // 옵션은 장비 전용
             SetActiveSafe(consumableSection, stack.IsConsumable);
+            SetActiveSafe(effectText != null ? effectText.gameObject : null, true);
 
             if (stack.IsConsumable && effectText != null)
             {
@@ -175,6 +191,36 @@ namespace ProjectS.UI.Framework
             SetActiveSafe(enhanceText != null ? enhanceText.gameObject : null, false);
 
             LoadIcon(item);
+        }
+
+        // 장비의 롤된 옵션을 채운다. 섹션은 늘 켜 두고, 옵션이 있으면 목록을, 없으면 "옵션 없음"을 찍는다.
+        private void FillOptions(IReadOnlyList<ItemOption> options)
+        {
+            bool hasOptions = options != null && options.Count > 0;
+            SetActiveSafe(optionSection, hasOptions);
+            if (optionText == null) return;
+
+            if (!hasOptions)
+            {
+                optionText.text = "옵션 없음";
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (i > 0) sb.Append('\n');
+                sb.Append(FormatOption(options[i]));
+            }
+            optionText.text = sb.ToString();
+        }
+
+        // 옵션 한 줄 표기. 퍼센트 옵션 값은 비율(0.05)이라 100을 곱해 "5%"로, 정수 옵션은 반올림해 보여준다.
+        private static string FormatOption(ItemOption opt)
+        {
+            return opt.IsPercent
+                ? $"{opt.Label} +{opt.Value * 100f:0.#}%"
+                : $"{opt.Label} +{Mathf.RoundToInt(opt.Value)}";
         }
 
         // 아이콘을 async 로드. 대기 중 다른 아이템으로 바뀌면(빠른 hover 이동) 늦게 온 스프라이트는 버린다.
