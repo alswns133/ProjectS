@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Cinemachine;
@@ -201,9 +201,11 @@ namespace ProjectS.Players
         /// <param name="key">슬롯 키. 언더바 표기 차이는 무시된다(예: "Skill_2_1" == "Skill21").</param>
         public void OnCameraEffect(string key)
         {
-            // 입력을 막는 조건과 동일(Player.IsActionInterrupted) → 이벤트도 같은 기준으로 게이트.
-            // 구르기로 캔슬했는데 뒤늦게 화면이 흔들리는 걸 막는다.
-            if (player != null && player.IsActionInterrupted) return;
+            // 구르기·피격으로 캔슬했는데 뒤늦게 화면이 흔들리는 걸 막는다.
+            // 사망(Stats.IsDead)은 예외로 통과시킨다 — 사망 연출(Die/Die_Large 클립)의 셰이크는
+            // 캔슬 잔재가 아니라 그 클립에 의도적으로 심은 것이기 때문이다. IsActionInterrupted를
+            // 그대로 쓰면 사망 시점엔 이미 IsDead가 true라 사망 셰이크까지 함께 삼켜진다.
+            if (player != null && (player.IsRolling || player.IsStaggered)) return;
 
             if (!TryGetSlot(key, out CameraEffectSlot slot)) return;
 

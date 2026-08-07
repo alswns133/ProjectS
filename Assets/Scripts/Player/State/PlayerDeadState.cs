@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Players
 {
@@ -16,9 +16,15 @@ namespace ProjectS.Players
             // 강한 공격에 죽었으면 별도 사망 모션(doDieLarge)으로 분기한다.
             player.Animation.PlayDie(player.Stats.LastHitWasStrong);
             // 공격/스킬 도중 사망하면 재생 중이던 이펙트가 남으므로 함께 정리한다.
+            // 사망 연출 이펙트는 이 정리 뒤 사망 클립의 Animation Event(OnDeathEffect)로 따로 재생되므로
+            // 여기서 지워도 사망 이펙트와 충돌하지 않는다(진입 프레임 정리 vs 클립 중간 재생).
             player.Effect.AllStopEffect();
             // 점프 공격 호버링 중 사망하면 공중에 뜬 채 굳으므로 여기서도 해제한다.
             player.Movement.SetHover(false);
+            // 점프 상승 중 즉사하면(HitState를 거치지 않는 치명타) 상승 속도가 그대로 얼어붙어
+            // 사망~부활을 넘어 살아남았다가 부활 후 FreeState 복귀 시 "혼자 잠깐 점프"로 튄다.
+            // PlayerHitState.Enter()와 같은 방침으로 여기서도 상승 점프 속도를 제거한다.
+            player.Movement.CancelJump();
             // 달리던 중 죽으면 로코모션 bool이 켜진 채 굳는다 → 사망 모션 위로 걷기 전이가 겹친다.
             player.Animation.SetLocomotion(false, false);
             // 이동 입력을 받지 않으므로 Update는 비워둔다 → 조작 잠금이 자동 성립
