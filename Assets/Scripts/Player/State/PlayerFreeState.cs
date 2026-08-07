@@ -12,11 +12,6 @@ namespace ProjectS.Players
         // 본문이 비어있는 건 이 상태가 진입 시 따로 준비할 게 없기 때문.
         public PlayerFreeState(Player player) : base(player) { }
 
-        public override void Enter()
-        {
-            player.Stats.isRevive = false;
-        }
-
         public override void Update()
         {
             // 공격·스킬 중이면 수평 이동을 막는다.

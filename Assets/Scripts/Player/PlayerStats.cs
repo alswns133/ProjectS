@@ -142,11 +142,6 @@ namespace ProjectS.Players
         /// </summary>
         public bool LastHitWasStrong { get; private set; }
 
-        /// <summary>
-        /// 캐릭터 부활 여부 (테스트 용도 추후 테스트 끝나고 제대로 구현 해야함)
-        /// </summary>
-        public bool isRevive { get; set; }
-
         /// <summary>이번 피격의 경직 시간(초). 강한 피격이면 더 길다. HitState가 종료 판정에 쓴다.</summary>
         public float CurrentStaggerDuration => LastHitWasStrong ? strongHitStaggerDuration : hitStaggerDuration;
 
@@ -377,8 +372,6 @@ namespace ProjectS.Players
         /// </summary>
         public void Revive()
         {
-            isRevive = true;
-            currentHp = maxHp;
             FillResourcesToMax();
             LastHitWasStrong = false;   // 다음 피격 판정에 이전 사망 타격의 강/약이 남지 않게 리셋
             PublishAllStats();
