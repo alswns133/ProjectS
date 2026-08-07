@@ -33,6 +33,9 @@ namespace ProjectS.UI
         [SerializeField] private Button createGunnerButton;
         [SerializeField] private TMP_Text messageText;
 
+        [Tooltip("목록 로딩 실패 시 나타나는 다시 시도 버튼(선택). 없으면 메시지만 띄우고 생성은 계속 잠근다.")]
+        [SerializeField] private Button retryButton;
+
         [Header("행 폰트 (한글)")]
         [SerializeField] private TMP_FontAsset rowFont;   // 런타임 생성 행 라벨용(Paperlogy 등 한글 폰트). 비면 기본 폰트.
 
@@ -46,6 +49,11 @@ namespace ProjectS.UI
         {
             createSwordsmanButton.onClick.AddListener(OnCreateSwordsman);
             createGunnerButton.onClick.AddListener(OnCreateGunner);
+            if (retryButton != null)
+            {
+                retryButton.onClick.AddListener(Refresh);
+                retryButton.gameObject.SetActive(false);
+            }
             Refresh();
         }
 
@@ -53,6 +61,7 @@ namespace ProjectS.UI
         {
             createSwordsmanButton.onClick.RemoveListener(OnCreateSwordsman);
             createGunnerButton.onClick.RemoveListener(OnCreateGunner);
+            if (retryButton != null) retryButton.onClick.RemoveListener(Refresh);
         }
 
         // Esc = 뒤로: 로그아웃하고 인증(로그인/가입) 화면으로 돌아간다.
@@ -71,15 +80,28 @@ namespace ProjectS.UI
             if (authRoot != null) authRoot.SetActive(true);
         }
 
-        /// <summary>서버에서 캐릭터 목록을 다시 불러와 UI를 갱신한다(진입 시·생성 후).</summary>
+        /// <summary>서버에서 캐릭터 목록을 다시 불러와 UI를 갱신한다(진입 시·생성 후·재시도).</summary>
         public async void Refresh()
         {
             SetInteractable(false);
             SetMessage("불러오는 중...");
+            if (retryButton != null) retryButton.gameObject.SetActive(false);
             ClearRows();
 
             List<CharacterSaveData> characters = await FirebaseManager.Instance.LoadAllCharacters();
             if (this == null) return;   // 로딩 중 씬 전환됐을 수 있다
+
+            // null = 로딩 실패(권한 전파 지연·네트워크 등). 이걸 '0개'로 오해해 생성을 열면 유저가
+            // 이미 있는 캐릭터를 중복 생성한다(실제 사고). 로스터를 확신 못 하므로 생성은 계속 잠그고
+            // 재시도를 유도한다. 빈 리스트(진짜 0개)와 반드시 구분한다.
+            if (characters == null)
+            {
+                SetMessage("캐릭터를 불러오지 못했습니다. 다시 시도해 주세요.");
+                SetInteractable(false);
+                if (retryButton != null) retryButton.gameObject.SetActive(true);
+                busy = false;
+                return;
+            }
 
             foreach (CharacterSaveData c in characters)
                 CreateRow(c);
