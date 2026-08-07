@@ -90,8 +90,26 @@ namespace ProjectS.Players
         {
             // 구르기·피격·사망으로 동작이 중단됐으면, 블렌드 아웃 중 뒤늦게 도착한 이펙트를 무시한다.
             // 입력을 막는 조건과 동일(Player.IsActionInterrupted) → 이벤트도 같은 기준으로 게이트.
-            if (player.IsActionInterrupted && player.Stats.isRevive) return;
+            if (player.IsActionInterrupted) return;
 
+            PlayByKey(key);
+        }
+
+        /// <summary>
+        /// 사망·부활 연출 이펙트 전용 재생 경로. <see cref="OnEffect"/>와 달리 중단 게이트를 거치지 않는다.
+        /// 사망 이펙트는 사망 클립의 Animation Event로 들어오는데, 그 시점엔 이미 <see cref="Player.Stats"/>가
+        /// 죽어 있어(<c>IsDead</c> → <c>IsActionInterrupted</c>) <see cref="OnEffect"/> 경로로는 스스로 막힌다.
+        /// 그래서 사망·부활 클립의 Animation Event만 이 메서드를 호출하도록 함수명을 나눠, 일반 공격 이펙트의
+        /// 중단 억제는 그대로 두고 사망 연출만 통과시킨다.
+        /// </summary>
+        /// <remarks>
+        /// Animation Event가 함수명을 문자열로 참조하므로 이름을 바꾸면 사망 클립 이벤트와 끊긴다(주의).
+        /// </remarks>
+        public void OnDeathEffect(string key) => PlayByKey(key);
+
+        // OnEffect / OnDeathEffect 공용 재생 본체. 게이트 판단은 호출측에 맡기고 여기서는 재생만 한다.
+        private void PlayByKey(string key)
+        {
             if (!TryGetSlot(key, out EffectSlot slot)) return;
 
             if (slot.anchorToWorld)

@@ -6,7 +6,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using ProjectS.Cameras;
-using ProjectS.Events;
 
 namespace ProjectS.Players
 {
@@ -434,7 +433,7 @@ namespace ProjectS.Players
             {
                 // 시작 시점과 같은 기준으로 매 프레임 재검사 → 구르기·피격·사망으로 캔슬되면 흔들림도 끊긴다.
                 // 이게 없으면 긴 스킬 도중 구르기로 빠져나와도 화면만 계속 흔들린다.
-                if (player != null && !player.IsActionInterrupted) break;
+                if (player != null && player.IsActionInterrupted) break;
 
                 if (sinceLastPulse >= interval)
                 {
