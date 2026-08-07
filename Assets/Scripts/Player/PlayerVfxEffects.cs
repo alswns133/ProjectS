@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.VFX;
@@ -37,6 +37,14 @@ namespace ProjectS.Players
             // 시전 위치에 남아야 하는 이펙트(땅의 검흔 등)만 켠다.
             // 재생 순간 플레이어에서 분리해 월드에 고정하므로 이동해도 따라오지 않는다.
             public bool anchorToWorld;
+
+            // 월드 고정 이펙트를 중단 정리(구르기·피격·사망)에도 함께 멈출지 여부.
+            // anchorToWorld는 기본적으로 "동작이 끊겨도 그대로 남는다"(땅의 검흔은 죽어도 남아야 함)라
+            // StopAll에서 제외된다. 하지만 설치형 지속 이펙트(장판·오라 등)는 캐릭터를 따라오지
+            // 않게 월드 고정을 켜면서도, 동작이 끊기면 같이 걷어야 할 때가 있다.
+            // 이 값을 켜면 월드 고정 슬롯이라도 StopAll 중단 정리에 포함된다.
+            // ★ anchorToWorld가 false면 의미 없다(그때는 어차피 항상 정리 대상).
+            public bool stopOnInterrupt;
 
             // 분리했다가 다음 재생 때 제자리로 복귀시키기 위한 원래 부모/로컬 포즈.
             [NonSerialized] public Transform originalParent;
@@ -161,7 +169,9 @@ namespace ProjectS.Players
                 // 아직 안 채운 슬롯이 있어도 순회가 끊기지 않게 건너뛴다.
                 // 월드 고정 슬롯을 건드리지 않는 것도 PlayerEffects.AllStopEffect와 같은 규칙
                 // (땅에 남긴 검흔은 플레이어가 구르든 죽든 그대로 둔다).
-                if (slot == null || slot.vfx == null || slot.anchorToWorld) continue;
+                // 단, stopOnInterrupt가 켜진 설치형 지속 이펙트는 월드 고정이어도 함께 걷는다.
+                if (slot == null || slot.vfx == null) continue;
+                if (slot.anchorToWorld && !slot.stopOnInterrupt) continue;
 
                 slot.vfx.Stop();
 

@@ -26,6 +26,14 @@ namespace ProjectS.Players
             // 재생 순간 플레이어에서 분리해 월드에 고정하므로 이동해도 따라오지 않는다.
             public bool anchorToWorld;
 
+            // 월드 고정 이펙트를 중단 정리(구르기·피격·사망)에도 함께 멈출지 여부.
+            // anchorToWorld는 기본적으로 "동작이 끊겨도 그대로 남는다"(땅의 검흔은 죽어도 남아야 함)라
+            // AllStopEffect에서 제외된다. 하지만 설치형 지속 이펙트(장판·오라 등)는 캐릭터를 따라오지
+            // 않게 월드 고정을 켜면서도, 동작이 끊기면 같이 걷어야 할 때가 있다.
+            // 이 값을 켜면 월드 고정 슬롯이라도 AllStopEffect 중단 정리에 포함된다.
+            // ★ anchorToWorld가 false면 의미 없다(그때는 어차피 항상 정리 대상).
+            public bool stopOnInterrupt;
+
             // 분리했다가 다음 재생 때 제자리로 복귀시키기 위한 원래 부모/로컬 포즈.
             [NonSerialized] public Transform originalParent;
             [NonSerialized] public Vector3 originalLocalPosition;
@@ -84,6 +92,24 @@ namespace ProjectS.Players
             // 입력을 막는 조건과 동일(Player.IsActionInterrupted) → 이벤트도 같은 기준으로 게이트.
             if (player.IsActionInterrupted) return;
 
+            PlayByKey(key);
+        }
+
+        /// <summary>
+        /// 사망·부활 연출 이펙트 전용 재생 경로. <see cref="OnEffect"/>와 달리 중단 게이트를 거치지 않는다.
+        /// 사망 이펙트는 사망 클립의 Animation Event로 들어오는데, 그 시점엔 이미 <see cref="Player.Stats"/>가
+        /// 죽어 있어(<c>IsDead</c> → <c>IsActionInterrupted</c>) <see cref="OnEffect"/> 경로로는 스스로 막힌다.
+        /// 그래서 사망·부활 클립의 Animation Event만 이 메서드를 호출하도록 함수명을 나눠, 일반 공격 이펙트의
+        /// 중단 억제는 그대로 두고 사망 연출만 통과시킨다.
+        /// </summary>
+        /// <remarks>
+        /// Animation Event가 함수명을 문자열로 참조하므로 이름을 바꾸면 사망 클립 이벤트와 끊긴다(주의).
+        /// </remarks>
+        public void OnDeathEffect(string key) => PlayByKey(key);
+
+        // OnEffect / OnDeathEffect 공용 재생 본체. 게이트 판단은 호출측에 맡기고 여기서는 재생만 한다.
+        private void PlayByKey(string key)
+        {
             if (!TryGetSlot(key, out EffectSlot slot)) return;
 
             if (slot.anchorToWorld)
@@ -128,8 +154,12 @@ namespace ProjectS.Players
             foreach (var slot in effects)
             {
                 // 아직 안 채운 슬롯이 있어도 순회가 끊기지 않게 건너뛴다.
-                if (slot != null && slot.particle != null && !slot.anchorToWorld)
-                    slot.particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                // 월드 고정 슬롯은 원칙적으로 남기되(땅의 검흔), stopOnInterrupt가 켜진
+                // 설치형 지속 이펙트는 월드 고정이어도 함께 걷는다.
+                if (slot == null || slot.particle == null) continue;
+                if (slot.anchorToWorld && !slot.stopOnInterrupt) continue;
+
+                slot.particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
         }
 

@@ -6,6 +6,7 @@ using Firebase;
 using Firebase.Auth;
 using Firebase.Database;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using ProjectS.Data;
 
 namespace ProjectS.Managers
@@ -240,14 +241,23 @@ namespace ProjectS.Managers
             try
             {
                 // 사전 체크(즉시 피드백용). 경합 시 최종 보장은 아래 멀티패스 쓰기 + 규칙이 한다.
+                // 전역 미러 CharacterNames로 '타 계정 포함' 중복을 본다.
                 if (await IsCharacterNameTaken(nameKey)) return CreateCharacterResult.NameTaken;
+
+                // 전역 미러는 과거 데이터와 어긋날 수 있다(예약 누락). 그래서 내 계정의 '실제' 캐릭터로도
+                // 같은 이름을 막는다 — 미러가 낡아 사전 체크를 통과해도, 같은 계정에 같은 이름을 두 번
+                // 만드는 사고(실제 발생: 목록이 안 떠 재생성 → 중복)를 미러 상태와 무관하게 차단한다.
+                if (await IsNameUsedByOwnCharacter(nameKey)) return CreateCharacterResult.NameTaken;
 
                 long id = DateTime.UtcNow.Ticks;
                 CharacterSaveData data = new CharacterSaveData(id, characterType, name);
 
                 // 멀티패스 쓰기는 raw JSON을 못 섞으므로 CharacterSaveData를 중첩 Dictionary로 변환한다.
-                var charDict = JsonConvert.DeserializeObject<Dictionary<string, object>>(
-                    JsonConvert.SerializeObject(data));
+                // DeserializeObject<Dictionary<string,object>>는 최상위 한 겹만 풀고 중첩 컬렉션
+                // (퀘스트·인벤토리 리스트, potionQuickSlots 등)을 JArray/JObject(잎=JValue)로 남기는데,
+                // Firebase Variant는 JValue를 변환 못 해 "Invalid type ... JValue" 예외로 터진다.
+                // → JToken 트리를 순수 CLR(Dictionary/List/스칼라)로 재귀 변환해 JValue를 제거한다.
+                var charDict = (Dictionary<string, object>)ToFirebaseValue(JObject.FromObject(data));
 
                 var updates = new Dictionary<string, object>
                 {
@@ -264,6 +274,24 @@ namespace ProjectS.Managers
                 Debug.LogError($"[Firebase] 캐릭터 생성 예외: {ex}");
                 return CreateCharacterResult.Failed;
             }
+        }
+
+        /// <summary>
+        /// 내 계정의 실제 캐릭터 중 같은 이름(대소문자 무시)이 있는지. 전역 미러(CharacterNames)가
+        /// 과거 데이터와 어긋나도 '같은 계정 · 같은 이름' 중복을 막는 최종 방어선. 확인 불가(로드 실패)면
+        /// 안전하게 true(중복 생성 허용보다 오탐이 낫다).
+        /// </summary>
+        /// <param name="nameKey">소문자로 정규화된 이름 키.</param>
+        private async Task<bool> IsNameUsedByOwnCharacter(string nameKey)
+        {
+            List<CharacterSaveData> mine = await LoadAllCharacters();
+            if (mine == null) return true;   // 로드 실패 → 확인 불가. 막는 쪽으로.
+
+            foreach (CharacterSaveData c in mine)
+                if (c != null && !string.IsNullOrEmpty(c.name) && c.name.ToLowerInvariant() == nameKey)
+                    return true;
+
+            return false;
         }
 
         /// <summary>캐릭터 이름이 이미 사용 중인지. nameKey는 소문자 정규화된 키. 오류 시 안전하게 true.</summary>
@@ -292,6 +320,38 @@ namespace ProjectS.Managers
                 if (c == '.' || c == '#' || c == '$' || c == '[' || c == ']' || c == '/') return false;
 
             return true;
+        }
+
+        /// <summary>
+        /// JToken 트리를 Firebase Variant가 받는 순수 CLR 값으로 재귀 변환한다.
+        /// 멀티패스(UpdateChildrenAsync) 쓰기에 넣을 Dictionary가 JObject/JArray/JValue를 품으면
+        /// Firebase가 "Invalid type ... JValue"로 터지므로, Object→Dictionary·Array→List·잎→스칼라로 내린다.
+        /// </summary>
+        private static object ToFirebaseValue(JToken token)
+        {
+            switch (token.Type)
+            {
+                case JTokenType.Object:
+                    var dict = new Dictionary<string, object>();
+                    foreach (var prop in (JObject)token)
+                        dict[prop.Key] = ToFirebaseValue(prop.Value);
+                    return dict;
+                case JTokenType.Array:
+                    var list = new List<object>();
+                    foreach (var item in (JArray)token)
+                        list.Add(ToFirebaseValue(item));
+                    return list;
+                case JTokenType.Integer:
+                    return token.Value<long>();
+                case JTokenType.Float:
+                    return token.Value<double>();
+                case JTokenType.Boolean:
+                    return token.Value<bool>();
+                case JTokenType.Null:
+                    return null;
+                default:
+                    return token.Value<string>();
+            }
         }
 
         /// <summary>
@@ -329,7 +389,10 @@ namespace ProjectS.Managers
 
                 if (!snapshot.Exists) return null;
 
-                return JsonConvert.DeserializeObject<CharacterSaveData>(snapshot.GetRawJsonValue());
+                CharacterSaveData data = JsonConvert.DeserializeObject<CharacterSaveData>(snapshot.GetRawJsonValue());
+                // 요청한 uniqueId(=노드 키)를 정체성의 진실로 고정한다(저장 필드가 정밀도로 깎였어도 안전).
+                if (data != null) data.uniqueId = uniqueId;
+                return data;
             }
             catch (Exception ex)
             {
@@ -340,29 +403,40 @@ namespace ProjectS.Managers
 
         /// <summary>
         /// 이 계정의 모든 캐릭터를 로드한다. 캐릭터 선택창이 목록을 나열할 때 쓴다.
-        /// 없으면 빈 리스트(신규 유저 → 캐릭터 생성 흐름으로 유도).
+        /// 반환 규약: 성공 시 목록(진짜 0개면 빈 리스트), <b>실패(미초기화·미로그인·예외)면 null</b>.
+        /// "로드 실패"를 "캐릭터 0개"와 반드시 구분해야, 선택창이 실패를 '없음'으로 오해해
+        /// 중복 캐릭터 생성을 유도하는 사고를 막는다(빈 리스트로 뭉뚱그리면 그 사고가 난다).
         /// </summary>
         public async Task<List<CharacterSaveData>> LoadAllCharacters()
         {
-            List<CharacterSaveData> list = new();
-            if (!IsInitialized || CurrentUid == null) return list;
+            if (!IsInitialized || CurrentUid == null) return null;   // 준비 안 됨 → 실패로 신호(빈 목록 아님)
 
             try
             {
                 DataSnapshot snapshot = await databaseReference.Child("Users").Child(CurrentUid)
                     .Child("Characters").GetValueAsync();
 
-                if (!snapshot.Exists) return list;
+                List<CharacterSaveData> list = new();
+                if (!snapshot.Exists) return list;   // 조회는 됐고 자식이 없다 → 진짜 0개
 
                 foreach (DataSnapshot child in snapshot.Children)
-                    list.Add(JsonConvert.DeserializeObject<CharacterSaveData>(child.GetRawJsonValue()));
+                {
+                    CharacterSaveData data = JsonConvert.DeserializeObject<CharacterSaveData>(child.GetRawJsonValue());
+                    if (data == null) continue;
+
+                    // 노드 키를 정체성의 진실로 삼는다. uniqueId(=Ticks)는 2^53을 넘어 JS 계층(콘솔·함수)에서
+                    // 정밀도가 깎일 수 있어, 저장/로드/삭제가 uniqueId.ToString()으로 엉뚱한 노드를 치는 사고를 막는다.
+                    if (long.TryParse(child.Key, out long key)) data.uniqueId = key;
+
+                    list.Add(data);
+                }
 
                 return list;
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[Firebase] 캐릭터 목록 로드 예외: {ex}");
-                return list;
+                return null;   // 예외 → 실패로 신호. 호출측이 '0개'로 오해하지 않게 한다.
             }
         }
 
