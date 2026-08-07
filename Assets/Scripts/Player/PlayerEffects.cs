@@ -82,7 +82,7 @@ namespace ProjectS.Players
         {
             // 구르기·피격·사망으로 동작이 중단됐으면, 블렌드 아웃 중 뒤늦게 도착한 이펙트를 무시한다.
             // 입력을 막는 조건과 동일(Player.IsActionInterrupted) → 이벤트도 같은 기준으로 게이트.
-            if (player.IsActionInterrupted) return;
+            if (player.IsActionInterrupted && player.Stats.isRevive) return;
 
             if (!TryGetSlot(key, out EffectSlot slot)) return;
 

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Players
 {
@@ -11,6 +11,11 @@ namespace ProjectS.Players
         // 생성 시 받은 player를 부모(BaseState)에 위임해 보관시킨다.
         // 본문이 비어있는 건 이 상태가 진입 시 따로 준비할 게 없기 때문.
         public PlayerFreeState(Player player) : base(player) { }
+
+        public override void Enter()
+        {
+            player.Stats.isRevive = false;
+        }
 
         public override void Update()
         {
