@@ -19,6 +19,10 @@ namespace ProjectS.Players
             player.Effect.AllStopEffect();
             // 점프 공격 호버링 중 사망하면 공중에 뜬 채 굳으므로 여기서도 해제한다.
             player.Movement.SetHover(false);
+            // 점프 상승 중 즉사하면(HitState를 거치지 않는 치명타) 상승 속도가 그대로 얼어붙어
+            // 사망~부활을 넘어 살아남았다가 부활 후 FreeState 복귀 시 "혼자 잠깐 점프"로 튄다.
+            // PlayerHitState.Enter()와 같은 방침으로 여기서도 상승 점프 속도를 제거한다.
+            player.Movement.CancelJump();
             // 달리던 중 죽으면 로코모션 bool이 켜진 채 굳는다 → 사망 모션 위로 걷기 전이가 겹친다.
             player.Animation.SetLocomotion(false, false);
             // 이동 입력을 받지 않으므로 Update는 비워둔다 → 조작 잠금이 자동 성립
