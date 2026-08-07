@@ -10,6 +10,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using ProjectS.Data;
 using ProjectS.Managers;
 using ProjectS.Players;
+using ProjectS.Items;
 using ProjectS.Debugging;
 
 namespace ProjectS.UI
@@ -92,9 +93,6 @@ namespace ProjectS.UI
         // 넘겨준다 — 유저가 마지막 대사에서 일러스트·대사와 함께 받을 보상을 보고 확인하게 한다.
         private IReadOnlyList<QuestRewardData> rewardPreview;
         private readonly List<NpcRewardSlot> rewardSlots = new();
-
-        // 아이템 보상 아이콘 어드레서블 핸들. 아이템 데이터의 IconAddress로 로드해 모아뒀다가 재구성·종료 시 해제한다.
-        private readonly List<AsyncOperationHandle<Sprite>> rewardIconHandles = new();
 
         // 이번 대화에서 스킵을 허용할지. 인사말=false, 퀘스트 내용=true(퀘스트 대화부터 스킵 활성).
         private bool allowSkip;
@@ -218,6 +216,11 @@ namespace ProjectS.UI
             this.onFirst = onFirst;
             this.rewardPreview = rewardPreview;
             IsPlaying = true;
+
+            // 보상 아이콘은 마지막 줄에서야 뜨지만, 아이템을 하나도 안 가진 유저는 인벤 예열이 없어
+            // 그때 콜드 로드되면 "빈칸→채워짐" 팝인이 보인다. 대화 시작 즉시 예열해 클릭이 마지막 줄에
+            // 닿을 즈음엔 캐시가 데워져 있게 한다(캐시가 있으면 즉시 반영).
+            PreloadRewardIcons();
 
             // 퀘스트명(있을 때만 표시).
             if (questNameText != null)
@@ -376,7 +379,6 @@ namespace ProjectS.UI
             EnableInput(false);
             UnfreezePlayer();
             ReleaseOtherHandles();
-            ReleaseRewardIconHandles();
             if (rewardArea != null) rewardArea.SetActive(false);
             if (root != null) root.SetActive(false);
         }
@@ -446,8 +448,6 @@ namespace ProjectS.UI
         // 보상 칸을 보상 수에 맞춰 켜고 채운다(부족하면 늘리고 남으면 끈다).
         private void PopulateRewards()
         {
-            ReleaseRewardIconHandles();   // 이전(마지막 줄 재진입 등) 아이콘 핸들 정리 후 다시 로드
-
             int count = rewardPreview.Count;
 
             while (rewardSlots.Count < count && rewardSlotPrefab != null && rewardContent != null)
@@ -472,35 +472,43 @@ namespace ProjectS.UI
             }
         }
 
-        // 아이템 보상 아이콘을 아이템 데이터의 IconAddress로 비동기 로드해 슬롯에 덮어쓴다.
-        // 로드 완료 시 아직 재생 중이고 슬롯이 살아 있을 때만 반영한다. 핸들은 재구성·종료 때 일괄 해제한다.
+        // 이번 대화의 아이템 보상 아이콘을 미리 캐시에 데운다(대화 시작 시 1회). 아이템 미보유 유저라도
+        // 마지막 줄에서 콜드 로드로 팝인되지 않도록, 인벤 예열과 무관하게 여기서 예열을 보장한다.
+        private void PreloadRewardIcons()
+        {
+            if (rewardPreview == null || JsonManager.Instance == null) return;
+
+            List<string> addresses = null;
+            foreach (QuestRewardData reward in rewardPreview)
+            {
+                if (reward.Type != QuestRewardType.Item) continue;
+
+                ItemData item = JsonManager.Instance.Get<ItemData>(reward.TargetId);
+                if (item == null || string.IsNullOrEmpty(item.IconAddress)) continue;
+
+                (addresses ??= new List<string>()).Add(item.IconAddress);
+            }
+
+            if (addresses != null) ItemIconLoader.Preload(addresses);
+        }
+
+        // 아이템 보상 아이콘을 캐싱 로더(ItemIconLoader)로 로드해 슬롯에 덮어쓴다. 로더가 주소별로 핸들을
+        // 1개만 잡아 여러 UI와 공유하므로(참조 카운트 분열 방지), 여기선 핸들을 직접 관리하지 않는다.
+        // 예열(PreloadRewardIcons)이 끝나 있으면 캐시 히트로 즉시 반영된다.
         private async void LoadItemRewardIcon(int itemId, NpcRewardSlot slot)
         {
             ItemData item = JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(itemId) : null;
             if (item == null || string.IsNullOrEmpty(item.IconAddress)) return;
 
-            AsyncOperationHandle<Sprite> handle = Addressables.LoadAssetAsync<Sprite>(item.IconAddress);
-            rewardIconHandles.Add(handle);
+            Sprite sprite = await ItemIconLoader.LoadAsync(item.IconAddress);
 
-            await handle.Task;
+            // 로드 중 대화가 끝났거나 슬롯이 사라졌으면 반영하지 않는다.
+            if (!IsPlaying || slot == null) return;
 
-            // 로드 중 대화가 끝났거나(핸들 해제됨) 슬롯이 사라졌으면 반영하지 않는다.
-            if (!IsPlaying || slot == null || !handle.IsValid()) return;
-
-            if (handle.Status == AsyncOperationStatus.Succeeded && handle.Result != null)
-                slot.SetIcon(handle.Result);
+            if (sprite != null)
+                slot.SetIcon(sprite);
             else
                 DevLog.Warning($"[Dialogue] 아이템 {itemId} 보상 아이콘 로드 실패: {item.IconAddress}");
-        }
-
-        private void ReleaseRewardIconHandles()
-        {
-            foreach (var handle in rewardIconHandles)
-            {
-                if (handle.IsValid())
-                    Addressables.Release(handle);
-            }
-            rewardIconHandles.Clear();
         }
 
         private static string RewardName(QuestRewardData reward) => reward.Type switch
