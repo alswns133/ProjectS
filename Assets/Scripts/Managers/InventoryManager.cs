@@ -491,7 +491,7 @@ namespace ProjectS.Managers
             InventoryEvents.FireItemEquipped(instance.Item);
             InventoryEvents.FireInventoryChanged();   // 가방 격자 변경(착용분 제거/기존분 복귀)
             RecomputeEquipmentStats();
-            PlayerSaveService.MarkDirty();
+            PlayerSaveService.SaveNow();   // 장착은 의도적 행동 → 즉시 커밋(오토세이브 대기 없이 Firebase 저장)
             return true;
         }
 
@@ -512,7 +512,7 @@ namespace ProjectS.Managers
             InventoryEvents.FireItemUnequipped(instance.Item);
             InventoryEvents.FireInventoryChanged();
             RecomputeEquipmentStats();
-            PlayerSaveService.MarkDirty();
+            PlayerSaveService.SaveNow();   // 해제도 즉시 커밋
             return true;
         }
 

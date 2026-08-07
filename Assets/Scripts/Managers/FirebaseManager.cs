@@ -6,6 +6,7 @@ using Firebase;
 using Firebase.Auth;
 using Firebase.Database;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using ProjectS.Data;
 
 namespace ProjectS.Managers
@@ -246,8 +247,11 @@ namespace ProjectS.Managers
                 CharacterSaveData data = new CharacterSaveData(id, characterType, name);
 
                 // 멀티패스 쓰기는 raw JSON을 못 섞으므로 CharacterSaveData를 중첩 Dictionary로 변환한다.
-                var charDict = JsonConvert.DeserializeObject<Dictionary<string, object>>(
-                    JsonConvert.SerializeObject(data));
+                // DeserializeObject<Dictionary<string,object>>는 최상위 한 겹만 풀고 중첩 컬렉션
+                // (퀘스트·인벤토리 리스트, potionQuickSlots 등)을 JArray/JObject(잎=JValue)로 남기는데,
+                // Firebase Variant는 JValue를 변환 못 해 "Invalid type ... JValue" 예외로 터진다.
+                // → JToken 트리를 순수 CLR(Dictionary/List/스칼라)로 재귀 변환해 JValue를 제거한다.
+                var charDict = (Dictionary<string, object>)ToFirebaseValue(JObject.FromObject(data));
 
                 var updates = new Dictionary<string, object>
                 {
@@ -292,6 +296,38 @@ namespace ProjectS.Managers
                 if (c == '.' || c == '#' || c == '$' || c == '[' || c == ']' || c == '/') return false;
 
             return true;
+        }
+
+        /// <summary>
+        /// JToken 트리를 Firebase Variant가 받는 순수 CLR 값으로 재귀 변환한다.
+        /// 멀티패스(UpdateChildrenAsync) 쓰기에 넣을 Dictionary가 JObject/JArray/JValue를 품으면
+        /// Firebase가 "Invalid type ... JValue"로 터지므로, Object→Dictionary·Array→List·잎→스칼라로 내린다.
+        /// </summary>
+        private static object ToFirebaseValue(JToken token)
+        {
+            switch (token.Type)
+            {
+                case JTokenType.Object:
+                    var dict = new Dictionary<string, object>();
+                    foreach (var prop in (JObject)token)
+                        dict[prop.Key] = ToFirebaseValue(prop.Value);
+                    return dict;
+                case JTokenType.Array:
+                    var list = new List<object>();
+                    foreach (var item in (JArray)token)
+                        list.Add(ToFirebaseValue(item));
+                    return list;
+                case JTokenType.Integer:
+                    return token.Value<long>();
+                case JTokenType.Float:
+                    return token.Value<double>();
+                case JTokenType.Boolean:
+                    return token.Value<bool>();
+                case JTokenType.Null:
+                    return null;
+                default:
+                    return token.Value<string>();
+            }
         }
 
         /// <summary>
