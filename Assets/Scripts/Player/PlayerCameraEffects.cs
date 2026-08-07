@@ -6,7 +6,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using ProjectS.Cameras;
-using ProjectS.Events;
 
 namespace ProjectS.Players
 {
