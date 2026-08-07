@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.Enhance;
 using ProjectS.Items;
+using ProjectS.Managers;
 
 namespace ProjectS.UI.Framework
 {
@@ -35,8 +36,6 @@ namespace ProjectS.UI.Framework
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private Image icon;
         [SerializeField] private TMP_Text gradeText;
-        [SerializeField] private GameObject levelBadge;       // 우상단 레벨 뱃지(소모품처럼 Level 0이면 숨김)
-        [SerializeField] private TMP_Text levelBadgeText;
         [SerializeField] private GameObject descSection;      // 설명 묶음(없으면 숨김)
         [SerializeField] private TMP_Text descText;
         [SerializeField] private TMP_Text sellPriceText;
@@ -52,12 +51,6 @@ namespace ProjectS.UI.Framework
         [Header("소모품 전용 섹션")]
         [SerializeField] private GameObject consumableSection;
         [SerializeField] private TMP_Text effectText;         // 회복량/쿨다운
-
-        [Header("등급 색")]
-        [SerializeField] private Color normalColor = new Color(0.85f, 0.85f, 0.85f);
-        [SerializeField] private Color magicColor = new Color(0.35f, 0.6f, 1f);
-        [SerializeField] private Color rareColor = new Color(1f, 0.85f, 0.2f);
-        [SerializeField] private Color relicColor = new Color(1f, 0.5f, 0.15f);
 
         private RectTransform parentRect;
         private Canvas canvas;
@@ -105,7 +98,11 @@ namespace ProjectS.UI.Framework
                 if (reqLevelText != null) reqLevelText.text = $"요구 레벨 {item.Level}";
 
                 if (mainStatText != null) mainStatText.text = $"{MainStatLabel(e.MainStatType)} {e.MainStatBase}";
-                if (enhanceText != null) enhanceText.text = $"(+{equip.EnhanceStep})";
+                if (enhanceText != null)
+                {
+                    enhanceText.text = $"(+{equip.EnhanceStep})";
+                    SetActiveSafe(enhanceText.gameObject, true);
+                }
             }
 
             ShowAt(screenPos);
@@ -145,11 +142,14 @@ namespace ProjectS.UI.Framework
             if (this != null) gameObject.SetActive(false);
         }
 
-        // 공통 프레임(이름·등급·레벨뱃지·아이콘·설명·판매가)을 채운다.
+        // 공통 프레임(이름·등급·아이콘·설명·판매가)을 채운다.
         private void FillCommon(ItemData item)
         {
             currentItem = item;
-            Color gradeColor = GradeColor(item.Grade);
+
+            // 등급 표기와 색은 같은 행에서 나오므로 조회는 한 번만 한다.
+            ItemGradeData gradeRow = GradeRow(item.Grade);
+            Color gradeColor = gradeRow != null ? gradeRow.DisplayColor : Color.white;
 
             if (nameText != null)
             {
@@ -158,20 +158,21 @@ namespace ProjectS.UI.Framework
             }
             if (gradeText != null)
             {
-                gradeText.text = GradeLabel(item.Grade);
+                gradeText.text = gradeRow != null ? gradeRow.Label : item.Grade.ToString();
                 gradeText.color = gradeColor;
             }
-
-            // 레벨 뱃지: 요구 레벨이 있는 아이템(장비)만. 소모품·재료는 Level 0이라 숨긴다.
-            bool hasLevel = item.Level > 0;
-            SetActiveSafe(levelBadge, hasLevel);
-            if (hasLevel && levelBadgeText != null) levelBadgeText.text = item.Level.ToString();
 
             bool hasDesc = !string.IsNullOrWhiteSpace(item.Description);
             SetActiveSafe(descSection, hasDesc);
             if (hasDesc && descText != null) descText.text = item.Description;
 
             if (sellPriceText != null) sellPriceText.text = $"판매가 {item.SellPrice}";
+
+            // 강화 수치는 장비에만 있으므로 공통 경로에서 먼저 끄고, 장비일 때만 ShowEquipment가 다시 켠다.
+            // 끄지 않으면 직전에 본 장비의 "(+15)"가 소모품/재료 툴팁 이름 옆에 그대로 남는다.
+            // 텍스트만 비우지 않고 오브젝트를 끄는 이유: 이름 옆 가로 레이아웃에서 자리(최소 폭 + 간격)까지
+            // 반납해야 이름 박스가 그만큼 넓게 늘어난다.
+            SetActiveSafe(enhanceText != null ? enhanceText.gameObject : null, false);
 
             LoadIcon(item);
         }
@@ -225,22 +226,19 @@ namespace ProjectS.UI.Framework
             if (go != null && go.activeSelf != value) go.SetActive(value);
         }
 
-        // ── 라벨/색 매핑 (플레이어에게 보이는 한글 표기) ──────────────────────────
-        private Color GradeColor(ItemGrade grade) => grade switch
-        {
-            ItemGrade.Magic => magicColor,
-            ItemGrade.Rare => rareColor,
-            ItemGrade.Relic => relicColor,
-            _ => normalColor,
-        };
+        // ── 등급 표기 (표기·색의 유일한 출처는 ItemGradeData 테이블) ─────────────
 
-        private static string GradeLabel(ItemGrade grade) => grade switch
-        {
-            ItemGrade.Magic => "매직",
-            ItemGrade.Rare => "레어",
-            ItemGrade.Relic => "유물",
-            _ => "노말",
-        };
+        /// <summary>
+        /// 등급 표기와 색은 <see cref="ItemGradeData"/> 테이블(JSON)이 유일한 기준이다.
+        /// 여기서 색 4개와 이름 4개를 코드·인스펙터로 들고 있으면 등급을 쓰는 UI가 늘어날 때마다
+        /// 같은 값이 복제되고, 톤이나 표기를 바꿀 때 한 곳씩 빠뜨리게 된다.
+        /// 로딩 전(IsReady 이전)이거나 행이 없으면 null을 돌려주고, 호출측이 폴백을 정한다.
+        /// 등급 하나 때문에 툴팁 자체가 안 뜨는 것보다는 낫기 때문이다.
+        /// </summary>
+        /// <param name="grade">조회할 등급</param>
+        /// <returns>등급 행. 없으면 null</returns>
+        private static ItemGradeData GradeRow(ItemGrade grade)
+            => JsonManager.Instance != null ? JsonManager.Instance.Get<ItemGradeData>((int)grade) : null;
 
         // 직업 표기: 무기는 무기종류에서 직업이 갈리고(검=검사·총=거너), 방어구는 직업 제한이 없어 공용.
         private static string ClassLabel(EquipSlot slot, WeaponType weapon)
