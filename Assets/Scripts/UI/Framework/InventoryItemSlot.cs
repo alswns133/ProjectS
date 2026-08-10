@@ -135,6 +135,10 @@ namespace ProjectS.UI.Framework
         // ---- 좌클릭 드래그(고스트) : InventorySlotView와 동일 패턴 ----
         public void OnBeginDrag(PointerEventData eventData)
         {
+            // 좌클릭 드래그만 아이템 집기. 우클릭 드래그는 컨텍스트 메뉴용이라 무시한다
+            // (막지 않으면 우클릭을 끌 때도 고스트가 뜨고, 놓는 위치에 따라 의도치 않은 이동/교환이 일어난다).
+            if (eventData.button != PointerEventData.InputButton.Left) return;
+
             if (IsEmpty || icon == null) return;
 
             // 드래그 시작 시 남아 있던 툴팁을 치운다.
@@ -195,6 +199,10 @@ namespace ProjectS.UI.Framework
         /// <summary>다른 인벤 슬롯을 이 슬롯(빈칸 포함)에 드롭하면 이동/교환을 호스트에 알린다.</summary>
         public void OnDrop(PointerEventData eventData)
         {
+            // 좌클릭 드래그의 드롭만 이동/교환으로 받는다. EventSystem은 우클릭 드래그에도 pointerDrag·dragging을
+            // 세팅해 OnDrop을 호출하므로, 여기서 버튼을 가르지 않으면 우클릭 드래그가 그대로 이동을 일으킨다.
+            if (eventData.button != PointerEventData.InputButton.Left) return;
+
             InventoryItemSlot source = eventData.pointerDrag != null
                 ? eventData.pointerDrag.GetComponent<InventoryItemSlot>()
                 : null;

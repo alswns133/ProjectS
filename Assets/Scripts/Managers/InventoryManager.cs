@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Core;
@@ -458,6 +458,44 @@ namespace ProjectS.Managers
             PlayerSaveService.MarkDirty();
         }
 
+        // ---------- 파괴(버리기) ----------
+
+        /// <summary>
+        /// 가방의 장비 한 점을 파괴한다(우클릭 컨텍스트 메뉴 → 확인 팝업을 거친 뒤 호출한다).
+        /// 격자에서 제거하고 <see cref="InventoryEvents.OnItemRemoved"/>·<see cref="InventoryEvents.OnInventoryChanged"/>를 발행한다.
+        /// 강화·옵션이 붙어 있어도 복구할 수 없는 의도적 행동이라, 오토세이브를 기다리지 않고 즉시 저장(SaveNow)으로 커밋한다
+        /// (크래시로 파괴가 되살아나지 않게 함).
+        /// </summary>
+        /// <param name="instance">파괴할 장비 인스턴스(가방에 있던 것). 착용 중이거나 이미 사라진 인스턴스면 아무 일도 하지 않는다.</param>
+        /// <returns>실제로 파괴했으면 true</returns>
+        public bool DiscardEquipment(EquipmentInstance instance)
+        {
+            if (instance?.Item == null) return false;
+            if (!RemoveFromGrid(equipGrid, instance)) return false;   // 가방에 없음(착용 중/이미 파괴됨)
+
+            InventoryEvents.FireItemRemoved(instance.Item);
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();
+            return true;
+        }
+
+        /// <summary>
+        /// 소모품·재료 스택을 통째로 파괴한다(우클릭 컨텍스트 메뉴 → 확인 팝업을 거친 뒤 호출한다).
+        /// 셀을 비우고 변경을 발행한다. 파괴는 의도적·비가역 행동이라 즉시 저장(SaveNow)으로 커밋한다.
+        /// </summary>
+        /// <param name="stack">파괴할 스택(가방에 있던 것). 이미 사라진 스택이면 아무 일도 하지 않는다.</param>
+        /// <returns>실제로 파괴했으면 true</returns>
+        public bool DiscardStack(ItemStack stack)
+        {
+            if (stack?.Item == null) return false;
+            if (!RemoveFromGrid(consumeGrid, stack)) return false;
+
+            InventoryEvents.FireItemRemoved(stack.Item);
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();
+            return true;
+        }
+
         // ---------- 장착 ----------
 
         /// <summary>지정 부위에 착용 중인 장비(없으면 null).</summary>
@@ -560,6 +598,10 @@ namespace ProjectS.Managers
 
             Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
             if (player == null) return false;
+
+            if (player.Stats.IsDead) return false; // 죽은 상태 → 사용 안 함
+
+            if (player.Stats.CurrentHp == player.Stats.MaxHp) return false;   // 체력 만땅 → 사용 안 함
 
             ConsumableData data = stack.Consumable;
             if (data.DurationSec > 0f)
@@ -691,10 +733,12 @@ namespace ProjectS.Managers
             else Debug.LogWarning("[Inventory] 격자가 가득 차 아이템을 배치하지 못함");
         }
 
-        private static void RemoveFromGrid<T>(T[] grid, T item) where T : class
+        // 격자에서 해당 인스턴스를 찾아 비운다. 실제로 지웠으면 true(파괴 경로가 헛이벤트를 막는 데 쓴다).
+        private static bool RemoveFromGrid<T>(T[] grid, T item) where T : class
         {
             for (int i = 0; i < grid.Length; i++)
-                if (ReferenceEquals(grid[i], item)) { grid[i] = null; return; }
+                if (ReferenceEquals(grid[i], item)) { grid[i] = null; return true; }
+            return false;
         }
 
         private static void SwapCells<T>(T[] grid, int a, int b) where T : class
