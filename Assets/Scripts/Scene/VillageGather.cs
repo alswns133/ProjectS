@@ -10,6 +10,9 @@ namespace ProjectS.Scenes
     {
         public override void Enter()
         {
+            // 마을은 던전 밖이므로 현재 던전 표식을 0으로 되돌린다(나침반이 목표를 다시 던전 게이트로 안내).
+            DungeonContext.ClearDungeon();
+
             UIManager.Instance.ShowPanel<HUDPanel>();
 
             // 지속 플레이어를 이 씬 스폰 지점으로 옮겨 활성화한 뒤, 마을 모드(전투 off + 마을 컨트롤러)로 전환.
