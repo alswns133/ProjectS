@@ -534,23 +534,50 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
-        /// 지정 부위의 장비를 해제해 가방으로 되돌린다. 가방이 가득 차 있으면 해제하지 않는다.
-        /// 성공 시 스탯 재계산·<see cref="InventoryEvents.OnItemUnequipped"/> 발행.
+        /// 지정 부위의 장비를 해제해 가방으로 되돌린다(장비창→인벤 드래그·클릭 해제 공통).
+        /// <paramref name="targetIndex"/> 셀 상태에 따라 가른다:
+        /// <list type="bullet">
+        /// <item>비어 있으면 → 그 자리에 놓는다.</item>
+        /// <item>이 부위로 착용 가능한 장비가 들어 있으면 → <b>맞바꾼다</b>(그 장비를 착용하고 착용 중이던 것을 그 셀에 둠 —
+        ///       인벤끼리 드롭 swap과 같은 결. net 0이라 가방이 가득 차 있어도 가능).</item>
+        /// <item>맞바꿀 수 없는 다른 부위 장비가 들어 있거나 -1이면 → 첫 빈 셀에 놓는다(둘 곳이 없으면 실패).</item>
+        /// </list>
+        /// 성공 시 스탯 재계산·<see cref="InventoryEvents.OnItemUnequipped"/>(스왑이면 <see cref="InventoryEvents.OnItemEquipped"/>도) 발행.
         /// </summary>
         /// <param name="slot">해제할 부위</param>
-        /// <returns>해제에 성공했으면 true</returns>
-        public bool Unequip(EquipSlot slot)
+        /// <param name="targetIndex">되돌릴 가방 격자 셀(드래그로 놓은 슬롯). 기본 -1이면 첫 빈 셀(클릭 해제 경로).</param>
+        /// <returns>해제(또는 스왑)에 성공했으면 true</returns>
+        public bool Unequip(EquipSlot slot, int targetIndex = -1)
         {
             if (!equipped.TryGetValue(slot, out EquipmentInstance instance) || instance == null) return false;
-            if (FirstEmpty(equipGrid) < 0) return false;   // 가방 가득 → 해제 불가
 
-            equipped[slot] = null;
-            PlaceAt(equipGrid, -1, instance);
+            // 대상 셀에 이 부위로 착용 가능한 장비가 있으면 맞바꾼다(무기는 직업 제한도 만족해야 함).
+            EquipmentInstance target = GetEquipmentAt(targetIndex);
+            bool canSwap = target?.Equipment != null
+                && target.Equipment.EquipSlot == slot
+                && (slot != EquipSlot.Weapon || CanUseWeapon(target.Equipment.WeaponType));
 
-            InventoryEvents.FireItemUnequipped(instance.Item);
+            if (canSwap)
+            {
+                equipGrid[targetIndex] = instance;   // 착용 중이던 것 → 놓은 셀
+                equipped[slot] = target;             // 놓은 셀의 장비 → 착용
+
+                InventoryEvents.FireItemUnequipped(instance.Item);
+                InventoryEvents.FireItemEquipped(target.Item);
+            }
+            else
+            {
+                if (FirstEmpty(equipGrid) < 0) return false;   // 가방 가득 → 해제 불가
+
+                equipped[slot] = null;
+                PlaceAt(equipGrid, targetIndex, instance);   // 빈 셀이면 그 자리, 아니면 첫 빈 셀
+
+                InventoryEvents.FireItemUnequipped(instance.Item);
+            }
+
             InventoryEvents.FireInventoryChanged();
             RecomputeEquipmentStats();
-            PlayerSaveService.SaveNow();   // 해제도 즉시 커밋
+            PlayerSaveService.SaveNow();   // 해제·스왑은 의도적 행동 → 즉시 커밋
             return true;
         }
 

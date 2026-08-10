@@ -43,6 +43,16 @@ namespace ProjectS.UI.Framework
         /// <summary>표시 중인 내용이 없는 빈칸인지.</summary>
         public bool IsEmpty => equipment == null && stack == null;
 
+        /// <summary>
+        /// 이 슬롯이 표시하는 격자 셀 인덱스(호스트가 생성 시 1회 지정, -1이면 미지정).
+        /// 장비창에서 드래그한 장비를 이 슬롯 위에 놓을 때 "그 자리"로 되돌리는 목적지로 쓴다.
+        /// </summary>
+        public int GridIndex { get; private set; } = -1;
+
+        /// <summary>격자 셀 인덱스를 지정한다(호스트 InventoryPopup이 슬롯 생성 시 호출).</summary>
+        /// <param name="index">격자 인덱스</param>
+        public void SetGridIndex(int index) => GridIndex = index;
+
         // 로드 대기 중 슬롯이 재사용되면 늦게 온 아이콘을 무시하기 위한 현재 아이템.
         private ItemData CurrentItem => equipment?.Item ?? stack?.Item;
 

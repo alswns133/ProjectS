@@ -136,10 +136,12 @@ namespace ProjectS.UI
 
             if (eventData.button != PointerEventData.InputButton.Left) return;
 
-            // 놓은 지점 아래에 인벤 슬롯이 있으면 해제. Unequip이 가방 빈칸 여부를 스스로 검사한다.
+            // 놓은 지점 아래에 인벤 슬롯이 있으면 그 슬롯 자리로 해제한다(비어 있으면 그 셀, 아니면 첫 빈 셀).
+            // Unequip이 가방 빈칸 여부를 스스로 검사한다.
             GameObject dropTarget = eventData.pointerCurrentRaycast.gameObject;
-            if (dropTarget != null && dropTarget.GetComponentInParent<InventoryItemSlot>() != null)
-                InventoryManager.Instance?.Unequip(slot);
+            InventoryItemSlot targetSlot = dropTarget != null ? dropTarget.GetComponentInParent<InventoryItemSlot>() : null;
+            if (targetSlot != null)
+                InventoryManager.Instance?.Unequip(slot, targetSlot.GridIndex);
         }
 
         // 활성 캔버스 중 sortingOrder가 가장 높은 루트 캔버스(없으면 fallback). 고스트를 여기 얹어 어떤 창보다 위에 그린다.

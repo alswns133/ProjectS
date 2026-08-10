@@ -127,6 +127,7 @@ namespace ProjectS.UI
             while (slots.Count < InventoryManager.Capacity)
             {
                 InventoryItemSlot slot = Instantiate(slotPrefab, slotRoot);
+                slot.SetGridIndex(slots.Count);   // 리스트 위치 = 격자 셀 인덱스(고정). 장비 드래그 해제의 목적지로 쓰인다.
                 slot.SetRightClickHandler(OnSlotRightClicked);
                 slot.SetDropHandler(OnSlotDropped);
                 slots.Add(slot);
