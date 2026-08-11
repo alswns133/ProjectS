@@ -32,6 +32,23 @@ namespace ProjectS.Enemies
         [SerializeField] private Transform[] patrolPoints;
         [SerializeField] private float patrolWaitTime = 1f;
 
+        // 스폰 지점 기준 랜덤 배회 반경. patrolPoints를 비워 두고 이 값을 주면
+        // 고정 경로 없이 스폰 주변을 무작위로 돈다(여러 마리가 뭉쳐도 목적지가 흩어져 한 점에 안 몰린다).
+        // 기본 0 = 배회 안 함(기존 몬스터 동작 유지). 배회를 원하는 프리팹에만 반경을 넣어 켠다.
+        [SerializeField, Min(0f)] private float patrolRadius = 0f;
+
+        // 순찰 목적지까지 이 시간 안에 도착하지 못하면 "막혔다"로 보고 새 지점을 다시 뽑는다.
+        // 30마리가 밀집해 서로 경로가 겹치면 도착 판정이 영영 안 서서 순찰이 멈추는데,
+        // 이 타임아웃이 있어야 막힌 개체가 다른 목적지로 흩어져 대열이 자연히 풀린다.
+        [SerializeField, Min(0.5f)] private float patrolStuckTimeout = 4f;
+
+        // ── 이동 속도 ────────────────────────────────────────────────────
+        // 상태별 이동 속도. 순찰은 Walk, 추격은 Run으로 애니메이션이 명확히 갈리도록
+        // 블렌드 트리 임계값에 맞춰 값을 잡는다(순찰≈Walk 클립 속도, 추격≈Run 클립 속도).
+        [Header("이동 속도")]
+        [SerializeField, Min(0f)] private float patrolSpeed = 1f;
+        [SerializeField, Min(0f)] private float chaseSpeed = 4f;
+
         // ── 발견 ─────────────────────────────────────────────────────────
         // 감지 설정. Idle/Patrol에서 플레이어가 detectionRange 안에 들어오면 DetectState로 진입한다.
         // 바로 Chase로 가지 않는 이유: "플레이어 발견" 연출과 짧은 대시를 하나의 커밋 동작으로 보장하기 위함.
@@ -149,12 +166,19 @@ namespace ProjectS.Enemies
 
         /// <summary>플레이어 감지 반경. Idle/Patrol 상태가 발견 진입 판정에 쓴다.</summary>
         public float DetectionRange => detectionRange;
-        /// <summary>순찰 지점이 하나 이상 있으면 PatrolState로 시작한다.</summary>
-        public bool HasPatrol => patrolPoints != null && patrolPoints.Length > 0;
-        /// <summary>등록된 순찰 지점 수. PatrolState가 다음 지점 인덱스를 순환시킬 때 쓴다.</summary>
-        public int PatrolPointCount => patrolPoints != null ? patrolPoints.Length : 0;
-        /// <summary>순찰 지점에 도착한 뒤 다음 지점으로 가기 전 대기 시간.</summary>
+        /// <summary>
+        /// 순찰(배회)로 시작할지 여부. 고정 순찰 지점이 있거나 랜덤 배회 반경이 잡혀 있으면 PatrolState로,
+        /// 둘 다 없으면 IdleState로 시작한다.
+        /// </summary>
+        public bool HasPatrol => (patrolPoints != null && patrolPoints.Length > 0) || patrolRadius > 0f;
+        /// <summary>순찰 지점/배회 지점에 도착한 뒤 다음 지점으로 가기 전 대기 시간(그 사이 Idle 모션).</summary>
         public float PatrolWaitTime => patrolWaitTime;
+        /// <summary>순찰 목적지에 이 시간 안에 못 가면 막힘으로 보고 새 지점을 뽑는 타임아웃.</summary>
+        public float PatrolStuckTimeout => patrolStuckTimeout;
+        /// <summary>순찰(배회) 이동 속도. Walk 애니메이션이 나오도록 블렌드 트리 Walk 임계값 근처로 잡는다.</summary>
+        public float PatrolSpeed => patrolSpeed;
+        /// <summary>추격 이동 속도. Run 애니메이션이 나오도록 블렌드 트리 Run 임계값 근처로 잡는다.</summary>
+        public float ChaseSpeed => chaseSpeed;
         /// <summary>
         /// 발견 시 짧은 대시 연출을 사용하는지 여부. 발견 애니메이션이 제자리 모션인
         /// 원거리 몬스터는 꺼서 이동 없이 발견 연출만 재생하게 한다.
@@ -172,6 +196,11 @@ namespace ProjectS.Enemies
         private bool cachedCanReachTarget;
         private int reachFlipStreak;
 
+        // 스폰(배치) 위치. 랜덤 배회의 중심으로 쓴다. Awake 시점의 위치라 씬에 놓인 자리를 기준으로 삼는다.
+        private Vector3 spawnPosition;
+        // 고정 순찰 지점 순환 인덱스. 랜덤 배회에서는 쓰지 않는다.
+        private int patrolIndex;
+
         // 군중 제어 개체값. Awake에서 한 번 뽑아 고정한다.
         private float combatDistanceFactor;
         private float sidestepSign;
@@ -188,6 +217,9 @@ namespace ProjectS.Enemies
             Effects = GetComponent<EnemyEffects>();
             BodyCollider = GetComponent<Collider>();
             StateMachine = new EnemyStateMachine();
+
+            // 랜덤 배회의 중심이 되는 스폰 위치를 처음 자리로 고정한다.
+            spawnPosition = transform.position;
 
             // 상태를 미리 만들어 보관한다. 각 상태는 MonoBehaviour가 아니므로 Enemy 컨텍스트를 생성자 주입으로 받는다.
             IdleState = new EnemyIdleState(this);
@@ -355,15 +387,26 @@ namespace ProjectS.Enemies
         }
 
         /// <summary>
-        /// 순찰 지점 위치 조회. 비어 있거나 null 슬롯이면 현재 위치를 돌려 안전하게 실패한다.
-        /// 에디터에서 순찰 포인트 배열을 비우거나 일부 슬롯을 놓쳐도 상태 머신이 예외로 멈추지 않게 한다.
+        /// 다음 순찰 목적지를 돌려준다. 고정 지점(patrolPoints)이 있으면 순서대로 순환하고,
+        /// 없으면 스폰 지점 주변 반경 안에서 NavMesh 위 무작위 지점을 뽑는다(랜덤 배회).
+        /// 유효한 목적지를 못 구하면 현재 위치를 돌려 상태 머신이 멈추지 않게 안전하게 실패한다.
+        /// PatrolState가 도착/막힘 때마다 호출한다.
         /// </summary>
-        public Vector3 GetPatrolPoint(int index)
+        public Vector3 GetPatrolDestination()
         {
-            if (!HasPatrol) return transform.position;
+            // 고정 순찰 경로 우선. 지점 사이를 순서대로 돈다.
+            if (patrolPoints != null && patrolPoints.Length > 0)
+            {
+                patrolIndex = (patrolIndex + 1) % patrolPoints.Length;
+                Transform point = patrolPoints[patrolIndex];
+                return point != null ? point.position : transform.position;
+            }
 
-            Transform point = patrolPoints[Mathf.Abs(index) % patrolPoints.Length];
-            return point != null ? point.position : transform.position;
+            // 고정 지점이 없으면 스폰 주변 랜덤 배회.
+            if (Movement.TryGetRandomPatrolPoint(spawnPosition, patrolRadius, out Vector3 random))
+                return random;
+
+            return transform.position;
         }
 
         /// <summary>

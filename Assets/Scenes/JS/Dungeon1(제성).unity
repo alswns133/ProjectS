@@ -11914,6 +11914,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1120673949}
     m_Modifications:
+    - target: {fileID: 553132396197398826, guid: 3f6dc9a05b4f3ff49bdfa03736ccbbb5, type: 3}
+      propertyPath: m_Height
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 553132396197398826, guid: 3f6dc9a05b4f3ff49bdfa03736ccbbb5, type: 3}
+      propertyPath: m_Radius
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 553132396197398826, guid: 3f6dc9a05b4f3ff49bdfa03736ccbbb5, type: 3}
+      propertyPath: m_Center.y
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 656041855149676506, guid: 3f6dc9a05b4f3ff49bdfa03736ccbbb5, type: 3}
       propertyPath: m_Name
       value: A
@@ -27681,6 +27693,14 @@ PrefabInstance:
       propertyPath: projectileSpawner
       value: 
       objectReference: {fileID: 1745252328}
+    - target: {fileID: 3386925869625297108, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.00000047683352
+      objectReference: {fileID: 0}
+    - target: {fileID: 3386925869625297108, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -3.8803658
+      objectReference: {fileID: 0}
     - target: {fileID: 6071333364381359609, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: attackPower
       value: 100
@@ -35448,9 +35468,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.ItemContextMenu
   menuRect: {fileID: 0}
+  equipButton: {fileID: 0}
   register1Button: {fileID: 0}
   register2Button: {fileID: 0}
   useButton: {fileID: 0}
+  discardButton: {fileID: 0}
   backgroundBlocker: {fileID: 0}
 --- !u!1001 &330038986
 PrefabInstance:
@@ -105617,8 +105639,6 @@ MonoBehaviour:
   titleText: {fileID: 193079452}
   storyText: {fileID: 318383064}
   rewardText: {fileID: 1597298824}
-  connector: {fileID: 216182908}
-  connectorOrigin: {fileID: 1588357286}
   closeButton: {fileID: 0}
   closeOnClickOutside: 1
 --- !u!114 &920027154
@@ -247332,9 +247352,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.ItemContextMenu
   menuRect: {fileID: 652330710}
+  equipButton: {fileID: 0}
   register1Button: {fileID: 1199305672}
   register2Button: {fileID: 256859510}
   useButton: {fileID: 135155098}
+  discardButton: {fileID: 0}
   backgroundBlocker: {fileID: 1395694466}
 --- !u!1 &1991210616
 GameObject:

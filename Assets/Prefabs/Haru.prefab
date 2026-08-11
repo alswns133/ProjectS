@@ -364302,6 +364302,7 @@ GameObject:
   - component: {fileID: 833931951691995529}
   - component: {fileID: 6919157614276577212}
   - component: {fileID: 6953480705040815348}
+  - component: {fileID: 7039649755411129012}
   m_Layer: 8
   m_Name: Haru
   m_TagString: Player
@@ -364982,7 +364983,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6444419969119536879}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 0
   m_Extents: {x: 0.5, y: 1, z: 0.5}
@@ -365793,7 +365794,25 @@ MonoBehaviour:
   punchInTime: 0.3
   releaseTime: 0.3
   volumePriority: 0
-  speedLinesParticle: {fileID: 8788394348465711040, guid: b64c60d0d72d30b42b7132b9927f7293, type: 3}
+  speedLinesParticle: {fileID: 0}
+--- !u!114 &7039649755411129012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6444419969119536879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1a8b620da0aa3b42a1db6517949a286, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Players.PlayerEnemySeparation
+  detectRadius: 2
+  enemyMask:
+    serializedVersion: 2
+    m_Bits: 64
+  enemyBodyRadius: 0.5
+  enemyBodyHeight: 1.8
 --- !u!1 &6468475852384579778
 GameObject:
   m_ObjectHideFlags: 0
@@ -496258,7 +496277,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8338140094227199746, guid: 691850d965685514d9ab1f139cb65307, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 1.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8338140094227199746, guid: 691850d965685514d9ab1f139cb65307, type: 3}
       propertyPath: m_LocalRotation.w
