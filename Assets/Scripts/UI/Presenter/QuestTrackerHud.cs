@@ -77,6 +77,12 @@ namespace ProjectS.UI
         // 분해되던 카드가 도중에 위로 점프하거나 숨겨져 연출이 끊긴다.
         private readonly HashSet<QuestData> completing = new();
 
+        // 본문이 접혀 있는(제목 줄만 남은) 퀘스트. 여닫기 버튼이 토글하고 표시 갱신이 이 집합을 읽는다.
+        // 카드가 아니라 여기에 두는 이유: 표시 갱신(ApplyCollapsedView)이 매번 SetCompact를 다시 부르므로
+        // 카드가 스스로 기억하면 갱신 때마다 초기화된다. 기본값은 '펼침'이고,
+        // 완료로 넘어가는 순간에만 요약 줄로 쓰이도록 접힌 채 시작한다.
+        private readonly HashSet<QuestData> foldedBody = new();
+
         private QuestTrackerEntry selected;
         private bool isMouseMode;
         private Player player;
@@ -268,26 +274,24 @@ namespace ProjectS.UI
                 if (completing.Contains(quest)) continue;   // 연출 중인 카드는 건드리지 않는다
 
                 bool visible;
-                bool compact;
                 int extra = 0;
 
                 if (quest.IsReadyToTurnIn)
                 {
                     // 완료 퀘스트는 고정 여부와 무관하게 요약 줄로만 다룬다(고정 슬롯을 먹지 않는다).
                     visible = quest == headline;
-                    compact = true;
                     extra = completedCount - 1;
                 }
                 else if (collapsed)
                 {
+                    // 접힌 트래커에서도 본문은 그대로 남긴다 — 트래커 접힘은 '몇 장을 보여줄지'만 정하고,
+                    // 본문을 접는 것은 카드별 여닫기(foldedBody)의 소관으로 분리했다(2026-08 확정).
                     visible = pinned.Contains(quest) && shownPinned < maxPinned;
                     if (visible) shownPinned++;
-                    compact = true;
                 }
                 else
                 {
                     visible = true;
-                    compact = false;
                 }
 
                 bool wasHidden = !card.gameObject.activeSelf;
@@ -298,7 +302,7 @@ namespace ProjectS.UI
                 if (wasHidden) card.ResetDisintegrate();
 
                 // 비활성 상태에서는 레이아웃 계산이 안 되므로, 켜 준 다음에 형태를 바꾼다.
-                card.SetCompact(compact);
+                card.SetCompact(foldedBody.Contains(quest));
                 card.SetExtraCount(extra);
             }
 
@@ -360,6 +364,14 @@ namespace ProjectS.UI
 
             if (!TryFindQuest(card, out QuestData quest)) return;
 
+            // 완료 요약 줄은 고정 대상이 아니다. 제목을 눌러도 여닫기가 되게 해 두면
+            // 접힌 완료 카드를 여는 길이 버튼 말고도 하나 더 생긴다(기획 요청 5번).
+            if (quest.IsReadyToTurnIn)
+            {
+                ToggleBodyFold(quest);
+                return;
+            }
+
             if (pinned.Remove(quest))
             {
                 quest.IsPinned = false;   // QuestData에 저장 → 씬 전환 후에도 유지
@@ -387,6 +399,35 @@ namespace ProjectS.UI
         // ---------- 카드 선택과 상세 팝업 ----------
 
         // 내용 영역 클릭: 같은 카드를 다시 누르면 닫고, 다른 카드를 누르면 이전 선택을 되돌린 뒤 새로 연다.
+        // 여닫기 버튼(제목 우측) 클릭: 그 카드의 본문만 접거나 편다. 트래커 접힘과는 완전히 별개다.
+        private void OnFoldClicked(QuestTrackerEntry card)
+        {
+            if (!isMouseMode) return;
+            if (!TryFindQuest(card, out QuestData quest)) return;
+
+            ToggleBodyFold(quest);
+        }
+
+        // 본문 접힘을 뒤집고 표시를 갱신한다. 접는 카드가 상세 팝업을 열어 둔 카드라면
+        // 본문이 사라져 팝업을 닫을 길도 함께 사라지므로 미리 닫는다.
+        private void ToggleBodyFold(QuestData quest)
+        {
+            bool folding = !foldedBody.Contains(quest);
+
+            if (folding)
+            {
+                foldedBody.Add(quest);
+                if (selected != null && cards.TryGetValue(quest, out QuestTrackerEntry card) && selected == card)
+                    CloseDetail();
+            }
+            else
+            {
+                foldedBody.Remove(quest);
+            }
+
+            ApplyCollapsedView();
+        }
+
         private void OnDetailClicked(QuestTrackerEntry card)
         {
             if (!isMouseMode) return;
@@ -473,6 +514,10 @@ namespace ProjectS.UI
             {
                 OnAccepted(quest);
 
+                // 이미 완료(반납 대기) 상태로 복원된 퀘스트는 연출을 거치지 않으므로
+                // 여기서 요약 줄 기본값(접힘)을 직접 맞춘다.
+                if (quest.IsReadyToTurnIn) foldedBody.Add(quest);
+
                 // 핀 복원: 핀은 QuestData(씬을 넘어 유지)에 저장되므로 새 트래커에서도 되살린다.
                 // maxPinned를 넘는 잉여 핀은 데이터에서도 풀어, 표시와 저장 상태가 어긋나지 않게 한다.
                 if (!quest.IsPinned) continue;
@@ -532,6 +577,7 @@ namespace ProjectS.UI
                     if (selected == card) CloseDetail();
                     card.TitleClicked -= OnTitleClicked;
                     card.DetailClicked -= OnDetailClicked;
+                    card.FoldClicked -= OnFoldClicked;
                     card.HeightChanged -= OnCardHeightChanged;
                     card.gameObject.SetActive(false);
                     Destroy(card.gameObject);
@@ -541,6 +587,7 @@ namespace ProjectS.UI
                 pinned.Remove(quest);
                 order.Remove(quest);
                 completing.Remove(quest);
+                foldedBody.Remove(quest);
             }
 
             if (window != null) window.Refresh();
@@ -567,7 +614,6 @@ namespace ProjectS.UI
             QuestTrackerEntry card = Instantiate(cardPrefab, content);
             card.SetTitle(quest.Title);
             card.SetProgress(BuildProgress(quest));
-            card.SetObjectiveCount(BuildObjectiveCount(quest));
             // 수락 직후는 보통 미완료라 체크는 꺼진다(목표 0개 같은 예외 대비해 실제 상태로 초기화).
             card.SetQuestCompletedCheck(quest.IsReadyToTurnIn);
             card.SetPinned(false);
@@ -575,6 +621,7 @@ namespace ProjectS.UI
 
             card.TitleClicked += OnTitleClicked;
             card.DetailClicked += OnDetailClicked;
+            card.FoldClicked += OnFoldClicked;
             card.HeightChanged += OnCardHeightChanged;
             cards.Add(quest, card);
             order.Add(quest);
@@ -592,7 +639,6 @@ namespace ProjectS.UI
             bool wasCompleted = card.IsCompleted;
 
             card.SetProgress(BuildProgress(quest));
-            card.SetObjectiveCount(BuildObjectiveCount(quest));
             // 모든 목표를 채워 '반납 대기(완료가능)'가 되면 체크를 켜고 제목이 녹색이 된다.
             // 실제 반납되면 OnCompleted가 카드를 지운다.
             card.SetQuestCompletedCheck(quest.IsReadyToTurnIn);
@@ -618,6 +664,9 @@ namespace ProjectS.UI
         // 분해가 끝나기 전에 정렬하면 카드가 도중에 위로 점프해 연출이 끊기므로 순서를 지킨다.
         private void PlayCompletionSequence(QuestData quest, QuestTrackerEntry card)
         {
+            // 완료 요약 줄은 '제목만' 보이는 상태로 시작한다. 여닫기 버튼(또는 제목 클릭)으로 다시 펼 수 있다.
+            foldedBody.Add(quest);
+
             completing.Add(quest);
             card.PlayDisintegrate(() => OnDisintegrated(quest, card));
         }
@@ -659,6 +708,7 @@ namespace ProjectS.UI
             pinned.Remove(quest);
             order.Remove(quest);
             completing.Remove(quest);
+            foldedBody.Remove(quest);
 
             if (card != null)
             {
@@ -667,6 +717,7 @@ namespace ProjectS.UI
                 // 클릭은 즉시 막고, HeightChanged는 연출이 슬롯을 줄이는 동안 창이 따라오도록 남겨 둔다.
                 card.TitleClicked -= OnTitleClicked;
                 card.DetailClicked -= OnDetailClicked;
+                card.FoldClicked -= OnFoldClicked;
 
                 // 완료 연출이 아직 돌고 있었다면 끊고 처음부터 다시 태운다.
                 // 그대로 두면 중복 실행 가드에 막혀 콜백이 오지 않아 카드가 영영 안 지워진다.
@@ -724,9 +775,10 @@ namespace ProjectS.UI
             return sb.ToString();
         }
 
-        // 내용 영역에 들어갈 본문. 목표 카운트는 제목 줄(BuildObjectiveCount)이 이미 보여주므로
-        // 여기는 "무엇을 하라"는 한 문장만 둔다. 목표별로 줄을 쌓으면 목표가 늘어나는 만큼 카드가 자라
-        // 카드 한 장이 트래커를 다 차지하게 된다.
+        // 내용 영역에 들어갈 본문. "무엇을 하라" 한 문장 + 마지막 줄에 진행 카운트를 둔다
+        // (제목 줄은 퀘스트 제목만 담기로 확정 — 2026-08. 진행 상황은 본문 소관이다).
+        // 목표별로 줄을 쌓지 않고 카운트를 한 줄로 모으는 이유는, 목표가 늘어나는 만큼 카드가 자라
+        // 카드 한 장이 트래커를 다 차지하는 것을 막기 위함이다.
         //
         // TrackerText가 비어 있으면 Description을 잘라서 쓴다. 기존 JSON을 한 번에 고치지 않고도
         // 넘어가되, 잘린 티(…)가 나야 데이터를 채워야 한다는 걸 눈으로 알 수 있다.
@@ -734,14 +786,22 @@ namespace ProjectS.UI
         {
             QuestTable definition = quest.Definition;
 
-            if (!string.IsNullOrEmpty(definition.TrackerText)) return definition.TrackerText;
+            string text = definition.TrackerText;
+            if (string.IsNullOrEmpty(text))
+            {
+                string description = definition.Description;
+                if (!string.IsNullOrEmpty(description))
+                {
+                    text = description.Length <= QuestTable.MaxTrackerTextLength
+                        ? description
+                        : description.Substring(0, QuestTable.MaxTrackerTextLength) + "…";
+                }
+            }
 
-            string description = definition.Description;
-            if (string.IsNullOrEmpty(description)) return string.Empty;
+            string counts = BuildObjectiveCount(quest);
+            if (string.IsNullOrEmpty(counts)) return text ?? string.Empty;
 
-            return description.Length <= QuestTable.MaxTrackerTextLength
-                ? description
-                : description.Substring(0, QuestTable.MaxTrackerTextLength) + "…";
+            return string.IsNullOrEmpty(text) ? counts : $"{text}\n{counts}";
         }
     }
 }
