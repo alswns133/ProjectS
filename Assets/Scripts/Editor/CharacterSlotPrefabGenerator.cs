@@ -17,6 +17,7 @@ namespace ProjectS.EditorTools
     public static class CharacterSlotPrefabGenerator
     {
         private const string PrefabPath = "Assets/Prefabs/UI/CharacterSlot.prefab";
+        private const string PrefabFolder = "Assets/Prefabs/UI";
 
         // 카드 크기. 높이는 선택 여부와 무관하게 고정이다 — 액션 영역은 내용만 바뀐다.
         // 6장 기준 6*120 + 간격 5*12 = 780으로, 타이틀·노트를 더해도 1080 안에 들어간다.
@@ -36,8 +37,6 @@ namespace ProjectS.EditorTools
         private static readonly Color DeleteColor = new Color(0.42f, 0.18f, 0.2f, 1f);
         private static readonly Color SubInfoColor = new Color(0.68f, 0.71f, 0.78f, 1f);
 
-        private static TMP_FontAsset font;
-
         [MenuItem("Tools/ProjectS/Create Character Slot Prefab")]
         public static void CreateCharacterSlotPrefab()
         {
@@ -50,8 +49,7 @@ namespace ProjectS.EditorTools
                 if (!overwrite) return;
             }
 
-            font = ResolveKoreanFont();
-            EnsureFolder("Assets/Prefabs/UI");
+            EntryUIBuilder.EnsureFolder(PrefabFolder);
 
             GameObject root = BuildCard();
 
@@ -70,13 +68,12 @@ namespace ProjectS.EditorTools
             GameObject root = new GameObject("CharacterSlot",
                 typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
 
-            RectTransform rt = root.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(CardWidth, CardHeight);
+            root.GetComponent<RectTransform>().sizeDelta = new Vector2(CardWidth, CardHeight);
 
             Image bg = root.GetComponent<Image>();
             bg.color = CardColor;
             bg.type = Image.Type.Sliced;
-            bg.sprite = BuiltinSprite("UI/Skin/UISprite.psd");
+            bg.sprite = EntryUIBuilder.UISprite;
 
             Button cardButton = root.GetComponent<Button>();
             cardButton.targetGraphic = bg;
@@ -100,7 +97,7 @@ namespace ProjectS.EditorTools
             Button delete = BuildDeleteButton(action);
 
             CharacterSlotView view = root.AddComponent<CharacterSlotView>();
-            Wire(view,
+            EntryUIBuilder.Wire(view,
                 ("cardButton", cardButton),
                 ("selectedFrame", frame),
                 ("portrait", portrait),
@@ -125,16 +122,10 @@ namespace ProjectS.EditorTools
         // 선택 강조 테두리. Sliced + fillCenter=false 라 가운데가 뚫려 카드 내용을 가리지 않는다.
         private static Image BuildSelectedFrame(Transform parent)
         {
-            GameObject go = new GameObject("SelectedFrame", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            Fill(go.GetComponent<RectTransform>());
-
-            Image img = go.GetComponent<Image>();
-            img.sprite = BuiltinSprite("UI/Skin/UISprite.psd");
+            Image img = EntryUIBuilder.CreateFullScreenImage(parent, "SelectedFrame", FrameColor, false);
+            img.sprite = EntryUIBuilder.UISprite;
             img.type = Image.Type.Sliced;
             img.fillCenter = false;
-            img.color = FrameColor;
-            img.raycastTarget = false;
             return img;
         }
 
@@ -157,7 +148,7 @@ namespace ProjectS.EditorTools
 
         private static TextMeshProUGUI BuildInfoText(Transform parent)
         {
-            TextMeshProUGUI tmp = CreateTMP(parent, "InfoText", "Lv.12  캐릭터A", 24f);
+            TextMeshProUGUI tmp = EntryUIBuilder.CreateTMP(parent, "InfoText", "Lv.12  캐릭터A", 24f);
             tmp.alignment = TextAlignmentOptions.MidlineLeft;
             tmp.color = Color.white;
 
@@ -165,26 +156,22 @@ namespace ProjectS.EditorTools
             tmp.enableWordWrapping = false;
             tmp.overflowMode = TextOverflowModes.Ellipsis;
 
-            RectTransform rt = tmp.rectTransform;
-            rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
-            rt.offsetMin = new Vector2(80f, -50f);
-            rt.offsetMax = new Vector2(-12f, -18f);
+            // 초상화(왼쪽 56 + 여백) 오른쪽에 붙인다.
+            EntryUIBuilder.StretchTop(tmp.rectTransform, -50f, -18f);
+            tmp.rectTransform.offsetMin = new Vector2(80f, -50f);
+            tmp.rectTransform.offsetMax = new Vector2(-12f, -18f);
             return tmp;
         }
 
         private static TextMeshProUGUI BuildEmptyLabel(Transform parent)
         {
-            TextMeshProUGUI tmp = CreateTMP(parent, "EmptyLabel", "+ 신규 캐릭터", 24f);
+            TextMeshProUGUI tmp = EntryUIBuilder.CreateTMP(parent, "EmptyLabel", "+ 신규 캐릭터", 24f);
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = new Color(0.75f, 0.78f, 0.85f, 1f);
 
-            RectTransform rt = tmp.rectTransform;
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(12f, 12f);
-            rt.offsetMax = new Vector2(-12f, -12f);
+            EntryUIBuilder.Fill(tmp.rectTransform);
+            tmp.rectTransform.offsetMin = new Vector2(12f, 12f);
+            tmp.rectTransform.offsetMax = new Vector2(-12f, -12f);
             return tmp;
         }
 
@@ -192,13 +179,7 @@ namespace ProjectS.EditorTools
         {
             GameObject go = new GameObject("Divider", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(parent, false);
-
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(1f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-            rt.offsetMin = new Vector2(12f, DividerFromBottom);
-            rt.offsetMax = new Vector2(-12f, DividerFromBottom + 1f);
+            EntryUIBuilder.StretchBottom(go.GetComponent<RectTransform>(), DividerFromBottom, DividerFromBottom + 1f, 12f);
 
             Image img = go.GetComponent<Image>();
             img.color = DividerColor;
@@ -213,28 +194,24 @@ namespace ProjectS.EditorTools
             go.transform.SetParent(parent, false);
 
             RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(1f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-            rt.offsetMin = new Vector2(12f, ActionBottom);
-            rt.offsetMax = new Vector2(-12f, ActionTop);
+            EntryUIBuilder.StretchBottom(rt, ActionBottom, ActionTop, 12f);
             return rt;
         }
 
         private static TextMeshProUGUI BuildSubInfoText(Transform parent)
         {
-            TextMeshProUGUI tmp = CreateTMP(parent, "SubInfoText", "전사 · 시작 마을", 18f);
+            TextMeshProUGUI tmp = EntryUIBuilder.CreateTMP(parent, "SubInfoText", "전사 · 시작 마을", 18f);
             tmp.alignment = TextAlignmentOptions.MidlineLeft;
             tmp.color = SubInfoColor;
             tmp.enableWordWrapping = false;
             tmp.overflowMode = TextOverflowModes.Ellipsis;
-            Fill(tmp.rectTransform);
+            EntryUIBuilder.Fill(tmp.rectTransform);
             return tmp;
         }
 
         private static Button BuildStartButton(Transform parent)
         {
-            Button btn = CreateButton(parent, "StartButton", "게임 시작 [ENTER]", 20f, StartColor);
+            Button btn = EntryUIBuilder.CreateButton(parent, "StartButton", "게임 시작 [ENTER]", 20f, StartColor).button;
 
             RectTransform rt = btn.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
@@ -246,7 +223,7 @@ namespace ProjectS.EditorTools
 
         private static Button BuildDeleteButton(Transform parent)
         {
-            Button btn = CreateButton(parent, "DeleteButton", "×", 22f, DeleteColor);
+            Button btn = EntryUIBuilder.CreateButton(parent, "DeleteButton", "×", 22f, DeleteColor).button;
 
             RectTransform rt = btn.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = new Vector2(1f, 0.5f);
@@ -254,100 +231,6 @@ namespace ProjectS.EditorTools
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = new Vector2(36f, 30f);
             return btn;
-        }
-
-        // ── 유틸 ───────────────────────────────────────────────────
-
-        private static Button CreateButton(Transform parent, string name, string label, float fontSize, Color color)
-        {
-            GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(parent, false);
-
-            Image img = go.GetComponent<Image>();
-            img.sprite = BuiltinSprite("UI/Skin/UISprite.psd");
-            img.type = Image.Type.Sliced;
-            img.color = color;
-
-            Button btn = go.GetComponent<Button>();
-            btn.targetGraphic = img;
-
-            TextMeshProUGUI text = CreateTMP(go.transform, "Text", label, fontSize);
-            text.alignment = TextAlignmentOptions.Center;
-            text.color = Color.white;
-            Fill(text.rectTransform);
-
-            return btn;
-        }
-
-        private static TextMeshProUGUI CreateTMP(Transform parent, string name, string content, float fontSize)
-        {
-            GameObject go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
-            go.transform.SetParent(parent, false);
-
-            TextMeshProUGUI tmp = go.GetComponent<TextMeshProUGUI>();
-            tmp.text = content;
-            tmp.fontSize = fontSize;
-            tmp.raycastTarget = false;
-            if (font != null) tmp.font = font;
-            else if (TMP_Settings.defaultFontAsset != null) tmp.font = TMP_Settings.defaultFontAsset;
-            return tmp;
-        }
-
-        private static void Fill(RectTransform rt)
-        {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-        }
-
-        private static Sprite BuiltinSprite(string path)
-        {
-            return AssetDatabase.GetBuiltinExtraResource<Sprite>(path);
-        }
-
-        private static void EnsureFolder(string folder)
-        {
-            if (AssetDatabase.IsValidFolder(folder)) return;
-
-            string parent = System.IO.Path.GetDirectoryName(folder).Replace('\\', '/');
-            string leaf = System.IO.Path.GetFileName(folder);
-            EnsureFolder(parent);
-            AssetDatabase.CreateFolder(parent, leaf);
-        }
-
-        // 프로젝트의 한글 TMP 폰트(Paperlogy)를 찾는다. 없으면 기본 폰트로 떨어져 한글이 깨질 수 있다.
-        private static TMP_FontAsset ResolveKoreanFont()
-        {
-            const string target = "Paperlogy-5Medium SDF";
-            string[] guids = AssetDatabase.FindAssets("t:TMP_FontAsset");
-
-            foreach (string guid in guids)
-            {
-                TMP_FontAsset asset = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset != null && asset.name == target) return asset;
-            }
-            foreach (string guid in guids)
-            {
-                TMP_FontAsset asset = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset != null && asset.name.Contains("Paperlogy")) return asset;
-            }
-
-            Debug.LogWarning("[CharacterSlotPrefabGenerator] Paperlogy TMP 폰트를 못 찾아 기본 폰트를 씁니다. 한글이 깨지면 폰트를 지정하세요.");
-            return TMP_Settings.defaultFontAsset;
-        }
-
-        // private [SerializeField] 참조를 SerializedObject로 연결한다(필드를 public으로 열지 않기 위함).
-        private static void Wire(Component comp, params (string prop, Object value)[] refs)
-        {
-            SerializedObject so = new SerializedObject(comp);
-            foreach ((string prop, Object value) in refs)
-            {
-                SerializedProperty p = so.FindProperty(prop);
-                if (p != null) p.objectReferenceValue = value;
-                else Debug.LogWarning($"[CharacterSlotPrefabGenerator] 필드를 못 찾음: {prop}");
-            }
-            so.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }
