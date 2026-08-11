@@ -127,6 +127,7 @@ namespace ProjectS.UI
             while (slots.Count < InventoryManager.Capacity)
             {
                 InventoryItemSlot slot = Instantiate(slotPrefab, slotRoot);
+                slot.SetGridIndex(slots.Count);   // 리스트 위치 = 격자 셀 인덱스(고정). 장비 드래그 해제의 목적지로 쓰인다.
                 slot.SetRightClickHandler(OnSlotRightClicked);
                 slot.SetDropHandler(OnSlotDropped);
                 slots.Add(slot);
@@ -180,11 +181,13 @@ namespace ProjectS.UI
             if (IsVisible) Rebuild();
         }
 
-        // 소비품 슬롯을 우클릭하면 커서 위치에 컨텍스트 메뉴(등록1/등록2/사용)를 연다.
-        // 장비·재료 우클릭은 후속(장착/버리기)이라 지금은 무시한다. (좌클릭은 슬롯이 드래그로 처리)
+        // 슬롯을 우클릭하면 커서 위치에 컨텍스트 메뉴를 연다 — 장비는 [장착][파괴], 소비품은 [등록1][등록2][사용][파괴].
+        // 재료(비소비 스택)는 아직 메뉴가 없다. (좌클릭은 슬롯이 드래그로 처리)
         private void OnSlotRightClicked(InventoryItemSlot slot, PointerEventData eventData)
         {
-            if (slot.Stack != null && slot.Stack.IsConsumable)
+            if (slot.Equipment != null)
+                ItemContextMenu.Instance?.Show(slot.Equipment, eventData.position);
+            else if (slot.Stack != null && slot.Stack.IsConsumable)
                 ItemContextMenu.Instance?.Show(slot.Stack, eventData.position);
         }
 

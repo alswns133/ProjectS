@@ -18,6 +18,13 @@ namespace ProjectS.Data
         /// <summary>아이템 레벨이자 요구 레벨(5단위). 소비품·재료는 0(제한 없음).</summary>
         public int Level;
 
+        /// <summary>
+        /// 이 아이템이 주로 드랍되는 던전 ID. 퀘스트 나침반이 Collect(수집) 목표를 "그 아이템이 나오는 던전"으로
+        /// 안내하는 데 쓴다(Kill 목표가 몬스터의 DungeonId를 쓰는 것과 같은 결). 0이면 소스 미지정 —
+        /// 나침반은 이 경우 해당 목표를 안내하지 않는다(잘못된 방향을 가리키느니 숨긴다).
+        /// </summary>
+        public int SourceDungeonId;
+
         /// <summary>아이콘 어드레서블 주소. 프리팹이 아니라 스프라이트 주소다.</summary>
         public string IconAddress;
 

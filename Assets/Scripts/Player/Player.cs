@@ -475,11 +475,14 @@ namespace ProjectS.Players
                 // 대시공격→스킬처럼 연계된다. 그래서 IsMovementLocked가 아니라 IsCastingSkill을 게이트로 쓴다.
                 if (Combat.IsCastingSkill) return;
 
-                // 평타 캔슬 창 판정. Combat.InCombo(수동 추적 콤보 플래그) 대신 IsInAttackMotion()
-                // (태그 기반)을 쓴다 — InCombo는 일반 3콤보 진입(OnAttackStart Animation Event)에서만
-                // 켜져서, 그 이벤트가 없는 Get_Up_Attack(기상 공격) 중에는 켜지지 않는다.
-                // IsInAttackMotion()은 Attack 태그가 붙은 State면 전부 잡으므로 그 구멍이 없다.
-                if (IsInAttackMotion() && !Combat.ComboCancelWindowOpen) return;
+                // 평타 콤보 도중 스킬 입력은 캔슬 창(진행도 게이트)을 기다리지 않고, 아무 프레임에서나
+                // 즉시 평타를 하드 캔슬하고 스킬로 넘어간다(기획 확정 2026-08-10 — 이쪽이 손맛이 산다).
+                // 아래 줄이 예전의 진행도 게이트다: 캔슬 창(AttackCancelBehaviour)이 열려야만 스킬로
+                // 이어지게 하던 제한인데, 하드 캔슬을 위해 비활성화했다. 되돌리려면 이 줄을 살리면 된다.
+                //   (하드 캔슬 대상은 평타뿐이다. 강공격·대시공격·점프공격은 IsCastingSkill을 켜므로
+                //    위 476줄에서 여전히 막히고, 스킬→스킬 캔슬도 같은 이유로 막힌다.)
+                //if (IsInAttackMotion() && !Combat.ComboCancelWindowOpen) return;
+
                 if (!Movement.IsEffectivelyGrounded()) return;                // 공중 스킬 없음(기획)
             }
             else
