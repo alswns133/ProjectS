@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Core;
@@ -458,6 +458,44 @@ namespace ProjectS.Managers
             PlayerSaveService.MarkDirty();
         }
 
+        // ---------- 파괴(버리기) ----------
+
+        /// <summary>
+        /// 가방의 장비 한 점을 파괴한다(우클릭 컨텍스트 메뉴 → 확인 팝업을 거친 뒤 호출한다).
+        /// 격자에서 제거하고 <see cref="InventoryEvents.OnItemRemoved"/>·<see cref="InventoryEvents.OnInventoryChanged"/>를 발행한다.
+        /// 강화·옵션이 붙어 있어도 복구할 수 없는 의도적 행동이라, 오토세이브를 기다리지 않고 즉시 저장(SaveNow)으로 커밋한다
+        /// (크래시로 파괴가 되살아나지 않게 함).
+        /// </summary>
+        /// <param name="instance">파괴할 장비 인스턴스(가방에 있던 것). 착용 중이거나 이미 사라진 인스턴스면 아무 일도 하지 않는다.</param>
+        /// <returns>실제로 파괴했으면 true</returns>
+        public bool DiscardEquipment(EquipmentInstance instance)
+        {
+            if (instance?.Item == null) return false;
+            if (!RemoveFromGrid(equipGrid, instance)) return false;   // 가방에 없음(착용 중/이미 파괴됨)
+
+            InventoryEvents.FireItemRemoved(instance.Item);
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();
+            return true;
+        }
+
+        /// <summary>
+        /// 소모품·재료 스택을 통째로 파괴한다(우클릭 컨텍스트 메뉴 → 확인 팝업을 거친 뒤 호출한다).
+        /// 셀을 비우고 변경을 발행한다. 파괴는 의도적·비가역 행동이라 즉시 저장(SaveNow)으로 커밋한다.
+        /// </summary>
+        /// <param name="stack">파괴할 스택(가방에 있던 것). 이미 사라진 스택이면 아무 일도 하지 않는다.</param>
+        /// <returns>실제로 파괴했으면 true</returns>
+        public bool DiscardStack(ItemStack stack)
+        {
+            if (stack?.Item == null) return false;
+            if (!RemoveFromGrid(consumeGrid, stack)) return false;
+
+            InventoryEvents.FireItemRemoved(stack.Item);
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();
+            return true;
+        }
+
         // ---------- 장착 ----------
 
         /// <summary>지정 부위에 착용 중인 장비(없으면 null).</summary>
@@ -496,23 +534,50 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
-        /// 지정 부위의 장비를 해제해 가방으로 되돌린다. 가방이 가득 차 있으면 해제하지 않는다.
-        /// 성공 시 스탯 재계산·<see cref="InventoryEvents.OnItemUnequipped"/> 발행.
+        /// 지정 부위의 장비를 해제해 가방으로 되돌린다(장비창→인벤 드래그·클릭 해제 공통).
+        /// <paramref name="targetIndex"/> 셀 상태에 따라 가른다:
+        /// <list type="bullet">
+        /// <item>비어 있으면 → 그 자리에 놓는다.</item>
+        /// <item>이 부위로 착용 가능한 장비가 들어 있으면 → <b>맞바꾼다</b>(그 장비를 착용하고 착용 중이던 것을 그 셀에 둠 —
+        ///       인벤끼리 드롭 swap과 같은 결. net 0이라 가방이 가득 차 있어도 가능).</item>
+        /// <item>맞바꿀 수 없는 다른 부위 장비가 들어 있거나 -1이면 → 첫 빈 셀에 놓는다(둘 곳이 없으면 실패).</item>
+        /// </list>
+        /// 성공 시 스탯 재계산·<see cref="InventoryEvents.OnItemUnequipped"/>(스왑이면 <see cref="InventoryEvents.OnItemEquipped"/>도) 발행.
         /// </summary>
         /// <param name="slot">해제할 부위</param>
-        /// <returns>해제에 성공했으면 true</returns>
-        public bool Unequip(EquipSlot slot)
+        /// <param name="targetIndex">되돌릴 가방 격자 셀(드래그로 놓은 슬롯). 기본 -1이면 첫 빈 셀(클릭 해제 경로).</param>
+        /// <returns>해제(또는 스왑)에 성공했으면 true</returns>
+        public bool Unequip(EquipSlot slot, int targetIndex = -1)
         {
             if (!equipped.TryGetValue(slot, out EquipmentInstance instance) || instance == null) return false;
-            if (FirstEmpty(equipGrid) < 0) return false;   // 가방 가득 → 해제 불가
 
-            equipped[slot] = null;
-            PlaceAt(equipGrid, -1, instance);
+            // 대상 셀에 이 부위로 착용 가능한 장비가 있으면 맞바꾼다(무기는 직업 제한도 만족해야 함).
+            EquipmentInstance target = GetEquipmentAt(targetIndex);
+            bool canSwap = target?.Equipment != null
+                && target.Equipment.EquipSlot == slot
+                && (slot != EquipSlot.Weapon || CanUseWeapon(target.Equipment.WeaponType));
 
-            InventoryEvents.FireItemUnequipped(instance.Item);
+            if (canSwap)
+            {
+                equipGrid[targetIndex] = instance;   // 착용 중이던 것 → 놓은 셀
+                equipped[slot] = target;             // 놓은 셀의 장비 → 착용
+
+                InventoryEvents.FireItemUnequipped(instance.Item);
+                InventoryEvents.FireItemEquipped(target.Item);
+            }
+            else
+            {
+                if (FirstEmpty(equipGrid) < 0) return false;   // 가방 가득 → 해제 불가
+
+                equipped[slot] = null;
+                PlaceAt(equipGrid, targetIndex, instance);   // 빈 셀이면 그 자리, 아니면 첫 빈 셀
+
+                InventoryEvents.FireItemUnequipped(instance.Item);
+            }
+
             InventoryEvents.FireInventoryChanged();
             RecomputeEquipmentStats();
-            PlayerSaveService.SaveNow();   // 해제도 즉시 커밋
+            PlayerSaveService.SaveNow();   // 해제·스왑은 의도적 행동 → 즉시 커밋
             return true;
         }
 
@@ -560,6 +625,10 @@ namespace ProjectS.Managers
 
             Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
             if (player == null) return false;
+
+            if (player.Stats.IsDead) return false; // 죽은 상태 → 사용 안 함
+
+            if (player.Stats.CurrentHp == player.Stats.MaxHp) return false;   // 체력 만땅 → 사용 안 함
 
             ConsumableData data = stack.Consumable;
             if (data.DurationSec > 0f)
@@ -691,10 +760,12 @@ namespace ProjectS.Managers
             else Debug.LogWarning("[Inventory] 격자가 가득 차 아이템을 배치하지 못함");
         }
 
-        private static void RemoveFromGrid<T>(T[] grid, T item) where T : class
+        // 격자에서 해당 인스턴스를 찾아 비운다. 실제로 지웠으면 true(파괴 경로가 헛이벤트를 막는 데 쓴다).
+        private static bool RemoveFromGrid<T>(T[] grid, T item) where T : class
         {
             for (int i = 0; i < grid.Length; i++)
-                if (ReferenceEquals(grid[i], item)) { grid[i] = null; return; }
+                if (ReferenceEquals(grid[i], item)) { grid[i] = null; return true; }
+            return false;
         }
 
         private static void SwapCells<T>(T[] grid, int a, int b) where T : class

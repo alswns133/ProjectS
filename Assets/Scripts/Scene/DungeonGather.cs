@@ -8,8 +8,16 @@ using ProjectS.UI;
 
 public class DungeonGather : ProjectS.Scenes.BaseScene
 {
+    [Tooltip("직접 씬 테스트용 폴백 던전 ID. 실제 진입은 GameSession.SelectedDungeonId(선택/생성 시 세팅)를 우선한다.")]
+    [SerializeField] private int dungeonId;
+
     public override void Enter()
     {
+        // 던전은 런타임 자동 생성이라 씬 컨트롤러가 인스펙터로 던전 ID를 알 수 없다. 던전 선택/생성 코드가 세션에
+        // 실어둔 값을 읽어 현재 던전 표식을 세팅한다(나침반의 '목표 던전 도착' 판정 기준). 세션이 비면 인스펙터 폴백(직접 씬 테스트).
+        int currentDungeonId = GameSession.SelectedDungeonId != 0 ? GameSession.SelectedDungeonId : dungeonId;
+        ProjectS.Scenes.DungeonContext.SetDungeon(currentDungeonId);
+
         UIManager.Instance.ShowPanel<HUDPanel>();
 
         // 지속 플레이어를 이 씬 스폰 지점으로 옮겨 활성화한 뒤, 던전 모드(전투 on + 던전 컨트롤러)로 전환.
@@ -41,6 +49,9 @@ public class DungeonGather : ProjectS.Scenes.BaseScene
 
     public override void Exit()
     {
+        // 이 던전을 떠나므로 현재 던전 표식을 지운다(다음 씬이 마을이면 목표 안내가 다시 게이트로 돌아간다).
+        ProjectS.Scenes.DungeonContext.ClearDungeon();
+
         // 씬 전환 로딩이 도는 동안(던전 씬은 아직 언로드 전) 몬스터가 이미 숨겨진 플레이어의
         // 마지막 위치로 계속 이동하는 것을 막는다. 곧 씬과 함께 파괴되지만, 로딩 화면 사이 잔상 이동을 없앤다.
         foreach (Enemy enemy in Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None))
@@ -52,7 +63,7 @@ public class DungeonGather : ProjectS.Scenes.BaseScene
 
     public override void Initialize()
     {
-
+        dungeonId = 1;
     }
 
     public override void Progress(float progress)
