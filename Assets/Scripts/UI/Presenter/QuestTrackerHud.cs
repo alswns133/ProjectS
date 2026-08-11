@@ -87,6 +87,9 @@ namespace ProjectS.UI
         private bool isMouseMode;
         private Player player;
 
+        // 나침반 방위각 계산용 카메라. 씬 전환으로 파괴되면 Unity가 null로 만들어 다음 프레임에 다시 잡는다.
+        private Camera navCamera;
+
         /// <summary>목록이 접혀 있는지.</summary>
         public bool IsCollapsed => window != null && window.IsCollapsed;
 
@@ -134,6 +137,62 @@ namespace ProjectS.UI
 
             toggleAction.started -= OnToggleShortcut;
             toggleAction.Disable();
+        }
+
+        // ---------- 나침반(방향/거리) ----------
+
+        // 카드마다 붙은 나침반 위젯에 매 프레임 방향/거리를 밀어 넣는다. 목록 구성은 이벤트로만 바꾸고,
+        // 여기서는 회전·거리 갱신만 한다(가벼움). 목표 해석은 QuestNavResolver가, 표시는 카드의 QuestCompassEntry가 맡는다.
+        private void LateUpdate()
+        {
+            if (cards.Count == 0) return;
+
+            Transform playerTransform = ResolvePlayerTransform();
+            Camera cam = ResolveNavCamera();
+            if (playerTransform == null || cam == null) return;
+
+            Vector3 from = playerTransform.position;
+            foreach (KeyValuePair<QuestData, QuestTrackerEntry> pair in cards)
+            {
+                QuestCompassEntry nav = pair.Value != null ? pair.Value.Compass : null;
+                if (nav == null) continue;   // 나침반 위젯이 없는 카드는 건너뛴다.
+
+                UpdateNav(pair.Key, nav, from, cam);
+            }
+        }
+
+        // 한 퀘스트의 목표를 해석해 나침반 표시를 정한다(3상태: 던전 내부 아이콘 / 방향 화살표+거리 / 숨김).
+        private void UpdateNav(QuestData quest, QuestCompassEntry nav, Vector3 from, Camera cam)
+        {
+            if (!QuestNavResolver.TryResolve(quest, from, out bool inTargetDungeon, out Vector3 worldPos))
+            {
+                nav.Hide();
+                return;
+            }
+
+            if (inTargetDungeon)
+            {
+                nav.ShowInDungeon();
+                return;
+            }
+
+            Vector3 to = worldPos - from;
+            to.y = 0f;   // 거리·방위각은 XZ 평면 기준(높이 차는 무시).
+            nav.ShowArrow(QuestNavResolver.BearingRelativeToCamera(to, cam), to.magnitude);
+        }
+
+        // 플레이어 Transform을 지연 확보한다(지속 플레이어라 한 번 잡으면 유지된다).
+        private Transform ResolvePlayerTransform()
+        {
+            if (player == null) player = FindAnyObjectByType<Player>();
+            return player != null ? player.transform : null;
+        }
+
+        // 메인 카메라를 지연 확보한다. 파괴되면 다음 호출에 다시 잡는다.
+        private Camera ResolveNavCamera()
+        {
+            if (navCamera == null) navCamera = Camera.main;
+            return navCamera;
         }
 
         // ---------- 단축키 ----------
