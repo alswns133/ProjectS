@@ -22,7 +22,7 @@ namespace ProjectS.Enemies
     // 미니맵 등록도 부품처럼 강제한다. MinimapMarkerSource의 type 기본값이 Enemy라
     // 몬스터는 자동 추가만으로 별도 설정 없이 미니맵에 잡힌다.
     [RequireComponent(typeof(MinimapMarkerSource))]
-    public class Enemy : MonoBehaviour
+    public class Enemy : MonoBehaviour, ILaunchable
     {
         // ── 순찰 ─────────────────────────────────────────────────────────
         // 순찰 지점. 비워두면 제자리 대기(Idle)로 시작하고,
@@ -125,6 +125,10 @@ namespace ProjectS.Enemies
         public EnemyAttackState AttackState { get; private set; }
         /// <summary>피격 경직과 피격 연출을 처리하는 상태.</summary>
         public EnemyHitState HitState { get; private set; }
+
+        /// <summary>하루 강공격에 맞으면 진입한다. (공중 런처 피격 상태)</summary>
+        public EnemyLaunchState LaunchState { get; private set; }
+
         /// <summary>사망 연출과 AI/충돌 비활성화를 처리하는 최종 상태.</summary>
         public EnemyDeadState DeadState { get; private set; }
 
@@ -192,6 +196,7 @@ namespace ProjectS.Enemies
             ChaseState = new EnemyChaseState(this);
             AttackState = new EnemyAttackState(this);
             HitState = new EnemyHitState(this);
+            LaunchState = new EnemyLaunchState(this);
             DeadState = new EnemyDeadState(this);
 
             // 군중 제어 개체값: 같은 프리팹이라도 교전 거리와 회피 방향이 미묘하게 달라진다.
@@ -369,20 +374,31 @@ namespace ProjectS.Enemies
         {
             // 피격 경직은 선택 기능이다. 사망/쿨다운 중에는 상태를 흔들지 않는다.
             // 데미지 적용과 사망 판정은 EnemyStats가 단일 소유하고, 여기는 "살아남은 뒤 반응"만 맡는다.
+            // 공중 런처 진행 중에는 지상 피격 모션으로 끊지 않는다. (데미지는 적용)
             if (!useHitStun) return;
             if (Stats.IsDead) return;
             if (StateMachine.Current == DeadState) return;
+            if (StateMachine.Current == LaunchState) return;
             if (Time.time < nextHitStunTime) return;
 
             nextHitStunTime = Time.time + hitStunCooldown;
             StateMachine.ChangeState(HitState);
         }
 
+        /// <summary> 공중에서 사망했는지 여부, DeadState가 Die/Die_Air를 고르는데 사용 </summary>
+        public bool DiedAirborne { get; private set; }
+
         /// <summary>
         /// 사망 진입점. EnemyStats가 HP 0을 확정한 직후 호출한다.
         /// DeadState는 다른 상태로 전환되지 않는 최종 상태다.
         /// </summary>
-        public void OnDied() => StateMachine.ChangeState(DeadState);
+        public void OnDied()
+        {
+            // ChangeState 전에 확인해야 이전 상태가 아직 Current에 남아 있다.
+            // 공중에서 사망했으면 DeadState가 Die_Air를, 아니면 일반 Die를 재생
+            DiedAirborne = StateMachine.Current == LaunchState;
+            StateMachine.ChangeState(DeadState);
+        }
 
         /// <summary>
         /// 씬 전환(예: 던전→마을)으로 이 몬스터가 곧 사라지기 직전, AI와 이동을 즉시 멈춘다.
@@ -470,6 +486,20 @@ namespace ProjectS.Enemies
             Gizmos.DrawWireSphere(origin, allyBlockRadius);
             Gizmos.DrawWireSphere(end, allyBlockRadius);
             Gizmos.DrawLine(origin, end);
+        }
+
+        public void Launch()
+        {
+            if (!useHitStun) return;
+            if (Stats.IsDead) return;
+            if (StateMachine.Current == DeadState) return;
+
+            // 이미 공중 상태라면 새로 진입하지 않고 상승을 처음부터 재시작
+            // 상태 머신은 같은 상태 재진입을 막으므로 재상승은 상태 내부 Relaunch로 처리
+            if (StateMachine.Current == LaunchState)
+                LaunchState.Relaunch();
+            else
+                StateMachine.ChangeState(LaunchState);
         }
     }
 }

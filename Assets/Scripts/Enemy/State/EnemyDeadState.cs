@@ -16,7 +16,12 @@ namespace ProjectS.Enemies
         {
             elapsed = 0f;
 
-            enemy.Animation.PlayDie();
+            // 공중에서 죽었으면 떠오르며 사망 클립이 재생, 아니면 지상 사망 클립 재생
+            if (enemy.DiedAirborne)
+                enemy.Animation.PlayDieAirContinuing(); // Hit_Air 모션의 진행을 이어받아 재생
+            else
+                enemy.Animation.PlayDie();
+
             enemy.Effects?.Play(EnemyEffects.EffectCue.Death);
 
             // 사망 후 추가 피격이나 물리 충돌이 일어나지 않도록 이동과 충돌을 모두 끈다.

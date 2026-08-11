@@ -34,6 +34,14 @@
         private NavMeshAgent agent;
         private NavMeshPath path;
 
+        // 공중 런처 동안 클립 루트모션을 위치해 직접 적용하기 위한 Animator 참조
+        // EnemyAnimation과 별개로 캐싱 (루트모션 출력을 읽는 용도)
+        private Animator animator;
+
+        // true인 동안에만 OnAnimatormove가 루트모션을 위치에 더한다 (공중에 떠 있는 구간)
+        // 평소 이동은 NavMeshAgent가 위치를 소유하므로 꺼져 있으면 루트모션을 무시
+        private bool useRootMotion;
+
         // 발견 대시처럼 일시적으로 속도를 바꾼 뒤 원래 값으로 되돌리기 위한 기준 속도.
         // NavMeshAgent의 기본 speed는 에디터 튜닝 값이므로 Awake에서 보관한다.
         private float baseSpeed;
@@ -57,6 +65,7 @@
             agent = GetComponent<NavMeshAgent>();
             path = new NavMeshPath();
             baseSpeed = agent.speed;
+            animator = GetComponent<Animator>();
 
             // Random.Range(int)는 max가 배타적이므로 +1로 최댓값도 포함시킨다.
             agent.avoidancePriority = Random.Range(
@@ -168,6 +177,43 @@
             // DetectState가 끝날 때 반드시 호출해 추격/공격 상태가 원래 이동 속도를 쓰게 한다.
             if (agent == null) return;
             agent.speed = baseSpeed;
+        }
+
+        /// <summary>
+        /// 공중 런처 진입 - NavMeshAgent를 비활성화 후 위치 제어를 클립 루트모션에 넘김
+        /// 에이전트가 켜져 있으면 프레임 몸을 NavMesh 높이로 끌어내려 상승이 무효화 됨
+        /// </summary>
+        public void BeginRootMotion()
+        {
+            if (agent.enabled) agent.enabled = false;
+            useRootMotion = true;
+        }
+
+        /// <summary>
+        /// 착지 처리) 루트모션 적용을 끄고 현재 위치에서 가장 가까운 NavMesh 지점으로 에이전트를 복귀
+        /// Warp로 재배치하지 않으면 공중에서 옮겨간 위치가 NavMesh 밖이라 에이전트를 켜는 순간 경고 및 순간이동
+        /// sampleRadius는 착지점 주변에서 유효한 바닥을 찾는 검색 반경
+        /// </summary>
+        /// <param name="sampleRadius"></param>
+        public void EndRootMotionAndLand(float sampleRadius = 1.5f)
+        {
+            useRootMotion = false;
+
+            if (!agent.enabled) agent.enabled = true;
+
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+                agent.Warp(hit.position);
+        }
+
+        /// <summary>
+        /// 애니메이터가 매 프레임 호출 (루트모션 처리를 스크립트가 담당)
+        /// 공중 런처 구간에서만 클립의 이동량(deltaPosition)을 위치에 더해 몸을 띄운다.
+        /// 평소엔 useRootMotion이 false여서 무시, Idle/Walk/Attack 클립의 미세 루트모션이 위치에 새지 않는다.
+        /// </summary>
+        private void OnAnimatorMove()
+        {
+            if (!useRootMotion) return;
+            transform.position += animator.deltaPosition;
         }
 
         /// <summary>에이전트를 완전히 끈다. 사망 시 1회 호출하며 되돌리지 않는다.</summary>
