@@ -91,6 +91,7 @@ namespace ProjectS.Players
         // 실제 단계 확정은 OnAttackStart Animation Event에서 한다.
         [Header("현재 콤보")]
         [SerializeField] private int comboStep = 0;
+        [SerializeField] private int finisherStep = 3;
 
         // 스킬 입력은 1~4번이다(입력 액션 수, HUD 쿨타임 슬롯 수와 짝을 이룬다).
         // skillReadyTime[0]은 쓰지 않는 더미 슬롯.
@@ -145,6 +146,14 @@ namespace ProjectS.Players
         // "콤보 도중엔 캔슬 창이 열려야만 통과"를 판정할 때 Player가 읽는다.
         private bool inCombo;
         private bool comboCancelWindowOpen;
+
+        // 콤보 입력 창을 열고 닫는 상태
+        private bool comboWindowOpen;
+
+        /// <summary>
+        /// 콤보 입력 창이 열려 있는지. Player가 읽어야함
+        /// </summary>
+        public bool ComboWindowOpen => comboWindowOpen;
 
         /// <summary>
         /// 지금 평타 콤보 체인에 진입해 있는지. OnAttackStart(실제 타수 진입)에 켜지고,
@@ -613,7 +622,7 @@ namespace ProjectS.Players
         }
     #endif
 
-        public void OnAttackInput()
+        public bool OnAttackInput()
         {
             currentAction = CombatAction.Combo;
             attackBuffered = true;
@@ -624,7 +633,13 @@ namespace ProjectS.Players
             {
                 anim.PlayAttackTrigger();
                 attackBuffered = false;
+                return false;
             }
+
+            // 첫 타 이후 홀드, 선입력 콤보창이 열려있는 상태라면 공격을 이어간다.
+            if (comboWindowOpen)
+                return TryConsumeComboInput();
+            return false;
         }
 
         public void OnAttackStart(int step)
@@ -643,6 +658,7 @@ namespace ProjectS.Players
             // AttackCancelBehaviour가 자기 진행도로 다시 열게 한다(공격별 State 튜닝 원칙과 동일).
             inCombo = true;
             comboCancelWindowOpen = false;
+            comboWindowOpen = false;
 
             ComboStepStarted?.Invoke();
             DevLog.Log(comboStep);
@@ -652,6 +668,8 @@ namespace ProjectS.Players
         {
             anim.ResetAttackTrigger();
             attackBuffered = false;
+            // 버퍼 비울 때 콤보 창도 닫는다.
+            comboWindowOpen = false;
         }
 
         public void OnComboWindowOpen()
@@ -661,11 +679,30 @@ namespace ProjectS.Players
             // 시전 종료 직후 일반 공격이 저절로 나가는 것을 막는다.
             if (IsCastingSkill) return;
 
-            // 짧게 누른 입력과 계속 누르고 있는 입력을 같은 규칙으로 처리한다.
-            if (input.AttackHeld || attackBuffered)
-                anim.PlayAttackTrigger();
+            // 피니시는 창을 열지 않는다(다음 타 없음 → 유령 트리거 차단)
+            //if (comboStep >= finisherStep && !input.AttackHeld) return;
 
-            attackBuffered = false;
+            comboWindowOpen = true;
+
+            // 홀드, 선입력 즉시 발동
+            TryConsumeComboInput(); 
+        }
+
+        public bool TryConsumeComboInput()
+        {
+            if (!comboWindowOpen) return false;
+
+            if(input.AttackHeld || attackBuffered)
+            {
+                anim.PlayAttackTrigger();
+                attackBuffered = false;
+                // 소비하면 콤보 창을 닫아 중복을 방지한다.
+                comboWindowOpen = false;
+
+                return true;
+            }
+
+            return false;
         }
 
         public void ResetCombo()
@@ -676,9 +713,21 @@ namespace ProjectS.Players
             currentSkillNumber = 0;
             inCombo = false;
             comboCancelWindowOpen = false;
+            comboWindowOpen = false;
             SetSkillInvincibility(false);   // 로코모션 복귀 = 각성기 진짜 종료 → 무적 해제
             EndSkillCast();
             DevLog.Log(comboStep);
+        }
+
+        public void EndComboChain()
+        {
+            // 블렌드 완료(로코모션 완전 진입)에서 호출. 피니시(3타)로 끝났으면 하드 스톱.
+            bool wasFinisher = comboStep >= finisherStep;
+
+            ResetCombo();
+            OnComboWindowOpen();
+            //if (!wasFinisher)
+            //    OnComboWindowOpen();
         }
 
         /// <summary>
@@ -695,6 +744,7 @@ namespace ProjectS.Players
             currentSkillNumber = 0;
             inCombo = false;
             comboCancelWindowOpen = false;
+            comboWindowOpen = false;
             SetSkillInvincibility(false);   // 구르기·피격 등 강제 중단 시에도 각성기 무적을 반드시 내린다
             EndSkillCast();
             ClearAttackBuffer();
