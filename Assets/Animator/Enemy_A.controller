@@ -58,17 +58,17 @@ AnimatorStateMachine:
   m_ChildStates:
   - serializedVersion: 1
     m_State: {fileID: -1505219055764834298}
-    m_Position: {x: 300, y: -120, z: 0}
+    m_Position: {x: 250, y: -110, z: 0}
   m_ChildStateMachines:
   - serializedVersion: 1
     m_StateMachine: {fileID: 3101403784762926695}
-    m_Position: {x: 300, y: -200, z: 0}
+    m_Position: {x: 490, y: -210, z: 0}
   - serializedVersion: 1
     m_StateMachine: {fileID: -4000840081513987726}
-    m_Position: {x: 300, y: -40, z: 0}
+    m_Position: {x: 260, y: -10, z: 0}
   - serializedVersion: 1
     m_StateMachine: {fileID: -9210213529495457583}
-    m_Position: {x: 10, y: -260, z: 0}
+    m_Position: {x: -10, y: -30, z: 0}
   m_AnyStateTransitions:
   - {fileID: 4725703594384926647}
   - {fileID: -719099895162802787}
@@ -79,7 +79,7 @@ AnimatorStateMachine:
   m_EntryTransitions: []
   m_StateMachineTransitions: {}
   m_StateMachineBehaviours: []
-  m_AnyStatePosition: {x: 30, y: -180, z: 0}
+  m_AnyStatePosition: {x: -40, y: -250, z: 0}
   m_EntryPosition: {x: 30, y: -110, z: 0}
   m_ExitPosition: {x: 840, y: 220, z: 0}
   m_ParentStateMachinePosition: {x: 800, y: 20, z: 0}
@@ -93,18 +93,15 @@ AnimatorStateTransition:
   m_Name: 
   m_Conditions:
   - m_ConditionMode: 1
-    m_ConditionEvent: doAttack
+    m_ConditionEvent: doDetect
     m_EventTreshold: 0
-  - m_ConditionMode: 6
-    m_ConditionEvent: AttackIndex
-    m_EventTreshold: 1
   m_DstStateMachine: {fileID: 0}
   m_DstState: {fileID: -4377894075384450982}
   m_Solo: 0
   m_Mute: 0
   m_IsExit: 0
   serializedVersion: 3
-  m_TransitionDuration: 0.25
+  m_TransitionDuration: 0
   m_TransitionOffset: 0
   m_ExitTime: 0.75
   m_HasExitTime: 0
@@ -119,7 +116,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Attack2
+  m_Name: Detect
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -134,7 +131,7 @@ AnimatorState:
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
   m_Motion: {fileID: 7400000, guid: e3dc0afda69a9084bb93da74eaa34a9c, type: 2}
-  m_Tag: Attack
+  m_Tag: Detect
   m_SpeedParameter: 
   m_MirrorParameter: 
   m_CycleOffsetParameter: 
@@ -519,9 +516,6 @@ AnimatorStateTransition:
   m_Conditions:
   - m_ConditionMode: 1
     m_ConditionEvent: doDie
-    m_EventTreshold: 0
-  - m_ConditionMode: 6
-    m_ConditionEvent: DieIndex
     m_EventTreshold: 0
   m_DstStateMachine: {fileID: 0}
   m_DstState: {fileID: 3359966491900366767}

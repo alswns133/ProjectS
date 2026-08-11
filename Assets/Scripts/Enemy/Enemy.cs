@@ -273,6 +273,7 @@ namespace ProjectS.Enemies
         private void Update()
         {
             StateMachine.Update();
+            Debug.Log(StateMachine.Current);
         }
 
         /// <summary>
