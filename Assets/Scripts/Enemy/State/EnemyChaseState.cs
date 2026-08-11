@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Enemies
 {
@@ -12,7 +12,15 @@ namespace ProjectS.Enemies
 
         public override void Enter()
         {
+            enemy.Movement.SetMoveSpeed(enemy.ChaseSpeed);
+            enemy.Movement.SetAutoRotation(false);   // 추격 동안 회전은 코드가 소유(회전-먼저-이동)
             enemy.Movement.Resume();
+        }
+
+        public override void Exit()
+        {
+            // 추격을 벗어나면 자동 회전을 원복한다. 순찰/발견은 에이전트 자동 회전을 그대로 쓴다.
+            enemy.Movement.SetAutoRotation(true);
         }
 
         public override void Update()
@@ -55,7 +63,10 @@ namespace ProjectS.Enemies
             // 단 시야가 막혔을 때는 타겟 자체를 목적지로 삼는다 — 분산 교전 지점은 사거리 기준이라
             // 원거리 몬스터는 이미 그 거리에 서 있어 목적지에 도착한 채로 벽만 보고 멈춘다.
             enemy.Movement.SetDestination(canSee ? enemy.GetChaseDestination() : enemy.Target.position);
-            enemy.Animation.SetSpeed(enemy.Movement.CurrentSpeed);
+
+            // 많이 틀어져 있으면 제자리에서 먼저 돌고(정지 모션), 정렬되면 이동(이동 모션).
+            bool turning = enemy.Movement.MoveWithTurnGate();
+            enemy.Animation.SetSpeed(turning ? 0f : enemy.Movement.CurrentSpeed);
         }
     }
 }
