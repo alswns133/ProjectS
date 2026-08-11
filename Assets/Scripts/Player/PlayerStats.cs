@@ -109,6 +109,9 @@ namespace ProjectS.Players
         /// <summary>IDamageable. 방어도 = (기본 방어 + 장비 깡방) × (1 + 장비 방퍼). 때린 쪽이 읽어 경감 계산.</summary>
         public float Defense => (defense + equipStats.FlatDef) * (1f + equipStats.PercentDef);
 
+        /// <summary> 현재 HP </summary>
+        public int CurrentHp => currentHp;
+
         /// <summary>최대 HP = (기본 최대HP + 장비 깡체) × (1 + 장비 체퍼). HP 풀·표시·발행이 모두 이 값을 쓴다.</summary>
         public int MaxHp => Mathf.RoundToInt((maxHp + equipStats.FlatHp) * (1f + equipStats.PercentHp));
 

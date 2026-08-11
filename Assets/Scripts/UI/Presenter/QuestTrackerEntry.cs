@@ -98,6 +98,10 @@ namespace ProjectS.UI
         [SerializeField] private float duration = 0.18f;
         [SerializeField] private AnimationCurve ease = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
+        [Header("네비게이션(나침반)")]
+        [Tooltip("이 카드의 방향/거리 표시 위젯(카드 프리팹 안에 둔다). QuestTrackerHud가 매 프레임 갱신한다. 비우면 이 카드엔 나침반이 없다.")]
+        [SerializeField] private QuestCompassEntry compass;
+
         [Header("완료 분해 연출")]
         [Tooltip("카드가 파편으로 흩어지는 연출. 비워 두면 슬롯만 줄어들고 분해는 생략된다.")]
         [SerializeField] private QuestCardDisintegrateFx disintegrateFx;
@@ -151,6 +155,9 @@ namespace ProjectS.UI
 
         /// <summary>연결선을 그릴 기준이 되는 카드 본체의 RectTransform. 상세 팝업이 참조한다.</summary>
         public RectTransform Visual => visual;
+
+        /// <summary>이 카드의 방향/거리 나침반 위젯. 없으면 null(트래커가 매 프레임 여기에 방향/거리를 밀어 넣는다).</summary>
+        public QuestCompassEntry Compass => compass;
 
         private void Awake()
         {

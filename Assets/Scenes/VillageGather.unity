@@ -28667,13 +28667,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6157184900174134635, guid: b364e55e204cebb4e9e37641268ae103, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 175694431}
   m_SourcePrefab: {fileID: 100100000, guid: b364e55e204cebb4e9e37641268ae103, type: 3}
 --- !u!4 &175694429 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6789571884455782353, guid: b364e55e204cebb4e9e37641268ae103, type: 3}
   m_PrefabInstance: {fileID: 175694428}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &175694430 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6157184900174134635, guid: b364e55e204cebb4e9e37641268ae103, type: 3}
+  m_PrefabInstance: {fileID: 175694428}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &175694431
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 175694430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14e519fb626605640b3fb681535ba26f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.NPCs.QuestTurnInMarker
+  controller: {fileID: 0}
 --- !u!1 &176223436
 GameObject:
   m_ObjectHideFlags: 0
@@ -335552,6 +335573,7 @@ GameObject:
   - component: {fileID: 1887193699}
   - component: {fileID: 1887193701}
   - component: {fileID: 1887193700}
+  - component: {fileID: 1887193702}
   m_Layer: 7
   m_Name: DungeonGate
   m_TagString: Untagged
@@ -335608,6 +335630,19 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 2.5
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1887193702
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1887193698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c98a190c041bfa74eab59dc77688af21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Scenes.QuestGate
+  dungeonId: 1
 --- !u!1001 &1887251446
 PrefabInstance:
   m_ObjectHideFlags: 0
