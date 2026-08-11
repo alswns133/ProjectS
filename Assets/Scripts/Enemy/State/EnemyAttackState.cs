@@ -39,6 +39,13 @@ namespace ProjectS.Enemies
             enemy.Animation.SetSpeedImmediate(0f);
             if (enemy.Target != null) enemy.Movement.Face(enemy.Target.position);
 
+            // 공격 클립의 전방 루트모션을 위치에 반영해 대쉬 공격이 실제로 전진하게 한다.
+            // 전진 없는 제자리 공격 클립은 deltaPosition이 0이라 이 호출이 no-op이므로,
+            // 슬롯별로 켜고 끌 필요 없이 공격 상태 전체에서 켜도 안전하다.
+            enemy.Movement.BeginAttackRootMotion();
+            enemy.Animation.SetSpeedImmediate(0f);
+            if (enemy.Target != null) enemy.Movement.Face(enemy.Target.position);
+
             // 공격 선택과 쿨다운 소모는 Combat가 소유한다.
             // 상태는 "공격 시작"을 요청하고, 선택된 공격 번호만 Animation에 넘긴다.
             enemy.Combat.BeginAttack(enemy.DistanceToTarget());
@@ -71,6 +78,12 @@ namespace ProjectS.Enemies
             // 클립 길이를 인스펙터에 적지 않고 애니메이터 normalizedTime으로 종료를 판정한다.
             if (enemy.Animation.IsCurrentStateFinished() || elapsed >= MaxAttackTime)
                 enemy.StateMachine.ChangeState(enemy.ChaseState);
+        }
+
+        public override void Exit()
+        {
+            // 공격 대쉬 전진을 끈다. 피격/사망 등으로 공격이 중간에 끊겨도 루트모션이 남지 않게 한다.
+            enemy.Movement.EndAttackRootMotion();
         }
     }
 }

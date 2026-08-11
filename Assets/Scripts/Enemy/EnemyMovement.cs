@@ -31,6 +31,14 @@
         [SerializeField, Range(0, 99)] private int avoidancePriorityMin = 30;
         [SerializeField, Range(0, 99)] private int avoidancePriorityMax = 70;
 
+        [Header("회전")]
+        // 목적지 방향으로 도는 각속도(도/초). 크게 잡을수록 "홱 돌고 나서 이동"이 또렷해진다.
+        [SerializeField, Min(0f)] private float turnSpeed = 720f;
+
+        // 이 각도(도)보다 많이 틀어져 있으면 제자리에서 먼저 돌고, 그 안쪽이면 이동하며 돈다.
+        // 회전-먼저-이동을 만드는 문턱. 작으면 자주 멈춰 돌고, 크면 거의 이동하며 돈다.
+        [SerializeField, Range(0f, 180f)] private float moveTurnGateAngle = 45f;
+
         private NavMeshAgent agent;
         private NavMeshPath path;
 
@@ -41,6 +49,10 @@
         // true인 동안에만 OnAnimatormove가 루트모션을 위치에 더한다 (공중에 떠 있는 구간)
         // 평소 이동은 NavMeshAgent가 위치를 소유하므로 꺼져 있으면 루트모션을 무시
         private bool useRootMotion;
+
+        // true인 동안 OnAnimatorMove가 공격 클립의 수명 루트모션을 agent.move로 위치에 반영
+        // 대쉬는 에이전트를 켜둔 채 NavMesh에 클램프해야 하기 때문에 useRootMotion과 분리
+        private bool useAttackRootMotion;
 
         // 발견 대시처럼 일시적으로 속도를 바꾼 뒤 원래 값으로 되돌리기 위한 기준 속도.
         // NavMeshAgent의 기본 speed는 에디터 튜닝 값이므로 Awake에서 보관한다.
@@ -158,6 +170,44 @@
         }
 
         /// <summary>
+        /// NavMeshAgent의 자동 회전을 켜고 끈다. 회전을 코드가 직접 소유하는 구간(추격의 회전-먼저-이동,
+        /// 나중의 공격 조준)에서 끈다. 끄지 않으면 에이전트가 이동 방향으로 몸을 계속 돌려 코드 회전과 다툰다.
+        /// </summary>
+        public void SetAutoRotation(bool enabled)
+        {
+            if (agent != null) agent.updateRotation = enabled;
+        }
+
+        /// <summary>
+        /// 경로 방향으로 몸을 돌리며 이동한다. 많이 틀어져 있으면(moveTurnGateAngle 초과) 이동을 멈추고
+        /// 제자리에서 먼저 돌고, 정렬되면 이동을 재개한다("빠르게 회전 → 이동" 순서).
+        /// 자동 회전(updateRotation)을 끈 상태에서 호출해야 한다 — 안 그러면 에이전트 회전과 다툰다.
+        /// </summary>
+        /// <returns>제자리 회전 중이면 true(호출부가 이동 애니 대신 정지 모션을 쓰게 한다).</returns>
+        public bool MoveWithTurnGate()
+        {
+            if (!agent.enabled || !agent.isOnNavMesh) return false;
+
+            // 직선 타겟 방향이 아니라 '경로 상 다음 코너'로 돈다 → 벽을 우회하는 중에도 실제 이동 방향과 맞는다.
+            // steeringTarget은 isStopped여도 유효해, 멈춰 도는 동안에도 돌 방향을 잃지 않는다.
+            Vector3 dir = agent.steeringTarget - transform.position;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f) return false;
+
+            dir.Normalize();
+
+            // 게이트 판정은 '돌기 전' 각도로 한다. 그래야 이번 프레임 회전량과 무관하게 일관된다.
+            float angle = Vector3.Angle(transform.forward, dir);
+            bool turningInPlace = angle > moveTurnGateAngle;
+
+            Quaternion targetRot = Quaternion.LookRotation(dir);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, turnSpeed * Time.deltaTime);
+
+            agent.isStopped = turningInPlace;   // 크게 틀어져 있으면 이동 정지(회전만), 정렬되면 이동
+            return turningInPlace;
+        }
+
+        /// <summary>
         /// 기본 NavMeshAgent 속도에 배수를 적용한다.
         /// DetectState의 발견 대시처럼 짧게 속도를 바꾸는 상태에서만 사용한다.
         /// </summary>
@@ -180,6 +230,43 @@
         }
 
         /// <summary>
+        /// 이동 속도를 지정 값으로 고정한다. 상태별로 "순찰=Walk / 추격=Run"을 명확히 가르기 위해
+        /// PatrolState/ChaseState가 Enter에서 각자의 속도를 넣는다. baseSpeed(발견 대시 배수의 기준)는
+        /// 건드리지 않아 DetectState의 SetSpeedMultiplier와 독립적으로 동작한다.
+        /// </summary>
+        public void SetMoveSpeed(float speed)
+        {
+            if (agent == null) return;
+            agent.speed = Mathf.Max(0f, speed);
+        }
+
+        /// <summary>
+        /// 스폰 중심 반경 안에서 NavMesh 위의 무작위 지점을 하나 뽑는다. 순찰 배회 목적지에 쓴다.
+        /// 반경 안에 유효한 NavMesh가 없으면 false를 돌려 호출부가 안전하게 제자리 유지하게 한다.
+        /// 첫 표본이 NavMesh 밖일 수 있어 몇 번 재시도한다(밀집·좁은 통로에서도 목적지를 얻게).
+        /// </summary>
+        public bool TryGetRandomPatrolPoint(Vector3 center, float radius, out Vector3 result)
+        {
+            if (agent != null && radius > 0f)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    Vector2 offset = Random.insideUnitCircle * radius;
+                    Vector3 candidate = center + new Vector3(offset.x, 0f, offset.y);
+
+                    if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, radius, agent.areaMask))
+                    {
+                        result = hit.position;
+                        return true;
+                    }
+                }
+            }
+
+            result = center;
+            return false;
+        }
+
+        /// <summary>
         /// 공중 런처 진입 - NavMeshAgent를 비활성화 후 위치 제어를 클립 루트모션에 넘김
         /// 에이전트가 켜져 있으면 프레임 몸을 NavMesh 높이로 끌어내려 상승이 무효화 됨
         /// </summary>
@@ -188,6 +275,18 @@
             if (agent.enabled) agent.enabled = false;
             useRootMotion = true;
         }
+
+        /// <summary>
+        /// 공격 대쉬 시작. 이 구간 동안 OnAnimatorMove가 공격 클립의 수평 루트모션을 agent.Move로 적용해 전진시킨다.
+        /// 공중 런처(BeginRootMotion)와 달리 에이전트를 끄지 않는다 — NavMesh 클램프를 살려 대쉬가 벽/절벽을 넘지 않게 한다.
+        /// EnemyAttackState.Enter에서 켜고 Exit에서 반드시 끈다(피격/사망으로 끊겨도 전진이 남지 않게).
+        /// </summary>
+        public void BeginAttackRootMotion() => useAttackRootMotion = true;
+
+        /// <summary>
+        /// 공격 대쉬 종료. 루트모션 전진을 끈다. 끄지 않으면 이후 Idle/Walk 클립의 미세 루트모션이 위치에 샌다.
+        /// </summary>
+        public void EndAttackRootMotion() => useAttackRootMotion = false;
 
         /// <summary>
         /// 착지 처리) 루트모션 적용을 끄고 현재 위치에서 가장 가까운 NavMesh 지점으로 에이전트를 복귀
@@ -212,8 +311,21 @@
         /// </summary>
         private void OnAnimatorMove()
         {
-            if (!useRootMotion) return;
-            transform.position += animator.deltaPosition;
+            // 공중 런처: 에이전트를 끈 구간이라 위치를 직접 밀어 올린다(수직 포함).
+            if (useRootMotion)
+            {
+                transform.position += animator.deltaPosition;
+                return;
+            }
+
+            // 공격 대쉬: 에이전트를 켠 채 수평 이동량만 NavMesh에 클램프해 전진한다.
+            // agent.Move는 isStopped여도 동작하고, 델타를 NavMesh 위로 눌러 벽을 뚫거나 메시 밖으로 나가지 않게 한다.
+            if (useAttackRootMotion && agent.enabled && agent.isOnNavMesh)
+            {
+                Vector3 delta = animator.deltaPosition;
+                delta.y = 0f;   // 지상 대쉬라 수직 성분은 버린다(Y는 Bake Into Pose로 이미 제자리).
+                agent.Move(delta);
+            }
         }
 
         /// <summary>에이전트를 완전히 끈다. 사망 시 1회 호출하며 되돌리지 않는다.</summary>
