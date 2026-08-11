@@ -10,10 +10,11 @@ namespace ProjectS.UI
     /// 퀘스트 추적 목록(QuestList)의 카드 한 장. <see cref="QuestTrackerHud"/>가 퀘스트마다 하나씩 생성한다.
     ///
     /// 카드는 <b>제목 영역</b>과 <b>내용 영역</b>으로 나뉘고, 각각 누를 때 하는 일이 다르다.
-    ///   - 제목 영역: 고정(핀) 토글. 고정하면 제목 배경이 오렌지로 바뀌고, 트래커를 접어도 남는다.
-    ///   - 내용 영역: 상세 팝업 열기. 이때 카드가 세로로 접히면서 옆으로 튀어나오는 선택 연출이 걸린다.
-    /// 접힌 트래커에 남는 축소 형태는 별도 프리팹이 아니라 <see cref="SetCompact"/>로 내용 영역만 끈 모습이다
-    /// — 같은 카드를 재사용해야 고정/해제할 때 오브젝트가 갈아끼워지지 않고 제자리에서 바뀐다.
+    ///   - 제목 영역: 고정(핀) 토글(완료 요약 줄에서는 본문 여닫기). 고정하면 제목 배경이 오렌지가 되고,
+    ///     트래커를 접어도 남는다. 제목 줄에는 퀘스트 제목만 둔다(진행 카운트는 본문 마지막 줄).
+    ///   - 내용 영역: 상세 팝업 열기. 이때 카드가 옆으로 밀려 나오는 선택 연출이 걸린다(크기는 안 변한다).
+    /// 완료 요약 줄의 축소 형태는 별도 프리팹이 아니라 <see cref="SetCompact"/>로 내용 영역만 끈 모습이다
+    /// — 같은 카드를 재사용해야 여닫을 때 오브젝트가 갈아끼워지지 않고 제자리에서 바뀐다.
     ///
     /// <b>슬롯(이 컴포넌트가 붙은 루트)과 비주얼(자식)을 분리한 구조다.</b> Vertical Layout Group은
     /// 자식의 위치·크기를 매 리빌드마다 덮어쓰므로, 카드를 그 자리에서 움직이거나 키우는 연출은
@@ -38,8 +39,8 @@ namespace ProjectS.UI
         [Tooltip("선택 시 흐리게 만들기 위한 CanvasGroup. visual에 붙인다.")]
         [SerializeField] private CanvasGroup visualGroup;
 
-        [Tooltip("visual의 Content Size Fitter. 선택 연출이 카드 높이를 몰고 갈 동안 잠시 꺼야 한다(비우면 Awake에서 찾는다).")]
-        [SerializeField] private ContentSizeFitter visualFitter;
+        [Tooltip("카드 옆에 붙는 내비 박스. visual의 형제라(마스크·레이아웃 영향을 안 받도록) 선택 이동을 코드로 함께 태운다.")]
+        [SerializeField] private RectTransform navi;
 
         [Header("제목 영역 — 누르면 고정")]
         [Tooltip("제목 영역 전체를 덮는 버튼.")]
@@ -58,7 +59,18 @@ namespace ProjectS.UI
         [SerializeField] private Color completedColor = new Color(0.24f, 0.70f, 0.32f);
 
         [SerializeField] private TMP_Text titleText;            // 퀘스트 제목
-        [SerializeField] private TMP_Text objectiveCountText;   // 목표 개수("1/3"). 축소 형태에서도 남는다
+        // 제목 줄은 퀘스트 제목만 담는다(2026-08 확정 — 진행 카운트는 본문 마지막 줄로 이동).
+        // 프리팹에 남아 있는 옛 ObjectiveCount 오브젝트를 조용히 꺼 두기 위한 참조라 새로 연결할 필요는 없다.
+        [SerializeField] private TMP_Text objectiveCountText;
+
+        [Tooltip("본문을 여닫는 버튼. 제목 우측(옛 ObjectiveCount 자리)에 둔다. 트래커 접기와는 별개다.")]
+        [SerializeField] private Button foldButton;
+
+        [Tooltip("여닫기 화살표. 접히면 collapsedArrowZ만큼 회전한다(없어도 동작).")]
+        [SerializeField] private RectTransform foldArrow;
+
+        [SerializeField] private float expandedArrowZ = 0f;
+        [SerializeField] private float collapsedArrowZ = -90f;
         [SerializeField] private Toggle completedToggle;        // 완료 표시. 플레이어가 누르는 용도가 아니다
 
         [Tooltip("접힘 상태에서 완료 퀘스트를 한 줄로 요약할 때 나머지 개수를 보여줄 텍스트(\"+2\").")]
@@ -80,23 +92,20 @@ namespace ProjectS.UI
         [SerializeField] private int maxProgressLines = 2;
 
         [Header("선택 연출")]
-        [Tooltip("선택됐을 때 슬롯이 줄어들 높이. 카드가 세로로 접히는 정도를 정한다.")]
-        [SerializeField] private float selectedSlotHeight = 34f;
-
+        // 줄어드는(슬롯 축소·배율 축소) 효과는 기획 변경으로 제거했다(2026-08). 선택은 옆으로
+        // 밀려 나오는 이동 + 투명도만 쓴다 — 카드 크기가 변하지 않으므로 목록도 흐트러지지 않는다.
         [Tooltip("선택됐을 때 카드가 튀어나올 방향·거리(로컬 좌표). 팝업이 왼쪽에 뜨므로 보통 x는 음수.")]
         [SerializeField] private Vector2 selectedOffset = new Vector2(-95f, 0f);
-
-        // 1보다 크게 두면 카드가 아래 이웃 위로 겹치는데, 계층 순서는 이제 정렬(완료 퀘스트 최상단)이
-        // 소유하므로 겹친 카드를 위로 끌어올릴 수 없다. 그리는 순서까지 바꾸려면 비주얼에
-        // Canvas(Override Sorting) + GraphicRaycaster를 붙여 sortingOrder를 올려야 한다.
-        [Tooltip("선택됐을 때 카드 배율. 1보다 작으면 물러나는 느낌, 크면 튀어나오는 느낌(겹침 주의).")]
-        [SerializeField] private float selectedScale = 0.85f;
 
         [Tooltip("선택됐을 때 카드 투명도.")]
         [SerializeField] private float selectedAlpha = 0.75f;
 
         [SerializeField] private float duration = 0.18f;
         [SerializeField] private AnimationCurve ease = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+        [Header("네비게이션(나침반)")]
+        [Tooltip("이 카드의 방향/거리 표시 위젯(카드 프리팹 안에 둔다). QuestTrackerHud가 매 프레임 갱신한다. 비우면 이 카드엔 나침반이 없다.")]
+        [SerializeField] private QuestCompassEntry compass;
 
         [Header("완료 분해 연출")]
         [Tooltip("카드가 파편으로 흩어지는 연출. 비워 두면 슬롯만 줄어들고 분해는 생략된다.")]
@@ -119,6 +128,7 @@ namespace ProjectS.UI
         private float target;
         private float naturalHeight;   // 비주얼이 스스로 잰 높이(내용에 따라 변한다)
         private Vector2 basePosition;  // 평상시 비주얼 위치(프리팹에서 0이 아닐 수 있다)
+        private Vector2 naviBasePosition;
         private bool interactable = true;
         private bool fxDrivingHeight;   // 분해·등장 중에는 슬롯 높이의 주인이 연출로 넘어간다
         private Coroutine fxRoutine;    // 분해/등장 중복 실행 방지
@@ -130,6 +140,9 @@ namespace ProjectS.UI
 
         /// <summary>내용 영역이 눌렸을 때 발행. 상세 팝업 열기에 쓴다.</summary>
         public event Action<QuestTrackerEntry> DetailClicked;
+
+        /// <summary>여닫기 버튼이 눌렸을 때 발행. 본문 접힘 상태의 주인은 <see cref="QuestTrackerHud"/>다.</summary>
+        public event Action<QuestTrackerEntry> FoldClicked;
 
         /// <summary>슬롯 높이가 바뀌었음을 알린다. <see cref="QuestTrackerHud"/>가 창 갱신을 예약한다.</summary>
         public event Action HeightChanged;
@@ -152,16 +165,15 @@ namespace ProjectS.UI
         /// <summary>연결선을 그릴 기준이 되는 카드 본체의 RectTransform. 상세 팝업이 참조한다.</summary>
         public RectTransform Visual => visual;
 
+        /// <summary>이 카드의 방향/거리 나침반 위젯. 없으면 null(트래커가 매 프레임 여기에 방향/거리를 밀어 넣는다).</summary>
+        public QuestCompassEntry Compass => compass;
+
         private void Awake()
         {
             slot = GetComponent<LayoutElement>();
 
-            if (visual != null)
-            {
-                basePosition = visual.anchoredPosition;
-                // 인스펙터에 연결하지 않은 기존 프리팹도 그대로 동작하게 여기서 찾아 둔다.
-                if (visualFitter == null) visualFitter = visual.GetComponent<ContentSizeFitter>();
-            }
+            if (visual != null) basePosition = visual.anchoredPosition;
+            if (navi != null) naviBasePosition = navi.anchoredPosition;
 
             // 상태 표시 전용이라 클릭을 막는다. 눌러서 꺼버리면 표시가 실제 퀘스트 상태와 어긋난다.
             // (Toggle의 Transition을 None으로 둬야 비활성 색으로 어두워지지 않는다.)
@@ -172,6 +184,9 @@ namespace ProjectS.UI
             if (progressText != null) progressText.overflowMode = TextOverflowModes.Ellipsis;
             if (extraCountText != null) extraBaseColor = extraCountText.color;
 
+            // 제목 줄은 제목 전용이 됐다. 프리팹에 옛 카운트 오브젝트가 남아 있어도 빈 채로 보이지 않게 끈다.
+            if (objectiveCountText != null) objectiveCountText.gameObject.SetActive(false);
+
             ApplyTitleColor();
         }
 
@@ -179,12 +194,14 @@ namespace ProjectS.UI
         {
             if (titleButton != null) titleButton.onClick.AddListener(OnTitleClicked);
             if (detailButton != null) detailButton.onClick.AddListener(OnDetailClicked);
+            if (foldButton != null) foldButton.onClick.AddListener(OnFoldClicked);
         }
 
         private void OnDisable()
         {
             if (titleButton != null) titleButton.onClick.RemoveListener(OnTitleClicked);
             if (detailButton != null) detailButton.onClick.RemoveListener(OnDetailClicked);
+            if (foldButton != null) foldButton.onClick.RemoveListener(OnFoldClicked);
         }
 
         // ---------- 내용 ----------
@@ -195,17 +212,10 @@ namespace ProjectS.UI
             if (titleText != null) titleText.text = $"<color={TitleColorHex}>{title}</color>";
         }
 
-        /// <summary>진행 내용 텍스트를 갱신한다(목표 카운트가 바뀔 때마다).</summary>
+        /// <summary>진행 내용(설명+목표 카운트) 텍스트를 갱신한다(목표 카운트가 바뀔 때마다).</summary>
         public void SetProgress(string text)
         {
             if (progressText != null) progressText.text = text;
-        }
-
-        /// <summary>제목 줄에 표시할 목표 개수를 갱신한다. 축소 형태에서 유일하게 남는 진행 정보다.</summary>
-        /// <param name="text">"1/3" 같은 요약 문자열</param>
-        public void SetObjectiveCount(string text)
-        {
-            if (objectiveCountText != null) objectiveCountText.text = text;
         }
 
         /// <summary>
@@ -250,7 +260,10 @@ namespace ProjectS.UI
             LayoutRebuilder.ForceRebuildLayoutImmediate(visual);
 
             naturalHeight = LayoutUtility.GetPreferredHeight(visual);
-            Apply();
+
+            // 선택 연출은 더 이상 높이를 건드리지 않으므로 슬롯 높이는 여기서만 정해진다.
+            if (slot != null) slot.preferredHeight = naturalHeight;
+            HeightChanged?.Invoke();
         }
 
         // 진행 내용의 높이를 최대 줄 수로 자른다. LayoutElement는 Graphic(우선순위 0)보다 우선순위가 높아
@@ -293,6 +306,8 @@ namespace ProjectS.UI
         /// <summary>
         /// 축소(제목 줄만) 형태로 전환한다. 내용 영역을 끄면 Content Size Fitter가 카드 높이를 알아서 줄인다.
         /// 축소 상태에서는 내용 영역이 없으므로 상세 팝업도 열 수 없다.
+        /// 트래커 접힘과는 무관한 카드 개별 상태다 — 지금은 완료 요약 줄만 축소로 시작하고,
+        /// 제목을 눌러 펼치면 본문(과 팝업)에 접근할 수 있다(QuestTrackerHud가 토글을 관리).
         /// </summary>
         /// <param name="compact">true=축소</param>
         public void SetCompact(bool compact)
@@ -300,6 +315,9 @@ namespace ProjectS.UI
             IsCompact = compact;
 
             if (detailArea != null) detailArea.SetActive(!compact);
+            if (foldArrow != null)
+                foldArrow.localRotation = Quaternion.Euler(0f, 0f, compact ? collapsedArrowZ : expandedArrowZ);
+
             ApplyInteractable();
             MeasureNaturalHeight();
         }
@@ -307,10 +325,11 @@ namespace ProjectS.UI
         // ---------- 선택 연출 ----------
 
         /// <summary>
-        /// 선택 상태를 지정한다. 슬롯이 <see cref="selectedSlotHeight"/>까지 줄어들면서
-        /// 카드 본체는 커지고 옆으로 밀려 나온다. 연출 중 다시 호출해도 그 지점에서 역재생된다.
+        /// 선택 상태를 지정한다. 카드(와 내비 박스)가 옆으로 밀려 나오며 살짝 흐려진다 —
+        /// 크기는 변하지 않으므로 목록의 다른 카드는 움직이지 않는다.
+        /// 연출 중 다시 호출해도 그 지점에서 역재생된다.
         /// </summary>
-        /// <param name="value">true=선택(접힘+튀어나옴)</param>
+        /// <param name="value">true=선택(튀어나옴)</param>
         /// <param name="instant">true면 연출 없이 즉시 반영(목록을 다시 그릴 때 사용)</param>
         public void SetSelected(bool value, bool instant = false)
         {
@@ -483,35 +502,19 @@ namespace ProjectS.UI
             Apply();
         }
 
-        // 진행값 하나에서 슬롯 높이·배율·위치·투명도를 모두 계산한다.
+        // 진행값 하나에서 위치·투명도를 계산한다(줄어드는 효과는 기획 변경으로 제거 — 이동과 투명도만).
         // 상태가 값 하나로 결정되므로 어느 지점에서 끊고 역재생해도 연출이 어긋나지 않는다.
+        // 높이를 건드리지 않으므로 목록의 다른 카드는 이 연출로 움직이지 않는다.
         private void Apply()
         {
-            // 분해 중에는 슬롯 높이를 연출이 몰고 간다. 여기서 같이 쓰면 두 값이 매 프레임 서로를 덮어쓴다.
-            if (fxDrivingHeight) return;
-
             float t = ease.Evaluate(animProgress);
-            float height = Mathf.Lerp(naturalHeight, selectedSlotHeight, t);
+            Vector2 offset = selectedOffset * t;
 
-            if (slot != null) slot.preferredHeight = height;
-
-            if (visual != null)
-            {
-                // 슬롯만 줄이면 아래 카드는 올라오지만 카드 자체는 그대로라 요약글이 계속 보인다.
-                // 보이는 카드도 같이 줄여야 visual의 RectMask2D가 내용 영역을 잘라내 '접히는' 그림이 된다.
-                // Content Size Fitter를 켜 둔 채로는 매 프레임 내용 높이로 되돌리므로 연출 중에는 꺼야 한다.
-                if (visualFitter != null) visualFitter.enabled = t <= 0f;
-                if (t > 0f) visual.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
-
-                visual.localScale = Vector3.one * Mathf.Lerp(1f, selectedScale, t);
-                visual.anchoredPosition = Vector2.Lerp(basePosition, basePosition + selectedOffset, t);
-            }
+            if (visual != null) visual.anchoredPosition = basePosition + offset;
+            // 내비 박스는 visual의 형제라(마스크·레이아웃 영향을 안 받도록) 같은 오프셋을 따로 태운다.
+            if (navi != null) navi.anchoredPosition = naviBasePosition + offset;
 
             if (visualGroup != null) visualGroup.alpha = Mathf.Lerp(1f, selectedAlpha, t);
-
-            // 슬롯 높이가 바뀌었으니 창 전체 높이도 다시 재야 한다.
-            // 즉시가 아니라 예약이라, 카드 여러 장이 동시에 움직여도 리빌드는 프레임당 1회로 합쳐진다.
-            HeightChanged?.Invoke();
         }
 
         // 완료 > 고정 > 기본 순으로 색이 결정된다. 완료를 위에 두는 이유는
@@ -526,13 +529,16 @@ namespace ProjectS.UI
         }
 
         // 축소 상태에서는 내용 영역 자체가 꺼져 있으므로 상세 버튼도 함께 잠근다.
+        // 여닫기 버튼은 축소 중에도 눌려야 다시 펼 수 있다.
         private void ApplyInteractable()
         {
             if (titleButton != null) titleButton.interactable = interactable;
             if (detailButton != null) detailButton.interactable = interactable && !IsCompact;
+            if (foldButton != null) foldButton.interactable = interactable;
         }
 
         private void OnTitleClicked() => TitleClicked?.Invoke(this);
         private void OnDetailClicked() => DetailClicked?.Invoke(this);
+        private void OnFoldClicked() => FoldClicked?.Invoke(this);
     }
 }

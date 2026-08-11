@@ -12,7 +12,6 @@ namespace ProjectS.UI
 {
     /// <summary>
     /// 퀘스트 트래커의 카드를 클릭했을 때 뜨는 상세 팝업. 제목·상세 스토리·보상을 보여준다.
-    /// 어느 카드에서 열렸는지 보이도록, 팝업과 그 카드를 잇는 연결선을 함께 그린다.
     ///
     /// 배치: 트래커와 같은 캔버스 아래 아무 곳에나 둔다. UIManager의 <i>자식</i>일 필요가 없다 —
     /// <see cref="QuestTrackerHud"/>가 UIManager.RegisterPopup으로 등록시키기 때문이다
@@ -26,13 +25,6 @@ namespace ProjectS.UI
         [SerializeField] private TMP_Text storyText;     // 퀘스트 상세 스토리
         [SerializeField] private TMP_Text rewardText;    // 퀘스트 보상
 
-        [Header("연결선")]
-        [Tooltip("팝업과 카드를 잇는 가로선 이미지. pivot을 (0, 0.5)로 두면 오른쪽으로 자란다.")]
-        [SerializeField] private RectTransform connector;
-
-        [Tooltip("연결선이 시작될 지점(보통 팝업 오른쪽 가장자리의 빈 오브젝트).")]
-        [SerializeField] private RectTransform connectorOrigin;
-
         [Header("닫기")]
         [Tooltip("팝업 우상단 닫기(X) 버튼. 조작을 몰라도 눈으로 보이는 유일한 닫기 수단이라 넣어 둔다.")]
         [SerializeField] private Button closeButton;
@@ -44,7 +36,8 @@ namespace ProjectS.UI
         // 카드는 팝업 바깥에 있으므로 이 가드가 없으면 열리는 즉시 닫힌다.
         private int contentFrame = -1;
 
-        // 연결선이 따라갈 카드. 스크롤로 카드가 움직여도 선이 붙어 있게 매 프레임 추적한다.
+        // 이 팝업을 연 카드. 바깥 클릭 판정에서 이 영역을 제외해, 같은 카드를 다시 눌렀을 때
+        // 카드의 버튼이 토글로 처리할 수 있게 남겨 둔다(연결선이 없어진 뒤에도 이 용도로 필요하다).
         private RectTransform target;
 
         /// <summary>지금 이 팝업이 보여주고 있는 퀘스트. 같은 카드를 다시 눌렀을 때 닫기 판단에 쓴다.</summary>
@@ -81,19 +74,28 @@ namespace ProjectS.UI
                 ? canvas.worldCamera
                 : null;
 
-            if (RectTransformUtility.RectangleContainsScreenPoint(
-                    (RectTransform)transform, mouse.position.ReadValue(), cam))
+            Vector2 screen = mouse.position.ReadValue();
+
+            if (RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, screen, cam))
+                return;
+
+            // 이 팝업을 연 카드 위 클릭은 그 카드의 버튼이 토글로 처리한다.
+            // 여기서 먼저 닫아 버리면 순서가 이렇게 꼬인다:
+            //   누른 프레임: 바깥 클릭으로 판단 → 닫힘 → 트래커의 선택 해제
+            //   뗀 프레임  : 버튼 OnClick → 선택이 이미 비어 있어 '다시 열기'로 처리
+            // 그래서 같은 카드를 아무리 눌러도 닫히지 않고 계속 열리기만 한다.
+            if (target != null && RectTransformUtility.RectangleContainsScreenPoint(target, screen, cam))
                 return;
 
             RequestClose();
         }
 
         /// <summary>
-        /// 표시할 퀘스트와 연결선이 가리킬 카드를 지정한다. ShowPopup 호출 전에 먼저 부른다 —
+        /// 표시할 퀘스트와 이 팝업을 연 카드를 지정한다. ShowPopup 호출 전에 먼저 부른다 —
         /// 켜지는 시점에 내용이 이미 채워져 있어야 첫 프레임에 빈 팝업이 보이지 않는다.
         /// </summary>
         /// <param name="quest">표시할 퀘스트</param>
-        /// <param name="cardVisual">연결선이 가리킬 카드 본체(없으면 선을 숨긴다)</param>
+        /// <param name="cardVisual">이 팝업을 연 카드 본체(바깥 클릭 판정에서 제외된다)</param>
         public void Setup(QuestData quest, RectTransform cardVisual)
         {
             if (quest == null) return;
@@ -105,9 +107,7 @@ namespace ProjectS.UI
             if (storyText != null) storyText.text = quest.Definition.Description;
             if (rewardText != null) rewardText.text = BuildRewards(quest.Definition);
 
-            if (connector != null) connector.gameObject.SetActive(cardVisual != null);
             contentFrame = Time.frameCount;
-            UpdateConnector();
         }
 
         // 다음에 열릴 때 이전 카드를 계속 가리키지 않도록 참조를 끊고, 닫혔음을 알린다.
@@ -116,27 +116,6 @@ namespace ProjectS.UI
             Quest = null;
             target = null;
             Closed?.Invoke();
-        }
-
-        // 카드는 스크롤·선택 연출로 계속 움직이므로 위치를 매 프레임 다시 잡는다.
-        // LateUpdate인 이유: 레이아웃과 스크롤이 이번 프레임 위치를 확정한 뒤에 읽어야 선이 한 프레임 밀리지 않는다.
-        private void LateUpdate() => UpdateConnector();
-
-        private void UpdateConnector()
-        {
-            if (connector == null || connectorOrigin == null || target == null) return;
-
-            // 카드 왼쪽 가장자리(세로 중앙)를 연결점으로 삼는다.
-            Vector3 cardEdge = target.TransformPoint(new Vector3(target.rect.xMin, 0f, 0f));
-
-            RectTransform parent = (RectTransform)connector.parent;
-            Vector2 from = parent.InverseTransformPoint(connectorOrigin.position);
-            Vector2 to = parent.InverseTransformPoint(cardEdge);
-
-            Vector2 delta = to - from;
-            connector.anchoredPosition = from;
-            connector.sizeDelta = new Vector2(delta.magnitude, connector.sizeDelta.y);
-            connector.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
         }
 
         // 보상을 종류별로 한 줄씩 쌓는다. 아이템은 ItemData.Name, 스킬은 SkillTable.NameKey를 테이블에서
