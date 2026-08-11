@@ -514,6 +514,12 @@ namespace ProjectS.Players
                     // 시체 타격으로 스킬 게이지를 채우는 악용을 막는 효과도 겸한다.
                     if (!target.TakeDamage(in result)) continue;
 
+                    // 강공격 데미지가 들어간 대상을 공중으로 띄운다.
+                    // currentAction으로 강공격 행동이 맞는지 확인하고,
+                    // 대상이 ILaunchable를 가지고 있는지 확인하여 launchable 변수에 담은 뒤 Launch()를 실행한다.
+                    if (currentAction == CombatAction.StrongAttack && buffer[i].TryGetComponent<ILaunchable>(out var launchable))
+                        launchable.Launch();
+
                     // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                     // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
                     // key를 함께 보내 공격마다 다른 타격 이펙트를 고를 수 있게 한다.
