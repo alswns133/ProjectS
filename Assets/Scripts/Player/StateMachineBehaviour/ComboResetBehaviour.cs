@@ -10,6 +10,9 @@ namespace ProjectS.Players
         private Player player;
         private PlayerCombat combat;
 
+        // 이번 로코모션 진입에서 콤보 정리를 했는지. 블렌드 '완료' 프레임에 1회만 돌리기 위함.
+        private bool tornDown;
+
         // 로코모션(평상시) 상태에 진입한 순간 = 공격·스킬 동작이 끝난 시점.
         // 이때 이동 잠금을 풀어 다시 움직일 수 있게 한다.
         public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
@@ -21,8 +24,20 @@ namespace ProjectS.Players
             }
 
             player?.UnlockMovement();
-            combat?.ResetCombo();
-            combat?.OnComboWindowOpen();
+            tornDown = false;
+        }
+
+        public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
+        {
+            // 공격→로코모션 블렌드가 '완료'되어 완전히 진입한 첫 프레임.
+            // 여기까지 창을 열어둬야 블렌드 도중 입력이 다음 공격으로 이어진다.
+            if (!tornDown && !animator.IsInTransition(layerIndex))
+            {
+                tornDown = true;
+
+                // ResetCombo + (피니시 아닐 때만)홀드 재시작
+                combat?.EndComboChain();
+            }
         }
 
     }

@@ -400,7 +400,12 @@ namespace ProjectS.Players
 
             // 선입력 제거: 로코모션으로 빠져나가는 블렌드가 막 시작된 순간(엣지), 미소비 Attack 트리거·버퍼를 지운다.
             // 매 프레임 지우면 캔슬 창에서 정상 발동해야 할 다음 액션까지 지워지므로 엣지에서만 1회.
-            if (blendingOut && !wasBlendingOut) Combat.ClearAttackBuffer();
+            if (blendingOut && !wasBlendingOut)
+            {
+                // 캔슬 창에서 입력이 들어왔으면 즉시 발동해 콤보로 이어지게 한다.
+                // 콤보 정리는 블렌드 '완료'(ComboResetBehaviour.OnStateUpdate)로 미뤘다.
+                Combat.TryConsumeComboInput();
+            }
             wasBlendingOut = blendingOut;
 
             // 공격에서 빠져나가면 올려치기 상승도 끝난 것 → 중력 재개. 강공격(StrongAttack)→Jump_Loop 전이가
@@ -570,10 +575,12 @@ namespace ProjectS.Players
                 // (대시 공격 중 연계는 여기 오기 전에 IsCastingSkill로 이미 걸러진다.)
                 bool bufferedDuringMotion = IsInAttackMotion();
 
-                Combat.OnAttackInput();
+                bool consumed = Combat.OnAttackInput();
                 if (alreadyAttacking)
                 {
-                    Animation.ResetAttackTrigger();
+                    // 발동했으면 절대 리셋 안 함
+                    if (!consumed)
+                        Animation.ResetAttackTrigger();
                     return;
                 }
 
