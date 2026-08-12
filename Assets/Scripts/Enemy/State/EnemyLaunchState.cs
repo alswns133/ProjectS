@@ -1,76 +1,79 @@
-﻿using System.Timers;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Enemies
 {
     /// <summary>
     /// 공중 런처 피격 상태. 하루 강공격의 Launch() 신호로 진입한다.
-    /// NavMeshAgent를 끄고 공중 피격 클립(Hit_Air)의 루트모션으로 몸을 띄웠다가,
-    /// 다시 '땅에 닿으면'(모션이 남아 있어도) NavMesh로 복귀시키고 Chase로 돌아간다.
-    /// 클립 종료가 아니라 착지 판정으로 빠져나오는 이유: 착지하는 순간 다음 강공격에 곧바로
-    /// 다시 떠오를 수 있어야 하기 때문(재런처 저글링). 지상으로 돌아가면 Chase가 되어
-    /// Enemy.Launch의 'LaunchState 중엔 금지' 가드가 풀린다.
+    /// Hit_Air 클립(떠오름 → 착지 → 기상)을 재생하는 동안 NavMeshAgent를 멈춰
+    /// 연출이 이동에 끌리지 않게 하고, 클립이 끝나면 Chase로 복귀한다.
+    /// 공중/지상 판정은 '실제 높이'가 아니라 '클립 진행도(normalizedTime)'로 한다.
+    /// Hit_Air의 떠오름은 transform을 올리는 루트모션이 아니라 제자리(in-place) 애니메이션이라
+    /// transform.y가 움직이지 않는다(높이로는 착지를 영영 감지 못 함).
+    /// 클립상 착지 프레임(30번째 프레임)을 지나면 '기상 중이라도 지상'으로 취급해,
+    /// 그 구간의 피격/사망이 지상 Hit/Die로 나오게 한다.
     /// </summary>
     public class EnemyLaunchState : EnemyBaseState
     {
-        // 착지 판정 기준이 되는 시작(지면) 높이. Enter에서 캡처한다.
-        private float groundY;
+        // Hit_Air가 실제로 땅에 닿는 지점(착지 30프레임 / 총 110프레임 ≈ 0.27).
+        // 이 지점을 지나면 hasDescended를 세워 지상으로 취급한다.
+        private const float GroundContactTime = 30f / 110f;
 
-        // 실제로 떠올랐는지. 진입 직후(아직 지면 높이)에 곧바로 착지로 오판하지 않게 한다.
-        private bool hasLiftedOff;
+        // 클립이 사실상 끝났다고 볼 진행도. 여기서 Chase로 복귀한다.
+        private const float ClipEndTime = 0.98f;
 
-        // 안전장치용 경과 시간. 지면 판정이 성립 안 해도 영영 공중에 갇히지 않게 한다.
+        // 진행도 판정이 성립 안 할 때(전이 꼬임 등) 영영 갇히지 않게 하는 강제 복귀 상한(초).
+        private const float MaxAirTime = 5f;
+
+        // 착지 지점을 지났는지 래치. 한 번 true면 기상 구간 내내 유지된다.
+        // IsAirborne(공중/지상 판정)의 근거 — 기상 애니메이션이 남아 있어도 지상으로 본다.
+        private bool hasDescended;
+
+        // 강제 복귀 상한용 경과 시간.
         private float elapsed;
 
-        // 떠오름/착지로 인정하는 높이 문턱.
-        private const float LiftoffHeight = 0.15f;
-        private const float GroundHeight = 0.05f;
-
-        // 판정 실패(루트모션 이상 등) 시 강제 착지 상한.
-        private const float MaxAirTime = 5f;
+        /// <summary>
+        /// 지금 공중에 떠 있는 것으로 볼지 여부. 사망(Die/Die_Air)·피격(지상 Hit/런처 유지) 선택에 쓴다.
+        /// '상태가 LaunchState'와 다르다 — 착지 프레임을 지난 기상 구간은 상태가 아직 Launch여도 지상으로 취급한다.
+        /// </summary>
+        public bool IsAirborne => !hasDescended;
 
         public EnemyLaunchState(Enemy enemy) : base(enemy) { }
 
         public override void Enter()
         {
             elapsed = 0f;
-            hasLiftedOff = false;
-            groundY = enemy.transform.position.y;
+            hasDescended = false;
 
-            // 에이전트를 끄고 위치를 루트모션에 넘긴 뒤, 공중 피격 클립을 재생한다.
+            // 연출 동안 NavMeshAgent를 멈춘다(제자리 클립이 추격 이동에 끌리지 않게).
             enemy.Movement.BeginRootMotion();
             enemy.Animation.PlayHitAir();
             enemy.Effects?.Play(EnemyEffects.EffectCue.Hit);
         }
 
         /// <summary>
-        /// 이미 공중 상태일 때 다시 강공격을 맞으면 상승을 처음부터 재시작
-        /// 새 상태 진입이 아니므로 클립만 처음부터 다시 재생하고 착지 판정 타이머만 초기화
-        /// 기준 지면 높이는 처음 값을 유지하여 몇 번을 다시 띄워도 결국 원래 바닥으로 내려와 착지 판정이 성립
+        /// 이미 런처 중일 때 강공격을 또 맞으면 Hit_Air를 처음부터 다시 재생한다(재런처 저글링).
+        /// 상태 머신이 같은 상태 재진입을 막으므로 상태 내부에서 진행도·래치만 초기화한다.
         /// </summary>
         public void Relaunch()
         {
             elapsed = 0f;
-            hasLiftedOff = false;
-            enemy.Animation.PlayHitAir(); // Can Transition To Self 때문에 Hit_Air를 처음부터 다시
+            hasDescended = false;
+            enemy.Animation.PlayHitAir();
         }
 
         public override void Update()
         {
             elapsed += Time.deltaTime;
 
-            float height = enemy.transform.position.y - groundY;
+            // Hit_Air 재생 중이 아니면 -1. 그동안은 래치/복귀 판정을 하지 않는다.
+            float t = enemy.Animation.HitAirNormalizedTime;
 
-            // 1단계: 충분히 떠올랐는지 먼저 확인(진입 직후 지면 높이에서 즉시 착지로 오판 방지).
-            if (!hasLiftedOff)
-            {
-                if (height >= LiftoffHeight) hasLiftedOff = true;
-                else if (elapsed >= MaxAirTime) Land();   // 안전장치: 못 떠오르면 그냥 복귀
-                return;
-            }
+            // 착지 프레임을 지나면 지상으로 래치 → 기상 구간의 피격/사망이 지상 모션으로.
+            if (!hasDescended && t >= GroundContactTime)
+                hasDescended = true;
 
-            // 2단계: 떠오른 뒤 다시 땅에 닿으면(또는 안전 상한) 착지 → Chase 복귀.
-            if (height <= GroundHeight || elapsed >= MaxAirTime)
+            // 기상까지 다 재생됐거나 안전 상한이면 Chase 복귀.
+            if (t >= ClipEndTime || elapsed >= MaxAirTime)
                 Land();
         }
 
