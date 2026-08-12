@@ -141,6 +141,11 @@ namespace ProjectS.Players
         /// </summary>
         public bool IsCastingSkillMove => currentAction == CombatAction.Skill;
 
+        /// <summary>
+        /// 각성기(4번 스킬) 시전 중인지 확인. 시전 동안 몬스터 소프트 분리를 끄는 데 쓴다.
+        /// </summary>
+        public bool IsCastingUltimate => currentAction == CombatAction.Skill && currentSkillNumber == 4;
+
         // 평타(콤보) 전용 상태. IsCastingSkill은 스킬/강공격/대시·공중공격만 켜고 평타는 켜지 않아서,
         // 평타의 연계(캔슬) 창을 따로 둘 필요가 있다. 태그 기반 캐릭터의 강공격/스킬 라우팅이
         // "콤보 도중엔 캔슬 창이 열려야만 통과"를 판정할 때 Player가 읽는다.

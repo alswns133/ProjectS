@@ -115,6 +115,11 @@ namespace ProjectS.Enemies
         // 0이면 접근 방향 그대로 목적지를 잡아 한쪽에 뭉치고, 클수록 뒤까지 도는 완전 포위에 가까워진다.
         [SerializeField, Range(0f, 180f)] private float surroundAngleRange = 80f;
 
+        [Header("경직 시간")]
+        // Hit 모션 후 다음 행동까지의 추가 경직
+        [SerializeField] private float hitRecoveryDelay = 0.4f;
+        public float HitRecoveryDelay => hitRecoveryDelay;
+
         /// <summary>HP와 사망 판정을 소유하는 스탯 컴포넌트.</summary>
         public EnemyStats Stats { get; private set; }
         /// <summary>NavMeshAgent 기반 이동과 정지/재개를 담당하는 이동 컴포넌트.</summary>
@@ -273,6 +278,7 @@ namespace ProjectS.Enemies
         private void Update()
         {
             StateMachine.Update();
+            //Debug.Log(StateMachine.Current);
         }
 
         /// <summary>
@@ -415,17 +421,25 @@ namespace ProjectS.Enemies
         /// </summary>
         public void OnDamaged()
         {
-            // 피격 경직은 선택 기능이다. 사망/쿨다운 중에는 상태를 흔들지 않는다.
-            // 데미지 적용과 사망 판정은 EnemyStats가 단일 소유하고, 여기는 "살아남은 뒤 반응"만 맡는다.
-            // 공중 런처 진행 중에는 지상 피격 모션으로 끊지 않는다. (데미지는 적용)
             if (!useHitStun) return;
             if (Stats.IsDead) return;
             if (StateMachine.Current == DeadState) return;
-            if (StateMachine.Current == LaunchState) return;
-            if (Time.time < nextHitStunTime) return;
 
+            // 실제로 공중에 떠 있는 동안에만 지상 피격으로 끊지 않는다(런처 저글링 유지).
+            // 착지·기상 구간(상태는 Launch, 몸은 지면)이면 아래로 흘러 지상 Hit을 낸다 — Die_Air와 같은 기준.
+            bool inLaunch = StateMachine.Current == LaunchState;
+            if (inLaunch && LaunchState.IsAirborne) return;
+
+            if (Time.time < nextHitStunTime) return;
             nextHitStunTime = Time.time + hitStunCooldown;
-            StateMachine.ChangeState(HitState);
+
+            // ★ 착지한 런처를 지상 Hit으로 넘기기 전에 루트모션을 끝내고 에이전트를 NavMesh로 복귀시킨다.
+            if (inLaunch) Movement.EndRootMotionAndLand();
+
+            if (StateMachine.Current == HitState)
+                HitState.Rehit();
+            else
+                StateMachine.ChangeState(HitState);
         }
 
         /// <summary> 공중에서 사망했는지 여부, DeadState가 Die/Die_Air를 고르는데 사용 </summary>
@@ -437,9 +451,8 @@ namespace ProjectS.Enemies
         /// </summary>
         public void OnDied()
         {
-            // ChangeState 전에 확인해야 이전 상태가 아직 Current에 남아 있다.
-            // 공중에서 사망했으면 DeadState가 Die_Air를, 아니면 일반 Die를 재생
-            DiedAirborne = StateMachine.Current == LaunchState;
+            // 상태가 아니라 '실제로 떠 있는가'로 지상/공중 사망을 가른다.
+            DiedAirborne = StateMachine.Current == LaunchState && LaunchState.IsAirborne;
             StateMachine.ChangeState(DeadState);
         }
 
