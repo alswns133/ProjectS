@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Events;
 using ProjectS.Players;
@@ -56,6 +56,22 @@ namespace ProjectS.Managers
                     // TODO: 캐릭터 세이브 LearnedSkillIds에 추가로 교체.
                     DevLog.Log($"[Reward] '{questTitle}' 스킬 해금 {reward.TargetId} (스텁 — 세이브 대기)");
                     break;
+
+                case QuestRewardType.ClassWeapon:
+                    // charType: 1=검사→1, 2=거너→2, 그 외→1(기본 검, 저작 관례상 검 ID로 적으므로 안전)
+                    int charType = PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0;
+
+                    if(charType == 0)
+                    {
+                        DevLog.Log("존재 하지 않는 캐릭터 타입으로 클래스 무기 지급을 시도했습니다. 지급 실패.");
+                        return;
+                    }
+                    int resolvedId = QuestRewardData.ResolveClassWeaponId(reward.TargetId, charType);
+
+                    if(InventoryManager.Instance != null)
+                        InventoryManager.Instance.AddItem(resolvedId, reward.Amount);   // 인벤 추가 + 세이브 dirty
+                    DevLog.Log($"[Reward] '{questTitle}' 아이템 {resolvedId} x{reward.Amount}");
+                    break;  
             }
         }
     }

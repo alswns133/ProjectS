@@ -627,6 +627,7 @@ namespace ProjectS.Players
             if (!combatEnabled) return;        // 마을 등 전투 비활성 구역에서는 구르기 금지(기획 의도 — 마을 구르기 미지원)
             if (Stats.IsDead) return;
             if (IsRolling) return;             // 회피 중 재입력 무시 → 끝나는 프레임부터 다음 회피 발동
+            if (Combat.IsCastingInvincibleSkill) return;   // 각성기(무적 스킬) 시전 중엔 회피로 캔슬 금지(기획)
 
             // 공중에서는 구르기를 발동하지 않음. 접지 근거는 controller.isGrounded(IsStablyGrounded)가
             // 아니라 레이캐스트 기반(IsGroundedForDodge)을 쓴다 — isGrounded는 고프레임에서 프레임당
@@ -646,6 +647,7 @@ namespace ProjectS.Players
             if (!combatEnabled) return;        // 마을 등 전투 비활성 구역에서는 공중 대시(점프 중 쉬프트) 금지 — 구르기와 동일
             if (Stats.IsDead) return;
             if (IsRolling) return;
+            if (Combat.IsCastingInvincibleSkill) return;   // 각성기(무적 스킬) 시전 중엔 공중대시로 캔슬 금지(기획)
 
             bool pressed = Input.RollHeld && !wasRollHeld;
             if (!pressed) return;

@@ -154,6 +154,17 @@ namespace ProjectS.UI
                             : reward.TargetId.ToString();
                         sb.Append("스킬 해금 ").Append(skillName);
                         break;
+                    case QuestRewardType.ClassWeapon:
+                        int charType = PlayerManager.Instance != null
+                            ? PlayerManager.Instance.CurrentCharacterId : 0;
+                        // 먼저 직업 무기로 변환
+                        int weaponId = QuestRewardData.ResolveClassWeaponId(reward.TargetId, charType);
+                        string weaponName = JsonManager.Instance != null 
+                            && JsonManager.Instance.ItemDict.TryGetValue(weaponId, out ItemData weaponData)
+                            ? weaponData.Name
+                            : weaponId.ToString();
+                        sb.Append("무기 ").Append(weaponName);
+                        break;
                 }
             }
 

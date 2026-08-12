@@ -141,6 +141,14 @@ namespace ProjectS.Players
         /// </summary>
         public bool IsCastingSkillMove => currentAction == CombatAction.Skill;
 
+        /// <summary>
+        /// 지금 '무적을 주는 스킬'(SkillTable.Invincible = 각성기)을 시전 중인지.
+        /// 회피(구르기·공중대시)가 이 스킬을 캔슬하지 못하게 막는 데 쓴다 — 각성기는 회피로 끊기지 않는다(기획).
+        /// 무적 스킬이 아니면(스킬 1~3) false라 기존의 '회피 최우선 캔슬'이 그대로 동작한다.
+        /// 스킬이 진짜로 끝나 무적이 해제되면(ReleaseSkillInvincibility 등) 자동으로 false가 되어 회피가 다시 열린다.
+        /// </summary>
+        public bool IsCastingInvincibleSkill => skillGrantedInvincibility;
+
         // 평타(콤보) 전용 상태. IsCastingSkill은 스킬/강공격/대시·공중공격만 켜고 평타는 켜지 않아서,
         // 평타의 연계(캔슬) 창을 따로 둘 필요가 있다. 태그 기반 캐릭터의 강공격/스킬 라우팅이
         // "콤보 도중엔 캔슬 창이 열려야만 통과"를 판정할 때 Player가 읽는다.
@@ -290,6 +298,9 @@ namespace ProjectS.Players
             IsCastingSkill = true;
             currentAction = CombatAction.Skill;
             currentSkillNumber = n;
+
+            // [임시 디버그] 각성기 무적 씹힘 추적용. 원인 확인되면 이 로그 제거.
+            Debug.Log($"[스킬시전] n={n} skillId={GetSkillId(n)} Invincible={skill.Invincible}  frame={Time.frameCount}");
 
             // 무적 스킬(SkillTable.Invincible)이면 시전 동안 무적을 켠다. 무적이 아닌 스킬(캔슬 창에서
             // 다른 스킬로 이어감 포함)이면 직전 무적이 남아 있었어도 여기서 꺼진다.

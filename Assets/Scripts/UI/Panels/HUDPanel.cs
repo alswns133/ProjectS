@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ProjectS.UI.Framework;
+using ProjectS.Items;
 
 namespace ProjectS.UI
 {
@@ -40,6 +41,9 @@ namespace ProjectS.UI
 
         [SerializeField] private HpEcg hpEcg;
 
+        [Header("직업 심볼")]
+        [SerializeField] private Image classSymbol;
+
         protected override void OnInit()
         {
             hp.Init(this);
@@ -53,6 +57,17 @@ namespace ProjectS.UI
             staminaRoot.SetActive(false);
 
             hpEcg.SetMaterial(hp.Material);
+        }
+
+        public async void SetSymbol(int charId)
+        {
+            if (classSymbol == null) return;
+
+            Sprite s = await ItemIconLoader.LoadAsync($"Char_Symbol_{charId}");
+
+            if (this == null || classSymbol == null) return;
+            classSymbol.sprite = s;
+            classSymbol.enabled = s != null;
         }
 
         // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
