@@ -45,11 +45,13 @@ namespace ProjectS.UI
         }
 
         // 이벤트 받아서 가공 후 View한테 전달
+        // HP/SG는 원본 값을 그대로 넘긴다. 게이지 비율 외에 "150/200" 수치 표기도 그려야 해서,
+        // 여기서 비율로 접으면 View가 원본을 되살릴 방법이 없다.
         private void OnHpChanged(float cur, float max)
-            => view.SetHp(cur / max);         // 비율 계산은 P가!
+            => view.SetHp(cur, max);
 
         private void OnSgChanged(float cur, float max)
-            => view.SetSg(cur / max);
+            => view.SetSg(cur, max);
 
         private void OnStaminaChanged(float cur, float max)
             => view.SetStamina(cur / max);

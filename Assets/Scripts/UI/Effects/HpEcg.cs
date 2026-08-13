@@ -14,6 +14,12 @@ namespace ProjectS.UI
     {
         [SerializeField] private Image ecgImage;
 
+        // [2026.08.12 태하] 저체력에서 _Alive가 0에 가까워지면 파형이 사실상 평평해져
+        // 게이지가 남아 있어도 이미 죽은 것처럼 보인다. HP 구간 전체를 minAlive~1로 리매핑해
+        // 박동이 계속 눈에 띄면서도 체력이 깎일수록 약해지는 변화는 유지한다.
+        // 진짜 플랫라인은 사망(비율 0)일 때만.
+        [SerializeField, Range(0f, 1f)] private float minAlive = 0.12f;
+
         private static readonly int AliveId = Shader.PropertyToID("_Alive");
 
         // 인스턴스 복제본. 에셋 머티리얼에 직접 SetFloat하면 에디터에서 .mat 파일이
@@ -40,11 +46,13 @@ namespace ProjectS.UI
 
         /// <summary>
         /// HP 비율(0~1)을 _Alive에 반영한다. HP 변경 시마다 HUDPanel.SetHp()가 호출한다.
+        /// 살아 있는 동안(비율 &gt; 0)은 minAlive~1 구간으로 리매핑되고, 사망 시에만 0(플랫라인)이 된다.
         /// </summary>
         /// <param name="ratio">현재/최대 HP 비율(0~1)</param>
         public void SetHpRatio(float ratio)
         {
-            float alive = Mathf.Clamp01(ratio);
+            // HP가 줄면 파형도 같이 약해지되, 하한이 minAlive라 0 직전까지 박동이 보인다.
+            float alive = ratio <= 0f ? 0f : Mathf.Lerp(minAlive, 1f, Mathf.Clamp01(ratio));
             _material.SetFloat(AliveId, alive);
 
             // Mask(스텐실) 아래에서 UGUI는 base 머티리얼이 아니라 '스텐실 패치 복사본'으로
