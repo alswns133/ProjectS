@@ -31,7 +31,7 @@
     "RequiredLevel": 0,
     "PrerequisiteQuestId": 501001,
     "Rewards": [
-      { "Type": "Item", "TargetId": 101005, "Amount": 1, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" },
       { "Type": "Gold", "TargetId": 0, "Amount": 500, "IconAddress": "" },
       { "Type": "Exp", "TargetId": 0, "Amount": 300, "IconAddress": "" }
     ],
@@ -110,7 +110,7 @@
     "PrerequisiteQuestId": 0,
     "Rewards": [
       { "Type": "Gold", "TargetId": 0, "Amount": 400, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 101005, "Amount": 2, "IconAddress": "Weapon_Sword_Lv5" },
+      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 2, "IconAddress": "" },
       { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
     ],
     "IntroDialogueId": 700104,
@@ -130,7 +130,8 @@
     "PrerequisiteQuestId": 0,
     "Rewards": [
       { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" }
+      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Item", "TargetId": 213005, "Amount": 1, "IconAddress": "" }
     ],
     "IntroDialogueId": 700105,
     "TurnInDialogueId": 700115,
@@ -138,9 +139,9 @@
     "Description": "마을을 위협하는 들개 3마리를 쫓아내라."
   },
   {
-    "QuestId": ******,
-    "QuestType": "Main",
-    "QuestNpc": "초짜",
+    "QuestId": 601005,
+    "QuestType": "Repeat",
+    "QuestNpc": "게롯",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
       { "TargetId": 1102, "RequiredCount": 3 }
@@ -149,10 +150,151 @@
     "PrerequisiteQuestId": 0,
     "Rewards": [
       { "Type": "Gold", "TargetId": 0, "Amount": 500, "IconAddress": "" },
-      { "Type": "Item", "TargetId": ******, "Amount": 4, "IconAddress": "Consumable_Injector_S" }
+      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" }
     ],
     "IntroDialogueId": 700301,
-    "TurnInDialogueId": 700302,
+    "TurnInDialogueId": 700311,
+    "Title": "강화로의 불씨",
+    "Description": "던전의 몬스터에게서 강화로에 쓸 마정석 코어를 회수해 오라.",
+    "TrackerText": "던전 몬스터에게서 코어 회수"
+  },
+  {
+    "QuestId": 601006,
+    "QuestType": "Repeat",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 201001, "RequiredCount": 3 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 400, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" }
+    ],
+    "Title": "담금질 재료",
+    "Description": "질 좋은 금속이 필요하다. 노말 상의 3벌을 풀어 담금질 재료로 쓰게 가져와라.",
+    "TrackerText": "담금질용 금속 수집"
+  },
+  {
+    "QuestId": 601007,
+    "QuestType": "Repeat",
+    "QuestNpc": "바로",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 203001, "RequiredCount": 4 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700401,
+    "TurnInDialogueId": 700411,
+    "Title": "상점 재고 확보",
+    "Description": "가게 진열대가 비었다. 팔 만한 방어구 4점을 모아 오면 값을 쳐주지.",
+    "TrackerText": "판매용 방어구 수집"
+  },
+  {
+    "QuestId": 601008,
+    "QuestType": "Repeat",
+    "QuestNpc": "바로",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 6 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 700, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301001, "Amount": 1, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Item", "TargetId": 201005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700402,
+    "TurnInDialogueId": 700412,
+    "Title": "교역로 청소",
+    "Description": "물건을 실어 나르려면 길이 안전해야 한다. 교역로의 슬라임 6마리를 정리해라.",
+    "TrackerText": "교역로 슬라임 처치"
+  },
+  {
+    "QuestId": 601009,
+    "QuestType": "Repeat",
+    "QuestNpc": "게시판",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 4 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 350, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 120, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 202005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700501,
+    "TurnInDialogueId": 700511,
+    "Title": "밭을 지켜라",
+    "Description": "들개 떼가 밭을 망치고 있다는 의뢰다. 마을 근처 들개 4마리를 처치하라.",
+    "TrackerText": "밭 근처 들개 처치"
+  },
+  {
+    "QuestId": 601010,
+    "QuestType": "Repeat",
+    "QuestNpc": "게시판",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 203001, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 550, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700502,
+    "TurnInDialogueId": 700512,
+    "Title": "방어구 납품",
+    "Description": "방어구를 급히 구한다는 의뢰다. 방어구 5점을 모아 게시판에 납품하라.",
+    "TrackerText": "납품용 방어구 수집"
+  },
+  {
+    "QuestId": 601011,
+    "QuestType": "Repeat",
+    "QuestNpc": "게시판",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1102, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 650, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Item", "TargetId": 204005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700503,
+    "TurnInDialogueId": 700513,
+    "Title": "던전 정찰",
+    "Description": "던전 안쪽 사정을 알고 싶다는 의뢰다. 던전 몬스터 5마리를 처치하고 상태를 확인하라.",
+    "TrackerText": "던전 몬스터 정찰 처치"
+  },
+  {
+    "QuestId": 501004,
+    "QuestType": "Main",
+    "QuestNpc": "초짜",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1102, "RequiredCount": 4 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 500, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301001, "Amount": 4, "IconAddress": "Consumable_Injector_S" }
+    ],
+    "IntroDialogueId": 700601,
+    "TurnInDialogueId": 700602,
     "Title": "로봇 처치",
     "Description": "쓸모가 없어진 로봇 4개를 없애라."
   }
