@@ -57,18 +57,47 @@ namespace ProjectS.UI.Framework
         [SerializeField] private GameObject consumableSection;
         [SerializeField] private TMP_Text effectText;         // 회복량/쿨다운
 
+        [Header("비교(장착 중 아이템)")]
+        [Tooltip("이 툴팁 자체가 비교용 보조 패널이면 체크. 체크된 패널은 싱글톤(Instance)으로 등록되지 않고 또 다른 비교를 띄우지 않는다.")]
+        [SerializeField] private bool isComparePanel;
+        [Tooltip("메인 툴팁에만 지정. 장비 hover 시 같은 부위 착용 아이템을 옆에 띄우는 보조 툴팁(isComparePanel=true인 복제본).")]
+        [SerializeField] private ItemTooltip comparePanel;
+
         private RectTransform parentRect;
         private Canvas canvas;
         private ItemData currentItem;   // 아이콘 async 로드 stale 판정용
+        private bool initialized;       // EnsureInit 1회 가드(비활성으로 시작한 비교 패널도 안전 초기화)
+        private Component owner;         // 이 툴팁을 띄운 슬롯. 그 슬롯이 비활성(창 닫힘)될 때만 이 툴팁을 닫게 한다.
+
+        /// <summary>
+        /// 드래그 중에는 hover로 툴팁이 뜨지 않게 하는 전역 억제 플래그. 슬롯 드래그 시작/종료에서 켜고 끈다.
+        /// (드래그 중 다른 슬롯 위를 지날 때 PointerEnter가 그 아이템 툴팁을 띄우는 것을 막는다.)
+        /// </summary>
+        public static bool DragSuppressed { get; set; }
 
         private void Awake()
         {
-            if (Instance != null && Instance != this)
+            // 비교 패널은 싱글톤(Instance)으로 등록하지 않는다 — 메인 툴팁이 참조(comparePanel)로만 부린다.
+            if (!isComparePanel)
             {
-                Destroy(gameObject);
-                return;
+                if (Instance != null && Instance != this)
+                {
+                    Destroy(gameObject);
+                    return;
+                }
+                Instance = this;
             }
-            Instance = this;
+
+            EnsureInit();
+            gameObject.SetActive(false);
+        }
+
+        // 위치 계산에 필요한 참조를 1회 준비한다. 비활성으로 시작해 Awake를 못 돌린 비교 패널도
+        // 첫 사용 시점(FillEquipment/PlaceBeside)에 안전하게 초기화되도록 별도 메서드로 뺐다.
+        private void EnsureInit()
+        {
+            if (initialized) return;
+            initialized = true;
 
             if (tooltipRect == null) tooltipRect = (RectTransform)transform;
             parentRect = tooltipRect.parent as RectTransform;
@@ -76,16 +105,30 @@ namespace ProjectS.UI.Framework
 
             // 위치 계산을 부모 중앙 기준으로 단순화하기 위해 앵커를 중앙으로 고정한다.
             tooltipRect.anchorMin = tooltipRect.anchorMax = new Vector2(0.5f, 0.5f);
-
-            gameObject.SetActive(false);
         }
 
         /// <summary>장비 정보를 커서 지점에 띄운다.</summary>
         /// <param name="equip">표시할 장비 인스턴스</param>
         /// <param name="screenPos">커서 스크린 좌표(PointerEventData.position)</param>
-        public void ShowEquipment(EquipmentInstance equip, Vector2 screenPos)
+        public void ShowEquipment(EquipmentInstance equip, Vector2 screenPos, Component owner = null)
         {
             if (equip?.Item == null) return;
+            if (DragSuppressed) return;   // 드래그 중엔 hover 툴팁을 띄우지 않는다
+
+            this.owner = owner;
+
+            FillEquipment(equip);
+            ShowAt(screenPos);
+
+            // 장비는 같은 부위 착용 중인 아이템을 옆에 나란히 띄워 비교하게 한다.
+            // (비교 패널 자신은 isComparePanel이라 여기서 또 비교를 띄우지 않아 재귀가 없다.)
+            if (!isComparePanel) UpdateCompare(equip);
+        }
+
+        // 장비 내용을 프레임에 채운다(위치는 잡지 않음). 메인 툴팁과 비교 패널이 공용으로 쓴다.
+        private void FillEquipment(EquipmentInstance equip)
+        {
+            EnsureInit();
 
             ItemData item = equip.Item;
             EquipmentData e = equip.Equipment;
@@ -118,16 +161,20 @@ namespace ProjectS.UI.Framework
             }
 
             FillOptions(equip.Options);
-
-            ShowAt(screenPos);
         }
 
         /// <summary>스택형 아이템(소비품·재료) 정보를 커서 지점에 띄운다.</summary>
         /// <param name="stack">표시할 스택</param>
         /// <param name="screenPos">커서 스크린 좌표(PointerEventData.position)</param>
-        public void ShowStack(ItemStack stack, Vector2 screenPos)
+        public void ShowStack(ItemStack stack, Vector2 screenPos, Component owner = null)
         {
             if (stack?.Item == null) return;
+            if (DragSuppressed) return;   // 드래그 중엔 hover 툴팁을 띄우지 않는다
+
+            this.owner = owner;
+
+            // 스택(소모품·재료)은 비교 대상이 아니다 — 직전 장비 hover에서 뜬 비교 패널을 확실히 닫는다.
+            if (comparePanel != null) comparePanel.Hide();
 
             FillCommon(stack.Item);
 
@@ -152,9 +199,24 @@ namespace ProjectS.UI.Framework
         }
 
         /// <summary>정보창을 숨긴다(슬롯에서 마우스가 벗어나거나 창이 닫힐 때).</summary>
-        public void Hide()
+        public void Hide() => HideInternal();
+
+        /// <summary>
+        /// 요청한 슬롯이 이 툴팁의 주인일 때만 닫는다. 창을 닫을 때 그 창의 슬롯들이 <c>OnDisable</c>에서 부르며,
+        /// 다른 창의 슬롯이 띄운 툴팁은 건드리지 않는다(예: 인벤을 닫아도 장비창에서 띄운 툴팁은 유지).
+        /// </summary>
+        /// <param name="requester">닫기를 요청한 슬롯. 이 툴팁의 주인이 아니면 무시한다.</param>
+        public void Hide(Component requester)
         {
+            if (requester != null && !ReferenceEquals(requester, owner)) return;
+            HideInternal();
+        }
+
+        private void HideInternal()
+        {
+            owner = null;
             currentItem = null;
+            if (comparePanel != null) comparePanel.Hide();   // 비교 패널도 함께 닫는다
             if (this != null) gameObject.SetActive(false);
         }
 
@@ -267,6 +329,49 @@ namespace ProjectS.UI.Framework
             tooltipRect.SetAsLastSibling();   // 다른 UI 위로
         }
 
+        // 호버한 장비와 같은 부위에 착용 중인 장비가 있으면 비교 패널에 띄운다. 같은 인스턴스(장비창에서 착용품 hover)면
+        // 비교할 게 없어 닫는다. 비교 대상은 인벤/장비창 어디서 hover하든 항상 "지금 그 부위에 착용 중인 것"이다.
+        private void UpdateCompare(EquipmentInstance hovered)
+        {
+            if (comparePanel == null) return;
+
+            EquipmentData e = hovered.Equipment;
+            EquipmentInstance equipped = (e != null && InventoryManager.Instance != null)
+                ? InventoryManager.Instance.GetEquipped(e.EquipSlot)
+                : null;
+
+            if (equipped?.Item == null || ReferenceEquals(equipped, hovered))
+            {
+                comparePanel.Hide();
+                return;
+            }
+
+            comparePanel.gameObject.SetActive(true);
+            comparePanel.FillEquipment(equipped);
+            comparePanel.PlaceBeside(tooltipRect);
+        }
+
+        // 이 (비교) 패널을 메인 툴팁 옆(몸통이 펼쳐지는 방향으로 이어)에 나란히 붙인다.
+        // 커서가 화면 좌측이면 메인이 오른쪽으로 펼쳐지므로 비교 패널을 그 오른쪽에, 우측이면 왼쪽에 둔다.
+        private void PlaceBeside(RectTransform main)
+        {
+            EnsureInit();
+
+            // main의 실제 폭을 얻으려 레이아웃을 즉시 갱신한다(ContentSizeFitter가 다음 프레임까지 안 갱신될 수 있음).
+            LayoutRebuilder.ForceRebuildLayoutImmediate(main);
+            float mainWidth = main.rect.width;
+
+            const float gap = 8f;
+            bool bodyRight = main.pivot.x < 0.5f;   // main 몸통이 오른쪽으로 펼쳐짐(커서가 화면 좌측)
+
+            tooltipRect.pivot = new Vector2(bodyRight ? 0f : 1f, main.pivot.y);
+            float x = bodyRight
+                ? main.anchoredPosition.x + mainWidth + gap
+                : main.anchoredPosition.x - mainWidth - gap;
+            tooltipRect.anchoredPosition = new Vector2(x, main.anchoredPosition.y);
+            tooltipRect.SetAsLastSibling();
+        }
+
         private static void SetActiveSafe(GameObject go, bool value)
         {
             if (go != null && go.activeSelf != value) go.SetActive(value);
@@ -307,6 +412,10 @@ namespace ProjectS.UI.Framework
 
         // 플레이 모드 리로드 후에도 남을 수 있는 static 참조를 초기화한다.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() => Instance = null;
+        private static void ResetStatics()
+        {
+            Instance = null;
+            DragSuppressed = false;
+        }
     }
 }
