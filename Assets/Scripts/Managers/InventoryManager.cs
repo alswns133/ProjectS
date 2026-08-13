@@ -773,5 +773,42 @@ namespace ProjectS.Managers
             if (a < 0 || a >= grid.Length || b < 0 || b >= grid.Length) return;
             (grid[a], grid[b]) = (grid[b], grid[a]);
         }
+
+        // ---------- 아이템 판매 ----------
+
+        /// <summary>스택에서 count개를 팔아 골드를 지급한다. 판매가 = ItemData.SellPrice × count.</summary>
+        public bool SellStack(ItemStack stack, int count)
+        {
+            if (stack?.Item == null || count <= 0 || stack.Count < count) return false;
+
+            int payout = stack.Item.SellPrice * count;
+
+            stack.Remove(count);
+
+            if(stack.Count <= 0)
+                RemoveFromGrid(consumeGrid, stack); // 기존 private 헬퍼 재사용
+
+            AddGold(payout);
+            InventoryEvents.FireItemRemoved(stack.Item);
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();   // 판매는 의도적 행동 → 즉시 커밋
+
+            return true;
+
+        }
+
+        /// <summary>가방의 장비 한 점을 팔아 골드를 지급한다.</summary>
+        public bool SellEquipment(EquipmentInstance instance)
+        {
+            if (instance?.Item == null) return false;
+            if(!RemoveFromGrid(equipGrid, instance)) return false;   // 가방에 없음(착용 중/이미 사라짐)
+
+            AddGold(instance.Item.SellPrice);
+            InventoryEvents.FireItemRemoved(instance.Item);
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();   // 판매는 의도적 행동 → 즉시 커밋
+
+            return true;
+        }
     }
 }

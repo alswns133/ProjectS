@@ -149,7 +149,7 @@ namespace ProjectS.UI.Framework
                 if (classText != null) classText.text = ClassLabel(e.EquipSlot, e.WeaponType);
                 if (reqLevelText != null) reqLevelText.text = $"요구 레벨 {item.Level}";
 
-                if (mainStatText != null) mainStatText.text = $"{MainStatLabel(e.MainStatType)} {e.MainStatBase}";
+                if (mainStatText != null) mainStatText.text = $"{MainStatLabel(e.MainStatType)} {equip.RolledMainStat}";
 
                 // 0강은 "+0"을 보여주지 않는다(기본값이라 정보량이 없음). 1강 이상일 때만 켠다.
                 if (enhanceText != null)

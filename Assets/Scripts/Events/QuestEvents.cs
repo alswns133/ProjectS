@@ -16,6 +16,11 @@ namespace ProjectS.Events
         public static event Action<QuestData> OnQuestCompleted;
 
         /// <summary>
+        /// 퀘스트를 포기했을 때 발행 → 추적 UI가 카드를 제거. 완료(OnQuestCompleted)와 달리 보상 지급은 없다.
+        /// </summary>
+        public static event Action<QuestData> OnQuestAbandoned;
+
+        /// <summary>
         /// 진행도가 바뀔 때마다 발행. 인자: (퀘스트, 현재값, 목표값) → 추적 UI가 "3/10" 식으로 표시
         /// </summary>
         public static event Action<QuestData, int, int> OnQuestProgressUpdated;
@@ -29,6 +34,8 @@ namespace ProjectS.Events
         public static void FireQuestAccepted(QuestData data) => OnQuestAccepted?.Invoke(data);
 
         public static void FireQuestCompleted(QuestData data) => OnQuestCompleted?.Invoke(data);
+
+        public static void FireQuestAbandoned(QuestData data) => OnQuestAbandoned?.Invoke(data);
 
         public static void FireQuestProgressUpdated(QuestData data, int cur, int max) => OnQuestProgressUpdated?.Invoke(data, cur, max);
 
