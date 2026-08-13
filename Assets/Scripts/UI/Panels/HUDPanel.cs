@@ -11,8 +11,16 @@ namespace ProjectS.UI
     {
         [Header("HP")]
         [SerializeField] private FillGauge hp;
+
+        // [2026.08.12 태하] HP 수치 표기. 게이지만으로는 남은 양을 가늠하기 어려워 바 위에 숫자를 같이 띄운다.
+        [SerializeField] private TextMeshProUGUI hpText;
+
         [Header("SG")]
         [SerializeField] private FillGauge sg;
+        [SerializeField] private TextMeshProUGUI sgText;
+
+        // {0}=현재 값, {1}=최대 값. HP/SG가 같은 표기 규칙을 쓰도록 하나로 둔다.
+        private const string barValueFormat = "{0}/{1}";
         [Header("EXP")]
         [SerializeField] private Image expBar;
 
@@ -40,6 +48,15 @@ namespace ProjectS.UI
 
         [SerializeField] private HpEcg hpEcg;
 
+        // [2026.08.12 태하] 저체력 구간 게이지 가독성 보정.
+        // 잔여량이 적어지면 채워진 폭이 몇 픽셀 수준이라 "조금 남았는지 죽었는지" 구분이 안 된다.
+        // (HP바 스프라이트가 기울어진 헥사곤이라 끝부분은 실제 폭보다 더 얇게 보인다.)
+        [Header("저체력 게이지 최소 표시")]
+        [Tooltip("이 비율 아래로 떨어지면 게이지를 minVisibleHpRatio로 고정한다.")]
+        [SerializeField, Range(0f, 0.5f)] private float minVisibleHpThreshold = 0.02f;
+        [Tooltip("고정 구간에서 그릴 게이지 비율. 0(사망)일 때는 이 값과 무관하게 완전히 비운다.")]
+        [SerializeField, Range(0f, 0.2f)] private float minVisibleHpRatio = 0.02f;
+
         protected override void OnInit()
         {
             hp.Init(this);
@@ -55,19 +72,72 @@ namespace ProjectS.UI
             hpEcg.SetMaterial(hp.Material);
         }
 
-        // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
-        public void SetHp(float ratio)
+        /// <summary>
+        /// HP 게이지·비네트·심전도·수치 표기를 한 번에 갱신한다. HUDPresenter가 OnHpChanged를 받아 호출한다.
+        /// 비율이 아니라 현재/최대 원본 값을 받는 이유는 "150/200" 수치 표기에 원본이 필요하기 때문이다.
+        /// </summary>
+        /// <param name="cur">현재 HP</param>
+        /// <param name="max">최대 HP</param>
+        public void SetHp(float cur, float max)
         {
-            // 낮은 HP에서 게이지가 안 보이는 문제는 HpEcgBar 셰이더의 _MinFill이 처리한다.
-            // 여기서 또 보정하면 두 보정이 겹쳐 실제보다 많이 남은 것처럼 보인다.
-            hp.SetRatio(ratio);
+            // [2026.07.13 태하] 피격/저체력 비네트 연출: HP 게이지 갱신 시 비네트에도 같은 비율을 전달.
+            float ratio = max > 0f ? Mathf.Clamp01(cur / max) : 0f;
+
+            // 게이지만 최소 표시 보정을 거친다. 비네트/심전도는 "얼마나 위험한가"를 보여주는
+            // 연출이라 실제 비율을 그대로 받아야 저체력 연출이 제때 세진다.
+            hp.SetRatio(GetHpDisplayRatio(ratio));
             hpVignette.SetHpRatio(ratio);
             hpEcg.SetHpRatio(ratio);
-        }
-        public void SetSg(float ratio) => sg.SetRatio(ratio);
 
-        //public void SetHp(float ratio) => hp.SetRatio(ratio);
-        //public void SetSg(float ratio) => sg.SetRatio(ratio);
+            SetBarValueText(hpText, cur, max);
+        }
+
+        /// <summary>
+        /// 게이지 수치 표기 갱신("현재/최대"). 게이지의 최소 표시 보정과 달리 여기는 항상 실제 값을 보여준다.
+        /// </summary>
+        /// <param name="text">표기할 텍스트(미할당 허용)</param>
+        /// <param name="cur">현재 값</param>
+        /// <param name="max">최대 값</param>
+        private void SetBarValueText(TextMeshProUGUI text, float cur, float max)
+        {
+            // 수치 표기가 없는 HUD(튜토리얼 등)도 있으므로 미할당을 허용한다.
+            if (text == null) return;
+
+            // 소수점 잔량이 0으로 표시되지 않게 올림한다. 실제로 다 떨어지면 정확히 0이라 0으로 나온다.
+            int curDisplay = Mathf.CeilToInt(Mathf.Max(cur, 0f));
+            int maxDisplay = Mathf.CeilToInt(Mathf.Max(max, 0f));
+
+            text.text = string.Format(barValueFormat, curDisplay, maxDisplay);
+        }
+
+        /// <summary>
+        /// 실제 HP 비율을 게이지에 그릴 표시 비율로 바꾼다.
+        /// 0보다 크지만 임계치 아래인 구간은 minVisibleHpRatio에 고정해 "아직 남아 있다"를 계속 보이게 한다.
+        /// 정확히 0(사망)일 때만 완전히 비운다 — 여기서 같이 고정하면 죽어도 게이지가 남아 보인다.
+        /// </summary>
+        /// <param name="ratio">현재/최대 HP 비율(0~1)</param>
+        /// <returns>게이지에 넘길 표시 비율</returns>
+        private float GetHpDisplayRatio(float ratio)
+        {
+            if (ratio <= 0f) return 0f;
+
+            // 임계치가 고정값보다 낮으면 게이지가 오히려 줄어드는 역전이 생기므로 고정값을 하한으로 둔다.
+            float threshold = Mathf.Max(minVisibleHpThreshold, minVisibleHpRatio);
+
+            return ratio < threshold ? minVisibleHpRatio : ratio;
+        }
+
+        /// <summary>
+        /// SG 게이지와 수치 표기 갱신. HUDPresenter가 OnSGChanged를 받아 호출한다.
+        /// HP와 마찬가지로 "30/100" 표기에 원본이 필요해 비율이 아닌 현재/최대 값을 받는다.
+        /// </summary>
+        /// <param name="cur">현재 SG</param>
+        /// <param name="max">최대 SG</param>
+        public void SetSg(float cur, float max)
+        {
+            sg.SetRatio(max > 0f ? Mathf.Clamp01(cur / max) : 0f);
+            SetBarValueText(sgText, cur, max);
+        }
 
         /// <summary>
         /// 스태미나 게이지 갱신. 가득 차면 게이지를 숨기고, 소모 중일 때만 보여준다(기획).

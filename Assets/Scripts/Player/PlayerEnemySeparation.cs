@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using ProjectS.Enemies;
+﻿using ProjectS.Enemies;
+using UnityEngine;
 
 namespace ProjectS.Players
 {
@@ -26,17 +26,27 @@ namespace ProjectS.Players
         [SerializeField, Min(0f)] private float enemyBodyHeight = 1.8f;
 
         private CharacterController controller;
+
+        private PlayerCombat combat;
+
+        public Player player;
+
         // 매 프레임 할당을 없애는 NonAlloc 버퍼. 동시에 겹치는 몬스터 상한(넘치면 나머지는 다음 프레임에).
         private readonly Collider[] buffer = new Collider[16];
 
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
+            combat = GetComponent<PlayerCombat>();
+            player = GetComponent<Player>();
         }
 
         // 플레이어 이동과 몬스터(NavMeshAgent) 이동이 모두 끝난 뒤 겹침을 정리한다.
         private void LateUpdate()
         {
+            // 구르기·공중대시·각성기 시전 중에는 몬스터를 통과한다(소프트 분리 정지).
+            if (player != null && player.PassThroughEnemies) return;
+
             Vector3 center = transform.position + controller.center;
             int count = Physics.OverlapSphereNonAlloc(
                 center, detectRadius, buffer, enemyMask, QueryTriggerInteraction.Collide);
