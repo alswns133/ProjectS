@@ -224,6 +224,10 @@ namespace ProjectS.Cameras
 
         private void ReadZoomInput()
         {
+            // 커서가 잠겨 있지 않으면(마우스 포인터가 보이는 UI 조작 상태) 휠은 UI 스크롤용이므로
+            // 카메라 줌에 반영하지 않는다. CameraPivotController의 마우스 회전 가드와 같은 규칙이다.
+            if (Cursor.lockState != CursorLockMode.Locked) return;
+
             float d = input.ZoomDelta;
             if (Mathf.Abs(d) < 0.0001f) return;   // 입력 없으면 매 프레임 연산 건너뜀
 

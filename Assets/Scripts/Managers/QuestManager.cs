@@ -20,7 +20,7 @@ namespace ProjectS.Managers
     public class QuestManager : MonoBehaviour
     {
         /// <summary>반복 퀘스트 동시 수락 슬롯 한도(기획서 2.2).</summary>
-        private const int MaxRepeatSlots = 3;
+        private const int MaxRepeatSlots = 10;
 
         /// <summary>전역 접근점. 부트스트랩 씬에 하나 두고 DontDestroyOnLoad로 유지한다.</summary>
         public static QuestManager Instance { get; private set; }

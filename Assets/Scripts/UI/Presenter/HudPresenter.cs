@@ -2,6 +2,7 @@
 using UnityEngine.Serialization;
 using ProjectS.Events;
 using ProjectS.UI.Framework;
+using ProjectS.Managers;
 
 namespace ProjectS.UI
 {
@@ -28,6 +29,9 @@ namespace ProjectS.UI
 
             // 숨겨져(비활성) 구독이 끊긴 사이 바뀐 스탯을 다시 받는다(예: 상호작용 중 받은 보상).
             PlayerEvents.FireStatsRefreshRequested();
+
+            if (PlayerManager.Instance != null)
+                view.SetSymbol(PlayerManager.Instance.CurrentCharacterId);
         }
 
         protected override void Unsubscribe()

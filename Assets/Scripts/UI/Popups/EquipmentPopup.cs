@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Data;
@@ -95,8 +95,11 @@ namespace ProjectS.UI
             if (levelNameText != null) levelNameText.text = $"Lv. {level:00}  {name}";
 
             // 직업 심볼·일러스트는 캐릭터 타입으로 어드레서블 로드(캐릭터별 이미지 필요).
-            int charId = stats != null ? stats.CharacterId : (save?.characterType ?? 0);
-            if (charId != loadedCharacterId)
+            int charId = PlayerManager.Instance != null 
+                ? PlayerManager.Instance.CurrentCharacterId
+                : (save?.characterType ?? 0);
+
+            if(charId != loadedCharacterId)
             {
                 loadedCharacterId = charId;
                 LoadCharacterArt(classSymbol, $"Char_Symbol_{charId}");
