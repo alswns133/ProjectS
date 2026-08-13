@@ -1,4 +1,4 @@
-namespace ProjectS.Data
+﻿namespace ProjectS.Data
 {
     /// <summary>
     /// 퀘스트 대분류. 성장 곡선에서의 역할이 다르다(메인=전진, 반복=보충).
@@ -32,7 +32,9 @@ namespace ProjectS.Data
         Gold,         // 골드(재화)
         Item,         // 무기/아이템 — TargetId로 아이템 테이블 조회, Amount만큼 지급
         Exp,          // 경험치(레벨업 동반)
-        SkillUnlock   // 스킬/각성기 해금 — TargetId(스킬 ID)를 캐릭터 세이브 LearnedSkillIds에 추가
+        SkillUnlock,   // 스킬/각성기 해금 — TargetId(스킬 ID)를 캐릭터 세이브 LearnedSkillIds에 추가
+        ClassWeapon,  //  TargetId는 검 ID로 저작, 지급 시 직업 무기로 해석
+
     }
 
     /// <summary>

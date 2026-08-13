@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,9 +7,12 @@ namespace ProjectS.Events
     /// <summary>미니맵에 표시할 대상의 종류. 마커 아이콘·색을 이 값으로 고른다.</summary>
     public enum MinimapMarkerType
     {
-        Player,
-        Enemy,
-        Npc,
+        Player, //플레이어
+        Enemy,  //적
+        Npc,    // 기본/ 일반 NPC
+        NpcShop, // 상점 NPC
+        NpcEnhance, // 강화 NPC
+        NpcQuest, // 퀘스트 NPC
     }
 
     /// <summary>

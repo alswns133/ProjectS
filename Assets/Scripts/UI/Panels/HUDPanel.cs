@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ProjectS.UI.Framework;
+using ProjectS.Items;
 
 namespace ProjectS.UI
 {
@@ -48,6 +49,9 @@ namespace ProjectS.UI
 
         [SerializeField] private HpEcg hpEcg;
 
+        [Header("직업 심볼")]
+        [SerializeField] private Image classSymbol;
+
         // [2026.08.12 태하] 저체력 구간 게이지 가독성 보정.
         // 잔여량이 적어지면 채워진 폭이 몇 픽셀 수준이라 "조금 남았는지 죽었는지" 구분이 안 된다.
         // (HP바 스프라이트가 기울어진 헥사곤이라 끝부분은 실제 폭보다 더 얇게 보인다.)
@@ -70,6 +74,17 @@ namespace ProjectS.UI
             staminaRoot.SetActive(false);
 
             hpEcg.SetMaterial(hp.Material);
+        }
+
+        public async void SetSymbol(int charId)
+        {
+            if (classSymbol == null) return;
+
+            Sprite s = await ItemIconLoader.LoadAsync($"Char_Symbol_{charId}");
+
+            if (this == null || classSymbol == null) return;
+            classSymbol.sprite = s;
+            classSymbol.enabled = s != null;
         }
 
         /// <summary>

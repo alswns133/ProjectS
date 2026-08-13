@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using ProjectS.Effects;
 using ProjectS.Players;
 using ProjectS.Scenes;
@@ -35,6 +35,15 @@ namespace ProjectS.Managers
 
         /// <summary>현재 플레이어. 부트스트랩 생성 후 씬을 넘어 유지된다. 스폰 전에는 비활성 상태다.</summary>
         public Player Player { get; private set; }
+
+        /// <summary>
+        /// 현재 캐릭터 타입 ID(검사=1/거너=2). 살아있는 플레이어의 CharacterId를 우선하고,
+        /// 스폰 전이거나 플레이어가 없으면 선택 세션(GameSession) 값으로 폴백한다.
+        /// HUD 직업 심볼·장비창 심볼처럼 "지금 이 캐릭터가 누구냐"가 필요한 UI의 단일 출처.
+        /// </summary>
+        public int CurrentCharacterId => Player != null && Player.Stats != null 
+            ? Player.Stats.CharacterId 
+            : GameSession.SelectedCharacterType;
 
         private void Awake()
         {

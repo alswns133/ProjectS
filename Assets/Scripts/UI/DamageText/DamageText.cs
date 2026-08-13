@@ -23,7 +23,7 @@ namespace ProjectS.UI
 
         private void Awake()
         {
-            label = GetComponent<TMP_Text>();
+            label = GetComponentInChildren<TMP_Text>();
         }
 
         /// <summary>

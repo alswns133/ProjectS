@@ -170,7 +170,12 @@ namespace ProjectS.Players
         /// 무적 상태를 켜고 끈다. 호출측(구르기 상태)이 Enter/Exit 짝으로 호출해야
         /// 무적이 영구히 남는 사고가 없다(상태 머신의 Exit 보장에 기댄다).
         /// </summary>
-        public void SetInvincible(bool value) => manualInvincible = value;
+        public void SetInvincible(bool value)
+        {
+            // [임시 디버그] 각성기 무적 씹힘 추적용. 원인 확인되면 이 로그 제거.
+            Debug.Log($"[무적] {(value ? "ON" : "OFF")}  t={Time.time:F2}  frame={Time.frameCount}");
+            manualInvincible = value;
+        }
 
         /// <summary>
         /// 구르기 종료 직후의 잔여 무적을 부여한다. PlayerRollState.Exit가 호출한다.
@@ -512,6 +517,9 @@ namespace ProjectS.Players
         public bool TakeDamage(in DamageResult result, bool ignoreInvincibility)
         {
             if (IsDead) return false;   // ★ 이 가드가 죽음 1회 발행을 보장하는 핵심
+
+            // [임시 디버그] 각성기 무적 씹힘 추적용. 원인 확인되면 이 로그 제거.
+            Debug.Log($"[피격] IsInvincible={IsInvincible} (manual={manualInvincible}, timer={(Time.time < invincibleUntilTime)}) ignore={ignoreInvincibility}  t={Time.time:F2}  frame={Time.frameCount}");
 
             // 구르기 무적: 즉사기가 아니면 데미지·이벤트 모두 없던 일로 한다
             if (IsInvincible && !ignoreInvincibility) return false;

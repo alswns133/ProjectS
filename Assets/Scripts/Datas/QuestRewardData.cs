@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace ProjectS.Data
 {
@@ -23,5 +23,13 @@ namespace ProjectS.Data
 
         /// <summary>보상 아이콘 어드레서블 주소. UI가 필요할 때 로드한다(없으면 비워 둔다).</summary>
         public string IconAddress = string.Empty;
+
+        public static int ResolveClassWeaponId(int baseId ,int charType)
+        {
+            if (baseId / 100000 != 1) return baseId;      // 무기(분류 1)만 스왑, 아니면 그대로
+            int weaponDigit = (charType == 2) ? 2 : 1; // 거너 = 총 (2), 그 외 = 검(1)
+            int c = (baseId / 1000) % 10;   // 현재 종류 자리
+            return baseId - c * 1000 + weaponDigit * 1000;   // 종류 자리만 바꿔서 반환
+        }
     }
 }
