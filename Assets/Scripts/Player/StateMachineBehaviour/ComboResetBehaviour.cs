@@ -29,16 +29,11 @@ namespace ProjectS.Players
 
         public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
-            // 공격→로코모션 블렌드가 '완료'되어 완전히 진입한 첫 프레임.
-            // 여기까지 창을 열어둬야 블렌드 도중 입력이 다음 공격으로 이어진다.
             if (!tornDown && !animator.IsInTransition(layerIndex))
             {
                 tornDown = true;
-
-                // ResetCombo + (피니시 아닐 때만)홀드 재시작
                 combat?.EndComboChain();
             }
         }
-
     }
 }

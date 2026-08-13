@@ -63,6 +63,17 @@ namespace ProjectS.Players
         /// </summary>
         public bool IsStaggered => sm.Current == HitState;
 
+        /// <summary>
+        /// 공중 대시(점프 대시) 중 여부
+        /// </summary>
+        public bool IsJumpDashing => sm.Current == JumpDashState;
+
+        /// <summary>
+        /// 지금 몬스터를 통과해야 하는 상태인지(구르기·공중대시·각성기 시전).
+        /// PlayerEnemySeparation이 true면 그 프레임 소프트 분리를 건너뛴다.
+        /// </summary>
+        public bool PassThroughEnemies => IsRolling || IsJumpDashing || Combat.IsCastingUltimate;
+
         // 공격/스킬/강공격 입력을 피격 중 막는 기준. 캐릭터별로 다르다:
         //  - 태그 캐릭터: 원본(FreeCombatController)처럼 실제 Hit 애니메이션(Animator Hit 태그)을 기준으로 한다.
         //    HitState 타이머와 Hit 클립 길이가 어긋나도 입력 허용 구간이 모션과 정확히 일치한다
@@ -341,6 +352,8 @@ namespace ProjectS.Players
             TryJumpDash();
 
             wasRollHeld = Input.RollHeld;
+
+            Animation.SetRollHeld(Input.RollHeld || IsRolling);
 
             sm.Update(); // 현재 상태의 Update 위임 실행
 

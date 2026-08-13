@@ -24,6 +24,9 @@ namespace ProjectS.Enemies
             //            Enter에 든 연출/초기화가 매번 리셋되는 사고가 난다
             if (next == null || next == Current) return;
 
+            // 죽은 상태에서는 빠져나가지 못하게 가드. 죽은 상태에서 다른 상태로 진입 시도 시 무시함.
+            if(Current is EnemyDeadState) return;
+
             Current?.Exit();    // 이전 상태 정리. 최초 전환 땐 Current가 null이라 ?. 로 건너뜀.
             Current = next;     // 상태 교체
             Current.Enter();    // 새 상태 진입 (여기선 next가 확정 non-null이라 ?. 불필요)
