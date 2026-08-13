@@ -207,7 +207,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStats
   monsterId: 1101
-  maxHp: 100
+  maxHp: 500
   attackPower: 10
   defense: 0
   isBoss: 0
@@ -252,6 +252,8 @@ MonoBehaviour:
   animationMoveStartThreshold: 0.15
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
+  turnSpeed: 720
+  moveTurnGateAngle: 45
 --- !u!114 &7362677270953172903
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -277,10 +279,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCombat
   detectAttack:
-    name: Attack2
+    name: Detect
     kind: 0
-    animationIndex: 1
-    range: 6
+    animationIndex: 0
+    range: 2
     minRange: 0
     cooldown: 1
     coef: 1
@@ -300,24 +302,9 @@ MonoBehaviour:
     minRange: 0
     cooldown: 1
     coef: 1
-    weight: 0
+    weight: 1
     trackTarget: 1
     hitBox: {fileID: 4446814984604500979}
-    projectilePrefab: {fileID: 0}
-    muzzle: {fileID: 0}
-    rotationOffset: {x: 0, y: 0, z: 0}
-    muzzleFlash: {fileID: 0}
-    canPierce: 0
-  - name: Attack2
-    kind: 0
-    animationIndex: 1
-    range: 6
-    minRange: 0
-    cooldown: 1
-    coef: 1
-    weight: 1
-    trackTarget: 0
-    hitBox: {fileID: 5168688492775167932}
     projectilePrefab: {fileID: 0}
     muzzle: {fileID: 0}
     rotationOffset: {x: 0, y: 0, z: 0}
@@ -349,7 +336,7 @@ MonoBehaviour:
   patrolStuckTimeout: 4
   patrolSpeed: 1
   chaseSpeed: 4
-  detectionRange: 5
+  detectionRange: 6
   useDetectDash: 1
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
@@ -366,6 +353,7 @@ MonoBehaviour:
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 10
   surroundAngleRange: 180
+  hitRecoveryDelay: 1
 --- !u!136 &553132396197398826
 CapsuleCollider:
   m_ObjectHideFlags: 0
