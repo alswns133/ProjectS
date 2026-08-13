@@ -142,6 +142,12 @@ namespace ProjectS.Players
         public bool IsCastingSkillMove => currentAction == CombatAction.Skill;
 
         /// <summary>
+        /// 각성기(4번 스킬) 시전 중인지 확인. 시전 동안 몬스터 소프트 분리를 끄는 데 쓴다.
+        /// (Player.PassThroughEnemies가 구르기·공중대시와 함께 읽어 그 프레임 소프트 분리를 건너뛴다.)
+        /// </summary>
+        public bool IsCastingUltimate => currentAction == CombatAction.Skill && currentSkillNumber == 4;
+
+        /// <summary>
         /// 지금 '무적을 주는 스킬'(SkillTable.Invincible = 각성기)을 시전 중인지.
         /// 회피(구르기·공중대시)가 이 스킬을 캔슬하지 못하게 막는 데 쓴다 — 각성기는 회피로 끊기지 않는다(기획).
         /// 무적 스킬이 아니면(스킬 1~3) false라 기존의 '회피 최우선 캔슬'이 그대로 동작한다.
