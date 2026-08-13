@@ -21,6 +21,7 @@ namespace ProjectS.Players
         private static readonly int DoDie = Animator.StringToHash("doDie");
         private static readonly int DoDieLarge = Animator.StringToHash("doDieLarge");
         private static readonly int DoRoll = Animator.StringToHash("doRoll");
+        private static readonly int RollHeld = Animator.StringToHash("rollHeld");
         private static readonly int DoHit = Animator.StringToHash("doHit");
         private static readonly int DoHitLarge = Animator.StringToHash("doHitLarge");
 
@@ -67,6 +68,7 @@ namespace ProjectS.Players
         private bool hasLanding;
         private bool hasDie;
         private bool hasDieLarge;
+        private bool hasRollHeld;
 
         private void Awake()
         {
@@ -91,6 +93,7 @@ namespace ProjectS.Players
             hasLanding = HasParameter(IsLanding);
             hasDie = HasParameter(DoDie);
             hasDieLarge = HasParameter(DoDieLarge);
+            hasRollHeld = HasParameter(RollHeld);
         }
 
         /// <summary>
@@ -339,6 +342,12 @@ namespace ProjectS.Players
             animator.ResetTrigger(DoDieLarge);
             animator.Rebind();
             animator.Update(0f);
+        }
+
+        public void SetRollHeld(bool held)
+        {
+            if (!hasRollHeld) return;
+            animator.SetBool(RollHeld, held);
         }
     }
 }

@@ -42,7 +42,7 @@ namespace ProjectS.Enemies
             // 공격 클립의 전방 루트모션을 위치에 반영해 대쉬 공격이 실제로 전진하게 한다.
             // 전진 없는 제자리 공격 클립은 deltaPosition이 0이라 이 호출이 no-op이므로,
             // 슬롯별로 켜고 끌 필요 없이 공격 상태 전체에서 켜도 안전하다.
-            enemy.Movement.BeginAttackRootMotion();
+            //enemy.Movement.BeginAttackRootMotion();
             enemy.Animation.SetSpeedImmediate(0f);
             if (enemy.Target != null) enemy.Movement.Face(enemy.Target.position);
 
@@ -83,7 +83,7 @@ namespace ProjectS.Enemies
         public override void Exit()
         {
             // 공격 대쉬 전진을 끈다. 피격/사망 등으로 공격이 중간에 끊겨도 루트모션이 남지 않게 한다.
-            enemy.Movement.EndAttackRootMotion();
+            //enemy.Movement.EndAttackRootMotion();
         }
     }
 }
