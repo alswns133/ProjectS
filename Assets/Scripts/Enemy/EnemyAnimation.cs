@@ -16,10 +16,9 @@ namespace ProjectS.Enemies
         private static readonly int AttackIndex = Animator.StringToHash("AttackIndex");
         private static readonly int DoDetect = Animator.StringToHash("doDetect");
         private static readonly int DoAttack = Animator.StringToHash("doAttack");
-        private static readonly int DoHit = Animator.StringToHash("doHit");
-        private static readonly int DoDie = Animator.StringToHash("doDie");
-        private static readonly int HitIndex = Animator.StringToHash("HitIndex");
-        private static readonly int DieIndex = Animator.StringToHash("DieIndex");
+        private static readonly int HitState = Animator.StringToHash("Hit");
+        private static readonly int HitAirState = Animator.StringToHash("Hit_Air");
+        private static readonly int DieState = Animator.StringToHash("Die");
         private static readonly int DieAirState = Animator.StringToHash("Die_Air");
 
         // 이동 블렌드 값이 튀지 않게 부드럽게 따라가는 감쇠 시간.
@@ -82,43 +81,23 @@ namespace ProjectS.Enemies
 
         /// <summary>
         /// 지상 피격 트리거
-        /// HitIndex = 0으로 지상 피격 클립을 선택
         /// </summary>
-        public void PlayHit()
-        {
-            animator.SetInteger(HitIndex, 0);
-            animator.SetTrigger(DoHit);
-        }
+        public void PlayHit() => animator.Play(HitState, 0, 0f);
 
         /// <summary>
         /// 공중 경직 트리거
-        /// HitIndex = 1으로 공중 피격 클립을 선택
         /// </summary>
-        public void PlayHitAir()
-        {
-            animator.SetInteger(HitIndex, 1);
-            animator.SetTrigger(DoHit);
-        }
+        public void PlayHitAir() => animator.Play(HitAirState, 0, 0f);
 
         /// <summary>
         /// 지상 사망 트리거
-        /// DieIndex = 0으로 지상 사망 클립을 선택
         /// </summary>
-        public void PlayDie()
-        {
-            animator.SetInteger(DieIndex, 0);
-            animator.SetTrigger(DoDie);
-        }
+        public void PlayDie() => animator.Play(DieState, 0, 0f);
 
         /// <summary>
         /// 공중 사망 트리거
-        /// DieIndex = 1으로 공중 사망 클립을 선택
         /// </summary>
-        public void PlayDieAir()
-        {
-            animator.SetInteger(DieIndex, 1);
-            animator.SetTrigger(DoDie);
-        }
+        public void PlayDieAir() => animator.Play(DieAirState, 0, 0f);
 
         /// <summary>
         /// 공중 사망: 지금 재생 중인 공중 피격 클립의 진행도를 이어받아 Die_Air 모션을 재생
@@ -129,6 +108,19 @@ namespace ProjectS.Enemies
             float t = animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
             t -= Mathf.Floor(t);
             animator.Play(DieAirState, 0, t);
+        }
+
+        /// <summary>
+        /// 현재 Hit_Air 클립 진행도(0~1). Hit_Air 재생 중이 아니면 -1
+        /// </summary>
+        public float HitAirNormalizedTime
+        {
+            get
+            {
+                AnimatorStateInfo s = animator.GetCurrentAnimatorStateInfo(0);
+                if (!s.IsName("Hit_Air")) return -1f;
+                return s.normalizedTime;
+            }
         }
     }
 }

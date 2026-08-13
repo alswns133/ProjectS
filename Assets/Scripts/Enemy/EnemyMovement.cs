@@ -281,12 +281,21 @@
         /// 공중 런처(BeginRootMotion)와 달리 에이전트를 끄지 않는다 — NavMesh 클램프를 살려 대쉬가 벽/절벽을 넘지 않게 한다.
         /// EnemyAttackState.Enter에서 켜고 Exit에서 반드시 끈다(피격/사망으로 끊겨도 전진이 남지 않게).
         /// </summary>
-        public void BeginAttackRootMotion() => useAttackRootMotion = true;
+        public void BeginAttackRootMotion()
+        {
+            if (agent.enabled) agent.enabled = false;
+            useRootMotion = true;
+        }
 
         /// <summary>
         /// 공격 대쉬 종료. 루트모션 전진을 끈다. 끄지 않으면 이후 Idle/Walk 클립의 미세 루트모션이 위치에 샌다.
         /// </summary>
-        public void EndAttackRootMotion() => useAttackRootMotion = false;
+        public void EndAttackRootMotion()
+        {
+            useRootMotion = false;
+
+            if (!agent.enabled) agent.enabled = true;
+        }
 
         /// <summary>
         /// 착지 처리) 루트모션 적용을 끄고 현재 위치에서 가장 가까운 NavMesh 지점으로 에이전트를 복귀
@@ -316,15 +325,6 @@
             {
                 transform.position += animator.deltaPosition;
                 return;
-            }
-
-            // 공격 대쉬: 에이전트를 켠 채 수평 이동량만 NavMesh에 클램프해 전진한다.
-            // agent.Move는 isStopped여도 동작하고, 델타를 NavMesh 위로 눌러 벽을 뚫거나 메시 밖으로 나가지 않게 한다.
-            if (useAttackRootMotion && agent.enabled && agent.isOnNavMesh)
-            {
-                Vector3 delta = animator.deltaPosition;
-                delta.y = 0f;   // 지상 대쉬라 수직 성분은 버린다(Y는 Bake Into Pose로 이미 제자리).
-                agent.Move(delta);
             }
         }
 
