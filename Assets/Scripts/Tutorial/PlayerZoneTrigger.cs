@@ -23,8 +23,17 @@ namespace ProjectS.Tutorials
         public class BoolEvent : UnityEvent<bool> { }
 
         [Header("감지 시 실행")]
-        [Tooltip("진입 시 true, 이탈 시 false가 전달된다. 사운드·이펙트를 인스펙터에서 연결할 때 쓴다.")]
+        [Tooltip("진입 시 true, 이탈 시 false가 전달된다. 켜고 끄는 대상(윤곽선 등)을 연결할 때 쓴다.")]
         [SerializeField] private BoolEvent onPlayerInsideChanged = new BoolEvent();
+
+        // 아래 둘은 인자가 없어서 "매개변수 없는 메서드"를 인스펙터에서 바로 물릴 수 있다.
+        // onPlayerInsideChanged에 그런 메서드를 물리면 진입할 때와 나갈 때 '둘 다' 호출돼
+        // "들어오면 문을 잠근다" 같은 한쪽 방향 동작을 표현할 수 없다.
+        [Tooltip("진입 순간 1회 호출. 예: 방에 들어서면 문을 영구히 잠근다(AutoDoor.Lock).")]
+        [SerializeField] private UnityEvent onPlayerEntered = new UnityEvent();
+
+        [Tooltip("이탈 순간 1회 호출.")]
+        [SerializeField] private UnityEvent onPlayerExited = new UnityEvent();
 
         [Header("기즈모")]
         [SerializeField] private Color gizmoColor = new Color(0.2f, 0.9f, 1f, 0.35f);
@@ -83,7 +92,12 @@ namespace ProjectS.Tutorials
             if (isPlayerInside == value) return;
 
             isPlayerInside = value;
+
             onPlayerInsideChanged?.Invoke(value);
+
+            if (value) onPlayerEntered?.Invoke();
+            else onPlayerExited?.Invoke();
+
             PlayerInsideChanged?.Invoke(value);
         }
 
