@@ -37,12 +37,17 @@ namespace ProjectS.UI
         [Tooltip("타이틀 글리치 연출. 비워두면 자식에서 자동으로 찾는다. 없으면 연출 없이 표시만 된다.")]
         [SerializeField] private GlitchTextFx titleFx;
 
+        [Tooltip("숫자 슬롯머신 연출. 비워두면 자식에서 자동으로 찾는다. " +
+                 "붙어 있으면 숫자는 릴이 그리므로 levelText·levelFormat은 쓰이지 않는다.")]
+        [SerializeField] private NumberReelFx levelReel;
+
         protected override void Awake()
         {
             base.Awake();
 
             // 인스펙터에 안 물려도 동작하게 자식에서 찾아 둔다. 알림은 평소 꺼져 있으므로 비활성 포함으로 찾는다.
             if (titleFx == null) titleFx = GetComponentInChildren<GlitchTextFx>(true);
+            if (levelReel == null) levelReel = GetComponentInChildren<NumberReelFx>(true);
         }
 
         /// <summary>
@@ -51,14 +56,16 @@ namespace ProjectS.UI
         /// <param name="level">새로 도달한 레벨</param>
         public void Show(int level)
         {
-            if (levelText != null) levelText.text = string.Format(levelFormat, level);
+            // 릴이 있으면 숫자는 릴이 그린다. 여기서 텍스트를 덮어쓰면 릴의 원본 라벨과 충돌한다.
+            if (levelReel == null && levelText != null) levelText.text = string.Format(levelFormat, level);
 
             Play();
 
             // 재생 시작은 Play() 뒤여야 한다. Play()가 오브젝트를 켜는데, 꺼져 있는 동안 부른 Play는
-            // GlitchTextFx 쪽에서 isActiveAndEnabled 가드에 걸려 조용히 무시된다.
+            // GlitchTextFx·NumberReelFx 쪽에서 isActiveAndEnabled 가드에 걸려 조용히 무시된다.
             // Play는 재생 중이어도 처음부터 다시 시작하므로 중복 호출이 안전하다.
             if (titleFx != null) titleFx.Play();
+            if (levelReel != null) levelReel.Play(level);
         }
     }
 }
