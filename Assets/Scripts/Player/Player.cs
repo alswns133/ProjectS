@@ -698,10 +698,10 @@ namespace ProjectS.Players
             if (Stats.IsDead) return;
             if (IsRolling) return;
 
-            // 스킬 시전 중 슈퍼아머: 약한 피격은 데미지만 받고(TakeDamage에서 이미 적용) 경직시키지 않는다.
-            // 스킬을 한 번 지르면 잡몹 평타에 계속 끊기지 않게 하려는 기획이다. 강피격(LastHitWasStrong)은
-            // 슈퍼아머를 뚫고 경직시킨다. 일반/대시/점프/강공격 중에는 IsCastingSkillMove가 false라 정상 경직된다.
-            if (Combat.IsCastingSkillMove && !Stats.LastHitWasStrong) return;
+            // 강공격/스킬 시전 중 슈퍼아머: 약한 피격은 데미지만 받고(TakeDamage에서 이미 적용) 경직시키지 않는다.
+            // 스킬·강공격을 한 번 지르면 잡몹 평타에 계속 끊기지 않게 하려는 기획이다. 강피격(LastHitWasStrong)은
+            // 슈퍼아머를 뚫고 경직시킨다. 일반/대시/점프 중에는 IsSuperArmorMove가 false라 정상 경직된다.
+            if (Combat.IsSuperArmorMove && !Stats.LastHitWasStrong ) return;
 
             ChangeState(HitState);
         }

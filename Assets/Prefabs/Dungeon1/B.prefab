@@ -947,7 +947,7 @@ MonoBehaviour:
   maxHp: 100
   attackPower: 10
   defense: 0
-  isBoss: 0
+  isBoss: 1
   damageTextHeight: 0.5
 --- !u!195 &7810889923842528744
 NavMeshAgent:
@@ -989,6 +989,8 @@ MonoBehaviour:
   animationMoveStartThreshold: 0
   avoidancePriorityMin: 30
   avoidancePriorityMax: 70
+  turnSpeed: 720
+  moveTurnGateAngle: 45
 --- !u!114 &5484695720222646604
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1082,6 +1084,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.Enemy
   patrolPoints: []
   patrolWaitTime: 1
+  patrolRadius: 0
+  patrolStuckTimeout: 4
+  patrolSpeed: 1
+  chaseSpeed: 4
   detectionRange: 8
   useDetectDash: 0
   detectDashSpeedMultiplier: 1.8
@@ -1099,6 +1105,7 @@ MonoBehaviour:
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
   surroundAngleRange: 80
+  hitRecoveryDelay: 0.4
 --- !u!136 &4888123434054413564
 CapsuleCollider:
   m_ObjectHideFlags: 0
