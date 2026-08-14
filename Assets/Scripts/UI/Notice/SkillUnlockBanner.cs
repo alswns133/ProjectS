@@ -51,6 +51,9 @@ namespace ProjectS.UI
         [Tooltip("동시에 밀려들 수 있는 해금 알림의 최대 대기 수. 넘치면 가장 오래된 것부터 버린다.")]
         [SerializeField, Min(1)] private int maxQueued = 3;
 
+        [Tooltip("뒤에 대기 중인 해금이 남아 있을 때 쓸 유지 시간(초). 마지막 한 건은 평소 유지 시간을 그대로 쓴다.")]
+        [SerializeField, Min(0f)] private float queuedHoldSeconds = 2f;
+
         // 표시할 내용 한 건. 아이콘이 아직 없을 수 있어 이름만으로도 성립한다.
         private readonly struct Entry
         {
@@ -96,6 +99,18 @@ namespace ProjectS.UI
             pending.Clear();
             Dismiss();
         }
+
+        /// <remarks>
+        /// 대기열이 남아 있으면 짧게 끊어 간다. 한 건당 온전한 유지 시간을 다 쓰면
+        /// <see cref="maxQueued"/>개가 밀렸을 때 배너가 십수 초 동안 화면을 차지한다.
+        /// 마지막 한 건은 평소 시간을 그대로 써서, 가장 최근에 열린 스킬은 제대로 읽히게 한다.
+        /// <para>
+        /// <see cref="PlayNext"/>가 현재 건을 꺼낸 뒤 <c>Play()</c>를 부르므로,
+        /// 이 시점의 <c>pending.Count</c>는 "이번 것 다음에 남은 개수"다.
+        /// </para>
+        /// </remarks>
+        protected override float ResolveHoldSeconds()
+            => pending.Count > 0 ? queuedHoldSeconds : base.ResolveHoldSeconds();
 
         protected override void OnNoticeFinished() => PlayNext();
 

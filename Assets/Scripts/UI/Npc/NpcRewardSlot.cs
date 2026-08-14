@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -21,7 +21,7 @@ namespace ProjectS.UI
 
             if (amountText != null)
             {
-                amountText.text = amount;
+                amountText.SetText(amount);
                 amountText.gameObject.SetActive(!string.IsNullOrEmpty(amount));
             }
 

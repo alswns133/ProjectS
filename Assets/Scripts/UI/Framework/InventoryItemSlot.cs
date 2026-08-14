@@ -151,8 +151,9 @@ namespace ProjectS.UI.Framework
 
             if (IsEmpty || icon == null) return;
 
-            // 드래그 시작 시 남아 있던 툴팁을 치운다.
+            // 드래그 시작 시 남아 있던 툴팁을 치우고, 드래그 동안엔 다른 슬롯 hover로도 툴팁이 안 뜨게 막는다.
             ItemTooltip.Instance?.Hide();
+            ItemTooltip.DragSuppressed = true;
 
             Canvas canvas = GetComponentInParent<Canvas>();
             if (canvas == null) return;
@@ -182,6 +183,14 @@ namespace ProjectS.UI.Framework
         {
             if (dragGhost != null) Destroy(dragGhost);
             dragGhost = null;
+
+            ItemTooltip.DragSuppressed = false;   // 드래그 종료 → hover 툴팁 억제 해제
+        }
+
+        /// <summary>슬롯이 비활성(창 닫힘)되면 이 슬롯이 띄운 툴팁을 닫는다(마우스가 안 움직여 PointerExit가 안 와도).</summary>
+        private void OnDisable()
+        {
+            ItemTooltip.Instance?.Hide(this);
         }
 
         // 활성 캔버스 중 sortingOrder가 가장 높은 루트 캔버스를 찾는다(없으면 fallback).
@@ -226,8 +235,9 @@ namespace ProjectS.UI.Framework
         {
             if (IsEmpty || ItemTooltip.Instance == null) return;
 
-            if (equipment != null) ItemTooltip.Instance.ShowEquipment(equipment, eventData.position);
-            else if (stack != null) ItemTooltip.Instance.ShowStack(stack, eventData.position);
+            // owner로 this를 넘겨, 이 슬롯이 속한 창이 닫힐 때(OnDisable)만 이 툴팁이 닫히게 한다.
+            if (equipment != null) ItemTooltip.Instance.ShowEquipment(equipment, eventData.position, this);
+            else if (stack != null) ItemTooltip.Instance.ShowStack(stack, eventData.position, this);
         }
 
         /// <summary>마우스가 벗어나면 툴팁을 숨긴다.</summary>
