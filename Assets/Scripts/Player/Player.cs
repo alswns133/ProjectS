@@ -167,6 +167,10 @@ namespace ProjectS.Players
         /// </summary>
         public bool IsMovementLocked { get; private set; }
 
+        private bool rollAttackBuffered;   // 구르기 중 들어온 공격 클릭 예약
+
+        private bool wasRolling;           // 구르기 종료 엣지 감지
+
         /// <summary>
         /// 공격/스킬이 실제로 발동하는 순간 이동을 잠근다(OnAttack/OnSkill에서 호출).
         /// 안전장치 타이머도 함께 리셋하므로, 콤보로 잠금이 갱신될 때마다 제한 시간이 다시 시작된다.
@@ -357,6 +361,15 @@ namespace ProjectS.Players
 
             sm.Update(); // 현재 상태의 Update 위임 실행
 
+            // 구르기가 끝나는 바로 그 프레임에 예약된 공격 발동.
+            // 이 프레임엔 애니메이터가 아직 Roll 클립이라 Roll→Attack1이 직행한다.
+            if (wasRolling && !IsRolling && rollAttackBuffered)
+            {
+                rollAttackBuffered = false;
+                OnAttack();                  // 이제 IsRolling=false → 정상 콤보 경로로 라우팅
+            }
+            wasRolling = IsRolling;
+
             // 접지 여부와 수직 속도는 상태와 무관하게 매 프레임 애니메이터에 반영.
             // 점프/낙하/착지 모션은 이 두 값의 조건 전이(또는 트리거)로 재생된다.
             Animation.SetGrounded(Movement.IsGrounded);
@@ -528,7 +541,11 @@ namespace ProjectS.Players
         {
             if (!CombatAllowed) return;      // 마을(전투 비활성) 또는 마우스 모드에서는 공격 입력 무시
             if (Stats.IsDead) return;        // 죽었으면 공격 무시
-            if (IsRolling) return;           // 구르기 중 공격 금지(회피 커밋 유지)
+            if (IsRolling)
+            {
+                rollAttackBuffered = true;   // 버리지 않고 예약 (앞의 CombatAllowed/IsDead 가드는 이미 통과)
+                return;
+            }
             if (IsHitBlocked) return;        // 피격 중 공격 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
 
             // 스킬/단타 공격 시전 중 클릭 차단. 막지 않으면 Attack 트리거가 래치된 채 대기하다가
