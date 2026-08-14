@@ -53,13 +53,17 @@ namespace ProjectS.Data
 
         /// <summary>
         /// 해당 레벨의 기준값을 돌려준다. 실제 아이템 수치는 여기에 드랍 시 랜덤(0.95~1.05)을 곱한 값이다.
+        /// 퍼센트 옵션의 테이블 값은 퍼센트 포인트(예: 2 = 2%)로 적혀 있지만, 런타임 소비자
+        /// (툴팁 표시·<see cref="ProjectS.Items.EquipmentStatCalculator"/> 곱연산)는 모두 0~1 비율을
+        /// 기대하므로 여기서 /100 해 비율로 맞춘다. 이 변환을 빼면 2%가 200%로 적용된다.
         /// </summary>
         /// <param name="level">아이템 레벨(5단위)</param>
-        /// <returns>기준값. 정의되지 않은 레벨이면 0</returns>
+        /// <returns>기준값. 퍼센트 옵션이면 비율(0~1), 정의되지 않은 레벨이면 0</returns>
         public float GetBaseValue(int level)
         {
             int slot = ItemLevelTier.ToSlot(level);
-            return slot >= 0 ? Values[slot] : 0f;
+            if (slot < 0) return 0f;
+            return IsPercent ? Values[slot] / 100f : Values[slot];
         }
     }
 }
