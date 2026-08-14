@@ -98,6 +98,7 @@ namespace ProjectS.UI
             QuestEvents.OnQuestAccepted += OnAccepted;
             QuestEvents.OnQuestProgressUpdated += OnProgress;
             QuestEvents.OnQuestCompleted += OnCompleted;
+            QuestEvents.OnQuestAbandoned += OnAbandoned;
             QuestEvents.OnQuestsRestored += RebuildActiveQuests;   // 세이브 복원이 늦게 끝나도 다시 그린다
             PlayerEvents.OnCursorModeChanged += OnCursorModeChanged;
             if (window != null) window.CollapsedChanged += OnWindowCollapsedChanged;
@@ -123,6 +124,7 @@ namespace ProjectS.UI
             QuestEvents.OnQuestAccepted -= OnAccepted;
             QuestEvents.OnQuestProgressUpdated -= OnProgress;
             QuestEvents.OnQuestCompleted -= OnCompleted;
+            QuestEvents.OnQuestAbandoned -= OnAbandoned;
             QuestEvents.OnQuestsRestored -= RebuildActiveQuests;
             PlayerEvents.OnCursorModeChanged -= OnCursorModeChanged;
             if (window != null) window.CollapsedChanged -= OnWindowCollapsedChanged;
@@ -646,7 +648,13 @@ namespace ProjectS.UI
             // 이번 진행으로 '완료가 아니었다 → 완료'로 넘어간 순간에만 연출을 태운다.
             if (!wasCompleted && quest.IsReadyToTurnIn)
             {
-                PlayCompletionSequence(quest, card);
+                // 접힘/비대표라 카드가 꺼져 있으면(SetActive false) 소멸 연출을 못 돌린다
+                // (비활성 오브젝트에서 StartCoroutine 불가). 그 경우 연출을 건너뛰고
+                // 바로 완료 처리로 직행해, 경고와 completing 플래그가 남는 것을 막는다.
+                if (card.gameObject.activeInHierarchy)
+                    PlayCompletionSequence(quest, card);
+                else
+                    OnDisintegrated(quest, card);
                 return;   // 정렬·요약 갱신은 연출이 끝난 뒤에
             }
 
@@ -737,6 +745,36 @@ namespace ProjectS.UI
             {
                 nextCard.PlayMaterialize();
             }
+        }
+
+        // 포기 시: 그 카드를 즉시 없앤다. 완료가 아니므로 분해·재생 연출은 걸지 않고(성취가 아니다),
+        // 남은 카드의 정렬과 완료 요약(+N)만 다시 맞춘다.
+        private void OnAbandoned(QuestData quest)
+        {
+            if (!cards.TryGetValue(quest, out QuestTrackerEntry card)) return;
+
+            cards.Remove(quest);
+            pinned.Remove(quest);
+            order.Remove(quest);
+            completing.Remove(quest);
+            foldedBody.Remove(quest);
+
+            if (card != null)
+            {
+                if (selected == card) CloseDetail();
+
+                card.TitleClicked -= OnTitleClicked;
+                card.DetailClicked -= OnDetailClicked;
+                card.FoldClicked -= OnFoldClicked;
+                card.HeightChanged -= OnCardHeightChanged;
+
+                // 비활성 자식은 Layout Group이 즉시 무시하므로, 자리가 한 프레임 남지 않게 먼저 끄고 지운다.
+                card.gameObject.SetActive(false);
+                Destroy(card.gameObject);
+            }
+
+            ApplySortOrder();
+            ApplyCollapsedView();
         }
 
         // 연출이 끝난 카드를 실제로 없앤다.

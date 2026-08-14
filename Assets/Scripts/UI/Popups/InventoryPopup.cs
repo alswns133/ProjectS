@@ -92,8 +92,8 @@ namespace ProjectS.UI
             InventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
             PlayerEvents.OnGoldChanged -= SetGold;
 
-            // 슬롯 위에 마우스를 둔 채 I키로 닫으면 PointerExit가 안 와 툴팁이 남을 수 있어 강제로 숨긴다.
-            ItemTooltip.Instance?.Hide();
+            // 툴팁은 여기서 무조건 닫지 않는다 — 그러면 인벤을 닫을 때 장비창에서 띄운 툴팁까지 사라진다.
+            // 대신 슬롯의 OnDisable이 "자기가 주인인 툴팁만" 닫는다(InventoryItemSlot.OnDisable → ItemTooltip.Hide(this)).
         }
 
         // 탭을 바꾸고, 선택 표시를 갱신하고, 선택 탭을 저장한 뒤 그리드를 다시 채운다.
