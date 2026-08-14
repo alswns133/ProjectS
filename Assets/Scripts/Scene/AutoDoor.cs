@@ -48,6 +48,11 @@ namespace ProjectS.Scenes
         [Tooltip("마지막 대상이 나간 뒤 닫히기까지의 대기 시간(초). 문턱에서 여닫힘이 떨리는 것을 막는다.")]
         [SerializeField, Min(0f)] private float closeDelay = 0.4f;
 
+        [Header("잠금")]
+        [Tooltip("켜면 시작할 때 잠긴 상태다. 잠긴 동안에는 다가가도 열리지 않고, Unlock()을 받아야 동작을 시작한다. " +
+                 "튜토리얼 과제를 통과해야 열리는 문처럼 '조건을 만족해야 열리는 문'에 쓴다.")]
+        [SerializeField] private bool startLocked;
+
         [Header("열림 방식")]
         [SerializeField] private OpenMode mode = OpenMode.Rotate;
 
@@ -103,11 +108,20 @@ namespace ProjectS.Scenes
         private Quaternion closedLocalRotation;
         private int openBoolHash;
 
+        // 잠금 상태. 감지 자체는 계속 하되(점유자는 기록해 둔다) 여는 것만 막는다.
+        // 그래야 Unlock 시점에 이미 문 앞에 서 있던 플레이어에게 바로 열어줄 수 있다.
+        private bool locked;
+
         /// <summary>문이 열린(또는 열리는 중인) 상태인지.</summary>
         public bool IsOpen => isOpen;
 
+        /// <summary>잠겨 있는지. 잠긴 동안에는 근접해도 열리지 않는다.</summary>
+        public bool IsLocked => locked;
+
         private void Awake()
         {
+            locked = startLocked;
+
             trigger = GetComponent<BoxCollider>();
             trigger.isTrigger = true;   // 물리 충돌이 아니라 감지 전용
             trigger.size = detectSize;
@@ -140,7 +154,8 @@ namespace ProjectS.Scenes
 
             occupants.Add(other);
             closeAt = -1f;      // 닫기 예약 취소
-            SetOpen(true);
+
+            if (!locked) SetOpen(true);
         }
 
         private void OnTriggerExit(Collider other)
@@ -172,6 +187,31 @@ namespace ProjectS.Scenes
 
             openAmount = Mathf.MoveTowards(openAmount, target, Time.deltaTime / moveDuration);
             ApplyPose();
+        }
+
+        /// <summary>
+        /// 잠금을 푼다. 이 시점에 이미 감지 범위 안에 플레이어가 있으면 곧바로 열린다
+        /// (문 앞에 선 채로 조건을 만족했을 때 한 발 물러났다 다시 와야 하는 일을 막는다).
+        /// 튜토리얼 과제 성공 이벤트 등에 인스펙터로 연결해 쓴다.
+        /// </summary>
+        public void Unlock()
+        {
+            if (!locked) return;
+
+            locked = false;
+
+            if (!HasOccupant()) return;
+
+            closeAt = -1f;
+            SetOpen(true);
+        }
+
+        /// <summary>다시 잠근다. 열려 있었다면 닫는다.</summary>
+        public void Lock()
+        {
+            locked = true;
+            closeAt = -1f;
+            SetOpen(false);
         }
 
         /// <summary>
