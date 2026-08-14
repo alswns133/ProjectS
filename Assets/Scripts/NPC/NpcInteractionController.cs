@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,6 +8,7 @@ using ProjectS.Managers;
 using ProjectS.Players;
 using ProjectS.UI;
 using ProjectS.Debugging;
+using ProjectS.Core;
 
 namespace ProjectS.NPCs
 {
@@ -42,6 +43,15 @@ namespace ProjectS.NPCs
         Craft      // 제작
     }
 
+    [Serializable]
+    public class NpcHub
+    {
+        public NpcHubFeature feature;
+
+        [ShowIfEnum(nameof(feature), (int)NpcHubFeature.Shop)]
+        public int shopId;
+    }
+
     /// <summary>
     /// NPC 상호작용 상태 머신. F → 인사말(스킵off) → 허브(상점/퀘스트목록/닫기) →
     /// 퀘스트 리스트(안받음→도입대화·수락 / 완료가능→보상→반납) → … 처음으로=인사말 복귀.
@@ -65,7 +75,7 @@ namespace ProjectS.NPCs
         [SerializeField] private int greetingDialogueId;
 
         [Tooltip("이 NPC가 제공하는 허브 고유기능(상점/강화/…). 여기 담긴 것만 허브에 버튼으로 뜬다.")]
-        [SerializeField] private List<NpcHubFeature> hubFeatures = new();
+        [SerializeField] private List<NpcHub> hubFeatures = new();
 
         [Tooltip("근접 감지기. 비우면 자식에서 자동 탐색.")]
         [SerializeField] private NpcOutlineTrigger proximity;
@@ -112,7 +122,23 @@ namespace ProjectS.NPCs
         /// <summary>이 NPC가 해당 허브 기능을 제공하는지(허브 뷰가 버튼을 켤지 판단).</summary>
         /// <param name="feature">확인할 기능</param>
         /// <returns>제공하면 true</returns>
-        public bool HasFeature(NpcHubFeature feature) => hubFeatures.Contains(feature);
+        public bool HasFeature(NpcHubFeature feature)
+        {
+            foreach (NpcHub hub in hubFeatures)
+            {
+                if (hub.feature == feature) return true;
+            }
+            return false;
+        }
+
+        public int GetShopIdForFeature(NpcHubFeature feature)
+        {
+            foreach (NpcHub hub in hubFeatures)
+            {
+                if (hub.feature == feature) return hub.shopId;
+            }
+            return 0;   // 정의 없음
+        }
 
         /// <summary>허브에 퀘스트목록 버튼을 보일지(표시할 퀘스트가 있을 때만).</summary>
         public bool HubHasQuests { get; private set; }
@@ -297,6 +323,8 @@ namespace ProjectS.NPCs
             if (qm.GetAcceptableQuestIdsForNpc(npcName).Count > 0) return QuestMarkerState.Available;
             return QuestMarkerState.None;
         }
+        /// <summary>외부 기능 UI(상점 등)가 열릴 때 허브를 숨긴다. 복귀는 BackToGreeting().</summary>
+        public void HideHubForExternal() => SetScreen(NpcScreen.None);
 
         // ---- 내부 ----
 

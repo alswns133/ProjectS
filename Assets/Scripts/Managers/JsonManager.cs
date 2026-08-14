@@ -41,6 +41,7 @@ namespace ProjectS.Managers
         public IReadOnlyDictionary<int, EnhanceCostData> EnhanceCostDict => GetTable<EnhanceCostData>();
         public IReadOnlyDictionary<int, QuestTable> QuestDict => GetTable<QuestTable>();
         public IReadOnlyDictionary<int, DialogueTable> DialogueDict => GetTable<DialogueTable>();
+        public IReadOnlyDictionary<int, ShopTable> ShopDict => GetTable<ShopTable>();
 
         // 에디터에서 로드된 데이터를 확인하기 위한 디버그 리스트
 #if UNITY_EDITOR
@@ -78,6 +79,7 @@ namespace ProjectS.Managers
             await RegisterAsync<EnhanceCostData>();
             await RegisterAsync<QuestTable>();
             await RegisterAsync<DialogueTable>();
+            await RegisterAsync<ShopTable>();
 
             IsReady = true;   // ★ 모든 로딩이 끝난 뒤에야 true
 
