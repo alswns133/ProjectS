@@ -37,6 +37,36 @@ Shader "ProjectS/Lit Fog Control"
         // 0 = 이 재질만 안개를 완전히 무시, 1 = 씬 Fog 설정 그대로. 그 사이는 비율.
         _FogStrength("Fog Strength", Range(0.0, 1.0)) = 1.0
 
+        [Header(Height Gradient)]
+        [Space]
+        // 높이 기반 그라디언트. 월드 Y가 낮을수록(= 바닥에 가까울수록) 1이 되는 값을 만들어
+        // 알베도에 색을 곱하고 에미션을 더합니다. Strength가 0이면 완전히 무효라,
+        // 이 셰이더를 이미 쓰고 있는 머티리얼의 그림은 하나도 바뀌지 않습니다.
+        // ★ 오브젝트 로컬 Y가 아니라 월드 Y 기준입니다. 던전 벽은 Static(정적 배칭)이라
+        //   로컬 좌표가 배칭 시점에 사라지고, 게다가 벽은 바닥 메시(SM_Bld_Base_Floor_...)를
+        //   90도 눕혀 쓴 것이라 로컬 Y가 애초에 위아래 방향이 아닙니다.
+        _HeightGradientStrength("Height Gradient Strength", Range(0.0, 1.0)) = 0.0
+        // 그라디언트가 1이 되는 높이(보통 바닥 Y)와 0이 되는 높이(벽 윗단 Y).
+        _HeightGradientBottomY("Bottom Y (World)", Float) = 0.0
+        _HeightGradientTopY("Top Y (World)", Float) = 5.0
+        // 1 = 선형. 값을 키울수록 밝은 구간이 바닥 쪽으로 좁게 붙습니다.
+        _HeightGradientPower("Falloff Power", Range(0.1, 8.0)) = 1.0
+        // 바닥 쪽에서 알베도에 곱할 색. 1보다 크면 밝아집니다(조명을 받는 밝기).
+        [HDR] _HeightGradientTint("Bottom Tint (Albedo Multiply)", Color) = (1,1,1,1)
+        // 바닥 쪽에서 더할 에미션. 조명과 무관하게 발광시켜 확실히 밝히고 싶을 때 씁니다.
+        [HDR] _HeightGradientEmission("Bottom Emission (Add)", Color) = (0,0,0,1)
+
+        // --- 아래는 "경계가 티나는" 문제를 없애기 위한 값들입니다 ---
+        // 1 이면 수직면(벽)에만 적용하고 바닥·천장은 제외합니다. 월드 Y 기준이라
+        // 그냥 두면 바닥은 통째로 밝고 천장은 통째로 어두워져 벽-바닥 이음매가 칼로 자른 듯 보입니다.
+        _HeightGradientWallMask("Wall Only (Exclude Floor/Ceiling)", Range(0.0, 1.0)) = 0.0
+        // 월드 XZ 노이즈로 그라디언트 높이를 흔들어 완벽한 수평선을 깨뜨립니다(단위: 미터).
+        _HeightGradientNoiseAmount("Edge Noise Amount", Float) = 0.0
+        _HeightGradientNoiseScale("Edge Noise Scale", Float) = 0.5
+        // 어두운 씬의 완만한 그라디언트는 8bit 출력에서 반드시 띠(밴딩)가 집니다.
+        // 픽셀 단위 미세 노이즈로 그 띠를 갈아 없앱니다. 0.003~0.008 사이면 눈에 안 띕니다.
+        _HeightGradientDither("Dither", Range(0.0, 0.05)) = 0.004
+
         [Header(Rendering)]
         [Space]
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 2.0
