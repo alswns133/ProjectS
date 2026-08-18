@@ -1,6 +1,7 @@
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace ProjectS.UI
@@ -27,6 +28,9 @@ namespace ProjectS.UI
 
         // 확인 시 실행할 콜백. Hide가 곧 null로 지우므로 OnConfirm에서 먼저 캡처해 부른다.
         private Action onConfirm;
+
+        /// <summary>지금 열려 있는지(UIManager가 ESC를 이 창으로 돌릴지 판단하는 데 쓴다).</summary>
+        public bool IsOpen => gameObject.activeSelf;
 
         private void Awake()
         {
@@ -57,6 +61,17 @@ namespace ProjectS.UI
 
             gameObject.SetActive(true);
             transform.SetAsLastSibling();   // 컨텍스트 메뉴 등 다른 오버레이보다 위로
+        }
+
+        // Enter = 확인. ESC = 취소는 UIManager.Back()이 처리한다(뒤 팝업으로 새지 않게 거기서 한 번에 끊음).
+        // Update는 활성(열려 있을) 때만 도므로 다른 창엔 영향이 없다.
+        private void Update()
+        {
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null) return;
+
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+                OnConfirm();
         }
 
         /// <summary>콜백 없이 닫는다(취소·바깥 클릭).</summary>

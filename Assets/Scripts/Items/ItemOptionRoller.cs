@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Enhance;
@@ -54,7 +54,7 @@ namespace ProjectS.Items
             for (int i = 0; i < take; i++)
             {
                 ItemOptionData od = pool[i];
-                float value = od.GetBaseValue(item.Level) * Random.Range(MinRoll, MaxRoll);
+                float value = od.GetBaseValue(item.Level);
                 result.Add(new ItemOption(od.OptionType, value, od.IsPercent, od.Label));
             }
             return result;

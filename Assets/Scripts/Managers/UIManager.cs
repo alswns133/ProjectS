@@ -166,6 +166,14 @@ namespace ProjectS.Managers
         /// </summary>
         public void Back()
         {
+            // 파괴 확인 대화상자(오버레이 싱글톤, UIManager 스택 밖)가 떠 있으면 ESC는 그 창의 취소로만 쓰고
+            // 뒤의 팝업/패널로 흘려보내지 않는다(그러지 않으면 ESC가 열려 있던 다른 팝업을 닫는다).
+            if (ConfirmDialog.Instance != null && ConfirmDialog.Instance.IsOpen)
+            {
+                ConfirmDialog.Instance.Hide();
+                return;
+            }
+
             // 팝업이 있으면 팝업 먼저 닫기
             if (activePopups.Count > 0)
             {

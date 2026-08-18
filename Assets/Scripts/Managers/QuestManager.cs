@@ -355,6 +355,25 @@ namespace ProjectS.Managers
             return true;
         }
 
+        /// <summary>
+        /// 진행 중인 퀘스트를 포기한다. 진행 목록에서 빼고 <see cref="QuestEvents.OnQuestAbandoned"/>를 발행한다.
+        /// 반납(<see cref="TurnInQuest"/>)과 달리 보상을 주지 않고 완료로 등록하지도 않으므로(completedQuestIds에
+        /// 넣지 않는다), 선행 판정상 '수락 전' 상태로 돌아가 NPC에서 다시 수락할 수 있다. 진행도는 버려진다.
+        /// </summary>
+        /// <param name="quest">포기할 퀘스트</param>
+        /// <returns>포기에 성공했으면 true(진행 목록에 없으면 false)</returns>
+        public bool AbandonQuest(QuestData quest)
+        {
+            if (quest == null) return false;
+            if (!activeQuests.Remove(quest)) return false;
+
+            QuestEvents.FireQuestAbandoned(quest);
+
+            // 커밋(①): 포기도 진행 목록을 바꾸는 중요 변화 → 즉시 저장(씬 전환 전 종료돼도 포기한 퀘스트가 되살아나지 않게).
+            PlayerSaveService.SaveNow();
+            return true;
+        }
+
         // ---------- 목표 진행 보고 (목표 소스가 호출) ----------
 
         /// <summary>몬스터 처치를 보고한다. 대상이 일치하는 Kill 목표를 1 진행시킨다.</summary>

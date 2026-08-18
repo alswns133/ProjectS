@@ -77,12 +77,19 @@ namespace ProjectS.UI
         {
             if (ItemTooltip.Instance == null) return;
 
+            // owner로 this를 넘겨, 장비창이 닫힐 때(OnDisable)만 이 툴팁이 닫히게 한다(인벤 닫힘엔 영향 없음).
             EquipmentInstance eq = InventoryManager.Instance != null ? InventoryManager.Instance.GetEquipped(slot) : null;
-            if (eq?.Item != null) ItemTooltip.Instance.ShowEquipment(eq, eventData.position);
+            if (eq?.Item != null) ItemTooltip.Instance.ShowEquipment(eq, eventData.position, this);
         }
 
         /// <summary>마우스가 벗어나면 툴팁을 숨긴다.</summary>
         public void OnPointerExit(PointerEventData eventData) => ItemTooltip.Instance?.Hide();
+
+        /// <summary>슬롯이 비활성(장비창 닫힘)되면 이 슬롯이 띄운 툴팁을 닫는다(마우스가 안 움직여 PointerExit가 안 와도).</summary>
+        private void OnDisable()
+        {
+            ItemTooltip.Instance?.Hide(this);
+        }
 
         // ---- 좌클릭 드래그(고스트) → 인벤토리에 놓으면 해제 : InventoryItemSlot과 동일 패턴 ----
 
@@ -98,6 +105,7 @@ namespace ProjectS.UI
             if (eq?.Item == null) return;
 
             ItemTooltip.Instance?.Hide();
+            ItemTooltip.DragSuppressed = true;   // 드래그 동안 다른 슬롯 hover로도 툴팁이 안 뜨게 막는다
 
             Canvas canvas = GetComponentInParent<Canvas>();
             if (canvas == null) return;
@@ -133,6 +141,8 @@ namespace ProjectS.UI
         {
             if (dragGhost != null) Destroy(dragGhost);
             dragGhost = null;
+
+            ItemTooltip.DragSuppressed = false;   // 드래그 종료 → hover 툴팁 억제 해제
 
             if (eventData.button != PointerEventData.InputButton.Left) return;
 

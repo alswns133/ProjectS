@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 namespace ProjectS.UI
@@ -37,7 +37,7 @@ namespace ProjectS.UI
         [SerializeField, Min(0f)] private float fadeInSeconds = 0.25f;
 
         [Tooltip("완전히 보인 채 머무는 시간(초). 기획서 4장 기준 5초.")]
-        [SerializeField, Min(0f)] private float holdSeconds = 5f;
+        [SerializeField, Min(0f)] private float holdSeconds = 4f;
 
         [Tooltip("사라지는 데 걸리는 시간(초). 0이면 즉시 사라진다.")]
         [SerializeField, Min(0f)] private float fadeOutSeconds = 0.5f;
@@ -48,8 +48,19 @@ namespace ProjectS.UI
         /// <summary>지금 재생 중인지. 큐를 돌리는 파생 클래스가 "이어서 틀어도 되는가"를 판단하는 데 쓴다.</summary>
         public bool IsPlaying => routine != null;
 
-        /// <summary>유지 시간(초). 파생 클래스가 큐 대기 시간을 가늠할 때 읽는다.</summary>
+        /// <summary>인스펙터에 설정된 유지 시간(초).</summary>
         protected float HoldSeconds => holdSeconds;
+
+        /// <summary>
+        /// 이번 재생에 쓸 유지 시간(초). 재생을 시작할 때 한 번만 평가한다.
+        /// 기본은 인스펙터 값 그대로이고, 대기열을 쓰는 파생 클래스가 상황에 따라 줄이려고 재정의한다.
+        /// </summary>
+        /// <remarks>
+        /// 재생 도중 값이 바뀌어도 이미 시작된 알림에는 반영되지 않는다 — 유지 시간이 재생 중에
+        /// 늘었다 줄었다 하면 언제 사라질지 예측할 수 없어진다.
+        /// </remarks>
+        /// <returns>이번 재생에서 완전히 보인 채 머물 시간(초)</returns>
+        protected virtual float ResolveHoldSeconds() => holdSeconds;
 
         /// <remarks>
         /// 알림은 입력을 받지 않는다. <c>blocksRaycasts</c>를 켜 두면 화면을 덮는 알림이 그 5초 동안
@@ -120,7 +131,8 @@ namespace ProjectS.UI
         {
             yield return Fade(0f, 1f, fadeInSeconds);
 
-            float remain = holdSeconds;
+            // 페이드 인이 끝난 시점에 한 번만 평가한다. 대기열이 남았는지에 따라 파생 클래스가 줄일 수 있다.
+            float remain = ResolveHoldSeconds();
             while (remain > 0f)
             {
                 remain -= Time.unscaledDeltaTime;
