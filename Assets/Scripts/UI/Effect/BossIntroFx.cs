@@ -76,8 +76,16 @@ namespace ProjectS.UI
                  "겹쳐야 두 동작이 하나로 읽힌다. 1이면 커튼이 끝난 뒤에 박힌다.")]
         [SerializeField, Range(0f, 1f)] private float slamTriggerRatio = 0.5f;
 
-        [Tooltip("커튼이 이만큼 진행할 때까지 위험 표시가 줄어들어 사라진다(0~1).")]
-        [SerializeField, Range(0.05f, 1f)] private float iconShrinkRatio = 0.45f;
+        [Header("위험 표시 터짐")]
+        [Tooltip("터지면서 부푸는 최대 배율. 1이면 부풀지 않고 사라지기만 한다.")]
+        [SerializeField, Min(1f)] private float iconPopScale = 1.4f;
+
+        [Tooltip("부풀었다 사라지는 데 걸리는 시간(초). 길면 터진 게 아니라 커졌다 없어진 것으로 보인다.")]
+        [SerializeField, Min(0.01f)] private float iconPopDuration = 0.08f;
+
+        [Tooltip("터질 때 튀는 전기 스파크. 비워두면 자식에서 찾는다. 없으면 스파크 없이 터지기만 한다. " +
+                 "양·속도·색은 SparkBurstFx 쪽에서 조절한다.")]
+        [SerializeField] private SparkBurstFx sparkBurst;
 
         [Tooltip("커튼이 slamTriggerRatio에 도달한 뒤 BOSS가 박히기까지 더 기다릴 시간(초). " +
                  "0이면 그 지점에서 곧바로 박힌다.")]
@@ -120,7 +128,11 @@ namespace ProjectS.UI
         [Tooltip("BOSS가 박힌 뒤 화면에 머무는 시간(초).")]
         [SerializeField, Min(0f)] private float holdSeconds = 1.4f;
 
-        [Tooltip("사라지는 데 걸리는 시간(초).")]
+        [Tooltip("BOSS 텍스트가 재처럼 타들어가며 사라지는 연출. 비워두면 자식에서 찾는다. " +
+                 "없으면 아래 시간만큼 그냥 페이드아웃한다.")]
+        [SerializeField] private AshDissolveFx ashDissolve;
+
+        [Tooltip("사라지는 데 걸리는 시간(초). 재 연출을 쓰면 그쪽 duration이 대신 쓰인다.")]
         [SerializeField, Min(0f)] private float fadeOutSeconds = 0.35f;
 
         private CanvasGroup group;
@@ -175,6 +187,8 @@ namespace ProjectS.UI
 
             if (group == null) group = GetComponent<CanvasGroup>();
             if (iconGlitch == null && warningIcon != null) iconGlitch = warningIcon.GetComponent<GlitchImageFx>();
+            if (sparkBurst == null) sparkBurst = GetComponentInChildren<SparkBurstFx>(true);
+            if (ashDissolve == null) ashDissolve = GetComponentInChildren<AshDissolveFx>(true);
 
             if (routine != null) StopCoroutine(routine);
             routine = StartCoroutine(PlayRoutine());
@@ -204,6 +218,9 @@ namespace ProjectS.UI
                 bossRoot.gameObject.SetActive(false);
             }
 
+            // 지난 재생이 타들어가는 도중에 끊겼으면 지워진 채로 남아 있다.
+            if (ashDissolve != null) ashDissolve.ResetDissolve();
+
             yield return Fade(0f, 1f, warningFadeIn);
 
             // 1. 빠르게 두어 번 깜박인 뒤 켜진 채로 머문다.
@@ -227,12 +244,20 @@ namespace ProjectS.UI
             StartCoroutine(SweepCurtain());
             yield return Wait(curtainDuration * slamTriggerRatio);
 
-            // 3. BOSS가 박힌다
             yield return Wait(slamExtraDelay);
+
+            // 3. BOSS가 내려와 박히고, 부딪힌 그 자리에서 위험 표시가 부서진다.
+            //    터지는 시점은 Slam 안의 착지 프레임이다(여기서 미리 터뜨리면 텍스트가
+            //    아직 공중에 있는 동안 아이콘이 사라져 부딪힌 것으로 안 읽힌다).
             yield return Slam();
 
             yield return Wait(holdSeconds);
-            yield return Fade(1f, 0f, fadeOutSeconds);
+
+            // 이 시점에 화면에 남은 것은 BOSS 텍스트뿐이다(띠는 화면 밖, 경고는 이미 꺼짐).
+            // 그래서 그룹 알파를 내리는 대신 텍스트가 직접 타들어가게 두고, 다 타면 그룹을 끈다.
+            // 둘을 겹치면 재가 뜨자마자 같이 흐려져 날리는 게 안 보인다.
+            if (ashDissolve != null) yield return ashDissolve.Play();
+            else yield return Fade(1f, 0f, fadeOutSeconds);
 
             group.alpha = 0f;
             gameObject.SetActive(false);
@@ -268,6 +293,10 @@ namespace ProjectS.UI
             // 정확히 제자리에서 멎는다. 반동을 주면 도장이 아니라 튕기는 물건으로 읽힌다.
             bossRoot.localScale = Vector3.one;
             bossRoot.anchoredPosition = bossHome;
+
+            // 착지 프레임. 부딪힌 바로 그 순간에 위험 표시가 터져야 텍스트가 부순 것으로 읽힌다.
+            // 기다리지 않고 나란히 돌려서 터짐이 히트스톱·흔들림과 겹치게 한다.
+            StartCoroutine(PopIcon());
 
             // 히트스톱. 여기서 아무것도 움직이지 않아야 앞의 속도가 충돌로 환산된다.
             yield return Wait(impactHoldSeconds);
@@ -309,30 +338,55 @@ namespace ProjectS.UI
         /// </remarks>
         private IEnumerator SweepCurtain()
         {
-            Vector3 iconScale = warningIcon != null ? warningIcon.rectTransform.localScale : Vector3.one;
-
             float elapsed = 0f;
             while (elapsed < curtainDuration)
             {
                 elapsed += Delta;
-                float t = Mathf.Clamp01(elapsed / curtainDuration);
-                float eased = curtainCurve.Evaluate(t);
-
-                MoveBands(eased);
-
-                // 아이콘은 커튼보다 빨리 사라진다. 띠만 나가고 가운데가 남으면 화면이 어수선하다.
-                if (warningIcon != null)
-                {
-                    float shrink = 1f - Mathf.Clamp01(t / iconShrinkRatio);
-                    warningIcon.rectTransform.localScale = iconScale * shrink;
-                }
-
+                MoveBands(curtainCurve.Evaluate(Mathf.Clamp01(elapsed / curtainDuration)));
                 yield return null;
             }
 
             MoveBands(1f);
             SetWarningActive(false);
         }
+
+        /// <summary>
+        /// 위험 표시가 순간적으로 부풀었다 터져 사라지고, 그 자리에서 불똥이 튄다.
+        /// BOSS가 내려오기 시작하는 바로 그 순간에 부른다.
+        /// </summary>
+        /// <remarks>
+        /// 서서히 줄여 없애면 "조용히 물러났다"가 되어 다음 단계와 이어지지 않는다.
+        /// 부풀렸다 한 번에 터뜨려야 BOSS가 그 자리를 밀어내고 들어온 것처럼 읽힌다.
+        /// </remarks>
+        private IEnumerator PopIcon()
+        {
+            if (warningIcon == null) yield break;
+
+            if (sparkBurst != null) sparkBurst.Play(warningIcon.rectTransform.position);
+
+            RectTransform rt = warningIcon.rectTransform;
+            Color baseColor = warningIcon.color;
+
+            float elapsed = 0f;
+            while (elapsed < iconPopDuration)
+            {
+                elapsed += Delta;
+                float t = Mathf.Clamp01(elapsed / iconPopDuration);
+
+                rt.localScale = Vector3.one * Mathf.Lerp(1f, iconPopScale, t);
+
+                Color c = baseColor;
+                c.a = baseColor.a * (1f - t);
+                warningIcon.color = c;
+
+                yield return null;
+            }
+
+            warningIcon.color = baseColor;
+            rt.localScale = Vector3.one;
+            warningIcon.gameObject.SetActive(false);
+        }
+
 
         /// <summary>띠를 각자 화면 바깥 방향으로 <paramref name="progress"/>만큼 밀어낸다.</summary>
         private void MoveBands(float progress)
@@ -371,10 +425,17 @@ namespace ProjectS.UI
             if (warningRoot != null) warningRoot.SetActive(active);
             if (!active) return;
 
-            // 커튼이 옮겨 놓은 띠와 줄여 놓은 아이콘을 제자리로 돌린다.
-            // 이걸 빠뜨리면 두 번째 재생부터 경고가 화면 밖에서 시작한다.
+            // 커튼이 옮겨 놓은 띠와, 터지면서 부풀고 투명해진 아이콘을 제자리로 돌린다.
+            // 이걸 빠뜨리면 두 번째 재생부터 경고가 화면 밖에서 시작하거나 투명한 채로 뜬다.
             MoveBands(0f);
-            if (warningIcon != null) warningIcon.rectTransform.localScale = Vector3.one;
+            if (warningIcon != null)
+            {
+                warningIcon.rectTransform.localScale = Vector3.one;
+
+                Color c = warningIcon.color;
+                c.a = 1f;
+                warningIcon.color = c;
+            }
 
             SetIconVisible(true);
         }
