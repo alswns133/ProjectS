@@ -105,7 +105,7 @@ namespace ProjectS.UI
 
             RefreshCountView();
 
-            // 죽은 직후에는 커서가 잠겨 있어 버튼을 누를 수 없다(DungeonSelectPopup과 같은 처리).
+            // 죽은 직후에는 커서가 잠겨 있어 버튼을 누를 수 없다(DungeonEntryPopup과 같은 처리).
             SetCursorFree(true);
 
             if (ReviveBudget.CanRevive)

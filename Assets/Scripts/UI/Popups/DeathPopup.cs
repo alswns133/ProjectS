@@ -40,7 +40,7 @@ namespace ProjectS.UI
     /// 표시용 필드(<see cref="messageText"/> 등)는 전부 선택 사항이다. 비어 있으면 연출 없이 기능만 돈다
     /// — 아트가 붙기 전 씬에서도 흐름을 검증할 수 있게 하기 위함이다.
     /// 다른 창과 공존하지 않지만, 스택형 패널 흐름(HUD Pause/Resume)에 끼어들지 않도록 리스트형
-    /// <see cref="BasePopup"/>으로 둔다(DungeonSelectPopup과 같은 방침).
+    /// <see cref="BasePopup"/>으로 둔다(DungeonEntryPopup과 같은 방침).
     /// </para>
     /// </remarks>
     public class DeathPopup : BasePopup
