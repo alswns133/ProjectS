@@ -12,7 +12,8 @@ namespace ProjectS.Scenes
 {
     public class DungeonGather : BaseScene
     {
-        [Tooltip("직접 씬 테스트용 폴백 던전 ID. 실제 진입은 GameSession.SelectedDungeonId(선택/생성 시 세팅)를 우선한다.")]
+        [Tooltip("직접 씬 테스트용 폴백 던전 ID. 2자리 [던전][난이도] (11=던전1 노말 · 13=매니악). " +
+                 "실제 진입은 GameSession.SelectedDungeonId(입장 화면에서 세팅)를 우선한다.")]
         [SerializeField] private int dungeonId;
 
         private EnemySpawner enemySpawner;  // 씬에서 참조 캐싱
@@ -81,7 +82,10 @@ namespace ProjectS.Scenes
 
         public override void Initialize()
         {
-            dungeonId = 1;
+            // 마을을 거치지 않고 이 씬을 직접 열었을 때의 폴백. 2자리 던전 ID다(docs/ID_NUMBERING.md §4).
+            // 11 = 던전1 · 노말. 한 자리(1)로 두면 난이도 자리가 비어 DungeonContext가 몬스터 ID를
+            // 해석하지 못하고, 나침반의 던전 번호 비교(CurrentDungeonId / 10)도 0이 된다.
+            dungeonId = 11;
         }
 
         public override void Progress(float progress)

@@ -392,22 +392,11 @@ namespace ProjectS.UI
             EpisodeInfo episode = catalog.Episodes[selectedEpisode];
             int dungeonId = DungeonCatalog.MakeDungeonId(episode.DungeonNumber, catalog.Difficulties[selectedDifficulty].Value);
 
-            // 던전 씬은 인스펙터로 자기 ID를 알 수 없어, 세션에 실어 보내면 DungeonGather가 읽어 DungeonContext에 반영한다.
-            GameSession.SetSelectedDungeon(dungeonId);
-
-            // 먼저 팝업을 닫아 커서·입력을 원복(OnHide)하고, 그 다음 씬 전환을 요청한다.
+            // 먼저 팝업을 닫아 커서·입력을 원복(OnHide)하고, 그 다음 전환을 요청한다.
             RequestClose();
 
-            if (mode == EntryMode.Raid)
-            {
-                // 레이드 씬(Assets/Scenes/GC/Raid.unity)에 대응하는 BaseScene 클래스가 아직 없다.
-                // 클래스가 생기면 여기서 그 타입으로 전환한다.
-                Debug.LogWarning("[DungeonEntryPopup] 레이드 씬 클래스가 아직 없어 전환하지 않음");
-                return;
-            }
-
-            if (GameSceneManager.Instance != null)
-                GameSceneManager.Instance.RequestSceneChange<DungeonGather>();
+            // 어느 씬으로 가는지는 이 화면이 알 필요가 없다 — 세션에 싣는 것도 씬을 고르는 것도 라우터가 한다.
+            DungeonRouter.Enter(mode, dungeonId);
         }
 
         private bool CanEnter()
