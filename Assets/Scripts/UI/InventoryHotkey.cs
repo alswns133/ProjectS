@@ -44,8 +44,9 @@ namespace ProjectS.UI
                 return;
             }
 
-            // NPC와 대화/허브 중이면 열기를 막는다.
-            if (NpcInteractionController.Active != null) return;
+            // NPC와 대화/허브 중이면 열기를 막는다. 단, 강화창이 떠 있으면 허용한다
+            // (강화 대상을 인벤에서 드래그로 골라야 하므로 — EnhanceManager가 강화와 함께 인벤을 연다).
+            if (NpcInteractionController.Active != null && !ui.IsPopupOpen<EnhancePopup>()) return;
 
             ui.ShowPopup<InventoryPopup>();
         }

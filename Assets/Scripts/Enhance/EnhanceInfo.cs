@@ -4,7 +4,7 @@ namespace ProjectS.Enhance
 {
     /// <summary>
     /// View에 뿌릴 강화 정보 스냅샷. 판정을 담지 않는 읽기 전용 값이라 여러 번 만들어도 안전하다.
-    /// EnhanceService가 대상 인스턴스의 현재 상태로 조립해 EnhancePanel.SetTarget에 넘긴다.
+    /// EnhanceService가 대상 인스턴스의 현재 상태로 조립해 EnhancePopup.SetTarget에 넘긴다.
     /// (2026-07-23 TH)
     /// </summary>
     public readonly struct EnhanceInfo

@@ -8,10 +8,10 @@ namespace ProjectS.Scenes
     // 게임 시작 시 가장 먼저 켜지는 씬
     // 역할: 데이터 / 시스템 초기화를 전부 끝낸다.로딩 화면을 보여줄 수도 있음.
     // 초기화 완료 → 다음 씬으로 전환
-    public class BootstrapTest : MonoBehaviour
+    public class Bootstrap : MonoBehaviour
     {
         // 스테이지(씬)별 미니맵 데이터. 씬 오브젝트는 코드로 생성돼 인스펙터가 없으므로,
-        // 실제 배치 오브젝트인 BootstrapTest에 모아 두고 시작 시 MinimapRegistry에 등록한다.
+        // 실제 배치 오브젝트인 Bootstrap에 모아 두고 시작 시 MinimapRegistry에 등록한다.
         // sceneName은 GameSceneManager가 쓰는 씬 클래스 이름(예: "Tutorial1")과 정확히 같아야 한다.
         [Serializable]
         private class StageMinimap
@@ -26,7 +26,8 @@ namespace ProjectS.Scenes
         private void RequsetScene()
         {
             GameSceneManager.Instance.RegisterScene<VillageGather>(false);
-            GameSceneManager.Instance.RegisterScene<DungeonGather>(false);
+            GameSceneManager.Instance.RegisterScene<Dungeon1>(false);
+            GameSceneManager.Instance.RegisterScene<Dungeon2>(false);
         }
 
         // 스테이지별 미니맵 데이터를 조회 등록소에 넣는다. 씬 전환(RequestSceneChange)보다 먼저 호출해야
@@ -62,7 +63,7 @@ namespace ProjectS.Scenes
             print(Application.streamingAssetsPath);
 
             // 3) 모든 준비 완료 → 게임 씬으로 전환
-            Debug.Log("[BootstrapTest] 초기화 완료, 다음 씬으로 이동");
+            Debug.Log("[Bootstrap] 초기화 완료, 다음 씬으로 이동");
             GameSceneManager.Instance.RequestSceneChange<VillageGather>();
         }
     }
