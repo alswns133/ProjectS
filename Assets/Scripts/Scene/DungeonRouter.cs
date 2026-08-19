@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using ProjectS.Managers;
 using ProjectS.UI;
 
@@ -71,17 +71,11 @@ namespace ProjectS.Scenes
             switch (DungeonNumberOf(dungeonId))
             {
                 case 1:
-                    GameSceneManager.Instance.RequestSceneChange<DungeonGather>();
+                    GameSceneManager.Instance.RequestSceneChange<Dungeon1>();
                     return true;
-
-                // 던전2(사이버어쨌). 씬 클래스가 생기면 아래 두 줄의 주석을 풀면 된다.
-                // 필요한 것: Assets/Scripts/Scene/Dungeon2Scene.cs(BaseScene 상속) +
-                //            같은 이름의 씬 파일 + Build Settings 등록.
-                //            클래스 이름과 씬 파일 이름이 반드시 같아야 한다
-                //            (GameSceneManager가 typeof(T).Name을 씬 이름으로 쓴다).
-                // case 2:
-                //     GameSceneManager.Instance.RequestSceneChange<Dungeon2Scene>();
-                //     return true;
+                case 2:
+                    GameSceneManager.Instance.RequestSceneChange<Dungeon2>();
+                    return true;
 
                 default:
                     Debug.LogWarning($"[DungeonRouter] 던전 번호 {DungeonNumberOf(dungeonId)}에 연결된 씬이 없다 (id {dungeonId})");

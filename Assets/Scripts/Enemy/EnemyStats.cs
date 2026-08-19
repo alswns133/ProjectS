@@ -1,8 +1,8 @@
-﻿using System.Threading.Tasks;
-using ProjectS.Core;
+﻿using ProjectS.Core;
 using ProjectS.Data;
 using ProjectS.Events;
 using ProjectS.Managers;
+using System.Threading.Tasks;
 
 namespace ProjectS.Enemies
 {
@@ -13,7 +13,11 @@ namespace ProjectS.Enemies
     /// </summary>
     public class EnemyStats : MonoBehaviour, IDamageable
     {
-        // 이 ID로 MonsterStatTable을 조회한다. 예: 1101 = 던전1 노말 A.
+        // 이 몬스터의 "타입"을 정하는 base ID. 홈 던전의 노말 행을 넣는다(순번=뒤2자리만 의미 있음).
+        // 앞2자리(던전·난이도)는 입장 시 ResolveMonsterId가 덮어쓴다. → 던전1 A타입이면 1101.
+        [Tooltip("이 몬스터의 타입을 정하는 base ID. 홈 던전의 '노말' 행을 넣는다 (던전1 A타입=1101, 보스=1109 / 던전2 A타입=2101).\n" +
+                 "실제로 의미 있는 건 뒤 2자리(순번: A=01·B=02·…·보스=09)뿐이다.\n" +
+                 "앞 2자리(던전·난이도)는 던전 입장 시 현재 값으로 자동으로 덮어써지므로 노말로 두면 된다.")]
         [SerializeField] private int monsterId = 1101;
 
         // 아래 전투 스탯은 MonsterStatTable이 덮어쓴다. 인스펙터 값은 테이블 로딩 전과
@@ -73,9 +77,11 @@ namespace ProjectS.Enemies
             if (json == null) return;
 
             if (!json.IsReady) await json.ReadyTask;
-
-            // 로딩을 기다리는 동안 처치·씬 전환 등으로 파괴됐을 수 있다.
             if (this == null) return;
+
+            // ★ 난이도를 입힌 실제 ID로 통일한다. 이후 조회·킬 집계가 모두 이 값을 쓴다.
+            //   던전 밖(직접 테스트)이면 원본 그대로 반환되므로 base ID가 유지된다.
+            monsterId = ProjectS.Scenes.DungeonContext.ResolveMonsterId(monsterId);
 
             MonsterStatTable row = json.Get<MonsterStatTable>(monsterId);
             if (row == null)
@@ -88,9 +94,6 @@ namespace ProjectS.Enemies
             attackPower = row.AttackPower;
             defense = row.Defense;
             isBoss = row.IsBoss;
-
-            // 최대치가 폴백에서 테이블 값으로 바뀌었으므로 다시 채운다.
-            // 스폰 직후(Start)에만 실행되므로 전투 중 회복으로 동작할 일은 없다.
             currentHp = maxHp;
         }
 
