@@ -1,3 +1,7 @@
+﻿#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 using UnityEngine;
 
 namespace ProjectS.Scenes
@@ -19,6 +23,8 @@ namespace ProjectS.Scenes
             Gizmos.color = Color.cyan;
             Gizmos.DrawWireSphere(transform.position, 0.4f);
             Gizmos.DrawLine(transform.position, transform.position + transform.forward * 1f);
+
+            Handles.Label(transform.position, "PlayerSpawnPoint");
         }
 #endif
     }

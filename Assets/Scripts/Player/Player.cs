@@ -139,6 +139,15 @@ namespace ProjectS.Players
 
         // 태그 기반 판정 상태값(자유 이동 캐릭터 전용).
         private float attackGraceUntil;
+
+        /// <summary>
+        /// 공격/스킬을 방금 시작해 아직 애니메이터가 공격 State로 넘어가기 전인 유예(grace) 구간인지.
+        /// LockMovement가 <see cref="attackEnterGrace"/>만큼 창을 연다. 이 창 동안은 애니메이터가
+        /// 잠깐 로코모션에 머물러 있어도 "동작이 끝났다"고 보면 안 된다 — ComboResetBehaviour가
+        /// 이 순간 teardown을 돌리면 UseSkill이 방금 켠 시전 플래그(IsCastingSkill/currentAction)를
+        /// 도로 지워, 이어지는 검기 발사 프레임이 통째로 씹힌다. 그 레이스를 막는 게이트로 쓴다.
+        /// </summary>
+        public bool IsInActionEnterGrace => Time.time < attackGraceUntil;
         private bool isJumpBlocked;         // 공격 본편+유예 동안 점프를 막는다(블렌드 아웃 후에도 종료까지 유지).
         private bool pendingAimSnap;        // 다음 Update에 카메라 스냅 적용 예약(Animation Event 단계 회전 무효 회피).
         private bool wasBlendingOut;        // 블렌드 아웃이 '막 시작된' 프레임(엣지)만 잡기 위한 이전값.
@@ -714,6 +723,13 @@ namespace ProjectS.Players
         {
             if (Stats.IsDead) return;
             if (IsRolling) return;
+
+            // 각성기(무적기) 시전 중엔 강피격이라도 경직시키지 않는다. 각성기는 회피로도 못 끊는
+            // '완전 커밋' 동작이라(회피 차단은 IsCastingInvincibleSkill), 피격 경직으로도 끊기면 안 된다.
+            // 정상적으론 무적(Stats.IsInvincible)이라 데미지 자체가 씹혀 여기 도달하지 않지만,
+            // 무적이 한 프레임 깜빡인 사이 강피격이 들어오면 슈퍼아머 예외(아래)에 걸려 HitState로 캔슬됐다.
+            // 그 드문 레이스에도 각성기가 통째로 캔슬되지 않게 여기서 먼저 막는다(강피격 예외보다 상위).
+            if (Combat.IsCastingUltimate) return;
 
             // 강공격/스킬 시전 중 슈퍼아머: 약한 피격은 데미지만 받고(TakeDamage에서 이미 적용) 경직시키지 않는다.
             // 스킬·강공격을 한 번 지르면 잡몹 평타에 계속 끊기지 않게 하려는 기획이다. 강피격(LastHitWasStrong)은
