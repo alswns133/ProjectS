@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,19 +17,16 @@ namespace ProjectS.UI
     {
         [SerializeField] private Image dimmer;
         [SerializeField] private ConfirmPopupView confirmPopup;
-        [SerializeField] private AlertPopupView alertPopup;
         [SerializeField] private GameObject busyBlocker;
 
         /// <summary>지금 팝업이 하나라도 열려 있는지.</summary>
-        public bool IsAnyOpen => confirmPopup.IsOpen || alertPopup.IsOpen;
+        public bool IsAnyOpen => confirmPopup.IsOpen;
 
         private void Awake()
         {
             confirmPopup.OnClosed += RefreshDimmer;
-            alertPopup.OnClosed += RefreshDimmer;
 
             confirmPopup.gameObject.SetActive(false);
-            alertPopup.gameObject.SetActive(false);
             busyBlocker.SetActive(false);
             RefreshDimmer();
         }
@@ -37,7 +34,6 @@ namespace ProjectS.UI
         private void OnDestroy()
         {
             confirmPopup.OnClosed -= RefreshDimmer;
-            alertPopup.OnClosed -= RefreshDimmer;
         }
 
         /// <summary>
@@ -57,11 +53,8 @@ namespace ProjectS.UI
         }
 
         /// <summary>확인 하나짜리 알림 팝업을 연다(이름 중복·생성 실패 등).</summary>
-        /// <param name="message">본문 문구</param>
-        /// <param name="closed">닫힌 뒤 실행할 동작(선택)</param>
-        public void ShowAlert(string message, Action closed = null)
+        public void ShowAlert()
         {
-            alertPopup.Show(message, null, closed);
             RefreshDimmer();
         }
 
@@ -80,7 +73,6 @@ namespace ProjectS.UI
         public void CloseAll()
         {
             confirmPopup.Close();
-            alertPopup.Close();
             RefreshDimmer();
         }
 

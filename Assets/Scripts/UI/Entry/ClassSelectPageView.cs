@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,10 +20,10 @@ namespace ProjectS.UI
     public class ClassSelectPageView : MonoBehaviour
     {
         /// <summary>전사 클래스 인덱스.</summary>
-        public const int ClassWarrior = 0;
+        public const int ClassWarrior = 1;
 
         /// <summary>거너 클래스 인덱스.</summary>
-        public const int ClassGunner = 1;
+        public const int ClassGunner = 2;
 
         /// <summary>일러스트를 눌러 클래스를 골랐다. 인자는 클래스 인덱스.</summary>
         public event Action<int> OnClassClicked;
@@ -105,6 +105,12 @@ namespace ProjectS.UI
             // 등장 연출이 재생된다(이동 연출 없이 그 자리에서 켜지는 모양).
             introPanel.gameObject.SetActive(false);
             introPanel.SetParent(warriorSelected ? introSlotRight : introSlotLeft, false);
+
+            if (warriorSelected)
+                introSlotRight.gameObject.SetActive(true);
+            else
+                introSlotLeft.gameObject.SetActive(true);
+
             introPanel.gameObject.SetActive(true);
 
             selectButton.interactable = true;

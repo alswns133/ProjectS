@@ -440,15 +440,32 @@ namespace ProjectS.Managers
             }
         }
 
-        /// <summary>캐릭터 하나를 삭제한다(캐릭터 삭제 기능). 성공 시 true.</summary>
-        public async Task<bool> DeleteCharacter(long uniqueId)
+        /// <summary>
+        /// 캐릭터 하나를 삭제한다. 생성 시 <see cref="CreateCharacter"/>가 캐릭터 노드와 전역 이름 예약
+        /// (<c>CharacterNames/{nameKey}</c>) 둘 다 썼으므로, 삭제도 둘을 함께 지운다 —
+        /// 이름 예약을 안 지우면 그 이름이 전역에 영영 잠겨 아무도(원래 주인 포함) 재사용 못 한다.
+        /// 두 삭제를 멀티패스로 묶어 하나만 지워지는 어긋남을 막는다. 성공 시 true.
+        /// </summary>
+        /// <param name="uniqueId">삭제할 캐릭터의 고유 id(Characters 노드 키).</param>
+        /// <param name="name">삭제할 캐릭터의 표시 이름. 이름 예약 키(소문자)를 되찾는 데 쓴다.</param>
+        public async Task<bool> DeleteCharacter(long uniqueId, string name)
         {
             if (!IsInitialized || CurrentUid == null) return false;
 
             try
             {
-                await databaseReference.Child("Users").Child(CurrentUid)
-                    .Child("Characters").Child(uniqueId.ToString()).RemoveValueAsync();
+                var updates = new Dictionary<string, object>
+                {
+                    [$"Users/{CurrentUid}/Characters/{uniqueId}"] = null,   // null = 삭제
+                };
+
+                // 이름 예약도 함께 제거. 이름이 비어 있으면(구버전 세이브 등) 예약 키를 못 만드므로
+                // "CharacterNames/" 같은 잘못된 경로를 쓰지 않게 건너뛴다(캐릭터 노드만 지운다).
+                string nameKey = name != null ? name.Trim().ToLowerInvariant() : string.Empty;
+                if (!string.IsNullOrEmpty(nameKey))
+                    updates[$"CharacterNames/{nameKey}"] = null;
+
+                await databaseReference.UpdateChildrenAsync(updates);
                 return true;
             }
             catch (Exception ex)

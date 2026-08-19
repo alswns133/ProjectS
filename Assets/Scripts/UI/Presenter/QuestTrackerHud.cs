@@ -64,6 +64,11 @@ namespace ProjectS.UI
         [Tooltip("접힘/펼침이 바뀔 때 발행(true=접힘). 사운드 등 추가 연출에 연결(화살표 회전은 창이 처리).")]
         [SerializeField] private BoolEvent onCollapsedChanged = new BoolEvent();
 
+        // 접힘 상태 로컬 저장 키(PlayerPrefs). 트래커 전체는 bool 하나, 카드별 본문은 퀘스트 ID마다 하나.
+        // 카드별 키는 QuestData 객체가 씬 재생성 때마다 바뀌므로, 안정된 QuestId를 문자열 키로 쓴다.
+        private const string TrackerCollapsedKey = "Quest.Tracker.Collapsed";
+        private static string BodyFoldKey(int questId) => $"Quest.Fold.{questId}";
+
         // 진행 중 퀘스트 → 그 카드. 진행/완료 때 해당 카드를 찾고 지우는 데 쓴다.
         private readonly Dictionary<QuestData, QuestTrackerEntry> cards = new();
 
@@ -86,6 +91,11 @@ namespace ProjectS.UI
         private QuestTrackerEntry selected;
         private bool isMouseMode;
         private Player player;
+
+        // 접힘 상태 복원이 끝나기 전에는 저장하지 않기 위한 가드. window(ExpandableScrollList)의 OnEnable이
+        // 매번 SetCollapsed(startCollapsed)를 부르는데, 그게 OnWindowCollapsedChanged를 통해 저장을 건드려
+        // 지난 세션 값을 기본값으로 덮어쓰는 것을 막는다. Start에서 복원을 마친 뒤에만 true가 된다.
+        private bool prefsReady;
 
         // 나침반 방위각 계산용 카메라. 씬 전환으로 파괴되면 Unity가 null로 만들어 다음 프레임에 다시 잡는다.
         private Camera navCamera;
@@ -115,8 +125,22 @@ namespace ProjectS.UI
 
             // Player가 커서 상태를 알리기 전이므로 실제 커서로 초기 상태를 잡는다.
             ApplyMouseMode(Cursor.lockState != CursorLockMode.Locked);
-            // 창의 startCollapsed는 이 구독보다 먼저 처리될 수 있어 초기 표시는 직접 맞춘다.
+            // 카드 표시는 여기서 한 번 맞춘다. 트래커 접힘 복원은 window의 OnEnable(SetCollapsed(startCollapsed))보다
+            // 확실히 뒤에 돌아야 해서 Start로 미룬다(아래 Start 참고).
             ApplyCollapsedView();
+        }
+
+        // 트래커 접힘 복원은 Start에서 한다. window(ExpandableScrollList)의 OnEnable이 SetCollapsed(startCollapsed)로
+        // 표시를 되돌리는데, 이 컴포넌트의 OnEnable과의 실행 순서가 보장되지 않아 OnEnable에서 복원하면 그 뒤에
+        // 덮어써질 수 있다. Start는 모든 OnEnable 뒤에 한 번 도므로, 복원이 최종값이 된다.
+        private void Start()
+        {
+            // 이 SetCollapsed가 OnWindowCollapsedChanged를 쏘지만 prefsReady가 아직 false라 저장은 건너뛴다
+            // (막 읽은 값을 그대로 다시 쓰는 것을 피한다). 표시 갱신은 그 이벤트 경로로 처리된다.
+            if (window != null) window.SetCollapsed(PlayerPrefs.GetInt(TrackerCollapsedKey, 0) == 1);
+
+            // 이 시점 이후의 접힘 변화(J키·접기 버튼)만 유저 의도로 보고 저장한다.
+            prefsReady = true;
         }
 
         private void OnDisable()
@@ -250,6 +274,11 @@ namespace ProjectS.UI
         {
             // 접으면 선택 연출을 걸어 둘 카드가 사라지므로 상세 팝업도 함께 닫는다.
             if (collapsed) CloseDetail();
+
+            // 버튼·J키·코드 어느 경로로 접든 이 이벤트를 거치므로, 저장은 여기 한 곳이면 된다.
+            // 단 복원 전(prefsReady=false)에는 저장하지 않는다 — window의 OnEnable이 부르는
+            // SetCollapsed(startCollapsed)가 지난 세션 값을 기본값으로 덮어쓰는 것을 막기 위함이다.
+            if (prefsReady) PlayerPrefs.SetInt(TrackerCollapsedKey, collapsed ? 1 : 0);
 
             ApplyCollapsedView();
             onCollapsedChanged?.Invoke(collapsed);
@@ -427,6 +456,9 @@ namespace ProjectS.UI
                 foldedBody.Remove(quest);
             }
 
+            // 유저가 직접 여닫은 것만 저장한다(완료 자동 접힘·복원 시 접힘은 기본값이라 저장 대상이 아니다).
+            PlayerPrefs.SetInt(BodyFoldKey(quest.QuestId), folding ? 1 : 0);
+
             ApplyCollapsedView();
         }
 
@@ -517,8 +549,10 @@ namespace ProjectS.UI
                 OnAccepted(quest);
 
                 // 이미 완료(반납 대기) 상태로 복원된 퀘스트는 연출을 거치지 않으므로
-                // 여기서 요약 줄 기본값(접힘)을 직접 맞춘다.
+                // 여기서 요약 줄 기본값(접힘)을 직접 맞춘다. 완료가 아니면 지난 세션에 유저가 접어 둔
+                // 본문 상태를 복원한다(라이브 신규 수락은 OnAccepted라 여기 안 오고 펼침이 기본).
                 if (quest.IsReadyToTurnIn) foldedBody.Add(quest);
+                else if (PlayerPrefs.GetInt(BodyFoldKey(quest.QuestId), 0) == 1) foldedBody.Add(quest);
 
                 // 핀 복원: 핀은 QuestData(씬을 넘어 유지)에 저장되므로 새 트래커에서도 되살린다.
                 // maxPinned를 넘는 잉여 핀은 데이터에서도 풀어, 표시와 저장 상태가 어긋나지 않게 한다.
@@ -539,6 +573,11 @@ namespace ProjectS.UI
             // 트래커가 숨겨진(비활성) 사이 반납/완료돼 더는 진행 중이 아닌 퀘스트의 카드를 제거한다
             // (그 사이 놓친 OnCompleted 복구 — 안 하면 반납한 퀘스트 카드가 재활성 후에도 남는다).
             PruneStaleCards(manager.ActiveQuests);
+
+            // foldedBody 시딩이 끝난 뒤 카드별 접힘을 표시에 반영한다. 각 OnAccepted가 부르는 ApplyCollapsedView는
+            // 그 퀘스트가 foldedBody에 들어가기 '전'이라 펼침으로 그려지므로, 시딩이 끝난 지금 한 번 더 적용해야 한다.
+            // 특히 세이브 비동기 복원(OnQuestsRestored)으로 이 메서드가 다시 불릴 때 이게 없으면 접힘이 반영되지 않는다.
+            ApplyCollapsedView();
 
             // 카드를 한꺼번에 만든 직후엔 각 카드의 슬롯 높이(LayoutElement.preferredHeight)가 아직 0이라,
             // Content 높이가 0으로 계산돼 스크롤 뷰포트에 잘려 '활성인데 안 보이는' 상태가 된다.
@@ -590,6 +629,7 @@ namespace ProjectS.UI
                 order.Remove(quest);
                 completing.Remove(quest);
                 foldedBody.Remove(quest);
+                PlayerPrefs.DeleteKey(BodyFoldKey(quest.QuestId));
             }
 
             if (window != null) window.Refresh();
@@ -717,6 +757,7 @@ namespace ProjectS.UI
             order.Remove(quest);
             completing.Remove(quest);
             foldedBody.Remove(quest);
+            PlayerPrefs.DeleteKey(BodyFoldKey(quest.QuestId));   // 진행 목록을 떠난 퀘스트의 접힘 키는 남기지 않는다
 
             if (card != null)
             {
@@ -758,6 +799,7 @@ namespace ProjectS.UI
             order.Remove(quest);
             completing.Remove(quest);
             foldedBody.Remove(quest);
+            PlayerPrefs.DeleteKey(BodyFoldKey(quest.QuestId));   // 진행 목록을 떠난 퀘스트의 접힘 키는 남기지 않는다
 
             if (card != null)
             {
