@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -14,10 +14,11 @@ namespace ProjectS.UI
     /// <summary>
     /// 강화창 본체(순수 View). 판정·검증을 절대 알지 않고, 참조 보유와 표시/연출만 담당한다.
     /// 실제 강화 로직은 EnhancePresenter → EnhanceService로 흐른다.
-    /// 상점과 같은 급의 전체 화면 UI라 BasePanel이며, 장비 선택은 위에 뜨는 ItemSelectPopup으로 처리한다.
-    /// (2026-07-23 TH)
+    /// 상점·인벤·장비창과 같은 급의 창이라 BasePopup이다(패널 스택이 아니라 공존 창 — 인벤토리 팝업에서
+    /// 장비를 드래그해 강화하는 흐름상 인벤과 동시에 떠 있어야 한다). 장비 선택은 위에 뜨는 ItemSelectPopup으로 처리한다.
+    /// (2026-07-23 TH / 2026-08-19 Panel→Popup 전환)
     /// </summary>
-    public class EnhancePanel : BasePanel
+    public class EnhancePopup : BasePopup
     {
         [Header("코어")]
         [SerializeField] private Image coreIcon;
@@ -56,12 +57,24 @@ namespace ProjectS.UI
         protected override void OnInit()
         {
             // 자식 컴포넌트의 Awake 순서에 기대지 않도록 버튼 배선을 여기서 일괄 처리한다.
-            // (OnInit은 SetActive(true) 이전에 1회 호출된다 — BasePanel.Show 참고. 그래서 여기서
+            // (OnInit은 SetActive(true) 이전에 1회 호출된다 — BasePopup.Show 참고. 그래서 여기서
             //  자식 Awake가 아직 안 돈 상태여도, 버튼 리스너 등록처럼 참조만 쓰는 작업은 안전하다.)
-            // 대상 선택은 코어 슬롯 클릭이 아니라 인벤 슬롯 더블클릭/드래그드랍으로 처리한다.
-            // 코어 슬롯은 CoreSlotDropTarget(드롭 대상)이 담당하므로 여기서 클릭 배선을 하지 않는다.
+            // 대상 선택은 인벤토리에서 장비를 코어 슬롯에 드래그드롭으로 처리한다(코어 슬롯의 CoreSlotDropTarget이
+            // 담당). 그래서 코어 슬롯 버튼 자체에는 클릭 배선을 하지 않는다.
             if (enhanceButton != null) enhanceButton.onClick.AddListener(() => OnEnhanceRequested?.Invoke());
-            if (closeButton != null) closeButton.onClick.AddListener(() => UIManager.Instance.Back());
+            if (closeButton != null) closeButton.onClick.AddListener(() => RequestClose());   // 팝업 자기 닫기(ShopPopup과 동일)
+
+            // 이동식 창 위치 저장 키 주입(InventoryPopup과 동일 방식). OnInit은 SetActive 이전 1회라,
+            // 뒤이은 DraggableWindow.OnEnable이 이 키로 저장 위치를 복원한다. DraggableWindow가 없으면 무시.
+            if (TryGetComponent(out DraggableWindow window))
+                window.SetWindowId(WindowIds.Enhance);
+        }
+
+        protected override void OnHide()
+        {
+            // NPC 허브에서 열렸다면 닫힐 때 허브로 돌아가 상호작용 잠금을 푼다(ShopPopup.OnHide와 동일 흐름).
+            // NPC 없이 열린 경우(테스트 등)엔 EnhanceManager가 no-op이라 안전하다.
+            EnhanceManager.Instance?.OnEnhanceClosed();
         }
 
         /// <summary>
@@ -107,7 +120,7 @@ namespace ProjectS.UI
             foreach (var m in mats)
             {
                 var view = Instantiate(materialSlotPrefab, materialListRoot);
-                view.Set(m.Icon, m.Name, m.Owned, m.Required);
+                view.Set(m.IconAddress, m.Name, m.Owned, m.Required);
                 materialSlots.Add(view);
             }
         }
