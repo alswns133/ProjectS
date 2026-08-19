@@ -134,12 +134,20 @@ namespace ProjectS.Players
         public bool IsCastingSkill { get; private set; }
 
         /// <summary>
-        /// 지금 캐릭터 스킬(궁 포함)을 시전 중인지. 강공격·대시 공격·점프 공격은 IsCastingSkill을 켜지만
-        /// 여기서는 제외한다(그것들은 CombatAction이 Skill이 아니다). 피격 시 슈퍼아머 판정에 쓴다 —
-        /// 스킬 시전 중에만 약한 피격을 흘리고, 그 외 공격(일반/대시/점프/강공격) 중에는 정상적으로 경직된다.
+        /// 지금 슈퍼아머가 걸리는 동작(강공격·스킬, 궁 포함) 중인지. 대시 공격·점프 공격은 IsCastingSkill을 켜지만
+        /// 여기서는 제외한다(그것들은 CombatAction이 StrongAttack, Skill이 아니다). 피격 시 슈퍼아머 판정에 쓴다 —
+        /// 강공격·스킬 시전 중에만 약한 피격을 흘리고, 그 외 공격(일반/대시/점프) 중에는 정상적으로 경직된다.
         /// Player.OnDamaged가 이 값과 강피격 여부(LastHitWasStrong)를 함께 보고 경직 진입을 가른다.
         /// </summary>
-        public bool IsCastingSkillMove => currentAction == CombatAction.Skill;
+        public bool IsSuperArmorMove
+        {
+            get
+            {
+                if (currentAction == CombatAction.Skill || currentAction == CombatAction.StrongAttack)
+                    return true;
+                return false;
+            }
+        }
 
         /// <summary>
         /// 각성기(4번 스킬) 시전 중인지 확인. 시전 동안 몬스터 소프트 분리를 끄는 데 쓴다.

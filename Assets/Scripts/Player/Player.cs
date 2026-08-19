@@ -139,6 +139,15 @@ namespace ProjectS.Players
 
         // 태그 기반 판정 상태값(자유 이동 캐릭터 전용).
         private float attackGraceUntil;
+
+        /// <summary>
+        /// 공격/스킬을 방금 시작해 아직 애니메이터가 공격 State로 넘어가기 전인 유예(grace) 구간인지.
+        /// LockMovement가 <see cref="attackEnterGrace"/>만큼 창을 연다. 이 창 동안은 애니메이터가
+        /// 잠깐 로코모션에 머물러 있어도 "동작이 끝났다"고 보면 안 된다 — ComboResetBehaviour가
+        /// 이 순간 teardown을 돌리면 UseSkill이 방금 켠 시전 플래그(IsCastingSkill/currentAction)를
+        /// 도로 지워, 이어지는 검기 발사 프레임이 통째로 씹힌다. 그 레이스를 막는 게이트로 쓴다.
+        /// </summary>
+        public bool IsInActionEnterGrace => Time.time < attackGraceUntil;
         private bool isJumpBlocked;         // 공격 본편+유예 동안 점프를 막는다(블렌드 아웃 후에도 종료까지 유지).
         private bool pendingAimSnap;        // 다음 Update에 카메라 스냅 적용 예약(Animation Event 단계 회전 무효 회피).
         private bool wasBlendingOut;        // 블렌드 아웃이 '막 시작된' 프레임(엣지)만 잡기 위한 이전값.
@@ -166,6 +175,10 @@ namespace ProjectS.Players
         /// 태그 기반 캐릭터에서는 매 프레임 공격 태그로 재계산되고, 그 외엔 Lock/Unlock 호출로 관리된다.
         /// </summary>
         public bool IsMovementLocked { get; private set; }
+
+        private bool rollAttackBuffered;   // 구르기 중 들어온 공격 클릭 예약
+
+        private bool wasRolling;           // 구르기 종료 엣지 감지
 
         /// <summary>
         /// 공격/스킬이 실제로 발동하는 순간 이동을 잠근다(OnAttack/OnSkill에서 호출).
@@ -357,6 +370,15 @@ namespace ProjectS.Players
 
             sm.Update(); // 현재 상태의 Update 위임 실행
 
+            // 구르기가 끝나는 바로 그 프레임에 예약된 공격 발동.
+            // 이 프레임엔 애니메이터가 아직 Roll 클립이라 Roll→Attack1이 직행한다.
+            if (wasRolling && !IsRolling && rollAttackBuffered)
+            {
+                rollAttackBuffered = false;
+                OnAttack();                  // 이제 IsRolling=false → 정상 콤보 경로로 라우팅
+            }
+            wasRolling = IsRolling;
+
             // 접지 여부와 수직 속도는 상태와 무관하게 매 프레임 애니메이터에 반영.
             // 점프/낙하/착지 모션은 이 두 값의 조건 전이(또는 트리거)로 재생된다.
             Animation.SetGrounded(Movement.IsGrounded);
@@ -528,7 +550,11 @@ namespace ProjectS.Players
         {
             if (!CombatAllowed) return;      // 마을(전투 비활성) 또는 마우스 모드에서는 공격 입력 무시
             if (Stats.IsDead) return;        // 죽었으면 공격 무시
-            if (IsRolling) return;           // 구르기 중 공격 금지(회피 커밋 유지)
+            if (IsRolling)
+            {
+                rollAttackBuffered = true;   // 버리지 않고 예약 (앞의 CombatAllowed/IsDead 가드는 이미 통과)
+                return;
+            }
             if (IsHitBlocked) return;        // 피격 중 공격 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
 
             // 스킬/단타 공격 시전 중 클릭 차단. 막지 않으면 Attack 트리거가 래치된 채 대기하다가
@@ -698,10 +724,17 @@ namespace ProjectS.Players
             if (Stats.IsDead) return;
             if (IsRolling) return;
 
-            // 스킬 시전 중 슈퍼아머: 약한 피격은 데미지만 받고(TakeDamage에서 이미 적용) 경직시키지 않는다.
-            // 스킬을 한 번 지르면 잡몹 평타에 계속 끊기지 않게 하려는 기획이다. 강피격(LastHitWasStrong)은
-            // 슈퍼아머를 뚫고 경직시킨다. 일반/대시/점프/강공격 중에는 IsCastingSkillMove가 false라 정상 경직된다.
-            if (Combat.IsCastingSkillMove && !Stats.LastHitWasStrong) return;
+            // 각성기(무적기) 시전 중엔 강피격이라도 경직시키지 않는다. 각성기는 회피로도 못 끊는
+            // '완전 커밋' 동작이라(회피 차단은 IsCastingInvincibleSkill), 피격 경직으로도 끊기면 안 된다.
+            // 정상적으론 무적(Stats.IsInvincible)이라 데미지 자체가 씹혀 여기 도달하지 않지만,
+            // 무적이 한 프레임 깜빡인 사이 강피격이 들어오면 슈퍼아머 예외(아래)에 걸려 HitState로 캔슬됐다.
+            // 그 드문 레이스에도 각성기가 통째로 캔슬되지 않게 여기서 먼저 막는다(강피격 예외보다 상위).
+            if (Combat.IsCastingUltimate) return;
+
+            // 강공격/스킬 시전 중 슈퍼아머: 약한 피격은 데미지만 받고(TakeDamage에서 이미 적용) 경직시키지 않는다.
+            // 스킬·강공격을 한 번 지르면 잡몹 평타에 계속 끊기지 않게 하려는 기획이다. 강피격(LastHitWasStrong)은
+            // 슈퍼아머를 뚫고 경직시킨다. 일반/대시/점프 중에는 IsSuperArmorMove가 false라 정상 경직된다.
+            if (Combat.IsSuperArmorMove && !Stats.LastHitWasStrong ) return;
 
             ChangeState(HitState);
         }

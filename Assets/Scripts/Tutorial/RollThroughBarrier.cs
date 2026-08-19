@@ -185,7 +185,7 @@ namespace ProjectS.Tutorials
 
             if (p.Stats.IsDead) return;
             if (p.IsRolling || p.IsJumpDashing) return;
-            if (p.Combat.IsCastingSkillMove) return;
+            if (p.Combat.IsSuperArmorMove) return;
 
             p.ChangeState(p.HitState);
         }

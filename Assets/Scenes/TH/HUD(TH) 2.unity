@@ -10877,70 +10877,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15c87575fc52007469b43cda1ab76ec4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.ShockwaveFx
-  startRadius: 0.417
-  endRadius: 1.221
-  duration: 0.55
-  expandCurve:
-    m_Curve:
-    - time: 0
-      value: 0
-      inSlope: 4.5
-      outSlope: 4.5
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - time: 1
-      value: 1
-      inSlope: 0.2
-      outSlope: 0.2
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  startThickness: 0.109
-  endThickness: 0.373
-  softness: 0.025
-  alphaOverLife:
-    m_Curve:
-    - time: 0
-      value: 0.2
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - time: 0.12
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - time: 0.7
-      value: 0.55
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - time: 1
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
 --- !u!1 &336895079
 GameObject:
   m_ObjectHideFlags: 0
@@ -11457,7 +11393,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Debugging.NoticeTester
   levelUpNotice: {fileID: 0}
   skillUnlockBanner: {fileID: 0}
-  bossIntro: {fileID: 0}
+  bossIntro: {fileID: 2020151210}
   testLevel: 7
   testSkillName: "\uBE14\uB808\uC774\uB4DC \uC2A4\uD1B0"
   testSkillIcon: {fileID: 0}
@@ -13887,7 +13823,7 @@ MonoBehaviour:
   m_text: BOSS
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cdcb117b22626f843998d553312603fe, type: 2}
-  m_sharedMaterial: {fileID: -6923793362663324378, guid: cdcb117b22626f843998d553312603fe, type: 2}
+  m_sharedMaterial: {fileID: 0}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -23825,8 +23761,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e65d064c8905d0046818e4dd1b7d408e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.BurstRaySpawner
-  prefab: {fileID: 78222133078883257, guid: cacd457a2b30a4a46bc194801d1eff1c, type: 3}
-  initialPoolSize: 10
 --- !u!1 &717215763
 GameObject:
   m_ObjectHideFlags: 0
@@ -27023,10 +26957,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uBCF4\uC2A4 \uC774\uB984"
+  m_text: "\uAC15\uCCA0 \uD30C\uC218\uAFBC"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cdcb117b22626f843998d553312603fe, type: 2}
-  m_sharedMaterial: {fileID: -6923793362663324378, guid: cdcb117b22626f843998d553312603fe, type: 2}
+  m_sharedMaterial: {fileID: 0}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -32167,8 +32101,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.QuestDetailPopup
   titleText: {fileID: 871779159}
   storyText: {fileID: 20155726}
-  rewardText: {fileID: 1976951426}
+  rewardContent: {fileID: 0}
+  rewardSlotPrefab: {fileID: 0}
+  goldIcon: {fileID: 0}
+  expIcon: {fileID: 0}
+  itemIcon: {fileID: 0}
+  skillIcon: {fileID: 0}
   closeButton: {fileID: 1142498238}
+  abandonButton: {fileID: 0}
   closeOnClickOutside: 1
 --- !u!114 &948006525
 MonoBehaviour:
@@ -40131,6 +40071,7 @@ RectTransform:
   - {fileID: 714095382}
   - {fileID: 1614898264}
   - {fileID: 333977677}
+  - {fileID: 1313496852}
   m_Father: {fileID: 1410518887}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -44932,6 +44873,67 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1311312062}
   m_CullTransparentMesh: 1
+--- !u!1 &1313496851
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1313496852}
+  - component: {fileID: 1313496853}
+  m_Layer: 5
+  m_Name: SparkBurstFx
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1313496852
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1313496851}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1165652780}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1313496853
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1313496851}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e97a46cab720e7f428c87c55bf7e07f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.SparkBurstFx
+  count: 45
+  speedMin: 520
+  speedMax: 1450
+  drag: 1.6
+  gravity: 2400
+  lengthPerSpeed: 0.05
+  thickness: 3
+  minLength: 4
+  hotColor: {r: 1, g: 0.97, b: 0.88, a: 1}
+  coolColor: {r: 1, g: 0.45, b: 0.12, a: 1}
+  lifeMin: 0.16
+  lifeMax: 0.5
+  flicker: 0.45
 --- !u!1 &1318561890
 GameObject:
   m_ObjectHideFlags: 0
@@ -64311,13 +64313,14 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1897369669}
+  - component: {fileID: 1897369670}
   m_Layer: 0
   m_Name: Boss
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1897369669
 RectTransform:
   m_ObjectHideFlags: 0
@@ -64339,6 +64342,54 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1200, y: 320}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1897369670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1897369668}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 838204dda57d6e343a8f57fac8244a4c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.AshDissolveFx
+  targets:
+  - {fileID: 402839919}
+  - {fileID: 792440976}
+  dissolveShader: {fileID: 4800000, guid: e7454cceec17a534fb4afb42664ffaf7, type: 3}
+  duration: 0.5
+  burnCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  emberColor: {r: 0.11792451, g: 0.7224534, b: 1, a: 1}
+  emberWidth: 0.073
+  edgeSoftness: 0.154
+  noiseScale: 32.7
+  noiseAmount: 0.3
+  directionWeight: 0.359
+  burnTogether: 1
 --- !u!1001 &1902190008
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -69129,7 +69180,7 @@ MonoBehaviour:
   fastBlinkCount: 2
   fastBlinkOnSeconds: 0.07
   fastBlinkOffSeconds: 0.07
-  iconHoldSeconds: 0.5
+  iconHoldSeconds: 0.05
   iconGlitch: {fileID: 0}
   curtainDuration: 0.34
   curtainDistance: 640
@@ -69158,7 +69209,9 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   slamTriggerRatio: 0.5
-  iconShrinkRatio: 0.5
+  iconPopScale: 1.4
+  iconPopDuration: 0.08
+  sparkBurst: {fileID: 1313496853}
   slamExtraDelay: 0
   bossRoot: {fileID: 1897369669}
   bossNameText: {fileID: 792440976}
@@ -69193,6 +69246,7 @@ MonoBehaviour:
   impactShakeStrength: 70
   impactShakeDuration: 0.15
   holdSeconds: 0.7
+  ashDissolve: {fileID: 1897369670}
   fadeOutSeconds: 0.5
 --- !u!225 &2020151211
 CanvasGroup:

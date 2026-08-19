@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ProjectS.Managers;
 
@@ -16,9 +17,9 @@ namespace ProjectS.UI
         [SerializeField] private Button loginButton;
         [SerializeField] private TMP_Text messageText;   // 결과/오류 표시(없어도 동작)
 
-        [Header("로그인 성공 후 전환 (선택 — 없으면 전환 생략)")]
-        [SerializeField] private GameObject authRoot;            // 로그인/가입 패널 묶음 → 성공 시 숨김
-        [SerializeField] private GameObject characterSelectRoot; // 캐릭터 선택 패널 → 성공 시 표시
+        [Header("로그인 성공 후 전환 (비우면 전환 생략)")]
+        [Tooltip("로그인 성공 시 이동할 캐릭터 선택 씬 이름. Build Settings에 등록돼 있어야 한다.")]
+        [SerializeField] private string characterSelectScene = "CharacterSelect";
 
         [Header("자동 로그인")]
         [SerializeField] private Toggle autoLoginToggle;   // 체크 시 다음 실행에 로그인 건너뜀(기본 해제)
@@ -45,7 +46,7 @@ namespace ProjectS.UI
             // Firebase가 이전 세션을 복원했더라도, 자동 로그인을 껐으면 그 세션을 폐기하고 로그인을 다시 받는다.
             if (FirebaseManager.Instance.IsLoggedIn)
             {
-                if (autoLogin) ShowCharacterSelect();
+                if (autoLogin) GoToCharacterSelect();
                 else FirebaseManager.Instance.Logout();
             }
         }
@@ -76,16 +77,17 @@ namespace ProjectS.UI
                 PlayerPrefs.Save();
 
                 passwordField.text = string.Empty;
-                ShowCharacterSelect();
+                GoToCharacterSelect();
             }
         }
 
-        // 로그인 성공 시 인증 패널을 숨기고 캐릭터 선택 패널을 켠다(둘 다 인스펙터에 연결됐을 때만).
-        // 선택 패널이 켜지면 CharacterSelectUI.OnEnable이 캐릭터 목록을 자동으로 불러온다.
-        private void ShowCharacterSelect()
+        // 로그인 성공 → 캐릭터 선택 씬으로 이동한다. 선택은 이제 같은 씬의 패널이 아니라 별도 씬이라
+        // 씬 전체를 로드한다(로그인 씬은 이때 언로드됨). 씬 이름이 비어 있으면 전환을 생략한다
+        // (로그인 씬만 단독으로 테스트할 때를 위한 예외).
+        private void GoToCharacterSelect()
         {
-            if (authRoot != null) authRoot.SetActive(false);
-            if (characterSelectRoot != null) characterSelectRoot.SetActive(true);
+            if (string.IsNullOrEmpty(characterSelectScene)) return;
+            SceneManager.LoadScene(characterSelectScene);
         }
 
         // LoginResult → 사용자용 한국어 메시지. Firebase 최신 버전은 계정 유무를 숨기려
