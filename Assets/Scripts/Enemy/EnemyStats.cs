@@ -24,6 +24,11 @@ namespace ProjectS.Enemies
         [SerializeField] private bool isBoss;
 
         [SerializeField] private float damageTextHeight = 0.5f;
+
+        // HP 바가 뜨는 머리 위 높이. 몹마다 모델 키가 달라 한 값으로 못 박으면 큰 몹은 배에,
+        // 작은 몹은 너무 위에 떠서 프리팹별로 맞춰야 한다(데미지 텍스트 높이와 같은 이유).
+        [SerializeField] private float hpBarHeight = 2f;
+
         private int currentHp;
         private Enemy enemy;
 
@@ -40,6 +45,9 @@ namespace ProjectS.Enemies
 
         /// <summary>IDamageable. 보스면 공격자의 보스 추가뎀%가 적용된다.</summary>
         public bool IsBoss => isBoss;
+
+        /// <summary>월드 HP 바가 뜰 머리 위 높이. 바가 매 프레임 이 값으로 위치를 맞춘다.</summary>
+        public float HpBarHeight => hpBarHeight;
 
         private void Awake()
         {
@@ -106,6 +114,10 @@ namespace ProjectS.Enemies
                 transform.position + Vector3.up * damageTextHeight,
                 result.Amount,
                 result.IsCritical ? DamageTextKind.Critical : DamageTextKind.Normal);
+
+            // HP 바 갱신용. 사망(비율 0)까지 포함해 항상 발행한다 — 구독자가 풀피/사망을 "바 치우기"로,
+            // 그 사이를 "붙이기·갱신"으로 처리한다. 비활성화 전에 발행해 위치 참조가 유효하다.
+            CombatEvents.FireEnemyHealthChanged(this, maxHp > 0 ? (float)currentHp / maxHp : 0f);
 
             if (IsDead)
             {

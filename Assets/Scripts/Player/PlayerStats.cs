@@ -173,7 +173,13 @@ namespace ProjectS.Players
         public void SetInvincible(bool value)
         {
             // [임시 디버그] 각성기 무적 씹힘 추적용. 원인 확인되면 이 로그 제거.
-            Debug.Log($"[무적] {(value ? "ON" : "OFF")}  t={Time.time:F2}  frame={Time.frameCount}");
+            // OFF일 때만 호출 스택을 인라인으로 찍는다 → 각성기 도중 무적을 끄는 '범인' 호출 경로를
+            // 콘솔에서 클릭하지 않고 바로 읽는다(재현 1회로 확정하기 위함).
+            if (!value)
+                Debug.Log($"[무적] OFF  t={Time.time:F2}  frame={Time.frameCount}\n{System.Environment.StackTrace}");
+            else
+                Debug.Log($"[무적] ON  t={Time.time:F2}  frame={Time.frameCount}");
+
             manualInvincible = value;
         }
 
