@@ -40,6 +40,18 @@ CBUFFER_START(UnityPerMaterial)
     half _Metallic;
     half _Alpha_Clip_Threshold;
     half _FogStrength;
+    // 높이 그라디언트. 월드 좌표를 비교하는 값이라 Bottom/Top Y는 half가 아니라 float입니다
+    // (맵이 넓어지면 half 정밀도로는 계단이 보입니다).
+    half _HeightGradientStrength;
+    float _HeightGradientBottomY;
+    float _HeightGradientTopY;
+    half _HeightGradientPower;
+    half4 _HeightGradientTint;
+    half4 _HeightGradientEmission;
+    half _HeightGradientWallMask;
+    float _HeightGradientNoiseAmount;
+    float _HeightGradientNoiseScale;
+    half _HeightGradientDither;
     half _Surface;
     UNITY_TEXTURE_STREAMING_DEBUG_VARS;
 CBUFFER_END
@@ -52,6 +64,79 @@ half3 MixFogStrength(half3 color, half fogCoord)
 {
     half3 fogged = MixFog(color, fogCoord);
     return lerp(color, fogged, saturate(_FogStrength));
+}
+
+// 값 노이즈. 그라디언트 경계선이 완벽한 수평선으로 보이지 않게 높이를 흔드는 데만 씁니다.
+// 텍스처를 추가로 물리지 않으려고 해시 기반으로 계산합니다(벽 한 면당 몇 번 안 불리는 비용).
+float HeightGradientHash(float2 p)
+{
+    p = frac(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return frac(p.x * p.y);
+}
+
+float HeightGradientValueNoise(float2 uv)
+{
+    float2 i = floor(uv);
+    float2 f = frac(uv);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float a = HeightGradientHash(i);
+    float b = HeightGradientHash(i + float2(1.0, 0.0));
+    float c = HeightGradientHash(i + float2(0.0, 1.0));
+    float d = HeightGradientHash(i + float2(1.0, 1.0));
+
+    return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+}
+
+/// 바닥에 가까울수록 밝아지는 높이 그라디언트를 서피스 값에 얹습니다.
+/// 월드 Y를 [Top -> Bottom] 구간으로 정규화해 바닥에서 1, 윗단에서 0인 h를 만든 뒤
+/// 알베도에 Tint를 섞어 곱하고 Emission을 더합니다.
+///
+/// 램프는 선형이 아니라 smoothstep입니다. 선형(또는 saturate된 pow)은 Top Y 지점에서
+/// 기울기가 뚝 꺾여 벽에 가로줄 하나가 그대로 보입니다. smoothstep은 양 끝 기울기가 0이라
+/// 어디서 시작하고 끝나는지 눈에 잡히지 않습니다. Power는 그 위에서 밝은 구간의 두께만 조절합니다.
+///
+/// 알베도 곱은 조명을 받는 값이라 그늘진 벽에서는 잘 드러나지 않습니다. 어두운 던전에서
+/// 확실히 밝히려면 Bottom Emission 쪽을 올리세요.
+/// _HeightGradientStrength가 0이면 h가 0이 되어 아무 일도 하지 않습니다
+/// (이 셰이더를 이미 쓰고 있는 머티리얼이 영향을 받지 않게 하기 위한 기본값).
+/// 월드 좌표가 필요해서 InitializeStandardLitSurfaceData(uv만 받음) 안이 아니라
+/// 프래그먼트에서 따로 호출합니다. 그래서 Meta 패스(라이트맵 굽기)에는 반영되지 않습니다 —
+/// 연출용 보정이지 GI에 섞일 값이 아니므로 의도된 동작입니다.
+///
+/// <param name="normalWS">노말맵이 아니라 정점 노말을 넘깁니다. 벽 마스크는 면의 방향을
+/// 보려는 것이라, 노말맵 요철까지 섞이면 마스크가 지저분하게 얼룩집니다.</param>
+/// <param name="positionSS">디더용 픽셀 좌표(SV_POSITION의 xy).</param>
+void ApplyHeightGradient(inout SurfaceData surfaceData, float3 positionWS, float3 normalWS, float2 positionSS)
+{
+    // 경계가 자로 그은 수평선이 되지 않게 월드 XZ 노이즈로 높이를 흔듭니다.
+    float sampleY = positionWS.y;
+    if (_HeightGradientNoiseAmount > 0.0)
+    {
+        float n = HeightGradientValueNoise(positionWS.xz * _HeightGradientNoiseScale);
+        sampleY += (n - 0.5) * _HeightGradientNoiseAmount;
+    }
+
+    float range = max(_HeightGradientTopY - _HeightGradientBottomY, 1e-4);
+    half h = saturate((_HeightGradientTopY - sampleY) / range);
+    h = smoothstep(0.0h, 1.0h, h);
+    h = pow(h, _HeightGradientPower);
+
+    // 수직면일수록 1. 바닥·천장(normal.y = ±1)은 0이 되어 그라디언트에서 빠집니다.
+    half wallness = saturate(1.0h - abs(normalWS.y));
+    h *= lerp(1.0h, wallness, _HeightGradientWallMask);
+
+    h *= _HeightGradientStrength;
+
+    // 8bit 출력에서 생기는 띠를 픽셀 단위 노이즈로 흩습니다(interleaved gradient noise).
+    // 곱하기 전 h에 더해야 밝기와 무관하게 일정한 세기로 먹습니다.
+    // 픽셀 좌표는 1920까지 가는 값이라 half로 계산하면 정밀도가 뭉개져 패턴이 무너집니다. float 고정.
+    float ign = frac(52.9829189 * frac(dot(positionSS, float2(0.06711056, 0.00583715))));
+    h = saturate(h + (half)(ign - 0.5) * _HeightGradientDither);
+
+    surfaceData.albedo *= lerp(half3(1.0h, 1.0h, 1.0h), _HeightGradientTint.rgb, h);
+    surfaceData.emission += _HeightGradientEmission.rgb * h;
 }
 
 /// URP 공용 패스들이 문자열이 아니라 이 이름으로 서피스 값을 가져갑니다

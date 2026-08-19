@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using ProjectS.Core;
 using ProjectS.Effects;
+using ProjectS.Enemies;
 using ProjectS.Players;
 
 namespace ProjectS.Events
@@ -124,6 +125,21 @@ namespace ProjectS.Events
             => OnEnemyKilled?.Invoke(monsterId);
 
         /// <summary>
+        /// 적 HP 비율 변화 (변화한 적, 남은 HP 비율 0~1). EnemyStats가 피해를 반영한 직후,
+        /// 치명타로 죽는 순간(비율 0)까지 포함해 항상 발행한다. 좌표만 넘기는 다른 전투 이벤트와 달리
+        /// 적 자체를 실어 보내는 이유: HP 바는 '어느 적'인지 알아야 그 적에 붙어 유지·갱신·반납되기 때문.
+        /// 구독자가 IsBoss로 걸러 일반몹 월드 바(EnemyHpBarSpawner)와 보스 전용 UI를 나눠 쓴다.
+        /// (풀피 복귀=비율 1, 사망=비율 0 모두 "바 치우기"로 구독자가 동일하게 처리한다.)
+        /// </summary>
+        public static event Action<EnemyStats, float> OnEnemyHealthChanged;
+
+        /// <summary>적 HP 비율 변화 이벤트 발행. EnemyStats가 currentHp를 갱신한 직후 호출한다.</summary>
+        /// <param name="stats">비율이 바뀐 적</param>
+        /// <param name="ratio">남은 HP 비율(0~1)</param>
+        public static void FireEnemyHealthChanged(EnemyStats stats, float ratio)
+            => OnEnemyHealthChanged?.Invoke(stats, ratio);
+
+        /// <summary>
         /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다.
         /// (static 이벤트가 이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지)
         /// </summary>
@@ -136,6 +152,7 @@ namespace ProjectS.Events
             OnProjectileBlocked = null;
             OnEnemyDied = null;
             OnEnemyKilled = null;
+            OnEnemyHealthChanged = null;
         }
     }
 }

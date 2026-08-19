@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ProjectS.Managers;
 
@@ -18,9 +19,9 @@ namespace ProjectS.UI
         [SerializeField] private Button signupButton;
         [SerializeField] private TMP_Text messageText;
 
-        [Header("가입 성공 후 전환 (선택 — 없으면 전환 생략)")]
-        [SerializeField] private GameObject authRoot;            // 로그인/가입 패널 묶음 → 성공 시 숨김
-        [SerializeField] private GameObject characterSelectRoot; // 캐릭터 선택 패널 → 성공 시 표시
+        [Header("가입 성공 후 전환 (비우면 전환 생략)")]
+        [Tooltip("가입→자동 로그인 성공 시 이동할 캐릭터 선택 씬 이름. Build Settings에 등록돼 있어야 한다.")]
+        [SerializeField] private string characterSelectScene = "CharacterSelect";
 
         private void OnEnable() => signupButton.onClick.AddListener(OnClickSignup);
         private void OnDisable() => signupButton.onClick.RemoveListener(OnClickSignup);
@@ -61,7 +62,7 @@ namespace ProjectS.UI
             {
                 passwordField.text = string.Empty;
                 if (confirmField != null) confirmField.text = string.Empty;
-                ShowCharacterSelect();
+                GoToCharacterSelect();
             }
             else
             {
@@ -70,10 +71,11 @@ namespace ProjectS.UI
             }
         }
 
-        private void ShowCharacterSelect()
+        // 가입→자동 로그인 성공 → 캐릭터 선택 씬으로 이동(별도 씬 로드, 로그인 씬은 언로드).
+        private void GoToCharacterSelect()
         {
-            if (authRoot != null) authRoot.SetActive(false);
-            if (characterSelectRoot != null) characterSelectRoot.SetActive(true);
+            if (string.IsNullOrEmpty(characterSelectScene)) return;
+            SceneManager.LoadScene(characterSelectScene);
         }
 
         private static string DescribeResult(RegisterResult result)
