@@ -1,8 +1,10 @@
 // URP 17.3의 Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl 복사본입니다.
-// 원본과의 차이는 딱 한 줄, 프래그먼트 끝에서 MixFog 대신 MixFogStrength를 쓰는 것뿐입니다
-// ("FOG CONTROL" 주석 참고). 안개 적용은 UniversalFragmentPBR 밖에서 일어나기 때문에
-// URP 패스를 그대로 쓰면서 이 한 줄만 갈아끼울 수는 없어 파일째 복사했습니다.
-// URP 패키지를 올릴 때는 원본과 diff를 떠서 이 한 줄만 다시 얹으면 됩니다.
+// 원본과의 차이는 프래그먼트의 두 줄뿐입니다("FOG CONTROL" / "HEIGHT GRADIENT" 주석 참고).
+//   1) 끝에서 MixFog 대신 MixFogStrength 호출 (재질별 안개 비율)
+//   2) 서피스 초기화 직후 ApplyHeightGradient 호출 (월드 높이 기반 밝기 보정)
+// 둘 다 UniversalFragmentPBR 안팎에서 일어나는 일이라 URP 패스를 그대로 쓰면서
+// 갈아끼울 수가 없어 파일째 복사했습니다.
+// URP 패키지를 올릴 때는 원본과 diff를 떠서 이 두 줄만 다시 얹으면 됩니다.
 #ifndef PROJECTS_FOG_CONTROL_FORWARD_PASS_INCLUDED
 #define PROJECTS_FOG_CONTROL_FORWARD_PASS_INCLUDED
 
@@ -248,6 +250,11 @@ void LitPassFragment(
 
     SurfaceData surfaceData;
     InitializeStandardLitSurfaceData(input.uv, surfaceData);
+
+    // HEIGHT GRADIENT: 원본에는 없는 줄입니다. 월드 좌표가 필요해서 uv만 받는
+    // InitializeStandardLitSurfaceData 안이 아니라 여기서 얹습니다.
+    // 노말은 벽/바닥 판별용이라 노말맵이 섞이지 않은 정점 노말(input.normalWS)을 넘깁니다.
+    ApplyHeightGradient(surfaceData, input.positionWS, input.normalWS, input.positionCS.xy);
 
 #ifdef LOD_FADE_CROSSFADE
     LODFadeCrossFade(input.positionCS);
