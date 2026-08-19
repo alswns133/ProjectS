@@ -28,10 +28,14 @@ namespace ProjectS.Managers
         /// <summary>HUD 포션 퀵슬롯 개수.</summary>
         public const int QuickSlotCount = 2;
 
-        [Header("보유 재화 (스캐폴드: 실제 인벤토리 연동 전 임시 초기값)")]
+        [Header("보유 재화 (스캐폴드: 실제 지갑 연동 전 임시 초기값)")]
         [SerializeField] private int gold = 50000;
-        [SerializeField] private int lowMaterial = 30;
-        [SerializeField] private int highMaterial = 10;
+
+        /// <summary>강화 하급 재료로 쓰는 재료 아이템 ID(하급 강화석). 강화 비용의 LowMaterial이 이 아이템 수량으로 매핑된다.</summary>
+        public const int LowMaterialItemId = 401001;
+
+        /// <summary>강화 상급 재료로 쓰는 재료 아이템 ID(상급 강화석). 강화 비용의 HighMaterial이 이 아이템 수량으로 매핑된다.</summary>
+        public const int HighMaterialItemId = 402001;
 
         // 보유 장비 격자(장비 탭). 셀 = 장비 or null. 강화창도 같은 인스턴스를 참조한다(OwnedEquipment).
         private readonly EquipmentInstance[] equipGrid = new EquipmentInstance[Capacity];
@@ -51,11 +55,11 @@ namespace ProjectS.Managers
         /// <summary>현재 보유 골드.</summary>
         public int Gold => gold;
 
-        /// <summary>현재 보유 하급 재료.</summary>
-        public int LowMaterial => lowMaterial;
+        /// <summary>현재 보유 하급 강화 재료 수량(재료 아이템 <see cref="LowMaterialItemId"/>의 스택 합).</summary>
+        public int LowMaterial => GetConsumableCount(LowMaterialItemId);
 
-        /// <summary>현재 보유 상급 재료.</summary>
-        public int HighMaterial => highMaterial;
+        /// <summary>현재 보유 상급 강화 재료 수량(재료 아이템 <see cref="HighMaterialItemId"/>의 스택 합).</summary>
+        public int HighMaterial => GetConsumableCount(HighMaterialItemId);
 
         /// <summary>보유 장비 목록(강화 선택 팝업 등이 순회한다). 격자에서 빈칸을 뺀 것.</summary>
         public IReadOnlyList<EquipmentInstance> OwnedEquipment => NonNull(equipGrid);
@@ -90,12 +94,16 @@ namespace ProjectS.Managers
         {
             PlayerEvents.OnStatsRefreshRequested += PublishGold;
             PlayerEvents.OnStatsRefreshRequested += RecomputeEquipmentStatsSilent;
+            // 장착 중인 장비를 강화하면 +N이 그 자리에서 올라야 한다. 강화 완료 이벤트를 받아
+            // 착용 스탯을 즉시 재계산·발행한다(구독이 없으면 다음 재장착/씬 진입 때까지 반영이 밀린다).
+            EnhanceEvents.OnEnhanced += RecomputeEquipmentStatsOnEnhanced;
         }
 
         private void OnDisable()
         {
             PlayerEvents.OnStatsRefreshRequested -= PublishGold;
             PlayerEvents.OnStatsRefreshRequested -= RecomputeEquipmentStatsSilent;
+            EnhanceEvents.OnEnhanced -= RecomputeEquipmentStatsOnEnhanced;
         }
 
         // 재화는 테이블 없이 즉시 반영해 HUD가 바로 맞고, 아이템 복원은 정의 테이블(ItemData 등)이 필요해
@@ -113,14 +121,13 @@ namespace ProjectS.Managers
         }
 
         // 선택된 캐릭터 세이브(GameSession)의 재화를 반영한다. 세션이 없으면(직접 씬 테스트) 인스펙터 초기값을 둔다.
+        // 강화 재료는 이제 실제 재료 아이템(401001/402001)으로 stackItems에 저장·복원되므로 여기서 따로 읽지 않는다.
         private void ApplySelectedCharacterSave()
         {
             CharacterSaveData save = GameSession.SelectedCharacter;
             if (save == null) return;
 
             gold = save.gold;
-            lowMaterial = save.lowMaterial;
-            highMaterial = save.highMaterial;
         }
 
         /// <summary>현재 보유 재화와 아이템(장비·스택·퀵슬롯)을 세이브 데이터에 기록한다. 저장 시점에 호출한다.</summary>
@@ -130,8 +137,7 @@ namespace ProjectS.Managers
             if (save == null) return;
 
             save.gold = gold;
-            save.lowMaterial = lowMaterial;
-            save.highMaterial = highMaterial;
+            // 강화 재료는 stackItems(consumeGrid)로 저장된다 — 아래 재료 아이템(401001/402001)이 그 경로에 포함된다.
 
             // 장비/스택은 격자 위치(slot)를 함께 저장해 배치가 유지되게 한다. 정의는 tableId로 복원.
             save.equipment = new List<EquipmentSave>();
@@ -329,15 +335,16 @@ namespace ProjectS.Managers
 
         /// <summary>지정 비용을 감당할 수 있는지.</summary>
         public bool CanAfford(int zeny, int low, int high)
-            => gold >= zeny && lowMaterial >= low && highMaterial >= high;
+            => gold >= zeny && LowMaterial >= low && HighMaterial >= high;
 
         /// <summary>비용을 차감하고 골드 변경을 브로드캐스트한다. 호출 전 CanAfford로 확인한다.</summary>
         public void Spend(int zeny, int low, int high)
         {
             gold -= zeny;
-            lowMaterial -= low;
-            highMaterial -= high;
+            ConsumeItem(LowMaterialItemId, low);
+            ConsumeItem(HighMaterialItemId, high);
             PlayerEvents.FireGoldChanged(gold);
+            InventoryEvents.FireInventoryChanged();   // 소모품 격자의 재료 수량 표시 갱신
 
             PlayerSaveService.SaveNow();   // 커밋: 구매·강화는 의도된 재화 소모 → 즉시 저장
         }
@@ -609,6 +616,14 @@ namespace ProjectS.Managers
         // 발행은 같은 신호로 도는 PlayerStats.PublishAllStats가 담당한다(장비값은 이미 반영돼 있어 정확).
         private void RecomputeEquipmentStatsSilent() => RecomputeEquipmentStats(false);
 
+        // 강화 완료 시 착용 스탯을 즉시 재계산·발행한다. EnhanceResult에 대상 인스턴스 정보가 없지만
+        // 착용은 최대 6칸이라 전체 재계산이 사실상 무비용이고, 실패는 단계를 바꾸지 않아 성공일 때만 돈다.
+        private void RecomputeEquipmentStatsOnEnhanced(EnhanceResult result)
+        {
+            if (!result.Success) return;
+            RecomputeEquipmentStats(true);
+        }
+
         /// <summary>
         /// 소비품 1개를 사용한다. 회복 효과를 적용하고 수량을 1 차감한다(즉시형은 총량 한 번, 지속형은 초당 회복).
         /// 쿨다운 중이거나 소비품이 아니거나 플레이어가 없으면 아무것도 하지 않고 false를 돌려준다.
@@ -726,6 +741,20 @@ namespace ProjectS.Managers
             foreach (ItemStack stack in consumeGrid)
                 if (stack != null && stack.Item != null && stack.Item.Index == itemId && stack.Count > 0) return stack;
             return null;
+        }
+
+        // 지정 재료 아이템을 격자 전체에서 count만큼 차감한다(여러 스택에 걸쳐 있으면 합산 차감).
+        // 호출 전 CanAfford로 보유량을 확인하는 것을 전제로 한다(모자라면 남은 만큼만 지운다).
+        private void ConsumeItem(int itemId, int count)
+        {
+            for (int i = 0; i < consumeGrid.Length && count > 0; i++)
+            {
+                ItemStack stack = consumeGrid[i];
+                if (stack == null || stack.Item == null || stack.Item.Index != itemId) continue;
+
+                count -= stack.Remove(count);
+                if (stack.Count <= 0) consumeGrid[i] = null;   // 다 쓴 스택은 셀을 비운다
+            }
         }
 
         // ---------- 격자 헬퍼 ----------
