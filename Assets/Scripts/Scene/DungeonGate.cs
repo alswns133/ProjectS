@@ -6,8 +6,11 @@ using ProjectS.UI;
 namespace ProjectS.Scenes
 {
     /// <summary>
-    /// 마을의 던전 입구. 플레이어가 근접하면 던전 선택 팝업(<see cref="DungeonSelectPopup"/>)을 띄우고,
-    /// 벗어나면 닫는다. 실제 씬 전환은 팝업 버튼이 담당하므로 이 게이트는 "근접 감지 → 팝업 열고 닫기"만 한다.
+    /// 마을의 던전(레이드) 입구. 플레이어가 근접하면 입장 팝업(<see cref="DungeonEntryPopup"/>)을 띄우고,
+    /// 벗어나면 닫는다. 실제 씬 전환은 팝업이 담당하므로 이 게이트는 "근접 감지 → 팝업 열고 닫기"만 한다.
+    ///
+    /// 던전과 레이드가 같은 팝업 프리팹을 공유하므로, 어느 쪽 입구인지는 이 게이트가 <see cref="mode"/>와
+    /// <see cref="catalog"/>로 알려준다.
     ///
     /// 매 프레임 거리 계산 대신 트리거 콜라이더에 판정을 맡긴다(NpcOutlineTrigger와 같은 방침).
     /// 게이트 오브젝트(또는 전용 자식)에 붙이고 SphereCollider가 자동으로 트리거로 설정된다.
@@ -15,6 +18,14 @@ namespace ProjectS.Scenes
     [RequireComponent(typeof(SphereCollider))]
     public class DungeonGate : MonoBehaviour
     {
+        [Header("입장 화면")]
+        [Tooltip("이 입구가 던전용인지 레이드용인지. 팝업의 타이틀·전환할 씬이 이 값으로 갈린다.")]
+        [SerializeField] private EntryMode mode = EntryMode.Dungeon;
+
+        [Tooltip("이 입구에서 고를 수 있는 에피소드·난이도 목록. 비면 팝업이 빈 화면으로 뜬다.")]
+        [SerializeField] private DungeonCatalog catalog;
+
+        [Header("감지")]
         // 실제 판정은 SphereCollider가 하고, 이 값으로 반지름을 인스펙터 한곳에서 관리한다.
         [SerializeField, Min(0f)] private float radius = 3f;
 
@@ -51,7 +62,19 @@ namespace ProjectS.Scenes
         {
             if (popupOpen || UIManager.Instance == null) return;
 
-            UIManager.Instance.ShowPopup<DungeonSelectPopup>();
+            // ★ 데이터를 먼저 먹이고 그 다음에 연다. 순서가 뒤집히면 팝업의 OnShow가
+            //    카탈로그 null 상태로 목록을 그려 빈 화면이 뜬다.
+            DungeonEntryPopup popup = UIManager.Instance.GetPopup<DungeonEntryPopup>();
+            if (popup == null)
+            {
+                // 조용히 넘어가면 "게이트에 가도 아무 일이 없다"로만 보여 원인을 찾기 어렵다.
+                // 대개 팝업 프리팹이 부트스트랩 씬의 UIManager 아래에 없다는 뜻이다(UIManager는 자기 자식만 수집).
+                Debug.LogWarning("[DungeonGate] DungeonEntryPopup이 등록돼 있지 않다 — 부트스트랩 씬 UIManager 아래에 프리팹이 있는지 확인할 것");
+                return;
+            }
+
+            popup.SetMode(mode, catalog);
+            UIManager.Instance.ShowPopup<DungeonEntryPopup>();
             popupOpen = true;
         }
 
@@ -59,7 +82,7 @@ namespace ProjectS.Scenes
         {
             if (!popupOpen) return;
 
-            if (UIManager.Instance != null) UIManager.Instance.ClosePopup<DungeonSelectPopup>();
+            if (UIManager.Instance != null) UIManager.Instance.ClosePopup<DungeonEntryPopup>();
             popupOpen = false;
         }
 
