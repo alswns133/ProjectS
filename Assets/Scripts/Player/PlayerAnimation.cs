@@ -25,6 +25,10 @@ namespace ProjectS.Players
         private static readonly int DoHit = Animator.StringToHash("doHit");
         private static readonly int DoHitLarge = Animator.StringToHash("doHitLarge");
 
+        // 보스 잡기(구속) 모션 트리거. 던전 컨트롤러에만 있는 파라미터라, 없으면(마을/기존 컨트롤러)
+        // 매 프레임 경고가 나지 않게 hasGrabbed로 게이트한다(doJump/isLanding과 같은 방침).
+        private static readonly int DoGrabbed = Animator.StringToHash("doGrabbed");
+
         // 자유 이동(FreeMove 이관) 캐릭터 전용 파라미터. 3단 로코모션 컨트롤러(Haru 계열)만 갖고 있고,
         // Z 블렌드 트리 컨트롤러(Player.controller)에는 없다. 없는 파라미터에 SetTrigger/SetBool을 하면
         // Unity가 매 프레임 경고를 뱉으므로, Awake에서 존재 여부를 검사해 없으면 조용히 무시한다.
@@ -69,6 +73,7 @@ namespace ProjectS.Players
         private bool hasDie;
         private bool hasDieLarge;
         private bool hasRollHeld;
+        private bool hasGrabbed;
 
         private void Awake()
         {
@@ -94,6 +99,7 @@ namespace ProjectS.Players
             hasDie = HasParameter(DoDie);
             hasDieLarge = HasParameter(DoDieLarge);
             hasRollHeld = HasParameter(RollHeld);
+            hasGrabbed = HasParameter(DoGrabbed);
         }
 
         /// <summary>
@@ -307,6 +313,24 @@ namespace ProjectS.Players
         {
             animator.ResetTrigger(DoHit);
             animator.ResetTrigger(DoHitLarge);
+        }
+
+        /// <summary>
+        /// 보스에게 잡혔을 때 구속(발버둥) 모션 트리거. PlayerGrabbedState 진입 시 1회 호출한다.
+        /// 던전 컨트롤러에만 있는 파라미터라, 없으면(마을/기존 컨트롤러) 조용히 무시한다(경고 방지).
+        /// </summary>
+        public void PlayGrabbed()
+        {
+            if (hasGrabbed) animator.SetTrigger(DoGrabbed);
+        }
+
+        /// <summary>
+        /// 구속 트리거 해제. 잡기 해제(PlayerGrabbedState.Exit)에서 호출해, 래치된 트리거가 남아
+        /// 나중에 유령 구속 모션이 재생되는 것을 막는다(ResetHitTriggers와 같은 방침).
+        /// </summary>
+        public void ResetGrabbedTrigger()
+        {
+            if (hasGrabbed) animator.ResetTrigger(DoGrabbed);
         }
 
         /// <summary>
