@@ -52396,11 +52396,11 @@ MonoBehaviour:
   - name: Attack1
     kind: 0
     animationIndex: 0
-    range: 1.1
-    minRange: 1.1
+    range: 4.5
+    minRange: 0
     cooldown: 2
     coef: 1
-    weight: 0
+    weight: 1
     trackTarget: 1
     hitBox: {fileID: 2003189370401114914}
     projectilePrefab: {fileID: 0}
@@ -52411,8 +52411,8 @@ MonoBehaviour:
   - name: Attack2
     kind: 0
     animationIndex: 1
-    range: 1.1
-    minRange: 1.1
+    range: 4.5
+    minRange: 0
     cooldown: 2
     coef: 1
     weight: 1
@@ -52476,7 +52476,7 @@ MonoBehaviour:
   patrolRadius: 0
   patrolStuckTimeout: 4
   patrolSpeed: 1
-  chaseSpeed: 5.85
+  chaseSpeed: 8
   detectionRange: 8
   useDetectDash: 1
   detectDashSpeedMultiplier: 1.8
@@ -52486,15 +52486,15 @@ MonoBehaviour:
   useHitStun: 1
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
-  despawnDelay: 3
+  despawnDelay: 5
   combatDistanceFactorMin: 0.7
   combatDistanceFactorMax: 0.9
-  allyBlockRadius: 0.4
+  allyBlockRadius: 5.03
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
-  surroundAngleRange: 80
-  hitRecoveryDelay: 0.4
+  surroundAngleRange: 0
+  hitRecoveryDelay: 0
 --- !u!114 &2031085224462368173
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52508,8 +52508,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyEffects
   effects:
-  - cue: 1
-    effect: {fileID: 7677707127877440966}
+  - key: Attack1_1
+    particle: {fileID: 8630482698536803747}
+    anchorToWorld: 0
+    stopOnInterrupt: 0
+  - key: Attack1_2
+    particle: {fileID: 8282829948716950992}
+    anchorToWorld: 0
+    stopOnInterrupt: 0
+  - key: Attack2
+    particle: {fileID: 7677707127877440966}
+    anchorToWorld: 0
+    stopOnInterrupt: 0
 --- !u!114 &5556863187258006152
 MonoBehaviour:
   m_ObjectHideFlags: 0
