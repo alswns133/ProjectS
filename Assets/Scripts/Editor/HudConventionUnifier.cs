@@ -29,7 +29,9 @@ namespace ProjectS.EditorTools
     ///     Preview·Divider) 중 줄임말은 <c>Bg</c> 하나뿐이라 그것만 튀는 문제도 사라진다.
     ///   • <b><c>Num</c>은 그대로 둔다</b> — CooldownNum·SliderNum·LvNum 등. 관용적으로 읽히고,
     ///     <c>Number</c>로 펼쳐서 얻는 것이 없다. HP·SG·EXP·SP·PCB 같은 도메인 약어도 마찬가지.
-    ///   • <b>PascalCase 유지(띄어쓰기 없음)</b> — 오브젝트 이름은 애니메이션 클립의 커브 경로
+    ///   • <b>PascalCase(띄어쓰기·언더바 없음)</b> — 단어 구분은 오직 대소문자로 한다.
+    ///     <c>Left_Material</c> → <c>LeftMaterial</c>, <c>Skill_01</c> → <c>Skill01</c>.
+    ///     오브젝트 이름은 애니메이션 클립의 커브 경로
     ///     ("Parent/Child")로 쓰이므로 공백이 <b>보이지 않는 버그</b>가 된다. 실제로 이 프로젝트에
     ///     InventoryItemSlot.prefab의 <c>'Text '</c>, QuestEnumSlot.prefab의 <c>'exclamation mark '</c>가
     ///     끝에 공백이 붙은 채 존재한다(Hierarchy에서 구별 불가). 통계로도 띄어쓰기 있는 이름은 27%가
@@ -89,7 +91,7 @@ namespace ProjectS.EditorTools
                 MessageType.Info);
 
             EditorGUILayout.Space();
-            doRename = EditorGUILayout.ToggleLeft("1. 이름 표기 통일 (Bg/BG→Background, 접두사 제거, (1)→00, 공백 제거)", doRename);
+            doRename = EditorGUILayout.ToggleLeft("1. 이름 표기 통일 (Bg/BG→Background, 접두사 제거, (1)→00, 공백·언더바 제거)", doRename);
             using (new EditorGUI.DisabledScope(!doRename))
             {
                 EditorGUI.indentLevel++;
@@ -216,12 +218,16 @@ namespace ProjectS.EditorTools
         /// <summary>
         /// 프리팹 인스턴스라도 <b>자기 이름을 유지</b>해야 하는 것들.
         /// 번호가 프리팹 종류가 아니라 게임 안의 의미(단축키 슬롯, 미니맵 진영 등)를 나타내기 때문이다.
+        ///
+        /// 언더바를 <b>선택</b>으로 둔 이유: 이 툴이 언더바를 없애므로(<see cref="Pascalize"/>), 한 번 적용한 뒤
+        /// 다시 실행하면 이름이 <c>Enemy_00</c>이 아니라 <c>Enemy00</c>이다. 언더바를 필수로 두면 두 번째 실행에서
+        /// 여기 걸리지 않아 프리팹 이름으로 갈아끼워지고, 애써 지킨 번호가 날아간다.
         /// </summary>
         private static readonly Regex[] KeepOwnBaseName =
         {
-            new Regex(@"^Skill_\d+$"), new Regex(@"^Potion_\d+$"),
-            new Regex(@"^Enemy_\d+$"), new Regex(@"^Neutral_\d+$"), new Regex(@"^Ally_\d+$"),
-            new Regex(@"^Icon_"), new Regex(@"^ChatLog_Item_"), new Regex(@"^Label_"),
+            new Regex(@"^Skill_?\d+$"), new Regex(@"^Potion_?\d+$"),
+            new Regex(@"^Enemy_?\d+$"), new Regex(@"^Neutral_?\d+$"), new Regex(@"^Ally_?\d+$"),
+            new Regex(@"^Icon(_|[A-Z])"), new Regex(@"^ChatLog_?Item"), new Regex(@"^Label(_|[A-Z])"),
         };
 
         private class NameRule
@@ -272,11 +278,12 @@ namespace ProjectS.EditorTools
             new NameRule { From = "Input", To = "Text", ParentName = "Hotkey", Reason = "핫키 내부 이름 통일" },
 
             // ── 표기 예외 (형제 그룹 규칙으로는 안 잡히는 단발성)
+            // 공백/언더바 제거만으로는 Gradient0 · Skill4 가 되어 2자리 규칙에 안 맞으므로 따로 지정한다.
             new NameRule { From = "Gradient 0", To = "Gradient00", Reason = "2자리 제로패딩" },
             new NameRule { From = "Gradient 1", To = "Gradient01", Reason = "2자리 제로패딩" },
             new NameRule { From = "Skill 4", To = "Skill04", Reason = "2자리 제로패딩" },
-            new NameRule { From = "Lv_Out Pattern", To = "LvOutPattern", Reason = "공백/언더바 제거" },
-            new NameRule { From = "Lv_In Pattern", To = "LvInPattern", Reason = "공백/언더바 제거" },
+            // 그냥 두면 FXOverlay가 된다. 프로젝트가 이미 Fx 표기로 굳어 있다(FxRoot, QuestFxLayer, BossIntroFx).
+            new NameRule { From = "FX_Overlay", To = "FxOverlay", Reason = "프로젝트 Fx 표기에 맞춤" },
         };
 
         private static readonly Regex NumberedSuffix = new Regex(@"^(?<base>.*?)\s*\((?<n>\d+)\)$");
@@ -344,8 +351,14 @@ namespace ProjectS.EditorTools
 
                 foreach (KeyValuePair<string, List<Transform>> kv in groups)
                 {
-                    // 이름이 이미 전부 다르고 (n)도 안 붙어 있으면 손댈 이유가 없다.
-                    if (kv.Value.Count < 2 || !hasNumbered.Contains(kv.Key)) continue;
+                    if (kv.Value.Count < 2) continue;
+
+                    // 번호를 매기는 경우는 둘이다.
+                    //  (1) Unity가 붙인 "(1)" 꼬리표가 있다 → 우리 표기(00)로 바꾼다.
+                    //  (2) 형제끼리 이름이 실제로 똑같다 → 사람이 만든 중복이라 구별이 안 된다.
+                    //      (2)를 빼면 Label_Message 3형제처럼 완전히 같은 이름이 그대로 남는다.
+                    bool collides = kv.Value.Select(c => nameNow(c)).Distinct().Count() != kv.Value.Count;
+                    if (!hasNumbered.Contains(kv.Key) && !collides) continue;
 
                     for (int i = 0; i < kv.Value.Count; i++)
                     {
@@ -369,16 +382,16 @@ namespace ProjectS.EditorTools
                                $"{nameNow(parent)}{i:00}", "숫자뿐인 이름에 의미 부여");
             }
 
-            // (d) 공백 제거 + 각 단어 첫 글자 대문자 (약어의 기존 대문자는 유지: "HP Bar" → "HPBar")
+            // (d) 공백·언더바 제거 + 각 단어 첫 글자 대문자 (약어의 기존 대문자는 유지: "HP Bar" → "HPBar")
             foreach (Transform t in nodes)
             {
                 string cur = nameNow(t);
                 if (Untouchable.Contains(cur) || cur.Length == 0) continue;
-                if (cur.IndexOf(' ') < 0 && !char.IsLower(cur[0])) continue;
+                if (cur.IndexOf(' ') < 0 && cur.IndexOf('_') < 0 && !char.IsLower(cur[0])) continue;
 
                 string want = Pascalize(cur);
                 if (want == cur) continue;
-                UpsertPlan(plan, renamed, t, originalName[t], want, "공백 제거 / 첫 글자 대문자");
+                UpsertPlan(plan, renamed, t, originalName[t], want, "공백·언더바 제거 / 첫 글자 대문자");
             }
 
             // ── 리포트
@@ -424,9 +437,13 @@ namespace ProjectS.EditorTools
             return src != null ? src.name : null;
         }
 
+        /// <summary>
+        /// 공백과 언더바를 단어 경계로 보고 붙여서 PascalCase로 만든다.
+        /// 각 단어의 <b>둘째 글자부터는 건드리지 않아</b> 약어의 대문자가 살아남는다("HP Bar" → "HPBar").
+        /// </summary>
         private static string Pascalize(string s)
         {
-            string[] parts = s.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = s.Split(new[] { ' ', '_' }, StringSplitOptions.RemoveEmptyEntries);
             var sb = new StringBuilder();
             foreach (string p in parts)
                 sb.Append(char.ToUpperInvariant(p[0])).Append(p.Substring(1));
@@ -461,7 +478,7 @@ namespace ProjectS.EditorTools
                 if (apply)
                 {
                     Undo.SetTransformParent(notice, hud, UndoLabel);
-                    Undo.SetSiblingIndex(notice, index);
+                    Undo.SetSiblingIndex(notice, index, UndoLabel);
                     var rt = (RectTransform)notice;
                     Undo.RecordObject(rt, UndoLabel);
                     rt.anchorMin = Vector2.zero;
@@ -499,7 +516,7 @@ namespace ProjectS.EditorTools
                     if (cur == target) log.AppendLine($"  {n}: 이미 {after.name} 뒤 (index {cur}) — 변경 없음");
                     else log.AppendLine($"  {n}: 형제 index {cur}  →  {target} ({after.name} 뒤)");
 
-                    if (apply && cur != target) Undo.SetSiblingIndex(v, target);
+                    if (apply && cur != target) Undo.SetSiblingIndex(v, target, UndoLabel);
                     after = v;
                 }
                 log.AppendLine("      게임플레이 HUD 위 / 창 아래. 현재 셋 다 비활성이라 켜기 전까지 화면 변화는 없다.");
