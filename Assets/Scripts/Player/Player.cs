@@ -47,6 +47,9 @@ namespace ProjectS.Players
         /// <summary>공중 대시(점프 대시) 상태. 공중 회피 입력 시 Player가 이 상태로 전환한다.</summary>
         public PlayerJumpDashState JumpDashState { get; private set; }
 
+        /// <summary>보스에게 잡힌 구속 상태. 보스 잡기 히트가 성공하면 <see cref="OnGrabbed"/>가 전환한다.</summary>
+        public PlayerGrabbedState GrabbedState { get; private set; }
+
         public PlayerEffects Effect { get; private set; }
 
         private PlayerStateMachine sm; // 전환(Exit→Enter)을 책임지는 머신. 내부 전용
@@ -69,10 +72,17 @@ namespace ProjectS.Players
         public bool IsJumpDashing => sm.Current == JumpDashState;
 
         /// <summary>
-        /// 지금 몬스터를 통과해야 하는 상태인지(구르기·공중대시·각성기 시전).
-        /// PlayerEnemySeparation이 true면 그 프레임 소프트 분리를 건너뛴다.
+        /// 보스에게 잡혀 있는지 여부. 잡힘 동안 이동·점프·공격·회피 입력을 전부 막고,
+        /// 피격 데미지는 받되 경직(HitState)으로는 새지 않게 하는 게이트다(구속 유지).
         /// </summary>
-        public bool PassThroughEnemies => IsRolling || IsJumpDashing || Combat.IsCastingUltimate;
+        public bool IsGrabbed => sm.Current == GrabbedState;
+
+        /// <summary>
+        /// 지금 몬스터를 통과해야 하는 상태인지(구르기·공중대시·각성기 시전·보스에게 잡힘).
+        /// PlayerEnemySeparation이 true면 그 프레임 소프트 분리를 건너뛴다.
+        /// 잡힘을 포함하는 이유: 소프트 분리가 보스 앵커로 스냅한 위치를 밀어내 구속이 떨리기 때문.
+        /// </summary>
+        public bool PassThroughEnemies => IsRolling || IsJumpDashing || Combat.IsCastingUltimate || IsGrabbed;
 
         // 공격/스킬/강공격 입력을 피격 중 막는 기준. 캐릭터별로 다르다:
         //  - 태그 캐릭터: 원본(FreeCombatController)처럼 실제 Hit 애니메이션(Animator Hit 태그)을 기준으로 한다.
@@ -268,6 +278,7 @@ namespace ProjectS.Players
             RollState = new PlayerRollState(this);
             HitState = new PlayerHitState(this);
             JumpDashState = new PlayerJumpDashState(this);
+            GrabbedState = new PlayerGrabbedState(this);
 
             usesTags = Animation.UsesMotionTags;
 
@@ -469,6 +480,7 @@ namespace ProjectS.Players
         {
             if (!Input.JumpHeld) return;       // 버튼을 안 누르고 있으면 점프 안 함
             if (Stats.IsDead) return;          // ★ 죽었으면 무시
+            if (IsGrabbed) return;             // 보스에게 잡힌 동안 점프 금지
             if (IsRolling) return;             // 구르기 중 점프 금지(회피 커밋 유지)
             if (IsStaggered) return;           // 피격 경직 중 점프 금지
             if (IsMovementLocked) return;      // 이동 잠금 상태면 점프 무시(공격/스킬 중 점프 방지)
@@ -500,6 +512,7 @@ namespace ProjectS.Players
         {
             if (!CombatAllowed) return;        // 마을(전투 비활성) 또는 마우스 모드에서는 스킬 입력 무시
             if (Stats.IsDead) return;
+            if (IsGrabbed) return;             // 보스에게 잡힌 동안 스킬 금지
             if (IsRolling) return;             // 구르기 중 스킬 금지(회피 커밋 유지)
             if (IsHitBlocked) return;          // 피격 중 스킬 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
 
@@ -550,6 +563,7 @@ namespace ProjectS.Players
         {
             if (!CombatAllowed) return;      // 마을(전투 비활성) 또는 마우스 모드에서는 공격 입력 무시
             if (Stats.IsDead) return;        // 죽었으면 공격 무시
+            if (IsGrabbed) return;           // 보스에게 잡힌 동안 공격 금지
             if (IsRolling)
             {
                 rollAttackBuffered = true;   // 버리지 않고 예약 (앞의 CombatAllowed/IsDead 가드는 이미 통과)
@@ -638,6 +652,7 @@ namespace ProjectS.Players
         {
             if (!CombatAllowed) return;          // 마을(전투 비활성) 또는 마우스 모드에서는 강공격 입력 무시
             if (Stats.IsDead) return;
+            if (IsGrabbed) return;               // 보스에게 잡힌 동안 강공격 금지
             if (IsRolling) return;               // 구르기 커밋 유지
             if (IsHitBlocked) return;            // 피격 중 강공격 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
             if (IsStaggered) return;             // 다운 구간 차단(OnSkill과 같은 이유 — 그쪽 주석 참조)
@@ -665,6 +680,7 @@ namespace ProjectS.Players
             if (!Input.RollHeld) return;       // 버튼을 안 누르고 있으면 회피 안 함
             if (!combatEnabled) return;        // 마을 등 전투 비활성 구역에서는 구르기 금지(기획 의도 — 마을 구르기 미지원)
             if (Stats.IsDead) return;
+            if (IsGrabbed) return;             // 보스에게 잡힌 동안 회피 금지(고정 시간 탈출 — 마시 탈출 도입 전까지)
             if (IsRolling) return;             // 회피 중 재입력 무시 → 끝나는 프레임부터 다음 회피 발동
             if (Combat.IsCastingInvincibleSkill) return;   // 각성기(무적 스킬) 시전 중엔 회피로 캔슬 금지(기획)
 
@@ -685,6 +701,7 @@ namespace ProjectS.Players
             if (!usesTags) return;
             if (!combatEnabled) return;        // 마을 등 전투 비활성 구역에서는 공중 대시(점프 중 쉬프트) 금지 — 구르기와 동일
             if (Stats.IsDead) return;
+            if (IsGrabbed) return;             // 보스에게 잡힌 동안 공중 대시 금지
             if (IsRolling) return;
             if (Combat.IsCastingInvincibleSkill) return;   // 각성기(무적 스킬) 시전 중엔 공중대시로 캔슬 금지(기획)
 
@@ -724,6 +741,10 @@ namespace ProjectS.Players
             if (Stats.IsDead) return;
             if (IsRolling) return;
 
+            // 보스에게 잡혀 있으면 구속을 유지한다. 구속 중 데미지(Boss.OnGrabDamage)는 TakeDamage로
+            // 이미 적용됐고, 여기서 HitState로 새면 잡힘이 풀려 버린다 → 전이만 건너뛰어 "데미지만 받고 잡힘 유지".
+            if (IsGrabbed) return;
+
             // 각성기(무적기) 시전 중엔 강피격이라도 경직시키지 않는다. 각성기는 회피로도 못 끊는
             // '완전 커밋' 동작이라(회피 차단은 IsCastingInvincibleSkill), 피격 경직으로도 끊기면 안 된다.
             // 정상적으론 무적(Stats.IsInvincible)이라 데미지 자체가 씹혀 여기 도달하지 않지만,
@@ -742,6 +763,52 @@ namespace ProjectS.Players
         private void OnDied()
         {
             sm.ChangeState(DeadState);
+        }
+
+        /// <summary>
+        /// 보스 잡기 히트 프레임(<see cref="ProjectS.Enemies.Boss.OnGrabConnect"/>)이 플레이어를 포착하면 호출한다.
+        /// 잡기를 받아들이면 구속 상태(<see cref="GrabbedState"/>)로 전환하고 true를 돌려준다.
+        /// 회피(구르기 i-frame)·각성기 무적 커밋·사망 중에는 잡히지 않고 false를 돌려 보스가 헛잡기로 흘리게 한다.
+        /// </summary>
+        /// <param name="grabber">잡은 주체(보스). 구속 중 생사·활성 감시에 쓴다.</param>
+        /// <param name="anchor">잡힌 위치를 고정할 보스 앵커(손/입 등). null이면 위치 고정 없이 구속 모션만 재생.</param>
+        /// <returns>잡기가 성립하면 true, 회피/무적/사망 등으로 무산되면 false.</returns>
+        public bool OnGrabbed(ProjectS.Enemies.Enemy grabber, Transform anchor)
+        {
+            if (grabber == null) return false;
+            if (Stats.IsDead) return false;
+            if (IsGrabbed) return false;                   // 이미 잡힌 상태면 중복 진입 방지
+            if (IsRolling) return false;                   // 회피(구르기) i-frame으로 잡기 회피(기획)
+            if (Combat.IsCastingUltimate) return false;    // 각성기 무적 커밋 중엔 잡히지 않는다
+
+            GrabbedState.Setup(grabber, anchor);
+            ChangeState(GrabbedState);
+            return true;
+        }
+
+        /// <summary>
+        /// 보스 잡기 구속을 푼다. 보스 잡기 클립의 마무리 Animation Event(Boss.OnGrabThrow/OnGrabDrop)와,
+        /// 잡은 보스가 죽거나 사라졌을 때의 <see cref="GrabbedState"/> 자체 실패 복구가 호출한다.
+        /// 잡힘 상태가 아니면 무시한다(마무리 이벤트가 두 번 와도 안전).
+        /// </summary>
+        /// <param name="asThrow">true=던지기(피격 반응으로 넉백), false=제자리 해제(자유 상태 복귀).</param>
+        /// <param name="throwHorizontalSpeed">던지기 수평 넉백 세기(asThrow일 때만 사용). 보스 잡기 설정이 넘긴다.</param>
+        /// <param name="throwUpSpeed">던지기 수직 띄우기 세기(asThrow일 때만 사용).</param>
+        public void ReleaseFromGrab(bool asThrow, float throwHorizontalSpeed = 0f, float throwUpSpeed = 0f)
+        {
+            if (!IsGrabbed) return;
+
+            if (asThrow)
+            {
+                // 상태 전환이 먼저다: GrabbedState.Exit가 컨트롤러를 되살리며 ResetMotion으로 관성을 지우므로,
+                // 넉백은 반드시 전환 '뒤'에 실어야 살아남는다. 잡힌 동안 보스를 바라보고 있어 -forward가 곧 뒤쪽이다.
+                ChangeState(HitState);
+                Movement.ApplyThrow(-transform.forward * throwHorizontalSpeed, throwUpSpeed);
+            }
+            else
+            {
+                ChangeState(FreeState);
+            }
         }
 
         /// <summary>

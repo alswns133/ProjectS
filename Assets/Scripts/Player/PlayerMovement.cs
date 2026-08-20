@@ -439,6 +439,43 @@ namespace ProjectS.Players
         }
 
         /// <summary>
+        /// 외부(보스 잡기 등)가 이 캐릭터의 위치를 직접 제어하는 동안 CharacterController를 끈다.
+        /// 컨트롤러가 켜져 있으면 controller.Move와 충돌 해석이 매 프레임 위치를 되돌려, 잡기 앵커로
+        /// 스냅한 위치가 곧바로 밀려난다. 끄기 전에 잔여 관성·공중 동작 상태(대시/체공/상승 등)를 리셋해,
+        /// 다시 켰을 때 유령 낙하나 미끄러짐이 이어지지 않게 한다.
+        /// 반드시 <see cref="EndExternalControl"/>와 짝으로 호출한다(해제를 놓치면 조작 불능으로 굳는다).
+        /// </summary>
+        public void BeginExternalControl()
+        {
+            ResetMotion();
+            if (controller != null) controller.enabled = false;
+        }
+
+        /// <summary>
+        /// 외부 위치 제어를 끝내고 CharacterController를 다시 켠다(보스 잡기 해제 시).
+        /// 관성·공중 상태를 한 번 더 리셋해, 잡혀 있던 동안 쌓였을 값으로 활성 직후 튀지 않게 한다.
+        /// 던지기 마무리는 이 호출 '뒤에' <see cref="ApplyThrow"/>로 관성을 실어야 한다(여기 ResetMotion에 지워지지 않게).
+        /// </summary>
+        public void EndExternalControl()
+        {
+            if (controller != null) controller.enabled = true;
+            ResetMotion();
+        }
+
+        /// <summary>
+        /// 잡기 '던지기' 마무리용 순간 속도 부여. 위로 띄우고(공중→낙하) 수평 관성을 실어 던져지는 반응으로 잇는다.
+        /// <see cref="EndExternalControl"/>로 컨트롤러를 켠 '직후'에 호출해야 한다(그 전엔 ResetMotion이 지운다).
+        /// 이후 HitState의 Move(zero)가 이 관성·중력을 태운다(수평은 airBrake로 빠르게 줄어드는 짧은 밀림이라,
+        /// 던지는 거리 감각은 보스 클립의 루트모션/앵커 위치와 함께 튜닝한다). 세기는 호출측(보스 잡기 설정)이 넘긴다.
+        /// </summary>
+        public void ApplyThrow(Vector3 horizontalVelocity, float upSpeed)
+        {
+            airVelocity = horizontalVelocity;
+            verticalVelocity = upSpeed;
+            wasGrounded = false;
+        }
+
+        /// <summary>
         /// 점프 대시(공중 대시)를 시작한다. 입력 방향(없으면 바라보는 방향)으로 대시하며,
         /// 착지 전까지 1회만 허용된다. 트리거 재생은 호출측(PlayerJumpDashState)이 담당한다.
         /// </summary>
