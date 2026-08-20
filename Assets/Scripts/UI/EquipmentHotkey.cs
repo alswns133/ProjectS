@@ -35,7 +35,8 @@ namespace ProjectS.UI
                 return;
             }
 
-            if (NpcInteractionController.Active != null) return;   // 대화·허브 중엔 열지 않음
+            // 대화·허브 중엔 열지 않는다. 단, 강화창이 떠 있으면 허용한다(강화 중 장비창 확인·조작 위해).
+            if (NpcInteractionController.Active != null && !ui.IsPopupOpen<EnhancePopup>()) return;
             ui.ShowPopup<EquipmentPopup>();
         }
 

@@ -64,7 +64,10 @@ namespace ProjectS.UI
             int dungeonId = ResolveObjectiveDungeon(quest.ObjectiveType, targetId);
             if (dungeonId <= 0) return false;
 
-            if (DungeonContext.CurrentDungeonId == dungeonId)
+            // 던전 번호끼리 비교한다. CurrentDungeonId는 난이도까지 담은 2자리(11=던전1 노말 · 13=매니악)라
+            // 그대로 비교하면 어느 난이도로 들어와도 거짓이 되어, 던전 안에서도 계속 게이트를 가리킨다.
+            // 목표가 속한 던전(몬스터 테이블의 DungeonId·아이템의 SourceDungeonId)은 난이도가 없는 한 자리다.
+            if (DungeonContext.DungeonNumber == dungeonId)
             {
                 inTargetDungeon = true;   // 이미 목표 던전 안 → 화살표 대신 정적 아이콘.
                 return true;

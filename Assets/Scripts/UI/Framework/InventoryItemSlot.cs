@@ -37,6 +37,14 @@ namespace ProjectS.UI.Framework
         /// <summary>이 슬롯이 표시 중인 장비(스택/빈칸이면 null).</summary>
         public EquipmentInstance Equipment => equipment;
 
+        /// <summary>
+        /// 장비 슬롯을 좌더블클릭했을 때 그 장비를 알린다. 슬롯은 무엇에 쓰이는지 모른 채 "장비가 더블클릭됐다"만
+        /// 알리고(화면→Framework 의존 방향 유지), 강화창 같은 소비자가 이를 대상 선택으로 받는다. 강화창이 닫혀
+        /// 있으면 구독자가 없어 무시된다. 드래그드롭(<see cref="CoreSlotDropTarget"/>)과 함께 강화 대상을 고르는
+        /// 두 수단이다 — 구 InventorySlotView의 대상 선택 설계(더블클릭/드래그)를 실제 인벤 슬롯으로 이관한 것이다.
+        /// </summary>
+        public static event Action<EquipmentInstance> OnEquipmentDoubleClicked;
+
         /// <summary>이 슬롯이 표시 중인 스택형 아이템(장비/빈칸이면 null).</summary>
         public ItemStack Stack => stack;
 
@@ -131,15 +139,30 @@ namespace ProjectS.UI.Framework
             icon.enabled = sprite != null;
         }
 
-        /// <summary>좌클릭은 좌클릭 콜백, 우클릭은 우클릭 콜백을 부른다(빈칸이면 무시).</summary>
+        /// <summary>
+        /// 우클릭은 우클릭 콜백, 좌더블클릭은 장비 선택 이벤트(<see cref="OnEquipmentDoubleClicked"/>),
+        /// 좌단일클릭은 좌클릭 콜백을 부른다(빈칸이면 무시).
+        /// </summary>
         public void OnPointerClick(PointerEventData eventData)
         {
             if (IsEmpty) return;
 
             if (eventData.button == PointerEventData.InputButton.Right)
+            {
                 onRightClick?.Invoke(this, eventData);
-            else if (eventData.button == PointerEventData.InputButton.Left)
-                onLeftClick?.Invoke(this);
+                return;
+            }
+
+            if (eventData.button != PointerEventData.InputButton.Left) return;
+
+            // 좌더블클릭: 장비면 "장비 더블클릭"을 알린다(강화창이 열려 있을 때 대상 선택 등이 구독).
+            if (eventData.clickCount == 2 && equipment != null)
+            {
+                OnEquipmentDoubleClicked?.Invoke(equipment);
+                return;
+            }
+
+            onLeftClick?.Invoke(this);
         }
 
         // ---- 좌클릭 드래그(고스트) : InventorySlotView와 동일 패턴 ----
@@ -242,5 +265,9 @@ namespace ProjectS.UI.Framework
 
         /// <summary>마우스가 벗어나면 툴팁을 숨긴다.</summary>
         public void OnPointerExit(PointerEventData eventData) => ItemTooltip.Instance?.Hide();
+
+        /// <summary>static 이벤트 구독 초기화(도메인 리로드를 꺼도 이전 세션 구독자가 남지 않게).</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics() => OnEquipmentDoubleClicked = null;
     }
 }

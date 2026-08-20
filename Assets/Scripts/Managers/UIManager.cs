@@ -289,6 +289,23 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// T 타입 팝업 인스턴스를 돌려준다. 여는 쪽이 <b>열기 전에</b> 데이터를 먹여야 하는 팝업
+        /// (던전 입장 팝업의 모드·카탈로그 등)을 위해 조회 경로만 연 것이다.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ShowPopup{T}"/>는 반환값이 없고, 팝업 인스턴스는 UIManager(DontDestroyOnLoad) 아래에 있어
+        /// 다른 씬의 오브젝트가 인스펙터로 참조를 꽂을 수 없다(씬 간 참조 불가). 그래서 타입으로 찾는 길이 필요하다.
+        /// 열지도 닫지도 않으므로 activePopups는 건드리지 않는다 — 상태를 바꾸지 않는 순수 조회다
+        /// (<see cref="ClosePopup{T}"/>가 이미 하고 있는 조회를 밖에서도 쓸 수 있게 연 것).
+        /// </remarks>
+        /// <typeparam name="T">BasePopup을 상속받은 클래스</typeparam>
+        /// <returns>등록된 팝업. 등록돼 있지 않으면 null</returns>
+        public T GetPopup<T>() where T : BasePopup
+        {
+            return popupMap.TryGetValue(typeof(T), out var popup) ? popup as T : null;
+        }
+
+        /// <summary>
         /// 가장 최근에 연(맨 위) 팝업을 닫는다. 뒤로가기가 팝업을 한 번에 하나씩 닫을 때 사용.
         /// </summary>
         private void CloseTopPopup()

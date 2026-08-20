@@ -13,6 +13,9 @@ namespace ProjectS.UI.Framework
         /// <summary>장비창.</summary>
         public const string Equipment = "equipment";
 
+        /// <summary>강화창.</summary>
+        public const string Enhance = "enhance";
+
         // 후속: 스킬창 등 이동식 창이 생기면 여기에 추가.
         // public const string Skill = "skill";
     }

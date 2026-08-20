@@ -245,7 +245,7 @@ namespace ProjectS.EditorTools
         /// <remarks>
         /// UIManager는 UI 계층이 아니라 그냥 Transform이다. 그 밑으로 옮기는 순간 부모 Canvas가 사라지므로,
         /// Canvas가 없으면 오브젝트는 켜져 있는데 화면에 아무것도 안 나오는 상태가 된다
-        /// (DungeonSelectPopup·LoadingPanel과 같은 조건).
+        /// (DungeonEntryPopup·LoadingPanel과 같은 조건).
         /// </remarks>
         private static void EnsureCanvas(GameObject popup, ref string report)
         {
