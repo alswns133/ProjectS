@@ -50,7 +50,7 @@ namespace ProjectS.Enemies
             // 상태는 "공격 시작"을 요청하고, 선택된 공격 번호만 Animation에 넘긴다.
             enemy.Combat.BeginAttack(enemy.DistanceToTarget());
             enemy.Animation.PlayAttack(enemy.Combat.CurrentAttackIndex);
-            enemy.Effects?.Play(EnemyEffects.EffectCue.Attack);
+            // 공격 이펙트는 공격 클립의 Animation Event(OnEffect)가 실제 타격 프레임에 재생한다(클립 주도).
         }
 
         public override void Update()

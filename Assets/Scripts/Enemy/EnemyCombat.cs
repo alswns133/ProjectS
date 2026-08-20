@@ -100,9 +100,8 @@ namespace ProjectS.Enemies
             public Vector3 rotationOffset;
 
             // 발사 순간 총구에서 터지는 이펙트(총구 화염 등). 보통 muzzle의 자식으로 붙인다.
-            // EnemyEffects의 Attack cue를 쓰지 않는 이유: 그쪽은 AttackState 진입(=공격 모션 시작)에
-            // 재생되어 실제 발사 프레임과 어긋나고, cue당 파티클이 하나라 슬롯별로 다른 총을 못 쓴다.
-            // 총구 위치·발사 방향·총구 화염은 한 세트라 슬롯에 함께 둔다.
+            // EnemyEffects(공용 이펙트 통로)로 빼지 않는 이유: 총구 위치·발사 방향·총구 화염은 한 세트라
+            // 발사 로직과 같은 슬롯에 두는 편이 응집도가 높고, 발사 프레임과 정확히 맞물린다.
             [ShowIfEnum(nameof(kind), (int)AttackKind.Projectile)]
             public ParticleSystem muzzleFlash;
 

@@ -22,7 +22,9 @@ namespace ProjectS.Enemies
             else
                 enemy.Animation.PlayDie();
 
-            enemy.Effects?.Play(EnemyEffects.EffectCue.Death);
+            // 사망 이펙트 재생은 사망 클립의 Animation Event(OnEffect)가 맡는다. 여기서는 반대로,
+            // 사망 순간 진행 중이던 오라·장판 잔상을 걷어낸다(잡몹은 지속 이펙트가 없어 무해).
+            enemy.Effects?.StopAll();
 
             // 사망 후 추가 피격이나 물리 충돌이 일어나지 않도록 이동과 충돌을 모두 끈다.
             enemy.Movement.DisableAgent();

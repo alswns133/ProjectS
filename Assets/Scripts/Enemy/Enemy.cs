@@ -483,7 +483,10 @@ namespace ProjectS.Enemies
             StateMachine.ChangeState(HasPatrol ? PatrolState : IdleState);
         }
 
-        private void OnDrawGizmosSelected()
+        // protected virtual: 파생 보스(Boss)가 잡기 히트박스 기즈모를 덧그리되 base(감지 반경·군중 제어)를
+        // 함께 유지하도록 연다. 에디터 전용이라 런타임(상태 머신·이벤트)에는 영향이 없어 안전한 유일한 seam이다.
+        // 런타임 Unity 메시지(Awake/Update 등)는 파생이 재선언하면 base가 안 불려 위험하므로 열지 않는다.
+        protected virtual void OnDrawGizmosSelected()
         {
             // 감지 반경 미리보기. 공격 히트박스(빨강)와 구분되게 노란색을 쓴다.
             Gizmos.color = Color.yellow;
