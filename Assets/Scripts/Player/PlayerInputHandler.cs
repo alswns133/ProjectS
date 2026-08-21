@@ -68,9 +68,42 @@ namespace ProjectS.Players
         // 구르기는 점프와 같은 '꾹 누르면 연속 발동' 설계라 이벤트가 아닌 RollHeld 폴링으로 처리한다.
         // 이벤트(started) 방식이면 '누른 순간' 1회뿐이라 연속 회피를 만들 수 없다.
 
-        private void OnEnable()
+        // 컷신(보스 등장 등)으로 게임플레이 입력을 통째로 멈춘 상태.
+        // true면 모든 InputAction을 Disable한다 → MoveInput=0, 각종 Held=false가 되고
+        // 이산 입력 이벤트(Attacked/SkillPressed 등)의 콜백도 발화하지 않아 폴링·이벤트 양쪽이 함께 막힌다.
+        private bool inputSuspended;
+
+        /// <summary>컷신 등으로 게임플레이 입력이 통째로 멈춰 있는지.</summary>
+        public bool InputSuspended => inputSuspended;
+
+        /// <summary>
+        /// 게임플레이 입력을 통째로 멈추거나 되살린다. 보스 등장 연출처럼 모든 조작을 막아야 하는 동안
+        /// <see cref="Player.BeginCutscene"/>가 켜고 <see cref="Player.EndCutscene"/>가 끈다.
+        /// 멈추면 이동/줌 폴링값이 0이 되고 이산 입력 콜백도 발화하지 않으므로, 개별 게이트를 일일이
+        /// 손대지 않아도 이동·점프·공격·스킬·회피·상호작용·커서 토글이 한 번에 차단된다.
+        /// </summary>
+        /// <param name="suspended">true=모든 입력 차단, false=평소대로 복구.</param>
+        public void SetInputSuspended(bool suspended)
         {
-            // InputAction은 Enable해야 입력을 받기 시작한다. (에셋이 아닌 직접 필드 방식)
+            if (inputSuspended == suspended) return;
+
+            inputSuspended = suspended;
+
+            if (suspended)
+            {
+                DisableActions();
+                IsRunning = false;   // 멈춘 순간 달리기(더블탭) 상태도 초기화 — 복귀 시 걷기부터 시작
+            }
+            else
+            {
+                EnableActions();
+            }
+        }
+
+        // InputAction은 Enable해야 입력을 받기 시작한다(에셋이 아닌 직접 필드 방식).
+        // OnEnable과 입력 재개(SetInputSuspended)에서 함께 쓰려고 한곳에 모았다.
+        private void EnableActions()
+        {
             moveAction.Enable();
             zoomAction.Enable();
             jumpAction.Enable();
@@ -80,6 +113,25 @@ namespace ProjectS.Players
             rollAction.Enable();
             cursorToggleAction.Enable();
             interactAction.Enable();
+        }
+
+        private void DisableActions()
+        {
+            moveAction.Disable();
+            zoomAction.Disable();
+            jumpAction.Disable();
+            skillAction.Disable();
+            attackAction.Disable();
+            strongAttackAction.Disable();
+            rollAction.Disable();
+            cursorToggleAction.Disable();
+            interactAction.Disable();
+        }
+
+        private void OnEnable()
+        {
+            // 컷신으로 입력이 멈춘 채 컴포넌트가 재활성되면 그 상태를 존중한다(멈춘 채로 유지).
+            if (!inputSuspended) EnableActions();
 
             moveAction.started += OnMoveStarted;
             moveAction.canceled += OnMoveCanceled;
@@ -102,15 +154,7 @@ namespace ProjectS.Players
             cursorToggleAction.started -= OnCursorToggle;
             interactAction.started -= OnInteract;
 
-            moveAction.Disable();
-            zoomAction.Disable();
-            jumpAction.Disable();
-            skillAction.Disable();
-            attackAction.Disable();
-            strongAttackAction.Disable();
-            rollAction.Disable();
-            cursorToggleAction.Disable();
-            interactAction.Disable();
+            DisableActions();
         }
 
         private void OnSkill(InputAction.CallbackContext ctx)

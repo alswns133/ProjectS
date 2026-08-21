@@ -122,6 +122,12 @@ namespace ProjectS.Players
         // 다시 접지"라는 엣지를 이 플래그로 직접 잡는다(리프트오프 첫 프레임은 아직 접지라 false로 유지).
         private bool strongAttackWasAirborne;
 
+        // 던지기(보스 잡기 마무리) 등으로 날아가는 동안 이동 방향으로 몸을 돌리지 않는다.
+        // 던지기 속도는 바라보던 방향의 반대(-forward)라, 켜지 않으면 Move의 FaceDirection이 캐릭터를
+        // 날아가는 쪽으로 홱 돌려 "누운 채 앞에서 뒤로 회전하며 날아가는" 그림이 된다. 그걸 막는 게이트다.
+        // ApplyThrow가 켜고, 피격 상태를 벗어날 때(PlayerHitState.Exit) 끈다. 씬 워프(ResetMotion)에서도 정리한다.
+        private bool suppressFacing;
+
         /// <summary>현재 접지 여부. CharacterController.isGrounded를 그대로 노출한다.</summary>
         public bool IsGrounded => controller != null && controller.isGrounded;
 
@@ -380,7 +386,8 @@ namespace ProjectS.Players
                 move = airVelocity;
             }
 
-            FaceDirection(move);
+            // 던지기/넉백으로 날아가는 동안엔 이동 방향으로 몸을 돌리지 않는다(눕혀진 채 그대로 날아가야 함).
+            if (!suppressFacing) FaceDirection(move);
             // coyoteGround면 낙하 누적을 끊고 계단에 붙이도록 스냅을 켠다.
             ApplyGravity(ref move, actionLocked, coyoteGround);
             controller.Move(move * Time.deltaTime);
@@ -432,6 +439,7 @@ namespace ProjectS.Players
             StrongAttackRising = false;
             strongAttackWasAirborne = false;
             hasAirDashed = false;
+            suppressFacing = false;
 
             // 순간이동으로 위치가 크게 바뀌므로, LateUpdate의 지상 속도 측정이 큰 델타로 튀지 않게 기준점을 맞춘다.
             wasGrounded = false;
@@ -473,7 +481,17 @@ namespace ProjectS.Players
             airVelocity = horizontalVelocity;
             verticalVelocity = upSpeed;
             wasGrounded = false;
+
+            // 날아가는 동안 이동 방향(=바라보던 방향의 반대)으로 몸이 돌아가지 않게 회전을 잠근다.
+            // 착지해 피격 상태를 벗어날 때(PlayerHitState.Exit)가 SetFacingSuppressed(false)로 해제한다.
+            suppressFacing = true;
         }
+
+        /// <summary>
+        /// 이동 방향 회전(FaceDirection) 억제를 켜고 끈다. 던지기/넉백으로 날아가는 동안 몸이 날아가는 쪽으로
+        /// 돌아가지 않게 하는 게이트다. <see cref="ApplyThrow"/>가 켜고, 피격 상태를 벗어날 때 끈다.
+        /// </summary>
+        public void SetFacingSuppressed(bool value) => suppressFacing = value;
 
         /// <summary>
         /// 점프 대시(공중 대시)를 시작한다. 입력 방향(없으면 바라보는 방향)으로 대시하며,
