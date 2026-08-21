@@ -149,6 +149,7 @@
             if (!agent.enabled || !agent.isOnNavMesh) return;
 
             agent.isStopped = true;
+            agent.velocity = Vector3.zero;   // 관성 제거: isStopped만으론 autoBraking으로 미끄러져 공격 진입 지점을 지나침
             agent.ResetPath();
         }
 
