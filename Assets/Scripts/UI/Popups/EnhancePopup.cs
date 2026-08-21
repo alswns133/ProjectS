@@ -67,6 +67,20 @@ namespace ProjectS.UI
         /// </summary>
         public event Action OnResultPlayFinished;
 
+        /// <summary>
+        /// 표시 대상이 갱신될 때(<see cref="SetTarget"/>). 게이지 스윕처럼 "평상시 위치"가 필요한
+        /// 연출이 현 단계 성공률을 여기서 받는다. 인스펙터 배선 없이 붙이기 위해 이벤트로 낸다.
+        /// </summary>
+        public event Action<EnhanceInfo> OnTargetChanged;
+
+        /// <summary>
+        /// 결과 연출 시작 시, 성공/실패까지 함께 알린다.
+        /// <see cref="OnResultPlayStarted"/>와 동시에 발행하며, 결과에 따라 분기해야 하는 연출
+        /// (게이지가 끝에 도달 vs 닿을 듯하다 되돌아감)이 이쪽을 쓴다.
+        /// 기존 구독자를 깨지 않으려고 인자 없는 이벤트를 바꾸지 않고 따로 뒀다.
+        /// </summary>
+        public event Action<EnhanceResult> OnResultPlay;
+
         protected override void OnInit()
         {
             // 자식 컴포넌트의 Awake 순서에 기대지 않도록 버튼 배선을 여기서 일괄 처리한다.
@@ -112,6 +126,8 @@ namespace ProjectS.UI
             if (costText != null) costText.text = info.IsMax ? "-" : info.ZenyCost.ToString();
 
             BuildStatRows(info);
+
+            OnTargetChanged?.Invoke(info);
         }
 
         /// <summary>
@@ -169,6 +185,7 @@ namespace ProjectS.UI
             // 판정이 이미 끝난 구간이라 화면상 변하는 수치가 없어서, 이 신호를 받는 연출이
             // 대기 시간을 채워주지 않으면 1.2초가 통째로 정지 화면이 된다.
             OnResultPlayStarted?.Invoke();
+            OnResultPlay?.Invoke(result);
 
             // TODO: FX_Overlay 연출 트리거(result.Success로 성공/실패 분기). 지금은 시간만 대기.
             yield return new WaitForSecondsRealtime(1.2f);
