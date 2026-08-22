@@ -35,6 +35,11 @@
 ExportedObj/
 .consulo/
 *.csproj
+!Tools/ExternalAssetsLauncher/ExternalAssetsLauncher.csproj
+!Tools/ExternalAssetsPublisher/ExternalAssetsPublisher.csproj
+!Tools/ExternalAssetsBaseBuilder/ExternalAssetsBaseBuilder.csproj
+!Tools/ExternalAssetsDeltaCommon/ExternalAssetsDeltaCommon.csproj
+!Tools/ExternalAssetsContributor/ExternalAssetsContributor.csproj
 *.unityproj
 *.sln
 *.suo
@@ -75,10 +80,18 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
 # ===== 대형 외부 에셋 (산 에셋/외주/음원) =====
-# 깃 대신 공유 드라이브로 배포. 절대 커밋 금지.
-# .meta 포함 통째로 압축해서 팀원에게 공유할 것 (GUID 동기화)
+# 깃 대신 공유 드라이브로 배포. 내부 파일은 절대 커밋 금지.
+# ExternalAssets.meta 하나만 Git으로 추적해 루트 폴더 GUID를 고정한다.
+# 내부 에셋은 .meta를 포함해 Publisher로 압축하여 공유한다.
 /[Aa]ssets/ExternalAssets/
-/[Aa]ssets/ExternalAssets.meta
+
+# 외부 에셋 배포 산출물에는 실제 Drive 링크와 라이선스 에셋 ZIP이 포함된다.
+# 반드시 제한된 저장소에서만 공유하고 공개 Git 저장소에는 절대 올리지 않는다.
+/ExternalAssetsReleases/
+/ExternalAssetsBaseBuilds/
+/ExternalAssetsContributions/
+/ExternalAssetsLegacyBackups/
+/Tools/ExternalAssetsLauncher/google-oauth-client.json
 
 # ===== Firebase 비-Windows 데스크톱 네이티브 (Windows 타깃이라 미사용, 대용량) =====
 # macOS(.bundle 107MB)/Linux(.so 77MB) 데스크톱 라이브러리는 GitHub 100MB 제한 초과 + Windows에선 미사용.
@@ -87,3 +100,6 @@ crashlytics-build.properties
 /[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.bundle.meta
 /[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.so
 /[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.so.meta
+
+# Unity scene recovery backups (crash recovery temp folder)
+/[Aa]ssets/_Recovery/

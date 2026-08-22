@@ -5,10 +5,13 @@ namespace ProjectS.ExternalAssetsLauncher;
 internal sealed class ExternalAssetsManifest
 {
     [JsonPropertyName("schemaVersion")]
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = 2;
 
     [JsonPropertyName("latestVersion")]
     public int LatestVersion { get; init; }
+
+    [JsonPropertyName("channelId")]
+    public string ChannelId { get; init; } = string.Empty;
 
     [JsonPropertyName("packages")]
     public List<ExternalAssetsPackage> Packages { get; init; } = [];
@@ -25,8 +28,8 @@ internal sealed class ExternalAssetsPackage
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
 
-    [JsonPropertyName("downloadUrl")]
-    public string DownloadUrl { get; init; } = string.Empty;
+    [JsonPropertyName("driveFileId")]
+    public string DriveFileId { get; init; } = string.Empty;
 
     [JsonPropertyName("sha256")]
     public string Sha256 { get; init; } = string.Empty;
@@ -46,8 +49,11 @@ internal sealed class LauncherSettings
     [JsonPropertyName("projectPath")]
     public string ProjectPath { get; set; } = string.Empty;
 
-    [JsonPropertyName("manifestUrl")]
-    public string ManifestUrl { get; set; } = string.Empty;
+    [JsonPropertyName("manifestFileId")]
+    public string ManifestFileId { get; set; } = string.Empty;
+
+    [JsonPropertyName("oauthClientConfigurationPath")]
+    public string OAuthClientConfigurationPath { get; set; } = string.Empty;
 
     [JsonPropertyName("unityExecutablePath")]
     public string UnityExecutablePath { get; set; } = string.Empty;
@@ -55,6 +61,12 @@ internal sealed class LauncherSettings
 
 internal sealed class InstalledState
 {
+    [JsonPropertyName("stateSchemaVersion")]
+    public int StateSchemaVersion { get; init; }
+
+    [JsonPropertyName("channelId")]
+    public string ChannelId { get; init; } = string.Empty;
+
     [JsonPropertyName("installedVersion")]
     public int InstalledVersion { get; init; }
 
@@ -64,12 +76,16 @@ internal sealed class InstalledState
 
 internal sealed record DownloadProgress(string Status, long BytesReceived, long? TotalBytes);
 
+internal sealed record InstallationResult(string? LegacyBackupPath);
+
 internal sealed record UpdatePlan(
     ExternalAssetsManifest Manifest,
     int InstalledVersion,
     int RequiredVersion,
     IReadOnlyList<ExternalAssetsPackage> Packages)
 {
+    public bool RequiresLegacyMigration { get; init; }
+
     public bool IsCurrent => Packages.Count == 0 && InstalledVersion == RequiredVersion;
     public bool RequiresReset => InstalledVersion > RequiredVersion;
 }

@@ -85,6 +85,11 @@ namespace ProjectS.Players
         {
             // 경직 중 사망/구르기로 끊겨도 래치된 피격 트리거가 남지 않게 정리한다.
             player.Animation.ResetHitTriggers();
+
+            // 던지기(보스 잡기 마무리)로 켜졌던 회전 억제를 푼다. 착지해 이 상태를 벗어나는 지금이
+            // "날아가는 게 끝난" 시점이라, 자유 이동으로 돌아가면 다시 이동 방향으로 몸을 돌리게 한다.
+            // 던지기가 아니어서 애초에 억제가 꺼져 있던 일반 피격에서도 무해하다(이미 false).
+            player.Movement.SetFacingSuppressed(false);
         }
     }
 }

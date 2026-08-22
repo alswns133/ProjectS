@@ -32,7 +32,7 @@ namespace ProjectS.Enemies
             enteredDetect = false;
 
             enemy.Animation.PlayDetect();
-            enemy.Effects?.Play(EnemyEffects.EffectCue.Detect);
+            // 발견 이펙트는 발견 클립의 Animation Event(OnEffect)가 재생한다(클립 주도).
 
             // 순찰·추격에서 넘어올 때 남은 경로/속도로 끌려가지 않게 끊는다.
             enemy.Movement.StopAndClearPath();
