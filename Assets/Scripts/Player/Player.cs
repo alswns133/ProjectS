@@ -125,6 +125,25 @@ namespace ProjectS.Players
         [Header("점프")]
         [SerializeField, Min(0f)] private float autoJumpDelay = 0.08f;
 
+        // ── 컷신(보스 등장 등) 입력 잠금 ──────────────────────────────────
+        [Header("컷신(보스 등장 등)")]
+        // 컷신 종료 신호(EndCutscene)를 놓쳐도 이 시간이 지나면 입력이 스스로 풀린다.
+        // "연출이 끝났는데도 조작이 안 돌아오는" 최악(신호 누락)을 막는 안전장치다.
+        // 어떤 등장 연출보다 넉넉히 길게 잡는다 — 정상 흐름에선 이 타이머 전에 EndCutscene가 온다.
+        [SerializeField, Min(0f)] private float maxCutsceneDuration = 12f;
+
+        // 마우스 시점 조작까지 함께 얼릴 카메라(선택). 연결하면 컷신 동안 마우스가 회전을 쌓지 못하게 막아
+        // 연출이 끝나 평소 카메라로 돌아올 때 화면이 홱 도는 것을 방지한다. 비워 두면 키 입력만 막는다.
+        [SerializeField] private CameraPivotController cameraPivot;
+
+        // 지금 컷신(전체 입력 잠금) 중인지. 잠금은 PlayerInputHandler.SetInputSuspended가 담당하고,
+        // 여기서는 상태 플래그와 안전 타이머만 들고 있는다.
+        private bool inCutscene;
+        private float cutsceneTimer;
+
+        /// <summary>보스 등장 연출 등으로 전체 입력이 잠긴 컷신 중인지 여부.</summary>
+        public bool InCutscene => inCutscene;
+
         // ── 태그 기반 이동 잠금/연계 판정(자유 이동 캐릭터 전용) ──────────────
         [Header("공격 상태 판정 (태그 기반 캐릭터 전용)")]
         // 이동을 잠글 Animator State Tag 목록. 공격 종류마다 다른 태그를 붙여 구분할 수 있다.
@@ -260,6 +279,51 @@ namespace ProjectS.Players
             Combat.ResetCombo();
         }
 
+        /// <summary>
+        /// 컷신(보스 등장 연출 등) 시작. 모든 게임플레이 입력을 잠그고, 진행 중이던 동작(공격/점프/이펙트·
+        /// 이동 잠금)을 정리해 플레이어를 그 자리에 세운다. 연출 도중 조작이 새거나 캐릭터가 미끄러지지 않게 한다.
+        ///
+        /// 씬의 등장 Timeline이 <b>시작 시점</b>에 이 메서드를(Signal/UnityEvent 등으로) 호출하고,
+        /// <b>종료 시점</b>에 <see cref="EndCutscene"/>를 호출하도록 배선한다. 종료 신호를 놓쳐도
+        /// <see cref="maxCutsceneDuration"/> 뒤 <see cref="Update"/>의 안전 타이머가 스스로 입력을 되살린다.
+        /// 이미 컷신 중에 다시 호출하면 안전 타이머만 리셋한다(연출이 이어질 때 대비).
+        /// </summary>
+        public void BeginCutscene()
+        {
+            cutsceneTimer = 0f;   // (재)호출마다 안전 타이머를 처음부터 다시 센다
+            if (inCutscene) return;
+
+            inCutscene = true;
+
+            // 진행 중이던 동작을 끊는다(구속 진입과 같은 정리 절차). 연출 중 뒤늦은 이펙트/이동 잠금 잔재 방지.
+            Combat.CancelAction();
+            Effect.AllStopEffect();
+            UnlockMovement();
+            Movement.CancelJump();
+            Animation.SetLocomotion(false, false);   // 로코모션 bool을 내려 걷기 Loop로 새지 않게 한다
+
+            // 모든 InputAction을 Disable → 이동·점프·공격·스킬·회피·상호작용·커서 토글이 한 번에 막힌다.
+            Input.SetInputSuspended(true);
+
+            // 연결돼 있으면 마우스 시점 조작도 함께 얼린다(회전 누적 방지).
+            if (cameraPivot != null) cameraPivot.SetInputLocked(true);
+        }
+
+        /// <summary>
+        /// 컷신 종료. 잠갔던 입력을 되살린다. 등장 Timeline의 종료 신호에서 호출한다.
+        /// 컷신 중이 아니면 무시한다(종료 신호가 두 번 와도, 안전 타이머로 이미 풀린 뒤에 와도 안전).
+        /// </summary>
+        public void EndCutscene()
+        {
+            if (!inCutscene) return;
+
+            inCutscene = false;
+            cutsceneTimer = 0f;
+
+            Input.SetInputSuspended(false);
+            if (cameraPivot != null) cameraPivot.SetInputLocked(false);
+        }
+
 
         private void Awake()
         {
@@ -349,6 +413,21 @@ namespace ProjectS.Players
 
         private void Update()
         {
+            // 컷신(전체 입력 잠금) 안전장치: 종료 신호(EndCutscene)를 놓쳐도 최대 시간이 지나면 스스로 입력을
+            // 되살린다. "연출이 끝났는데 조작이 안 돌아오는" 최악을 막는다. unscaled로 세는 이유 — 등장 연출은
+            // 히트스톱/컷신으로 timeScale이 낮아진 순간과 겹치기 쉬워, deltaTime으로 재면 안전 해제가 한없이 늦어진다.
+            // (입력이 잠긴 동안에도 아래 폴링은 그대로 돌지만, 모든 InputAction이 Disable돼 값이 0/false라 무해하다.)
+            if (inCutscene)
+            {
+                cutsceneTimer += Time.unscaledDeltaTime;
+                if (cutsceneTimer >= maxCutsceneDuration)
+                {
+                    Debug.LogWarning($"[Player] 컷신 종료 신호(EndCutscene)를 {maxCutsceneDuration}초 안에 못 받아 " +
+                                     "안전장치로 입력을 되살립니다. 등장 Timeline의 종료 신호 배선을 확인하세요.", this);
+                    EndCutscene();
+                }
+            }
+
             // 태그 기반 캐릭터: 공격 태그로 이동 잠금/점프 차단/연계 상태를 매 프레임 재계산한다.
             if (usesTags)
             {

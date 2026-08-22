@@ -82,6 +82,12 @@ namespace ProjectS.Enemies
         [Header("사망")]
         [SerializeField] private float despawnDelay = 3f;
 
+        // ── 무력화(그로기) ────────────────────────────────────────────────
+        // 그로기 게이지가 0이 됐을 때 무력화 상태로 굳어 있는 시간. 클립 길이와 무관한 기획 밸런스 값이라
+        // 인스펙터에 둔다(무력화 모션은 이 시간 동안 루프한다). 그로기 자체가 없는 일반몹은 쓰지 않는다.
+        [Header("무력화(그로기)")]
+        [SerializeField, Min(0f)] private float groggyDuration = 5f;
+
         // ── 군중 제어 ────────────────────────────────────────────────────
         // 여러 근접 몬스터가 플레이어 한 점으로 몰려 겹치고 떠는 것을 막는 설정.
         // 슬롯 같은 중앙 관리 시스템 없이 "개체별 선호 교전 거리 + 앞이 막히면 옆으로 돌기"만으로
@@ -130,6 +136,8 @@ namespace ProjectS.Enemies
         public EnemyCombat Combat { get; private set; }
         /// <summary>몬스터 로컬 파티클 이펙트를 의미 단위로 재생하는 선택 컴포넌트.</summary>
         public EnemyEffects Effects { get; private set; }
+        /// <summary>그로기(무력화) 게이지를 소유하는 선택 컴포넌트. 보스에만 붙고, 없으면 null이다.</summary>
+        public EnemyGroggy Groggy { get; private set; }
         /// <summary>현재 Enemy 상태 하나를 보유하고 전환 순서를 보장하는 상태 머신.</summary>
         public EnemyStateMachine StateMachine { get; private set; }
 
@@ -150,6 +158,9 @@ namespace ProjectS.Enemies
 
         /// <summary>하루 강공격에 맞으면 진입한다. (공중 런처 피격 상태)</summary>
         public EnemyLaunchState LaunchState { get; private set; }
+
+        /// <summary>그로기 게이지가 0이 되면 진입하는 무력화 상태. 보스에만 실질적으로 쓰인다.</summary>
+        public EnemyGroggyState GroggyState { get; private set; }
 
         /// <summary>사망 연출과 AI/충돌 비활성화를 처리하는 최종 상태.</summary>
         public EnemyDeadState DeadState { get; private set; }
@@ -195,6 +206,8 @@ namespace ProjectS.Enemies
         public float HitStunDuration => hitStunDuration;
         /// <summary>사망 연출 후 오브젝트가 사라지기까지의 시간.</summary>
         public float DespawnDelay => despawnDelay;
+        /// <summary>무력화 상태로 굳어 있는 시간(초). EnemyGroggyState가 이 시간 뒤 게이지를 리필하고 복귀한다.</summary>
+        public float GroggyDuration => groggyDuration;
 
         private float nextHitStunTime;
         private float nextPathCheckTime;
@@ -220,6 +233,7 @@ namespace ProjectS.Enemies
             Stats = GetComponent<EnemyStats>();
             Combat = GetComponent<EnemyCombat>();
             Effects = GetComponent<EnemyEffects>();
+            Groggy = GetComponent<EnemyGroggy>();
             BodyCollider = GetComponent<Collider>();
             StateMachine = new EnemyStateMachine();
 
@@ -234,6 +248,7 @@ namespace ProjectS.Enemies
             AttackState = new EnemyAttackState(this);
             HitState = new EnemyHitState(this);
             LaunchState = new EnemyLaunchState(this);
+            GroggyState = new EnemyGroggyState(this);
             DeadState = new EnemyDeadState(this);
 
             // 군중 제어 개체값: 같은 프리팹이라도 교전 거리와 회피 방향이 미묘하게 달라진다.
@@ -424,6 +439,9 @@ namespace ProjectS.Enemies
             if (!useHitStun) return;
             if (Stats.IsDead) return;
             if (StateMachine.Current == DeadState) return;
+            // 무력화 중에는 피격 경직으로 덮지 않는다(무방비 연출을 온전히 유지). 보스는 보통 useHitStun=off라
+            // 이미 위에서 걸러지지만, 그로기를 쓰는 잡몹 변형이 생겨도 무력화가 끊기지 않게 명시적으로 막는다.
+            if (StateMachine.Current == GroggyState) return;
 
             // 실제로 공중에 떠 있는 동안에만 지상 피격으로 끊지 않는다(런처 저글링 유지).
             // 착지·기상 구간(상태는 Launch, 몸은 지면)이면 아래로 흘러 지상 Hit을 낸다 — Die_Air와 같은 기준.
@@ -545,6 +563,18 @@ namespace ProjectS.Enemies
             Gizmos.DrawWireSphere(origin, allyBlockRadius);
             Gizmos.DrawWireSphere(end, allyBlockRadius);
             Gizmos.DrawLine(origin, end);
+        }
+
+        /// <summary>
+        /// 무력화 진입점. <see cref="EnemyGroggy"/>의 게이지가 0이 되면 호출한다.
+        /// 죽었거나 이미 최종 상태면 무시한다. 전환은 상태 머신을 거쳐 Exit/Enter 순서를 보장한다.
+        /// </summary>
+        public void EnterGroggy()
+        {
+            if (Stats.IsDead) return;
+            if (StateMachine.Current == DeadState) return;
+
+            StateMachine.ChangeState(GroggyState);
         }
 
         public void Launch()

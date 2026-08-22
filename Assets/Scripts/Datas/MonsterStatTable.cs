@@ -36,6 +36,19 @@ namespace ProjectS.Data
         /// <summary>보스 여부. 공격자의 보스 추가뎀% 적용 조건이 된다.</summary>
         public bool IsBoss;
 
+        /// <summary>
+        /// 풀 HP일 때 표시할 줄(세그먼트) 수. 기획자가 "이 보스는 몇 줄"인지 직접 넣는다(예: 2000 HP를 10줄).
+        /// 코드가 한 줄당 HP를 <c>MaxHp / SegmentCount</c>로 계산하고, 남은 줄 수(X N)와 현재 줄 채움 비율을 그린다.
+        /// 0이면 세그먼트 없이 단일 바(줄 카운트 미표시)로 취급한다. 보스 행에만 의미가 있고, 일반몹 행은 0으로 둔다.
+        /// </summary>
+        public int SegmentCount;
+
+        /// <summary>
+        /// 그로기(무력화) 게이지 최대치. 스킬의 그로기 데미지가 이 값을 깎고, 0이 되면 무력화된다.
+        /// 0 이하면 그로기 없음(EnemyGroggy가 붙어 있어도 사실상 비활성). 보스 행에만 의미가 있다.
+        /// </summary>
+        public float GroggyMax;
+
         int IDataRow.Index => MonsterId;
 
         /// <summary>
@@ -54,6 +67,8 @@ namespace ProjectS.Data
 
             if (AttackPower < 0f) AttackPower = 0f;
             if (Defense < 0f) Defense = 0f;
+            if (SegmentCount < 0) SegmentCount = 0;   // 음수는 단일 바로 취급
+            if (GroggyMax < 0f) GroggyMax = 0f;       // 음수는 그로기 없음으로 취급
 
             error = null;
             return true;
