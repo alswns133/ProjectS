@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using ProjectS.Managers;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -192,6 +193,15 @@ namespace ProjectS.UI
 
             if (routine != null) StopCoroutine(routine);
             routine = StartCoroutine(PlayRoutine());
+            UIManager.Instance.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 연출 끝날 때 호출되어야 하는 메서드 ex. UI 활성화 등등
+        /// </summary>
+        public void BossIntorFxOff()
+        {
+            UIManager.Instance.gameObject.SetActive(true);
         }
 
         /// <summary>재생 중인 연출을 즉시 끝낸다. 씬 전환·보스 즉사처럼 화면이 통째로 바뀔 때 호출한다.</summary>
