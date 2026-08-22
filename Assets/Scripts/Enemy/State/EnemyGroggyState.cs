@@ -40,5 +40,9 @@ namespace ProjectS.Enemies
             enemy.Groggy?.Refill();
             enemy.StateMachine.ChangeState(enemy.ChaseState);
         }
+
+        // 무력화에서 빠져나갈 때 isGroggy를 내려 애니메이터가 로코모션으로 복귀하게 한다
+        // (Groggy→로코모션 전이 조건). ChangeState가 새 상태 Enter 전에 이 Exit를 먼저 부른다.
+        public override void Exit() => enemy.Animation.EndGroggy();
     }
 }

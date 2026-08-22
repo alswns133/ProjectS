@@ -21,6 +21,8 @@ namespace ProjectS.Enemies
         private static readonly int DieState = Animator.StringToHash("Die");
         private static readonly int DieAirState = Animator.StringToHash("Die_Air");
         private static readonly int GroggyState = Animator.StringToHash("Groggy");
+        // 무력화 지속 게이트용 bool. 무력화 동안 true, 끝나면 false. Groggy→로코모션 복귀 전이 조건으로 쓴다.
+        private static readonly int IsGroggyParam = Animator.StringToHash("isGroggy");
         private static readonly int DoGrabFail = Animator.StringToHash("doGrabFail");
 
         // 이동 블렌드 값이 튀지 않게 부드럽게 따라가는 감쇠 시간.
@@ -108,7 +110,19 @@ namespace ProjectS.Enemies
         /// 무력화 종료 시 상태가 Chase로 넘어가며 Speed 파라미터로 로코모션으로 복귀한다
         /// (Hit State와 동일하게, 컨트롤러에 Groggy→로코모션 복귀 전이가 있어야 한다).
         /// </summary>
-        public void PlayGroggy() => animator.Play(GroggyState, 0, 0f);
+        public void PlayGroggy()
+        {
+            // isGroggy를 켜서 복귀 전이(Groggy→로코모션, 조건 isGroggy=false)가 아직 안 열리게 잠근 뒤
+            // Groggy State로 즉시 강제 진입한다(그래프 전이/트리거 없이 animator.Play → 진입엔 Any State가 필요 없다).
+            animator.SetBool(IsGroggyParam, true);
+            animator.Play(GroggyState, 0, 0f);
+        }
+
+        /// <summary>
+        /// 무력화 종료 신호. isGroggy를 내려 애니메이터가 Groggy에서 로코모션으로 복귀하게 한다
+        /// (Groggy→로코모션 전이 조건 isGroggy=false, Has Exit Time 끔). EnemyGroggyState.Exit에서 호출한다.
+        /// </summary>
+        public void EndGroggy() => animator.SetBool(IsGroggyParam, false);
 
         /// <summary>
         /// 잡기 실패(헛잡기) 트리거. 보스 잡기 히트 프레임(<see cref="Boss.OnGrabConnect"/>)에서 플레이어를
