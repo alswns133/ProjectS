@@ -23,6 +23,8 @@ namespace ProjectS.Enemies
     ///
     /// 잡기 흐름(보스 잡기 클립의 Animation Event가 아래 메서드들을 프레임 단위로 호출한다):
     ///   1) <see cref="OnGrabConnect"/>: 잡기 히트 프레임. grabHitbox로 플레이어를 포착해 구속 상태로 밀어넣는다.
+    ///      포착에 실패하면(범위에 없거나, 있어도 회피/무적/사망으로 거부) 애니메이터를 헛잡기 모션으로 분기시킨다
+    ///      (<see cref="EnemyAnimation.PlayGrabFail"/>) — 허공을 잡고 던지는 뒤 프레임이 그대로 재생되지 않게 한다.
     ///   2) <see cref="OnGrabDamage"/>: 구속 중 데미지 프레임(여러 번 찍어도 된다).
     ///   3) <see cref="OnGrabThrow"/>/<see cref="OnGrabDrop"/>: 마무리. 던지기(넉백) 또는 제자리 해제. 클립에 맞는 쪽 하나를 찍는다.
     /// 잡기 슬롯의 선택·클립 재생은 EnemyCombat의 일반 공격 룰렛/AttackIndex가 그대로 담당한다
@@ -61,8 +63,9 @@ namespace ProjectS.Enemies
 
         /// <summary>
         /// 잡기 히트 프레임. 보스 잡기 클립의 Animation Event로 연결한다(문자열 참조 — 메서드명 변경 주의).
-        /// grabHitbox 범위에서 플레이어를 찾아 구속 상태로 밀어넣는다. 플레이어가 회피/무적/사망 등으로
-        /// 거부하면(<see cref="Player.OnGrabbed"/>가 false) 헛잡기로 흘려보낸다(grabbedPlayer는 계속 null).
+        /// grabHitbox 범위에서 플레이어를 찾아 구속 상태로 밀어넣는다. 포착에 실패하면 — 범위에 플레이어가
+        /// 없거나, 있어도 회피/무적/사망으로 거부해(<see cref="Player.OnGrabbed"/>가 false) — 헛잡기로 처리하고
+        /// (<see cref="NotifyGrabFailed"/>) 애니메이터를 실패 모션으로 분기시킨다.
         /// </summary>
         public void OnGrabConnect()
         {
@@ -80,10 +83,28 @@ namespace ProjectS.Enemies
                 // 현재 프로젝트 규칙: 피격 레이어 콜라이더와 Player는 같은 루트 GameObject에 둔다.
                 if (grabBuffer[i].TryGetComponent<Player>(out var player))
                 {
-                    if (player.OnGrabbed(this, grabAnchor)) grabbedPlayer = player;
-                    return;   // 플레이어는 하나뿐 — 처음 잡힌 대상에서 멈춘다
+                    // 플레이어는 하나뿐 — 처음 찾은 대상에서 성공/실패를 판정하고 끝낸다.
+                    if (player.OnGrabbed(this, grabAnchor))
+                    {
+                        grabbedPlayer = player;
+                        return;                 // 잡기 성공
+                    }
+
+                    NotifyGrabFailed();         // 범위엔 있었으나 회피/무적/사망으로 거부(헛잡기)
+                    return;
                 }
             }
+
+            NotifyGrabFailed();                 // 범위에 플레이어가 없어 헛손질(헛잡기)
+        }
+
+        // 잡기 실패(헛잡기) 공통 처리. 잡은 대상이 없음을 명확히 하고, 애니메이터를 실패/회복 모션으로 분기시킨다.
+        // grabbedPlayer가 null이면 뒤이어 오는 데미지/마무리 이벤트는 모두 조용히 무시되므로(각 메서드의 null 가드),
+        // 실패 모션으로 전이하지 못한 경우에도 허공에 데미지가 들어가거나 던지기가 발동하지는 않는다.
+        private void NotifyGrabFailed()
+        {
+            grabbedPlayer = null;
+            Animation.PlayGrabFail();
         }
 
         /// <summary>

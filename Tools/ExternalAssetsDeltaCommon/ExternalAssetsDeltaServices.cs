@@ -13,7 +13,11 @@ namespace ProjectS.ExternalAssetsDelta;
 public static class ExternalAssetsDeltaServices
 {
     private const long MaximumMetaBytes = 4L * 1024 * 1024;
-    private const long MaximumManifestBytes = 8L * 1024 * 1024;
+    // contribution.json은 변경 파일 하나당 JSON 객체 하나라, 대규모 신규 에셋 팩을
+    // 통째로 기여하면(수만 개 Added) 8MB를 넘긴다. 전체 base 규모 기여(약 5만 항목,
+    // ~25MB)까지 여유롭게 받도록 64MB로 둔다. 손상/악의적 매니페스트의 메모리 폭주를
+    // 막는 상한 역할은 유지한다.
+    private const long MaximumManifestBytes = 64L * 1024 * 1024;
     private const int MaximumArchiveEntries = 1_000_000;
     private static readonly Regex GuidPattern = new("^[0-9a-fA-F]{32}$", RegexOptions.CultureInvariant);
     private static readonly JsonSerializerOptions JsonOptions = new()

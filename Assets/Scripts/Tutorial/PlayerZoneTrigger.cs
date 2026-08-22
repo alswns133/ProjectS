@@ -1,7 +1,9 @@
+﻿using ProjectS.Enemies;
+using ProjectS.Events;
+using ProjectS.Players;
 using System;
 using UnityEngine;
 using UnityEngine.Events;
-using ProjectS.Players;
 
 namespace ProjectS.Tutorials
 {
@@ -74,6 +76,8 @@ namespace ProjectS.Tutorials
             if (!IsPlayer(other) || isPlayerInside) return;
 
             Notify(true);
+            Boss boss = FindAnyObjectByType<Boss>();
+            BossEvents.FireBossAppeared(boss);
         }
 
         private void OnTriggerExit(Collider other)

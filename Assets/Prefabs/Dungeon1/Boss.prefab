@@ -51989,13 +51989,16 @@ PrefabInstance:
       addedObject: {fileID: 1201401977170049873}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 98944384957211889}
+      addedObject: {fileID: -1686625509478461193}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2031085224462368173}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5556863187258006152}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4156374483864531208}
     - targetCorrespondingSourceObject: {fileID: 4087293262766377662, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4024067373560309601}
@@ -52459,7 +52462,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Events.MinimapMarkerSource
   type: 1
---- !u!114 &98944384957211889
+--- !u!114 &-1686625509478461193
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -52468,15 +52471,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 7472919723033611258}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: acf08fcec05da0c4bafb5ee33ca6c103, type: 3}
+  m_Script: {fileID: 11500000, guid: 2b5eccf41d589084db937f872f2fd6f8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.Enemy
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.Boss
   patrolPoints: []
   patrolWaitTime: 1
   patrolRadius: 0
   patrolStuckTimeout: 4
   patrolSpeed: 1
-  chaseSpeed: 8
+  chaseSpeed: 4
   detectionRange: 8
   useDetectDash: 1
   detectDashSpeedMultiplier: 1.8
@@ -52487,14 +52490,23 @@ MonoBehaviour:
   hitStunDuration: 0.35
   hitStunCooldown: 0.2
   despawnDelay: 5
+  groggyDuration: 5
   combatDistanceFactorMin: 0.7
   combatDistanceFactorMax: 0.9
-  allyBlockRadius: 5.03
+  allyBlockRadius: 0.4
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
   allySidestepAngle: 45
   surroundAngleRange: 0
-  hitRecoveryDelay: 0
+  hitRecoveryDelay: 0.4
+  grabHitbox: {fileID: 0}
+  grabTargetMask:
+    serializedVersion: 2
+    m_Bits: 0
+  grabAnchor: {fileID: 0}
+  grabDamageCoef: 1
+  throwHorizontalSpeed: 6
+  throwUpSpeed: 6
 --- !u!114 &2031085224462368173
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52548,6 +52560,19 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
   highlightDuration: 0.12
+--- !u!114 &4156374483864531208
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7472919723033611258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 372add5769ff98943887c3a87eed1739, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyGroggy
+  maxGroggy: 100
 --- !u!4 &7853983396913844544 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
