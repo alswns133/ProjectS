@@ -47,7 +47,7 @@ namespace ProjectS.Enemies
             // 연출 동안 NavMeshAgent를 멈춘다(제자리 클립이 추격 이동에 끌리지 않게).
             enemy.Movement.BeginRootMotion();
             enemy.Animation.PlayHitAir();
-            enemy.Effects?.Play(EnemyEffects.EffectCue.Hit);
+            // 런치 피격 이펙트는 Hit_Air 클립의 Animation Event(OnEffect)가 재생한다(클립 주도).
         }
 
         /// <summary>

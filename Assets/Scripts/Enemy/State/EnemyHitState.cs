@@ -28,7 +28,9 @@ namespace ProjectS.Enemies
             enemy.Movement.Stop();
             enemy.Animation.SetSpeed(0f);
             enemy.Animation.PlayHit();                 // 이제 animator.Play라 매번 0프레임부터 확실히 재생
-            enemy.Effects?.Play(EnemyEffects.EffectCue.Hit);
+            // 피격 이펙트 재생은 피격 클립의 Animation Event(OnEffect)가 맡는다. 여기서는 반대로,
+            // 보스가 공격 중 경직당할 때 진행 중이던 오라·장판 잔상을 걷어낸다(잡몹은 지속 이펙트가 없어 무해).
+            enemy.Effects?.StopAll();
         }
 
         //public override void Enter()
@@ -40,7 +42,7 @@ namespace ProjectS.Enemies
         //    enemy.Movement.Stop();
         //    enemy.Animation.SetSpeed(0f);
         //    enemy.Animation.PlayHit();
-        //    enemy.Effects?.Play(EnemyEffects.EffectCue.Hit);
+        //    enemy.Effects?.StopAll();
         //}
 
         public override void Update()

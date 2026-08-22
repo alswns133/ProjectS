@@ -44,6 +44,14 @@ namespace ProjectS.Core
 
         /// <summary>보스 추가뎀%(0~1). 대상이 보스일 때만 적용된다. 현재 미구현이라 0.</summary>
         public float BossBonus;
+
+        /// <summary>
+        /// 그로기(무력화) 데미지. HP 피해와 별개로 대상의 그로기 게이지를 깎는 값이다.
+        /// 스킬별로 지정한다(평타=0/소량, 스킬·강공격=큼). 방어력·치명타의 영향을 받지 않고
+        /// DamageCalculator가 결과에 그대로 실어 보낸다(스태거는 밸런스 수치라 경감 대상이 아님).
+        /// 그로기 컴포넌트가 없는 대상(일반몹)에게는 무시된다.
+        /// </summary>
+        public float GroggyDamage;
     }
 
     /// <summary>데미지 계산 결과.</summary>
@@ -54,6 +62,12 @@ namespace ProjectS.Core
 
         /// <summary>이번 타격이 치명타였는지 여부. 데미지 텍스트 연출 분기에 쓸 수 있다.</summary>
         public bool IsCritical;
+
+        /// <summary>
+        /// 이번 타격의 그로기 데미지. EnemyStats.TakeDamage가 대상의 EnemyGroggy로 넘긴다.
+        /// AttackContext.GroggyDamage를 경감 없이 그대로 통과시킨 값이다.
+        /// </summary>
+        public float GroggyDamage;
     }
 
     /// <summary>
@@ -105,6 +119,8 @@ namespace ProjectS.Core
             {
                 Amount = Mathf.RoundToInt(damage),
                 IsCritical = isCritical,
+                // 그로기 데미지는 방어·치명타 계산을 타지 않고 공격자 값 그대로 통과시킨다.
+                GroggyDamage = attack.GroggyDamage,
             };
         }
     }

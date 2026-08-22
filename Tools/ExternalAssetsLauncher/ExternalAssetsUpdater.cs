@@ -5,20 +5,38 @@ namespace ProjectS.ExternalAssetsLauncher;
 
 internal sealed class ExternalAssetsUpdater
 {
-    private readonly RemoteManifestClient _manifestClient;
+    private readonly GoogleDriveClient _driveClient;
 
-    public ExternalAssetsUpdater(RemoteManifestClient manifestClient)
+    public ExternalAssetsUpdater(GoogleDriveClient driveClient)
     {
-        _manifestClient = manifestClient;
+        _driveClient = driveClient;
     }
 
     public async Task<UpdatePlan> CheckForUpdatesAsync(
         string projectPath,
-        string manifestUrl,
+        string manifestFileId,
+        string oauthClientConfigurationPath,
         CancellationToken cancellationToken)
     {
-        var manifest = await _manifestClient.GetManifestAsync(manifestUrl, cancellationToken);
+        var manifest = await _driveClient.GetManifestAsync(
+            manifestFileId,
+            oauthClientConfigurationPath,
+            cancellationToken);
         var state = await ProjectServices.LoadInstalledStateAsync(projectPath);
+        ValidateManifest(manifest);
+
+        var externalAssetsPath = ProjectServices.GetExternalAssetsPath(projectPath);
+        var requiresLegacyMigration = state.StateSchemaVersion < 2
+            && (state.InstalledVersion > 0 || HasExternalAssetsContents(externalAssetsPath));
+        if (!requiresLegacyMigration
+            && state.InstalledVersion > 0
+            && !string.Equals(state.ChannelId, manifest.ChannelId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "현재 설치된 외부 에셋은 다른 배포 채널에서 왔습니다. 자동으로 덮어쓰지 않았습니다. 전체본으로 수동 복구한 뒤 다시 시도하세요.");
+        }
+
+        var installedVersion = requiresLegacyMigration ? 0 : state.InstalledVersion;
         var externalAssetsLock = await ProjectServices.LoadLockAsync(projectPath);
         var requiredVersion = externalAssetsLock?.RequiredVersion > 0
             ? externalAssetsLock.RequiredVersion
@@ -30,17 +48,17 @@ internal sealed class ExternalAssetsUpdater
                 $"프로젝트가 외부 에셋 v{requiredVersion}을 요구하지만 서버 최신 버전은 v{manifest.LatestVersion}입니다.");
         }
 
-        if (state.InstalledVersion > requiredVersion)
+        if (installedVersion > requiredVersion)
         {
-            return new UpdatePlan(manifest, state.InstalledVersion, requiredVersion, []);
+            return new UpdatePlan(manifest, installedVersion, requiredVersion, []);
         }
 
         var packages = manifest.Packages
-            .Where(package => package.Version > state.InstalledVersion && package.Version <= requiredVersion)
+            .Where(package => package.Version > installedVersion && package.Version <= requiredVersion)
             .OrderBy(package => package.Version)
             .ToList();
 
-        var expectedVersion = state.InstalledVersion + 1;
+        var expectedVersion = installedVersion + 1;
         foreach (var package in packages)
         {
             ValidatePackage(package, expectedVersion);
@@ -50,15 +68,19 @@ internal sealed class ExternalAssetsUpdater
         if (expectedVersion - 1 != requiredVersion)
         {
             throw new InvalidOperationException(
-                $"v{state.InstalledVersion}에서 v{requiredVersion}으로 가는 패치 정보가 완전하지 않습니다.");
+                $"v{installedVersion}에서 v{requiredVersion}으로 가는 패치 정보가 완전하지 않습니다.");
         }
 
-        return new UpdatePlan(manifest, state.InstalledVersion, requiredVersion, packages);
+        return new UpdatePlan(manifest, installedVersion, requiredVersion, packages)
+        {
+            RequiresLegacyMigration = requiresLegacyMigration,
+        };
     }
 
-    public async Task InstallAsync(
+    public async Task<InstallationResult> InstallAsync(
         string projectPath,
         UpdatePlan plan,
+        string oauthClientConfigurationPath,
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -69,18 +91,49 @@ internal sealed class ExternalAssetsUpdater
         }
 
         var externalAssetsPath = ProjectServices.GetExternalAssetsPath(projectPath);
-        Directory.CreateDirectory(externalAssetsPath);
-
-        foreach (var package in plan.Packages)
+        string? legacyBackupPath = null;
+        var installedNewPackage = false;
+        try
         {
-            await InstallPackageAsync(externalAssetsPath, package, progress, cancellationToken);
-            await ProjectServices.SaveInstalledStateAsync(projectPath, package.Version);
+            if (plan.RequiresLegacyMigration)
+            {
+                legacyBackupPath = ArchiveLegacyExternalAssets(projectPath);
+            }
+
+            Directory.CreateDirectory(externalAssetsPath);
+            foreach (var package in plan.Packages)
+            {
+                await InstallPackageAsync(externalAssetsPath, package, oauthClientConfigurationPath, progress, cancellationToken);
+                await ProjectServices.SaveInstalledStateAsync(projectPath, package.Version, plan.Manifest.ChannelId);
+                installedNewPackage = true;
+            }
+
+            return new InstallationResult(legacyBackupPath);
+        }
+        catch (Exception exception)
+        {
+            if (plan.RequiresLegacyMigration && !installedNewPackage && legacyBackupPath is not null)
+            {
+                try
+                {
+                    RestoreLegacyExternalAssets(externalAssetsPath, legacyBackupPath);
+                }
+                catch (Exception restorationException)
+                {
+                    throw new InvalidOperationException(
+                        "보안 전환 설치에 실패했고 기존 외부 에셋 백업의 자동 복원에도 실패했습니다. 프로젝트 루트의 ExternalAssetsLegacyBackups를 확인하세요.",
+                        new AggregateException(exception, restorationException));
+                }
+            }
+
+            throw;
         }
     }
 
     private async Task InstallPackageAsync(
         string externalAssetsPath,
         ExternalAssetsPackage package,
+        string oauthClientConfigurationPath,
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -91,7 +144,12 @@ internal sealed class ExternalAssetsUpdater
         try
         {
             progress?.Report(new DownloadProgress($"v{package.Version} {package.Name} 준비", 0, null));
-            await _manifestClient.DownloadFileAsync(package.DownloadUrl, packagePath, progress, cancellationToken);
+            await _driveClient.DownloadFileAsync(
+                package.DriveFileId,
+                oauthClientConfigurationPath,
+                packagePath,
+                progress,
+                cancellationToken);
             await VerifySha256Async(packagePath, package.Sha256, cancellationToken);
             await ExtractToStagingAsync(packagePath, stagingPath, cancellationToken);
             ValidateMetaFiles(stagingPath, externalAssetsPath);
@@ -114,15 +172,65 @@ internal sealed class ExternalAssetsUpdater
             throw new InvalidOperationException($"패치 버전이 연속되지 않습니다. v{expectedVersion} 패키지가 필요합니다.");
         }
 
-        if (!Uri.TryCreate(package.DownloadUrl, UriKind.Absolute, out _))
+        var expectedType = expectedVersion == 1 ? "base" : "patch";
+        if (!string.Equals(package.Type, expectedType, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException($"v{package.Version}의 다운로드 링크가 올바르지 않습니다.");
+            throw new InvalidOperationException($"v{package.Version} 패키지 종류는 {expectedType}이어야 합니다.");
+        }
+
+        if (!GoogleDriveFileId.TryParse(package.DriveFileId, out _))
+        {
+            throw new InvalidOperationException($"v{package.Version}의 Google Drive 파일 ID가 올바르지 않습니다.");
         }
 
         if (package.Sha256.Length != 64 || !package.Sha256.All(Uri.IsHexDigit))
         {
             throw new InvalidOperationException($"v{package.Version}의 SHA-256 값이 올바르지 않습니다.");
         }
+    }
+
+    private static void ValidateManifest(ExternalAssetsManifest manifest)
+    {
+        if (string.IsNullOrWhiteSpace(manifest.ChannelId))
+        {
+            throw new InvalidOperationException("manifest의 channelId가 없습니다. 제한된 Drive용 새 manifest를 생성하세요.");
+        }
+    }
+
+    private static string? ArchiveLegacyExternalAssets(string projectPath)
+    {
+        var externalAssetsPath = ProjectServices.GetExternalAssetsPath(projectPath);
+        if (!Directory.Exists(externalAssetsPath))
+        {
+            return null;
+        }
+
+        var backupRoot = Path.Combine(projectPath, "ExternalAssetsLegacyBackups");
+        Directory.CreateDirectory(backupRoot);
+        var backupPath = Path.Combine(
+            backupRoot,
+            $"ExternalAssets-before-secure-migration-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}");
+        Directory.Move(externalAssetsPath, backupPath);
+        return backupPath;
+    }
+
+    private static bool HasExternalAssetsContents(string externalAssetsPath) =>
+        Directory.Exists(externalAssetsPath)
+        && Directory.EnumerateFileSystemEntries(externalAssetsPath).Any();
+
+    private static void RestoreLegacyExternalAssets(string externalAssetsPath, string legacyBackupPath)
+    {
+        if (!Directory.Exists(legacyBackupPath))
+        {
+            throw new DirectoryNotFoundException($"기존 외부 에셋 백업을 찾을 수 없습니다: {legacyBackupPath}");
+        }
+
+        if (Directory.Exists(externalAssetsPath))
+        {
+            Directory.Delete(externalAssetsPath, true);
+        }
+
+        Directory.Move(legacyBackupPath, externalAssetsPath);
     }
 
     private static async Task VerifySha256Async(string packagePath, string expectedHash, CancellationToken cancellationToken)
@@ -142,12 +250,13 @@ internal sealed class ExternalAssetsUpdater
         using var archive = ZipFile.OpenRead(packagePath);
         foreach (var entry in archive.Entries)
         {
+            var destinationPath = GetSafePath(stagingPath, entry.FullName);
             if (string.IsNullOrEmpty(entry.Name))
             {
+                Directory.CreateDirectory(destinationPath);
                 continue;
             }
 
-            var destinationPath = GetSafePath(stagingPath, entry.FullName);
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
             await using var entryStream = entry.Open();
             await using var destinationStream = File.Create(destinationPath);
@@ -157,6 +266,18 @@ internal sealed class ExternalAssetsUpdater
 
     private static void ValidateMetaFiles(string stagingPath, string externalAssetsPath)
     {
+        foreach (var sourceDirectory in Directory.EnumerateDirectories(stagingPath, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(stagingPath, sourceDirectory);
+            var stagedMetaPath = sourceDirectory + ".meta";
+            var existingMetaPath = GetSafePath(externalAssetsPath, relativePath + ".meta");
+            if (!File.Exists(stagedMetaPath) && !File.Exists(existingMetaPath))
+            {
+                throw new InvalidOperationException(
+                    $"'{relativePath}' 폴더의 .meta 파일이 없습니다. 기존 외부 에셋은 변경하지 않았습니다.");
+            }
+        }
+
         foreach (var sourcePath in Directory.EnumerateFiles(stagingPath, "*", SearchOption.AllDirectories))
         {
             if (sourcePath.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
@@ -179,9 +300,22 @@ internal sealed class ExternalAssetsUpdater
     {
         var backupPath = Path.Combine(Path.GetTempPath(), "ProjectSExternalAssetsLauncher", "backup", Guid.NewGuid().ToString("N"));
         var operations = new List<FileOperation>();
+        var createdDirectories = new List<string>();
 
         try
         {
+            foreach (var sourceDirectory in Directory.EnumerateDirectories(stagingPath, "*", SearchOption.AllDirectories)
+                         .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            {
+                var relativePath = Path.GetRelativePath(stagingPath, sourceDirectory);
+                var destinationPath = GetSafePath(externalAssetsPath, relativePath);
+                if (!Directory.Exists(destinationPath))
+                {
+                    Directory.CreateDirectory(destinationPath);
+                    createdDirectories.Add(destinationPath);
+                }
+            }
+
             foreach (var sourcePath in Directory.EnumerateFiles(stagingPath, "*", SearchOption.AllDirectories))
             {
                 var relativePath = Path.GetRelativePath(stagingPath, sourcePath);
@@ -206,6 +340,14 @@ internal sealed class ExternalAssetsUpdater
         catch
         {
             RestoreFiles(operations);
+            foreach (var directory in createdDirectories.OrderByDescending(path => path.Length))
+            {
+                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                }
+            }
+
             throw;
         }
         finally

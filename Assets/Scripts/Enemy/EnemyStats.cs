@@ -39,7 +39,30 @@ namespace ProjectS.Enemies
         // 피격 순간 하이라이트를 잠깐 켰다 끄는 선택 컴포넌트. 없으면(테스트 더미 등) 무시.
         private EnemyHitHighlight hitHighlight;
 
+        // 그로기 게이지를 소유하는 선택 컴포넌트(보스에만 부착). 없으면 그로기 데미지가 조용히 무시된다.
+        private EnemyGroggy groggy;
+
+        // 보스 HP 바 UI가 읽는 값들. 테이블 로딩 시 채워진다(일반몹은 0/빈 값으로 남는다).
+        private int segmentCount;
+        private float groggyMax;
+        private string nameKey;
+
         public bool IsDead => currentHp <= 0;
+
+        /// <summary>현재 HP. 보스 HP 바가 "현재/최대" 수치와 남은 줄 수 계산에 쓴다.</summary>
+        public int CurrentHp => currentHp;
+
+        /// <summary>최대 HP. 보스 HP 바 표기·줄 수 계산의 분모.</summary>
+        public int MaxHp => maxHp;
+
+        /// <summary>풀 HP일 때 표시할 줄(세그먼트) 수. 0이면 세그먼트 없이 단일 바로 취급한다.</summary>
+        public int SegmentCount => segmentCount;
+
+        /// <summary>그로기 게이지 최대치. EnemyGroggy가 최대치 초기화에 참고한다(보스에만 의미 있음).</summary>
+        public float GroggyMax => groggyMax;
+
+        /// <summary>표시용 이름 키(MonsterStatTable.NameKey). 보스 HP 바가 보스 이름으로 쓴다.</summary>
+        public string DisplayNameKey => nameKey;
 
         /// <summary>몬스터의 총 AD. 공격 패턴의 계수와 곱해져 피해가 된다.</summary>
         public float AttackPower => attackPower;
@@ -59,6 +82,7 @@ namespace ProjectS.Enemies
             // 상태 머신 없이 단독 배치된 대상(테스트용)도 있을 수 있어 null을 허용한다.
             enemy = GetComponent<Enemy>();
             hitHighlight = GetComponent<EnemyHitHighlight>();
+            groggy = GetComponent<EnemyGroggy>();
         }
 
         // async void는 Awake/Start 같은 진입점에서만 예외적으로 허용한다(JsonManager와 같은 방침).
@@ -94,7 +118,14 @@ namespace ProjectS.Enemies
             attackPower = row.AttackPower;
             defense = row.Defense;
             isBoss = row.IsBoss;
+            segmentCount = row.SegmentCount;
+            groggyMax = row.GroggyMax;
+            nameKey = row.NameKey;
             currentHp = maxHp;
+
+            // 테이블이 확정된 뒤 그로기 최대치를 주입한다(있을 때만). 호출 순서를 여기서 소유해
+            // EnemyGroggy가 자체 async로 값을 읽다 경쟁하는 것을 피한다.
+            groggy?.ConfigureMax(groggyMax);
         }
 
         /// <summary>
@@ -137,6 +168,10 @@ namespace ProjectS.Enemies
             }
             else
             {
+                // 살아 있는 타격에만 그로기를 누적한다(죽는 타격이면 무력화가 의미 없다).
+                // 컴포넌트가 없으면(일반몹) 무시, 잠금·평타(0)면 컴포넌트 내부에서 걸러진다.
+                groggy?.AddGroggyDamage(result.GroggyDamage);
+
                 enemy?.OnDamaged();
             }
 

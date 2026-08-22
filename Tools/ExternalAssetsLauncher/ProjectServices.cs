@@ -97,9 +97,11 @@ internal static class ProjectServices
             ?? new InstalledState();
     }
 
-    public static Task SaveInstalledStateAsync(string projectPath, int version) =>
+    public static Task SaveInstalledStateAsync(string projectPath, int version, string channelId) =>
         WriteJsonAsync(GetStatePath(projectPath), new InstalledState
         {
+            StateSchemaVersion = 2,
+            ChannelId = channelId,
             InstalledVersion = version,
             UpdatedAtUtc = DateTimeOffset.UtcNow,
         });
