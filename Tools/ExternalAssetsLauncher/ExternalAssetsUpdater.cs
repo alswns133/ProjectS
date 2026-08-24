@@ -151,10 +151,11 @@ internal sealed class ExternalAssetsUpdater
                 progress,
                 cancellationToken);
             await VerifySha256Async(packagePath, package.Sha256, cancellationToken);
-            await ExtractToStagingAsync(packagePath, stagingPath, cancellationToken);
+            await ExtractToStagingAsync(packagePath, stagingPath, package.Version, progress, cancellationToken);
+            progress?.Report(new DownloadProgress($"⏳ v{package.Version} 파일 검사 중 — 정상 진행 중이에요. 창을 닫지 마세요.", 0, null));
             ValidateMetaFiles(stagingPath, externalAssetsPath);
-            ApplyStaging(stagingPath, externalAssetsPath, package.RemovedPaths);
-            progress?.Report(new DownloadProgress($"v{package.Version} 설치 완료", 0, null));
+            ApplyStaging(stagingPath, externalAssetsPath, package.RemovedPaths, package.Version, progress);
+            progress?.Report(new DownloadProgress($"✅ v{package.Version} 설치 완료", 0, null));
         }
         finally
         {
@@ -244,23 +245,41 @@ internal sealed class ExternalAssetsUpdater
         }
     }
 
-    private static async Task ExtractToStagingAsync(string packagePath, string stagingPath, CancellationToken cancellationToken)
+    private static async Task ExtractToStagingAsync(
+        string packagePath,
+        string stagingPath,
+        int version,
+        IProgress<DownloadProgress>? progress,
+        CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(stagingPath);
         using var archive = ZipFile.OpenRead(packagePath);
+        var totalEntries = archive.Entries.Count;
+        var processedEntries = 0;
         foreach (var entry in archive.Entries)
         {
             var destinationPath = GetSafePath(stagingPath, entry.FullName);
             if (string.IsNullOrEmpty(entry.Name))
             {
                 Directory.CreateDirectory(destinationPath);
-                continue;
+            }
+            else
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+                await using var entryStream = entry.Open();
+                await using var destinationStream = File.Create(destinationPath);
+                await entryStream.CopyToAsync(destinationStream, cancellationToken);
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-            await using var entryStream = entry.Open();
-            await using var destinationStream = File.Create(destinationPath);
-            await entryStream.CopyToAsync(destinationStream, cancellationToken);
+            processedEntries++;
+            // 항목마다 UI를 갱신하면 과부하라 일정 간격과 마지막 항목에서만 보고한다.
+            if (processedEntries % 200 == 0 || processedEntries == totalEntries)
+            {
+                progress?.Report(new DownloadProgress(
+                    $"⏳ v{version} 압축 해제 {processedEntries}/{totalEntries} — 창을 닫지 마세요.",
+                    processedEntries,
+                    totalEntries));
+            }
         }
     }
 
@@ -296,7 +315,12 @@ internal sealed class ExternalAssetsUpdater
         }
     }
 
-    private static void ApplyStaging(string stagingPath, string externalAssetsPath, IReadOnlyCollection<string> removedPaths)
+    private static void ApplyStaging(
+        string stagingPath,
+        string externalAssetsPath,
+        IReadOnlyCollection<string> removedPaths,
+        int version,
+        IProgress<DownloadProgress>? progress)
     {
         var backupPath = Path.Combine(Path.GetTempPath(), "ProjectSExternalAssetsLauncher", "backup", Guid.NewGuid().ToString("N"));
         var operations = new List<FileOperation>();
@@ -316,13 +340,26 @@ internal sealed class ExternalAssetsUpdater
                 }
             }
 
-            foreach (var sourcePath in Directory.EnumerateFiles(stagingPath, "*", SearchOption.AllDirectories))
+            var sourceFiles = Directory.EnumerateFiles(stagingPath, "*", SearchOption.AllDirectories).ToList();
+            var totalFiles = sourceFiles.Count;
+            var copiedFiles = 0;
+            foreach (var sourcePath in sourceFiles)
             {
                 var relativePath = Path.GetRelativePath(stagingPath, sourcePath);
                 var destinationPath = GetSafePath(externalAssetsPath, relativePath);
                 operations.Add(BackupExistingFile(destinationPath, externalAssetsPath, backupPath));
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
                 File.Copy(sourcePath, destinationPath, true);
+
+                copiedFiles++;
+                // 대량 파일 복사가 이 단계의 병목이라, 여기서 퍼센트를 갱신해 "멈춘 게 아님"을 보여준다.
+                if (copiedFiles % 100 == 0 || copiedFiles == totalFiles)
+                {
+                    progress?.Report(new DownloadProgress(
+                        $"⏳ v{version} 설치 중 {copiedFiles}/{totalFiles} — 창을 닫지 마세요.",
+                        copiedFiles,
+                        totalFiles));
+                }
             }
 
             foreach (var relativePath in removedPaths)
