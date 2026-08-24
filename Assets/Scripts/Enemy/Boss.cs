@@ -62,8 +62,9 @@ namespace ProjectS.Enemies
         // 데미지/마무리 이벤트가 이 참조를 기준으로 동작한다.
         private Player grabbedPlayer;
 
-        private void Start()
+        protected override void Start()
         {
+            base.Start(); // Enemy.Start(Target 획득 + 상태머신 시작) 먼저
             BossEvents.FireBossAppeared(this);
         }
 

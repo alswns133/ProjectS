@@ -24,15 +24,20 @@ namespace ProjectS.Enemies
         // 무력화 지속 게이트용 bool. 무력화 동안 true, 끝나면 false. Groggy→로코모션 복귀 전이 조건으로 쓴다.
         private static readonly int IsGroggyParam = Animator.StringToHash("isGroggy");
         private static readonly int DoGrabFail = Animator.StringToHash("doGrabFail");
+        private static readonly int MoveX = Animator.StringToHash("MoveX");
+        private static readonly int MoveY = Animator.StringToHash("MoveY");
 
         // 이동 블렌드 값이 튀지 않게 부드럽게 따라가는 감쇠 시간.
         private const float Damp = 0.1f;
+
+        private bool hasMove;
 
         private Animator animator;
 
         private void Awake()
         {
             animator = GetComponent<Animator>();
+            hasMove = HasParameter(MoveX);
         }
 
         /// <summary>현재 이동 속력. 이동/걷기 애니메이션 블렌드 값으로 쓴다.</summary>
@@ -40,6 +45,24 @@ namespace ProjectS.Enemies
 
         /// <summary>감쇠 없이 이동 블렌드 값을 즉시 바꾼다. 공격 진입처럼 모션을 바로 끊을 때 쓴다.</summary>
         public void SetSpeedImmediate(float speed) => animator.SetFloat(Speed, speed);
+
+        /// <summary>8방향 로코모션 방향값(MoveX/MoveY)을 부드럽게 갱신. 해당 파라미터가 없는 컨트롤러(잡몹)에선 무시된다.</summary>
+        public void SetMove(float x, float y)
+        {
+            if (!hasMove) return;
+            animator.SetFloat(MoveX, x, Damp, Time.deltaTime);
+            animator.SetFloat(MoveY, y, Damp, Time.deltaTime);
+        }
+
+        private bool HasParameter(int nameHash)
+        {
+            foreach (AnimatorControllerParameter p in animator.parameters)
+            {
+                if (p.nameHash == nameHash) return true;
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// 대기 애니메이션 2종 중 어떤 것을 재생할지 전달한다.

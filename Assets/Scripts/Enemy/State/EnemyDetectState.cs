@@ -57,14 +57,16 @@ namespace ProjectS.Enemies
                 if (enemy.Animation.IsPlaying("Detect"))
                     enteredDetect = true;
                 else if (elapsed >= EnterTimeout)
-                    enemy.StateMachine.ChangeState(enemy.ChaseState);
+                    //enemy.StateMachine.ChangeState(enemy.ChaseState);
+                    enemy.StateMachine.ChangeState(enemy.AggroState);
 
                 return;
             }
 
             // 2단계: 발견 클립이 끝까지 재생되면(또는 안전 상한을 넘기면) 추적으로 넘긴다.
             if (enemy.Animation.IsCurrentStateFinished() || elapsed >= MaxDetectTime)
-                enemy.StateMachine.ChangeState(enemy.ChaseState);
+                //enemy.StateMachine.ChangeState(enemy.ChaseState);
+                enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
         public override void Exit()
