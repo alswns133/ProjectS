@@ -460,7 +460,7 @@ namespace ProjectS.EditorTools
 
             // (a) Notice를 Center 밖으로.
             //     Notice는 레벨업/스킬해금 전체화면 알림인데 "가운데 창" 존인 Center 밑에 들어가 있다.
-            //     NoticeUIGenerator도 HUD 직속(QuestFxLayer 앞)을 전제로 만들어져 있다.
+            //     알림 계층 자체가 HUD 직속(QuestFxLayer 앞)을 전제로 만들어져 있다.
             //     Center(640x360) 안에서 stretch + sizeDelta(1280,720) = 정확히 1920x1080이므로,
             //     HUD 직속 full-stretch로 옮겨도 화면상 위치·크기는 그대로다.
             Transform center = hud.Find("Center");
