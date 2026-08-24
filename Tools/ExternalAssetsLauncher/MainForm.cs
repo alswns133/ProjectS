@@ -13,11 +13,13 @@ internal sealed class MainForm : Form
     private readonly Label _versionLabel = new() { AutoSize = true };
     private readonly Label _statusLabel = new() { AutoSize = true };
     private readonly ProgressBar _progressBar = new() { Dock = DockStyle.Fill, Minimum = 0, Maximum = 100 };
-    private readonly Button _signInButton = new() { Text = "Google 로그인", AutoSize = true };
+    // 버튼 앞의 ①②③④는 로그인 → 확인 → 설치 → 실행이 순서대로 진행하는 파이프라인임을 드러낸다.
+    // (로그아웃은 파이프라인 단계가 아니라 번호를 붙이지 않는다.)
+    private readonly Button _signInButton = new() { Text = "① Google 로그인", AutoSize = true };
     private readonly Button _signOutButton = new() { Text = "로그아웃", AutoSize = true };
-    private readonly Button _checkButton = new() { Text = "업데이트 확인", AutoSize = true };
-    private readonly Button _installButton = new() { Text = "업데이트 설치", AutoSize = true, Enabled = false };
-    private readonly Button _launchButton = new() { Text = "Unity 실행", AutoSize = true, Enabled = false };
+    private readonly Button _checkButton = new() { Text = "② 업데이트 확인", AutoSize = true };
+    private readonly Button _installButton = new() { Text = "③ 업데이트 설치", AutoSize = true, Enabled = false };
+    private readonly Button _launchButton = new() { Text = "④ Unity 실행", AutoSize = true, Enabled = false };
 
     private readonly GoogleDriveClient _driveClient = new(new GoogleOAuthClient());
     private UpdatePlan? _updatePlan;
@@ -124,7 +126,7 @@ internal sealed class MainForm : Form
             : ProjectServices.FindUnityExecutable(_projectPathTextBox.Text) ?? string.Empty;
         RefreshProjectLabels();
         RefreshLoginLabel();
-        SetStatus("OAuth Desktop 앱 JSON을 선택하고 Google 로그인한 뒤 업데이트를 확인하세요.");
+        SetStatus("👋 OAuth Desktop 앱 JSON을 지정한 뒤 ① 로그인 → ② 업데이트 확인 → ③ 업데이트 설치 순서로 진행해 주세요.");
     }
 
     private void SelectProjectFolder()
@@ -230,26 +232,40 @@ internal sealed class MainForm : Form
         {
             var (projectPath, manifestFileId, oauthClientConfigurationPath) = await SaveAndValidateSettingsAsync();
             SetBusy(true);
-            SetStatus("제한된 Drive의 manifest.json을 확인 중입니다.");
+            SetStatus("⏳ 제한된 Drive의 manifest.json을 확인하고 있어요…");
             _updatePlan = await new ExternalAssetsUpdater(_driveClient)
                 .CheckForUpdatesAsync(projectPath, manifestFileId, oauthClientConfigurationPath, CancellationToken.None);
 
+            // 버전 행은 "설치됨 vX · 서버 vY — <상태>" 형태로, 지금 무엇을 해야 하는지가
+            // 한 줄에 드러나게 한다. 상태 라벨은 다음에 눌러야 할 단계 번호까지 안내한다.
+            var installed = _updatePlan.InstalledVersion;
+            var server = _updatePlan.RequiredVersion;
             if (_updatePlan.RequiresReset)
             {
-                SetStatus($"설치된 v{_updatePlan.InstalledVersion}이 프로젝트 요구 v{_updatePlan.RequiredVersion}보다 새롭습니다. 전체본 복구가 필요합니다.");
+                _versionLabel.Text = $"설치됨 v{installed} · 서버 v{server} — ⚠️ 설치본이 서버보다 최신 (복구 필요)";
+                SetStatus($"⚠️ 설치된 v{installed}이 서버 v{server}보다 새롭습니다. 전체본 복구가 필요해요.");
                 _installButton.Enabled = false;
                 _launchButton.Enabled = false;
                 return;
             }
 
-            _versionLabel.Text = $"설치됨 v{_updatePlan.InstalledVersion} / 필요 v{_updatePlan.RequiredVersion}";
             _installButton.Enabled = !_updatePlan.IsCurrent;
             _launchButton.Enabled = _updatePlan.IsCurrent;
-            SetStatus(_updatePlan.IsCurrent
-                ? "최신 상태입니다. Unity를 실행할 수 있습니다."
-                : _updatePlan.RequiresLegacyMigration
-                    ? "보안 배포 방식으로 전환합니다. 기존 상태를 신뢰하지 않으므로 전체본(v1)부터 다시 설치해야 합니다."
-                    : $"v{_updatePlan.RequiredVersion}까지 패키지 {_updatePlan.Packages.Count}개를 설치해야 합니다.");
+            if (_updatePlan.IsCurrent)
+            {
+                _versionLabel.Text = $"설치됨 v{installed} · 서버 v{server} — ✅ 최신 상태";
+                SetStatus("✅ 최신 상태예요. 바로 ④ Unity 실행으로 넘어가면 됩니다.");
+            }
+            else if (_updatePlan.RequiresLegacyMigration)
+            {
+                _versionLabel.Text = $"설치됨 v{installed}(구버전 방식) · 서버 v{server} — 🔒 보안 전환 재설치 필요";
+                SetStatus("🔒 보안 배포 방식으로 전환합니다. 기존 상태를 신뢰하지 않아 전체본(v1)부터 다시 설치해요. 준비되면 ③ 업데이트 설치를 눌러 주세요.");
+            }
+            else
+            {
+                _versionLabel.Text = $"설치됨 v{installed} · 서버 v{server} — ⬇️ 업데이트 필요 ({_updatePlan.Packages.Count}개)";
+                SetStatus($"⬇️ 서버 v{server}까지 패키지 {_updatePlan.Packages.Count}개를 받아야 해요. ③ 업데이트 설치를 눌러 주세요.");
+            }
         }
         catch (Exception exception)
         {
@@ -279,7 +295,7 @@ internal sealed class MainForm : Form
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning) != DialogResult.Yes)
             {
-                SetStatus("보안 배포 방식 전환 설치를 취소했습니다.");
+                SetStatus("보안 배포 방식 전환 설치를 취소했어요.");
                 return;
             }
 
@@ -291,15 +307,21 @@ internal sealed class MainForm : Form
 
             SetBusy(true);
             var progress = new Progress<DownloadProgress>(UpdateProgress);
-            var installationResult = await new ExternalAssetsUpdater(_driveClient)
-                .InstallAsync(projectPath, _updatePlan, oauthClientConfigurationPath, progress, CancellationToken.None);
+            // 설치 본체(압축 해제·메타 검증·수천 개 파일 복사)는 동기 CPU/디스크 작업이라
+            // UI 스레드에서 그대로 await하면 그동안 메시지 펌프가 멈춰 창이 "응답 없음"으로 표시된다.
+            // Task.Run으로 스레드풀에 넘겨 UI 스레드를 살려두고, 진행 상황은
+            // Progress<T>가 UI 스레드로 마샬링해 보고한다.
+            UpdatePlan plan = _updatePlan;
+            var updater = new ExternalAssetsUpdater(_driveClient);
+            var installationResult = await Task.Run(() =>
+                updater.InstallAsync(projectPath, plan, oauthClientConfigurationPath, progress, CancellationToken.None));
 
             _progressBar.Value = 100;
-            SetStatus("외부 에셋 설치가 완료되었습니다. 업데이트를 다시 확인합니다.");
+            SetStatus("✅ 외부 에셋 설치가 완료됐어요. 업데이트를 다시 확인합니다…");
             await CheckForUpdatesAsync();
             if (installationResult.LegacyBackupPath is not null)
             {
-                SetStatus($"보안 전환 설치가 완료되었습니다. 기존 파일은 '{installationResult.LegacyBackupPath}'에 백업되어 있습니다. 확인 후 직접 삭제하세요.");
+                SetStatus($"✅ 보안 전환 설치가 완료됐어요. 기존 파일은 '{installationResult.LegacyBackupPath}'에 백업해 뒀으니, 새 에셋이 잘 뜨는지 확인한 뒤 직접 삭제하면 됩니다.");
             }
         }
         catch (Exception exception)
@@ -396,11 +418,15 @@ internal sealed class MainForm : Form
         _statusLabel.Text = progress.Status;
         if (progress.TotalBytes is > 0)
         {
+            // 총량을 아는 단계(다운로드·압축 해제·파일 복사)는 퍼센트 막대로 보여준다.
+            // 앞 단계에서 마퀴로 바뀌어 있을 수 있으니 결정형으로 되돌린다.
+            _progressBar.Style = ProgressBarStyle.Continuous;
             var percent = (int)Math.Clamp(progress.BytesReceived * 100 / progress.TotalBytes.Value, 0, 100);
             _progressBar.Value = percent;
         }
         else
         {
+            // 총량을 모르는 단계(메타 검증 등)는 흐르는 막대로 "작업 중"임을 보여준다.
             _progressBar.Style = ProgressBarStyle.Marquee;
         }
     }
