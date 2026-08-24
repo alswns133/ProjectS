@@ -413,6 +413,7 @@ namespace ProjectS.Players
                 Penetration = 0f,
                 DamageBonus = 0f,
                 BossBonus = 0f,
+                GroggyDamage = skill.GroggyDamage,   // 스킬 테이블의 그로기 데미지를 그대로 실어 보낸다(평타는 0)
             };
 
             gaugeGain = skill.SgGain;

@@ -20,6 +20,10 @@ namespace ProjectS.Enemies
         private static readonly int HitAirState = Animator.StringToHash("Hit_Air");
         private static readonly int DieState = Animator.StringToHash("Die");
         private static readonly int DieAirState = Animator.StringToHash("Die_Air");
+        private static readonly int GroggyState = Animator.StringToHash("Groggy");
+        // 무력화 지속 게이트용 bool. 무력화 동안 true, 끝나면 false. Groggy→로코모션 복귀 전이 조건으로 쓴다.
+        private static readonly int IsGroggyParam = Animator.StringToHash("isGroggy");
+        private static readonly int DoGrabFail = Animator.StringToHash("doGrabFail");
 
         // 이동 블렌드 값이 튀지 않게 부드럽게 따라가는 감쇠 시간.
         private const float Damp = 0.1f;
@@ -98,6 +102,36 @@ namespace ProjectS.Enemies
         /// 공중 사망 트리거
         /// </summary>
         public void PlayDieAir() => animator.Play(DieAirState, 0, 0f);
+
+        /// <summary>
+        /// 무력화(그로기) 모션 재생. 그로기 게이지가 0이 되어 EnemyGroggyState에 진입할 때 1회 호출한다.
+        /// PlayHit과 같은 방식으로 즉시 진입시키며, 무력화 지속시간(Enemy.GroggyDuration) 동안 상태 코드가
+        /// 붙잡아 두므로 <b>애니메이터의 "Groggy" State는 루프로 두는 것을 권장</b>한다(짧은 클립이면 굳어 보임).
+        /// 무력화 종료 시 상태가 Chase로 넘어가며 Speed 파라미터로 로코모션으로 복귀한다
+        /// (Hit State와 동일하게, 컨트롤러에 Groggy→로코모션 복귀 전이가 있어야 한다).
+        /// </summary>
+        public void PlayGroggy()
+        {
+            // isGroggy를 켜서 복귀 전이(Groggy→로코모션, 조건 isGroggy=false)가 아직 안 열리게 잠근 뒤
+            // Groggy State로 즉시 강제 진입한다(그래프 전이/트리거 없이 animator.Play → 진입엔 Any State가 필요 없다).
+            animator.SetBool(IsGroggyParam, true);
+            animator.Play(GroggyState, 0, 0f);
+        }
+
+        /// <summary>
+        /// 무력화 종료 신호. isGroggy를 내려 애니메이터가 Groggy에서 로코모션으로 복귀하게 한다
+        /// (Groggy→로코모션 전이 조건 isGroggy=false, Has Exit Time 끔). EnemyGroggyState.Exit에서 호출한다.
+        /// </summary>
+        public void EndGroggy() => animator.SetBool(IsGroggyParam, false);
+
+        /// <summary>
+        /// 잡기 실패(헛잡기) 트리거. 보스 잡기 히트 프레임(<see cref="Boss.OnGrabConnect"/>)에서 플레이어를
+        /// 포착하지 못했을 때(범위에 없거나, 있어도 회피/무적/사망으로 거부) 1회 호출한다. 애니메이터가 이
+        /// 트리거로 잡기 클립에서 헛손질/회복 State로 전이하게 배선해, 허공을 잡고 던지는 모션이 끝까지 재생되는
+        /// 것을 막는다. 이 트리거는 보스만 쓰며(잡몹 애니메이터엔 이 파라미터가 없다), 보스 외에는 호출하지 않으므로
+        /// "파라미터 없음" 경고가 나지 않는다.
+        /// </summary>
+        public void PlayGrabFail() => animator.SetTrigger(DoGrabFail);
 
         /// <summary>
         /// 공중 사망: 지금 재생 중인 공중 피격 클립의 진행도를 이어받아 Die_Air 모션을 재생
