@@ -70,6 +70,12 @@ namespace ProjectS.UI
         [Tooltip("깜박이는 정도(0~1). 전기 불꽃은 밝기가 일정하지 않다.")]
         [SerializeField, Range(0f, 1f)] private float flicker = 0.45f;
 
+
+        // 한 프레임에 인정할 최대 시간(초). 에디터 멈칫·로딩 히치 뒤에는 unscaledDeltaTime이
+        // 통째로 튀어(1초 이상) 들어오는데, 그대로 쓰면 연출이 재생되는 대신 한 프레임에
+        // 전부 소모돼 건너뛴 것처럼 보인다. 히치 때는 느려질지언정 사라지지는 않게 잘라낸다.
+        private const float MaxStep = 0.05f;
+
         private RectTransform self;
         private Canvas canvas;
         private readonly List<Spark> pool = new();
@@ -83,37 +89,87 @@ namespace ProjectS.UI
             public Vector2 Velocity;
             public float Life;
             public float Age;
+
+            // 태어난 뒤 실제로 이동한 거리(px). 꼬리 길이의 상한으로 쓴다.
+            public float Travelled;
         }
 
-        private void Awake()
+        private void Awake() => EnsureRefs();
+
+        // Awake에 기대지 않고 필요할 때마다 확인한다.
+        // 에디터에서 플레이 없이 ContextMenu로 시험 발사할 때는 Awake가 돌지 않아,
+        // self/canvas가 null인 채로 좌표 변환에 들어가면 그대로 터진다.
+        private void EnsureRefs()
         {
-            self = (RectTransform)transform;
-            canvas = GetComponentInParent<Canvas>();
+            if (self == null) self = (RectTransform)transform;
+            if (canvas == null) canvas = GetComponentInParent<Canvas>();
         }
 
         /// <summary>월드 좌표에서 불꽃을 터뜨린다.</summary>
         /// <param name="worldPosition">터질 지점(보통 부서지는 오브젝트의 <c>transform.position</c>)</param>
         public void Play(Vector3 worldPosition) => PlayLocal(WorldToLocal(worldPosition));
 
-        /// <summary>이 레이어 기준 좌표에서 불꽃을 터뜨린다.</summary>
+        /// <summary>이 레이어 기준 좌표에서 불꽃을 사방으로 터뜨린다.</summary>
         /// <param name="localPosition">터질 지점(anchoredPosition 기준)</param>
         public void PlayLocal(Vector2 localPosition)
-        {
-            if (count <= 0) return;
-            if (self == null) self = (RectTransform)transform;
+            => EmitLocal(localPosition, count, Vector2.right, 180f);
 
-            for (int i = 0; i < count; i++)
+        /// <summary>
+        /// 월드 좌표에서 <b>방향을 지정해</b> 불꽃을 뿜는다.
+        /// 용접 불똥처럼 한쪽으로 쏟아져야 할 때 쓴다(사방으로 터지는 <see cref="Play"/>와 구분).
+        /// </summary>
+        /// <param name="worldPosition">뿜어져 나올 지점</param>
+        /// <param name="amount">이번에 낼 개수</param>
+        /// <param name="direction">중심 방향</param>
+        /// <param name="spreadDeg">중심 방향 기준 좌우 흔들림(도). 180이면 사방과 같아진다.</param>
+        /// <param name="speedScale">속도 배율. 약하게 튀길 때 1보다 작게 준다.</param>
+        public void Emit(Vector3 worldPosition, int amount, Vector2 direction,
+                         float spreadDeg, float speedScale = 1f)
+            => EmitLocal(WorldToLocal(worldPosition), amount, direction, spreadDeg, speedScale);
+
+        /// <summary>
+        /// 월드 좌표를 이 레이어의 로컬 좌표로 옮긴다.
+        /// 방향까지 직접 계산해야 하는 쪽(<see cref="GaugeHeatSparks"/>)이 같은 좌표계에서 재려고 쓴다.
+        /// </summary>
+        /// <param name="world">월드 좌표</param>
+        /// <returns>이 레이어 기준 좌표</returns>
+        public Vector2 ToLocal(Vector3 world)
+        {
+            EnsureRefs();
+            return WorldToLocal(world);
+        }
+
+        /// <summary>이 레이어 기준 좌표에서 방향을 지정해 불꽃을 뿜는다.</summary>
+        /// <param name="localPosition">뿜어져 나올 지점(anchoredPosition 기준)</param>
+        /// <param name="amount">이번에 낼 개수</param>
+        /// <param name="direction">중심 방향</param>
+        /// <param name="spreadDeg">중심 방향 기준 좌우 흔들림(도). 180이면 사방과 같아진다.</param>
+        /// <param name="speedScale">속도 배율</param>
+        public void EmitLocal(Vector2 localPosition, int amount, Vector2 direction,
+                              float spreadDeg, float speedScale = 1f)
+        {
+            if (amount <= 0) return;
+            EnsureRefs();
+
+            // spreadDeg가 180이면 아래 Random.Range가 정확히 한 바퀴를 덮으므로,
+            // 방향 없이 사방으로 뿌리던 기존 동작과 결과가 같다(기존 사용처가 그대로 유지되는 이유).
+            float baseAngle = direction.sqrMagnitude > 0.0001f
+                ? Mathf.Atan2(direction.y, direction.x)
+                : 0f;
+            float spread = spreadDeg * Mathf.Deg2Rad;
+
+            for (int i = 0; i < amount; i++)
             {
                 Spark spark = Take();
 
-                // 방향은 완전 무작위로 뿌린다. 등간격으로 나누면 바퀴살처럼 읽힌다.
-                float angle = Random.Range(0f, Mathf.PI * 2f);
-                float speed = Random.Range(speedMin, speedMax);
+                float angle = baseAngle + Random.Range(-spread, spread);
+                float speed = Random.Range(speedMin, speedMax) * speedScale;
 
                 spark.Position = localPosition;
                 spark.Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed;
                 spark.Life = Random.Range(lifeMin, Mathf.Max(lifeMin, lifeMax));
                 spark.Age = 0f;
+                spark.Travelled = 0f;
 
                 spark.Rect.gameObject.SetActive(true);
                 Apply(spark);
@@ -122,7 +178,7 @@ namespace ProjectS.UI
 
         private void Update()
         {
-            float dt = Time.unscaledDeltaTime;
+            float dt = Mathf.Min(Time.unscaledDeltaTime, MaxStep);
 
             for (int i = 0; i < pool.Count; i++)
             {
@@ -138,7 +194,10 @@ namespace ProjectS.UI
 
                 spark.Velocity += Vector2.down * (gravity * dt);
                 spark.Velocity *= Mathf.Clamp01(1f - drag * dt);
-                spark.Position += spark.Velocity * dt;
+
+                Vector2 delta = spark.Velocity * dt;
+                spark.Position += delta;
+                spark.Travelled += delta.magnitude;
 
                 Apply(spark);
             }
@@ -158,7 +217,16 @@ namespace ProjectS.UI
                 spark.Rect.localRotation = Quaternion.Euler(0f, 0f, angle);
             }
 
-            spark.Rect.sizeDelta = new Vector2(Mathf.Max(minLength, speed * lengthPerSpeed), thickness);
+            // ★ 꼬리는 "지나온 자취"다. 지나온 거리보다 길게 그리면 안 된다.
+            //   길이를 속도만으로 정하면 갓 태어난 불꽃이 첫 프레임부터 최대 길이의 꼬리를 달고 나오는데,
+            //   pivot이 앞쪽 끝이라 그 꼬리가 진행 방향 <b>반대쪽</b>으로 뻗는다.
+            //   한 점에서 연속으로 뿜을 때는 그 뒤꼬리들이 전부 겹쳐 반대편에 밝은 쐐기로 박힌다.
+            // 상한은 "지나온 거리"지만, 태어난 첫 프레임은 그게 0이라 길이도 0이 된다.
+            // 최소한 한 프레임분 이동거리는 인정해준다 — 안 그러면 갓 태어난 불꽃이 한 프레임 동안
+            // 완전히 사라지고, Update가 돌지 않는 에디트 모드에서는 아예 보이지 않는다.
+            float travelled = Mathf.Max(spark.Travelled, speed * Mathf.Clamp(Time.unscaledDeltaTime, 0.008f, MaxStep));
+            float length = Mathf.Min(Mathf.Max(minLength, speed * lengthPerSpeed), travelled);
+            spark.Rect.sizeDelta = new Vector2(length, thickness);
 
             Color c = Color.Lerp(hotColor, coolColor, t);
             c.a = (1f - t) * Mathf.Lerp(1f, Random.value, flicker);

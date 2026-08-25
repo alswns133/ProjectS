@@ -68,6 +68,20 @@
         /// </summary>
         public float CurrentSpeed => isMovingForAnimation ? smoothedSpeed : 0f;
 
+        /// <summary>
+        /// 레이드 보스 전용.
+        /// 현재 이동 방향을 자기 로컬 기준(x=오른쪽, z=앞)으로 정규화해 돌려준다.
+        /// 8방향 로코모션 블렌드값(MoveX/MoveY) 계산용. 거의 정지 상태면 Vector3.zero.
+        /// </summary>
+        public Vector3 LocalMoveDirection()
+        {
+            if (!agent.enabled) return Vector3.zero;
+            Vector3 v = agent.velocity;
+            float mag = v.magnitude;
+            if (mag < 0.01f) return Vector3.zero;
+            return transform.InverseTransformDirection(v / mag);
+        }
+
         /// <summary>현재 경로의 끝에 도달했는지 여부. 순찰 상태가 지점 도착 판정에 쓴다.</summary>
         public bool ReachedPathEnd => agent.enabled && !agent.pathPending
             && agent.remainingDistance <= agent.stoppingDistance;

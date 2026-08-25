@@ -1,6 +1,7 @@
-using UnityEngine;
-using ProjectS.Core;
+﻿using ProjectS.Core;
+using ProjectS.Events;
 using ProjectS.Players;
+using UnityEngine;
 
 namespace ProjectS.Enemies
 {
@@ -60,6 +61,12 @@ namespace ProjectS.Enemies
         // 현재 잡고 있는 플레이어. 포착 성공 시 채워지고, 마무리(던지기/해제)에서 비운다.
         // 데미지/마무리 이벤트가 이 참조를 기준으로 동작한다.
         private Player grabbedPlayer;
+
+        protected override void Start()
+        {
+            base.Start(); // Enemy.Start(Target 획득 + 상태머신 시작) 먼저
+            BossEvents.FireBossAppeared(this);
+        }
 
         /// <summary>
         /// 잡기 히트 프레임. 보스 잡기 클립의 Animation Event로 연결한다(문자열 참조 — 메서드명 변경 주의).
