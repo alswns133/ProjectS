@@ -65,7 +65,16 @@ Shader "ProjectS/UI Hud Arc Ring"
         _Step1 ("Radius Step", Range(0, 0.1)) = 0.013
         // 두께를 재는 기준 모서리. 0 = 안쪽 정렬(한쪽만 어긋나는 계단), 0.5 = 가운데.
         _Anchor1 ("Thickness Anchor", Range(0, 1)) = 0
-        _Rate1 ("Refresh Rate", Range(0, 10)) = 0.4
+        // 조각이 통째로 새로 뽑히는 주기. 0이면 배치가 고정돼 회전 외에는 움직이지 않는다.
+        // 조각이 버티는 시간은 이 값의 역수다 — 0.25면 4초.
+        _Rate1 ("Refresh Rate", Range(0, 10)) = 0.25
+        // 칸마다 주기를 얼마나 어긋내는가. 0이면 모든 칸이 같은 주기라 한 바퀴 안에
+        // 전부 한 번씩 갈리고, 그 순서가 매번 똑같이 되풀이돼 링 전체가 한 호흡으로
+        // 사라졌다 나타나는 것처럼 보인다. 올릴수록 칸들이 영영 다시 맞물리지 않는다.
+        _RateVar1 ("Rate Scatter", Range(0, 0.9)) = 0.65
+        // 새로 뽑힐 때 뜨고 지는 데 쓰는 시간(한 회차 대비 비율).
+        // Refresh Rate가 0이면 자동으로 무시된다.
+        _Fade1 ("Fade In Out", Range(0, 0.5)) = 0.25
         _Spin1 ("Spin", Range(-2, 2)) = 0.01
 
         [Header(Ring 2)]
@@ -85,7 +94,9 @@ Shader "ProjectS/UI Hud Arc Ring"
         _Thick2 ("Thick Width", Range(0.002, 0.15)) = 0.011
         _Step2 ("Radius Step", Range(0, 0.1)) = 0.02
         _Anchor2 ("Thickness Anchor", Range(0, 1)) = 0
-        _Rate2 ("Refresh Rate", Range(0, 10)) = 0.6
+        _Rate2 ("Refresh Rate", Range(0, 10)) = 0.3
+        _RateVar2 ("Rate Scatter", Range(0, 0.9)) = 0.7
+        _Fade2 ("Fade In Out", Range(0, 0.5)) = 0.25
         // 링 1과 같은 방향으로 두되 속도만 다르게 준다. 반대로 돌리면 두 겹이 서로
         // 밀치는 것처럼 보여 링 전체가 불안정해진다. 같은 방향이면 흐름은 한 방향으로
         // 안정되면서도 속도 차 때문에 조합은 계속 바뀐다.
@@ -195,9 +206,9 @@ Shader "ProjectS/UI Hud Arc Ring"
             fixed4 _Color;
             float _Radius;
             float _Slots1, _Density1, _Spread1, _Group1, _Long1;
-            float _Thin1, _Thick1, _Step1, _Anchor1, _Rate1, _Spin1;
+            float _Thin1, _Thick1, _Step1, _Anchor1, _Rate1, _RateVar1, _Fade1, _Spin1;
             float _Offset2, _Slots2, _Density2, _Spread2, _Group2, _Long2;
-            float _Thin2, _Thick2, _Step2, _Anchor2, _Rate2, _Spin2, _Alpha2;
+            float _Thin2, _Thick2, _Step2, _Anchor2, _Rate2, _RateVar2, _Fade2, _Spin2, _Alpha2;
             float _SlotsW, _DensityW, _SpreadW, _GroupW, _WidthMinW, _WidthMaxW, _LenMinW, _LenMaxW;
             float _SpeedVarW, _JitterW, _StartW, _EndW, _SpeedW, _AlphaW;
             float _Aspect;
@@ -211,10 +222,15 @@ Shader "ProjectS/UI Hud Arc Ring"
             // t도 감아주지 않으면 플레이가 길어질수록 frac() 정밀도가 무너져 패턴이 뭉친다.
             inline float Hash(float i, float t, float N, float salt)
             {
-                float2 p = float2(fmod(i + N * 64.0, N) + salt, fmod(t, 1024.0));
-                p = frac(p * float2(127.1, 311.7));
-                p += dot(p, p + 34.53);
-                return frac(p.x * p.y * 43758.5453);
+                // ★ 배수로 0.1031 같은 수를 쓰는 이유. 127.1처럼 소수점이 한 자리인 수를
+                //   정수에 곱하면 frac()의 결과가 0.0, 0.1, ... 0.9 열 개로 되풀이된다.
+                //   실제로 이전 판은 슬롯 89개에 난수가 29종밖에 안 나왔고, 그래서 켜짐/꺼짐이
+                //   무작위가 아니라 열 칸 주기로 반복되면서 패턴이 뭉쳐 보였다.
+                // ★ 상수 0.379는 입력이 0일 때(salt 0, 회차 0) 성분이 통째로 죽는 걸 막는다.
+                float3 p = frac(float3(fmod(i + N * 64.0, N), fmod(t, 1024.0), salt)
+                                * float3(0.1031, 0.1030, 0.0973) + 0.379);
+                p += dot(p, p.yzx + 33.33);
+                return frac((p.x + p.y) * p.z);
             }
 
             // 반지름 방향 밴드. inner~outer 사이만 1.
@@ -230,29 +246,60 @@ Shader "ProjectS/UI Hud Arc Ring"
                 return 1.0 - smoothstep(halfW - aa, halfW + aa, abs(f - 0.5));
             }
 
+            // 칸(cell) 하나의 시간 정보. 갱신의 최소 단위를 슬롯이 아니라 칸으로 둔다.
+            //
+            // 예전에는 슬롯마다 갱신 시점이 따로 놀았다. 그러면 한 호 안에서 조각들이
+            // 제각기 다른 순간에 갈려서, 모양이 잡히기 전에 흩어져 버린다. 지금은 한 칸에
+            // 속한 슬롯이 같은 시계를 공유해서 "덩어리가 통째로 떴다가 통째로 사라진다".
+            // 칸마다 위상은 여전히 랜덤이라 링 전체가 한 박자에 갈리지는 않는다.
+            //
+            // age는 이번 회차가 얼마나 진행됐는가(0~1). 페이드에 쓴다.
+            void CellInfo(float idx, float slots, float group, float rate, float rateVar,
+                          float time, float salt,
+                          out float gidx, out float gn, out float clk, out float age)
+            {
+                // 칸 분할은 슬롯 개수와 무관한 자기 분할을 쓴다. slots가 group으로 나누어
+                // 떨어지지 않아도 0도 지점에서 이음매가 생기지 않게 하기 위함.
+                gn = max(floor(slots / max(group, 1.0)), 1.0);
+                gidx = floor((idx + 0.5) / slots * gn);
+
+                // ★ 칸마다 주기 자체를 다르게 준다(rateVar). 위상만 흩뿌리면 주기가 전부
+                //   같아서, 한 바퀴 안에 모든 칸이 정확히 한 번씩 갈린다 — 순서가 매번
+                //   똑같이 되풀이돼서 링 전체가 한 호흡으로 사라졌다 나타나는 것처럼 보인다.
+                //   주기가 어긋나 있으면 칸들이 영원히 다시 맞물리지 않아 순서가 계속 바뀐다.
+                float cellRate = rate * lerp(1.0 - rateVar, 1.0 + rateVar,
+                                             Hash(gidx, 0, gn, salt + 43.1));
+
+                float c = time * cellRate + Hash(gidx, 0, gn, salt + 61.2);
+                clk = floor(c);
+                age = c - clk;
+            }
+
+            // 회차 시작과 끝에서 알파를 무르게 하는 봉투. 칸 단위라 덩어리가 통째로
+            // 떠오르고 통째로 지워진다. 슬롯 단위로 걸면 한 호가 조각조각 따로 사라진다.
+            inline float FadeEnv(float age, float fade)
+            {
+                float f = max(fade, 1e-4);
+                return smoothstep(0.0, f, age) * (1.0 - smoothstep(1.0 - f, 1.0, age));
+            }
+
             // idx번 슬롯이 켜져 있는가. 슬롯 자체의 확률 x 구간 게이트(_Spread),
-            // 여기에 셀 통째로 켜는 긴 호(longRatio)를 얹는다.
+            // 여기에 칸 통째로 켜는 긴 호(longRatio)를 얹는다.
             // 게이트를 슬롯보다 큰 단위로 거는 게 핵심이다 — 밀도만 낮추면 조각이
             // 잘게 부서질 뿐 "간격"이 생기지 않는다.
             float SlotOn(float idx, float slots, float density, float group, float spread,
-                         float longRatio, float rate, float time, float salt)
+                         float longRatio, float rate, float rateVar, float time, float salt)
             {
-                // 슬롯마다 갱신 시점을 흩뿌린다. 위상이 같으면 링 전체가 한 박자에 갈려서
-                // 정보가 흐르는 게 아니라 메트로놈처럼 보인다.
-                float clk = floor(time * rate + Hash(idx, 0, slots, salt + 5.5));
+                float gidx, gn, clk, age;
+                CellInfo(idx, slots, group, rate, rateVar, time, salt, gidx, gn, clk, age);
+
                 float on = step(Hash(idx, clk, slots, salt), density);
+                float gate = step(Hash(gidx, clk, gn, salt + 77.7), 1.0 - spread);
 
-                // 게이트는 슬롯 개수와 무관한 자기 분할을 쓴다. slots가 group으로 나누어
-                // 떨어지지 않아도 0도 지점에서 이음매가 생기지 않게 하기 위함.
-                float gn = max(floor(slots / max(group, 1.0)), 1.0);
-                float gidx = floor((idx + 0.5) / slots * gn);
-                float gclk = floor(time * rate * 0.4 + Hash(gidx, 0, gn, salt + 61.2));
-                float gate = step(Hash(gidx, gclk, gn, salt + 77.7), 1.0 - spread);
-
-                // 셀 하나를 통째로 켜서 긴 호를 만든다. 슬롯 단위 확률만으로는 켜진 구간이
+                // 칸 하나를 통째로 켜서 긴 호를 만든다. 슬롯 단위 확률만으로는 켜진 구간이
                 // 늘 한두 칸이라 조각 길이가 전부 비슷해진다 — 짧은 토막과 긴 호가
-                // 섞이려면 길이의 출처가 둘이어야 한다. 셀이 연달아 켜지면 더 길어진다.
-                float longOn = step(Hash(gidx, gclk, gn, salt + 91.1), longRatio);
+                // 섞이려면 길이의 출처가 둘이어야 한다. 칸이 연달아 켜지면 더 길어진다.
+                float longOn = step(Hash(gidx, clk, gn, salt + 91.1), longRatio);
 
                 return max(on, longOn) * gate;
             }
@@ -260,21 +307,24 @@ Shader "ProjectS/UI Hud Arc Ring"
             // 호 조각 한 레이어.
             // aaSlot은 "화면 1픽셀이 슬롯 단위로 몇 칸인가" — 잘린 끝을 무르게 하는 데 쓴다.
             float ArcLayer(float r, float ang, float aaR, float aaSlot,
-                           float slots, float density, float group, float spread, float longRatio,
+                           float slots, float density, float group, float spread, float longRatio, float rateVar,
                            float radius, float stepSize, float thMin, float thMax, float anchor,
-                           float rate, float time, float salt)
+                           float rate, float fade, float time, float salt)
             {
                 float s = ang * slots;
                 float idx = floor(s);
                 float f = s - idx;
 
-                float on  = SlotOn(idx,       slots, density, group, spread, longRatio, rate, time, salt);
-                float onL = SlotOn(idx - 1.0, slots, density, group, spread, longRatio, rate, time, salt);
-                float onR = SlotOn(idx + 1.0, slots, density, group, spread, longRatio, rate, time, salt);
+                float on  = SlotOn(idx,       slots, density, group, spread, longRatio, rate, rateVar, time, salt);
+                float onL = SlotOn(idx - 1.0, slots, density, group, spread, longRatio, rate, rateVar, time, salt);
+                float onR = SlotOn(idx + 1.0, slots, density, group, spread, longRatio, rate, rateVar, time, salt);
 
                 // 반지름 단 3단(-1, 0, +1)과 두께 단 3단. 이어진 슬롯끼리 값이 다르면
                 // 그 경계가 계단이 된다 — 레퍼런스의 각진 부분이 이것.
-                float clk = floor(time * rate + Hash(idx, 0, slots, salt + 5.5));
+                // 시계는 칸에서 받아온다. 같은 칸의 슬롯들이 함께 갈려야 덩어리로 읽힌다.
+                float gidx, gn, clk, age;
+                CellInfo(idx, slots, group, rate, rateVar, time, salt, gidx, gn, clk, age);
+
                 float ro = (floor(Hash(idx, clk, slots, salt + 11.3) * 3.0) - 1.0) * stepSize;
                 float th = lerp(thMin, thMax, floor(Hash(idx, clk, slots, salt + 23.7) * 3.0) * 0.5);
                 float rc = radius + ro;
@@ -290,7 +340,9 @@ Shader "ProjectS/UI Hud Arc Ring"
                 float dEdge = min(lerp(f, 10.0, onL), lerp(1.0 - f, 10.0, onR));
                 float endAA = smoothstep(0.0, max(aaSlot, 1e-5), dEdge);
 
-                return band * on * endAA;
+                // 페이드는 갱신이 있을 때만 의미가 있다. rate가 0이면 age가 칸마다 고정된
+                // 난수로 굳어서, 켜고 두면 일부 칸만 영영 흐릿하게 남는다.
+                return band * on * endAA * FadeEnv(age, fade * step(0.0001, rate));
             }
 
             // 중심을 향해 빨려드는 방사형 실선.
@@ -313,7 +365,7 @@ Shader "ProjectS/UI Hud Arc Ring"
                 // 시간 대신 통과 회차(pass)를 넣는다 — 이 선이 다시 출발할 때만 갈리게.
                 // 긴 호(longRatio)는 0이다. 켜지면 이웃한 선들이 셀 단위로 한꺼번에 떠서
                 // 부챗살처럼 뭉치는데, 방사선에는 그게 규칙성으로만 읽힌다.
-                float on = SlotOn(idx, slots, _DensityW, _GroupW, _SpreadW, 0.0, 1.0, passIdx, 43.9);
+                float on = SlotOn(idx, slots, _DensityW, _GroupW, _SpreadW, 0.0, 1.0, 0.0, passIdx, 43.9);
                 float len = lerp(_LenMinW, _LenMaxW, Hash(idx, passIdx, slots, 57.3));
 
                 // 두께도 통과할 때마다 3단으로 새로 뽑는다. 호 조각의 두께 단과 같은 규칙이라
@@ -370,12 +422,12 @@ Shader "ProjectS/UI Hud Arc Ring"
                 float time = _Time.y;
 
                 float r1 = ArcLayer(r, frac(ang + _Spin1 * time), aaR, aaAng * floor(_Slots1),
-                                    floor(_Slots1), _Density1, _Group1, _Spread1, _Long1,
-                                    _Radius, _Step1, _Thin1, _Thick1, _Anchor1, _Rate1, time, 0.0);
+                                    floor(_Slots1), _Density1, _Group1, _Spread1, _Long1, _RateVar1,
+                                    _Radius, _Step1, _Thin1, _Thick1, _Anchor1, _Rate1, _Fade1, time, 0.0);
 
                 float r2 = ArcLayer(r, frac(ang + _Spin2 * time), aaR, aaAng * floor(_Slots2),
-                                    floor(_Slots2), _Density2, _Group2, _Spread2, _Long2,
-                                    _Radius + _Offset2, _Step2, _Thin2, _Thick2, _Anchor2, _Rate2, time, 37.7)
+                                    floor(_Slots2), _Density2, _Group2, _Spread2, _Long2, _RateVar2,
+                                    _Radius + _Offset2, _Step2, _Thin2, _Thick2, _Anchor2, _Rate2, _Fade2, time, 37.7)
                            * _Alpha2;
 
                 float w = WarpLayer(r, ang, aaR, aaAng, time) * _AlphaW;
