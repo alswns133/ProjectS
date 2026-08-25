@@ -81,7 +81,10 @@ internal sealed class MainForm : Form
     {
         Text = "ProjectS 외부 에셋 배포자";
         StartPosition = FormStartPosition.CenterScreen;
-        MinimumSize = new Size(980, 700);
+        // 자동 구성·자동 게시 행이 늘어 세로가 길어졌다. 최소 높이가 부족하면 Percent 행(소스 목록)이
+        // 0으로 찌그러지며 위아래 라벨이 겹치므로, 모든 행이 들어갈 높이를 확보한다.
+        MinimumSize = new Size(1000, 1080);
+        Size = new Size(1040, 1080);
         AutoScaleMode = AutoScaleMode.Font;
 
         _packageTypeComboBox.Items.AddRange(["base", "patch"]);
