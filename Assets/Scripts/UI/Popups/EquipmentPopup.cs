@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Data;
+using ProjectS.Enhance;
 using ProjectS.Events;
 using ProjectS.Items;
 using ProjectS.Managers;
@@ -58,6 +59,7 @@ namespace ProjectS.UI
             InventoryEvents.OnItemEquipped += HandleEquipChanged;
             InventoryEvents.OnItemUnequipped += HandleEquipChanged;
             PlayerEvents.OnCombatStatsChanged += RefreshStats;
+            EnhanceEvents.OnEnhanced += HandleEnhanced;
 
             RefreshAll();
         }
@@ -67,9 +69,13 @@ namespace ProjectS.UI
             InventoryEvents.OnItemEquipped -= HandleEquipChanged;
             InventoryEvents.OnItemUnequipped -= HandleEquipChanged;
             PlayerEvents.OnCombatStatsChanged -= RefreshStats;
+            EnhanceEvents.OnEnhanced -= HandleEnhanced;
         }
 
         private void HandleEquipChanged(ItemData _) => RefreshAll();
+
+        // 착용 중인 장비를 강화하면 슬롯의 +N 배지가 바뀌므로 슬롯을 다시 그린다(스탯은 OnCombatStatsChanged가 따로 갱신).
+        private void HandleEnhanced(EnhanceResult _) => RefreshSlots();
 
         private void RefreshAll()
         {

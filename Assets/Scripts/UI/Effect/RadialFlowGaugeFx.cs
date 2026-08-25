@@ -88,6 +88,10 @@ namespace ProjectS.UI
         private float timer;
         private float intensityScale = 1f;
 
+        // 기본 성공률 지점(0~1). 이 위 채움은 셰이더가 천장 색(노랑)으로 칠한다.
+        // 기본 1 = 전부 밑색(자비 0과 동일). 강화창이 대상 성공률로 채워준다(SetBaseFill).
+        private float baseFill = 1f;
+
         // 링 매핑. 셰이더에 넘기는 값과 같은 것을 C#에서도 들고 있어야
         // 끝점 좌표(불똥 발생 위치)를 셰이더와 어긋나지 않게 계산할 수 있다.
         private float angleOffset;
@@ -113,6 +117,7 @@ namespace ProjectS.UI
         public float Heat { get; private set; }
 
         private static readonly int FillId        = Shader.PropertyToID("_Fill");
+        private static readonly int BaseFillId    = Shader.PropertyToID("_BaseFill");
         private static readonly int AngleOffsetId = Shader.PropertyToID("_AngleOffset");
         private static readonly int DirId         = Shader.PropertyToID("_Dir");
         private static readonly int FlowHeadId    = Shader.PropertyToID("_FlowHead");
@@ -198,6 +203,7 @@ namespace ProjectS.UI
 
             float fill = Mathf.Clamp01(image.fillAmount);
             instanced.SetFloat(FillId, fill);
+            instanced.SetFloat(BaseFillId, baseFill);
             instanced.SetFloat(IntensityId, baseIntensity * intensityScale);
 
             // 담금질은 게이지 높이 하나에서 파생된다. 성공률이나 강화 단계를 따로 받지 않는다 —
@@ -238,6 +244,17 @@ namespace ProjectS.UI
         public void SetIntensity(float scale)
         {
             intensityScale = Mathf.Max(0f, scale);
+        }
+
+        /// <summary>
+        /// 기본 성공률 지점을 설정한다. 이 값까지의 채움은 밑색(파랑), 그 위 채움 끝까지는 천장 색(노랑)으로
+        /// 셰이더가 가른다. 강화창이 대상 성공률(자비 보너스 전 기본 확률)을 넣는다.
+        /// 1이면 전부 밑색(자비 0과 동일).
+        /// </summary>
+        /// <param name="baseRate">0~1 기본 성공률(범위를 벗어나면 잘라낸다)</param>
+        public void SetBaseFill(float baseRate)
+        {
+            baseFill = Mathf.Clamp01(baseRate);
         }
 
         // 게이지 몸통 전체의 색. 셰이더가 아니라 Image 틴트를 직접 잡는다 —

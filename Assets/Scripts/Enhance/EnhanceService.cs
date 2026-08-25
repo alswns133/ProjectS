@@ -47,7 +47,7 @@ namespace ProjectS.Enhance
             int curStat = baseStat + (bonus != null ? bonus.GetTotalBonus(step) : 0);
 
             int nextStat = curStat;
-            float rate = 0f;
+            float rate = 0f, baseRate = 0f;
             int zeny = 0, low = 0, high = 0;
             var mainType = equip != null ? equip.MainStatType : MainStatType.None;
 
@@ -59,14 +59,15 @@ namespace ProjectS.Enhance
                 var cost = FindCost(nextStep);
                 if (cost != null)
                 {
-                    rate = EffectiveRate(cost, target);
+                    baseRate = Mathf.Clamp01(cost.SuccessRate);   // 자비 보너스 전 기본 확률(게이지 색 분기 기준)
+                    rate = EffectiveRate(cost, target);           // 기본 + 자비
                     zeny = cost.ZenyCost;
                     low = cost.LowMaterial;
                     high = cost.HighMaterial;
                 }
             }
 
-            return new EnhanceInfo(step, isMax, rate, zeny, low, high, curStat, nextStat, mainType);
+            return new EnhanceInfo(step, isMax, rate, baseRate, zeny, low, high, curStat, nextStat, mainType);
         }
 
         /// <summary>
@@ -97,15 +98,45 @@ namespace ProjectS.Enhance
 
             // 2) 판정. 실패해도 단계 하락은 없고(EnhanceCostData 주석 참고), 연속 실패는
             //    다음 시도 성공률에 자비 보너스로 쌓인다(성공하면 RecordAttempt가 0으로 리셋).
-            bool success = Random.value < EffectiveRate(cost, target);
+            //    롤/실효 성공률/자비 누적은 로그에 원값 그대로 남기려 변수로 붙잡는다
+            //    (화면 표기 %는 반올림, 스탯 프리뷰도 포맷돼서 실제 판정값과 다를 수 있다).
+            float rate = EffectiveRate(cost, target);
+            int failStreakBefore = target.FailStreak;
+            float roll = Random.value;
+            bool success = roll < rate;
             int before = target.EnhanceStep;
             int after = success ? before + 1 : before;
 
             target.ApplyStep(after);
             target.RecordAttempt(success);
 
+            LogAttempt(target, cost, before, after, success, rate, roll, failStreakBefore);
+
             result = new EnhanceResult(success, before, after);
             return true;
+        }
+
+        // 강화 1회의 "실제" 수치를 콘솔에 남긴다 — 화면에 보이는 반올림/포맷 값이 아니라 판정에 쓰인 원값.
+        // [Conditional]이라 에디터/개발빌드에서만 컴파일되고, 릴리스에선 호출부까지 통째로 사라진다(문자열 조립 비용 0).
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+        private void LogAttempt(EquipmentInstance target, EnhanceCostData cost,
+            int before, int after, bool success, float rate, float roll, int failStreakBefore)
+        {
+            var bonus = FindBonus(target.Item != null ? target.Item.Category : ItemCategory.None,
+                                  target.Item != null ? target.Item.Grade : ItemGrade.Normal);
+            int baseStat = target.RolledMainStat;
+            int bonusBefore = bonus != null ? bonus.GetTotalBonus(before) : 0;
+            int bonusAfter = bonus != null ? bonus.GetTotalBonus(after) : 0;
+            var type = target.Equipment != null ? target.Equipment.MainStatType : MainStatType.None;
+
+            Debug.Log(
+                $"[강화 디버그] {(target.Item != null ? target.Item.Name : "?")} +{before} → +{after}  {(success ? "성공" : "실패")}\n" +
+                $"  실효 성공률 {rate:F4} = 기본 {cost.SuccessRate:F4} + 자비 {failStreakBefore}×{PityBonusPerFail:F2}" +
+                $"  |  롤 {roll:F4} ({(success ? "<" : "≥")} {rate:F4})  |  화면표기 {Mathf.RoundToInt(rate * 100f)}%\n" +
+                $"  주스탯 {type} 실제값 {baseStat + bonusBefore} → {baseStat + bonusAfter} (Δ{bonusAfter - bonusBefore})" +
+                $"  [롤base {baseStat} + 보너스 {bonusBefore}→{bonusAfter}]\n" +
+                $"  비용 골드 {cost.ZenyCost} · 하급 {cost.LowMaterial} · 상급 {cost.HighMaterial}  |  다음 연속실패 {target.FailStreak}");
         }
 
         /// <summary>
