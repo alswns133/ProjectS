@@ -2148,6 +2148,11 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7210471230131241780, guid: 85d273f05a6c60e439cbd3c255a7a3c2, type: 3}
   m_PrefabInstance: {fileID: 27926855}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &29722454 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7472919723033611258, guid: 2fab666f554c69a4fbcf4d31e35cf1a9, type: 3}
+  m_PrefabInstance: {fileID: 3892478218708424702}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &29805021
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20176,6 +20181,8 @@ PlayableDirector:
     value: {fileID: 1315396022}
   - key: {fileID: -5546132796669757330, guid: e3e51aa944f7f2544b6d5559d5ebf94b, type: 2}
     value: {fileID: 2020151212}
+  - key: {fileID: 6910575449440359067, guid: e3e51aa944f7f2544b6d5559d5ebf94b, type: 2}
+    value: {fileID: 29722454}
   m_ExposedReferences:
     m_References:
     - 62c9e84a40463cc44a510e8f80263d08: {fileID: 1359891062}
@@ -20198,6 +20205,7 @@ PlayableDirector:
     - dc991dfa2ee5a124d82a2ca8a24436a0: {fileID: 971833072}
     - 31bfffb32c1000a4698a5f79f3466a4c: {fileID: 1315396020}
     - 33b8872225c1df849adc82c6f0d80cdf: {fileID: 1640056309}
+    - b3e538fa8fd43744fafb551ee822922a: {fileID: 1761563918}
     - 5c01ceed893d21547980293414d25e17: {fileID: 0}
     - 7f9c0601682661249a3c2af77c64c667: {fileID: 0}
     - 5361780c4ffede44f8afe2635b91c91a: {fileID: 0}
@@ -20250,6 +20258,18 @@ MonoBehaviour:
         m_TargetAssemblyTypeName: UnityEngine.Playables.PlayableDirector, UnityEngine
         m_MethodName: Play
         m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 268638154}
+        m_TargetAssemblyTypeName: UnityEngine.BoxCollider, UnityEngine
+        m_MethodName: set_enabled
+        m_Mode: 6
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -26368,7 +26388,7 @@ Transform:
   m_GameObject: {fileID: 343343578}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 132.78, y: 6.991, z: -72.37318}
+  m_LocalPosition: {x: 144.88, y: 6.991, z: -92.91523}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -65852,11 +65872,27 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1932d00b1cd6b424d9750273e5a9eeb4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawner
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectSpawner
   prewarm: []
   source: 0
-  defaultPrefab: {fileID: 0}
-  effects: []
+  defaultPrefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+  effects:
+  - key: Attack1
+    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+  - key: Attack2
+    prefab: {fileID: 6708302881962103724, guid: 41ae6ff099e27684a99b1fd6d23941c7, type: 3}
+  - key: Attack3
+    prefab: {fileID: 6294996035555364578, guid: 6338021fcfb16ed4080f35e8a2419541, type: 3}
+  - key: Run_Attack
+    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+  - key: Strong_Attack
+    prefab: {fileID: 7620426476709372169, guid: 7fb10e284ee039944a10e5ed898761a4, type: 3}
+  - key: Jump_Attack_1
+    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+  - key: Jump_Attack_2
+    prefab: {fileID: -5827739164191890754, guid: ab80be6143d129b4682122a9768a151d, type: 3}
+  - key: Skill4_2
+    prefab: {fileID: 2099648373660246879, guid: b192b6cb389965b4aa59515ecb23727e, type: 3}
 --- !u!4 &807700784
 Transform:
   m_ObjectHideFlags: 0
@@ -65886,7 +65922,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectSpawner
   prewarm: []
   source: 1
-  defaultPrefab: {fileID: 0}
+  defaultPrefab: {fileID: -1087211750404857369, guid: 49a5c1d24ccf3c64793c91afbd524f4b, type: 3}
   effects: []
 --- !u!1001 &807978660
 PrefabInstance:
@@ -76529,7 +76565,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 348816684003536057, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 132.78
+      value: 144.88
       objectReference: {fileID: 0}
     - target: {fileID: 348816684003536057, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.y
@@ -76537,7 +76573,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 348816684003536057, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -69.23
+      value: -87.6
       objectReference: {fileID: 0}
     - target: {fileID: 348816684003536057, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalRotation.w
@@ -76591,6 +76627,10 @@ PrefabInstance:
       propertyPath: m_LocalRotation.z
       value: -0.5195466
       objectReference: {fileID: 0}
+    - target: {fileID: 1680978592270901259, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 22100000, guid: e05e963c3909518418730954a6ea4a96, type: 2}
     - target: {fileID: 1729168832162773676, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: projectileSpawner
       value: 
@@ -76633,7 +76673,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3386925869625297108, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -3.1431732
+      value: -5.3152313
       objectReference: {fileID: 0}
     - target: {fileID: 3591862489331098153, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.x
@@ -94721,13 +94761,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DamageTextSpawner
   prefab: {fileID: -6922690855454318481, guid: ef331978f5d6d984b8cf7e330e8a53ef, type: 3}
-  initialPoolSize: 10
-  spawnJitter: 0.3
+  initialPoolSize: 15
+  spawnJitter: 0.5
   normal:
     color: {r: 1, g: 1, b: 1, a: 1}
     format: '{0}'
   critical:
-    color: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+    color: {r: 1, g: 1, b: 0, a: 1}
     format: '<size=50%>CRITICAL</size>
 
       {0}'
@@ -192479,6 +192519,10 @@ PrefabInstance:
     - target: {fileID: 7472919723033611258, guid: 2fab666f554c69a4fbcf4d31e35cf1a9, type: 3}
       propertyPath: m_Name
       value: Boss
+      objectReference: {fileID: 0}
+    - target: {fileID: 7472919723033611258, guid: 2fab666f554c69a4fbcf4d31e35cf1a9, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7853983396913844544, guid: 2fab666f554c69a4fbcf4d31e35cf1a9, type: 3}
       propertyPath: m_LocalPosition.x
