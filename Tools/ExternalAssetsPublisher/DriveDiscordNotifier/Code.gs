@@ -1,17 +1,21 @@
 /**
  * ProjectS 외부 에셋 Drive 배포 알림기
  *
- * 설정값은 코드가 아닌 Apps Script 프로젝트 속성에 저장한다.
- * - MANIFEST_FILE_ID: 팀원 런처가 읽는 manifest.json의 Drive 파일 ID
- * - DISCORD_WEBHOOK_URL: 알림을 보낼 Discord 채널 Webhook URL
+ * [처음 한 번만] 아래 CONFIG의 두 따옴표 안을 채운다.
+ * - manifestFileId: 팀원 런처가 읽는 manifest.json의 Drive 파일 ID
+ * - discordWebhookUrl: 알림을 보낼 Discord 채널 Webhook URL
  *
  * 5분 주기 checkForRelease() 트리거가 manifest.latestVersion 증가만 Discord에 알린다.
  * ZIP/스냅샷 업로드는 게시 전 중간 단계이므로 알리지 않는다.
  */
 
-const PROPERTY_MANIFEST_FILE_ID = 'MANIFEST_FILE_ID';
-const PROPERTY_DISCORD_WEBHOOK_URL = 'DISCORD_WEBHOOK_URL';
 const PROPERTY_LAST_NOTIFIED_VERSION = 'LAST_NOTIFIED_VERSION';
+
+// ★ 여기 두 줄만 채우세요. 값은 Git에 커밋하거나 다른 사람에게 공유하지 마세요.
+const CONFIG = Object.freeze({
+  manifestFileId: '여기에_manifest.json_파일_ID만_붙여넣기',
+  discordWebhookUrl: '여기에_새_Discord_Webhook_URL_붙여넣기',
+});
 
 /**
  * 최초 설정: 현재 Drive 최신 버전을 기준선으로 저장하고, 이후 버전부터 자동 알림한다.
@@ -69,9 +73,7 @@ function installFiveMinuteTrigger() {
 }
 
 function readManifest_() {
-  const properties = PropertiesService.getScriptProperties();
-  const manifestFileId = requiredProperty_(properties, PROPERTY_MANIFEST_FILE_ID);
-  const text = DriveApp.getFileById(manifestFileId).getBlob().getDataAsString('UTF-8');
+  const text = DriveApp.getFileById(requiredConfig_('manifestFileId')).getBlob().getDataAsString('UTF-8');
   const manifest = JSON.parse(text);
 
   if (manifest.schemaVersion !== 2 || !Number.isInteger(manifest.latestVersion)
@@ -83,8 +85,7 @@ function readManifest_() {
 }
 
 function postReleaseToDiscord_(packageInfo, previousVersion, isTest) {
-  const properties = PropertiesService.getScriptProperties();
-  const webhookUrl = requiredProperty_(properties, PROPERTY_DISCORD_WEBHOOK_URL);
+  const webhookUrl = requiredConfig_('discordWebhookUrl');
   const removedCount = Array.isArray(packageInfo.removedPaths) ? packageInfo.removedPaths.length : 0;
   const title = isTest ? '🧪 ProjectS 외부 에셋 알림 시험' : '📦 ProjectS 외부 에셋 패치 배포';
   const content = [
@@ -109,10 +110,10 @@ function postReleaseToDiscord_(packageInfo, previousVersion, isTest) {
   }
 }
 
-function requiredProperty_(properties, key) {
-  const value = properties.getProperty(key);
-  if (!value) {
-    throw new Error(`스크립트 속성 '${key}'를 먼저 설정하세요.`);
+function requiredConfig_(key) {
+  const value = CONFIG[key];
+  if (!value || value.startsWith('여기에_')) {
+    throw new Error(`Code.gs 상단 CONFIG의 '${key}' 값을 먼저 붙여넣으세요.`);
   }
 
   return value;

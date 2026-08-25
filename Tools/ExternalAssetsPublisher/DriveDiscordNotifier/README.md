@@ -10,12 +10,12 @@
 
 1. [Google Apps Script](https://script.google.com/home)에서 **새 프로젝트**를 만듭니다.
 2. `Code.gs` 내용을 이 폴더의 [`Code.gs`](Code.gs) 내용으로 전부 교체하고 저장합니다.
-3. 좌측 **프로젝트 설정 → 스크립트 속성**에서 아래 두 값을 추가합니다.
+3. 코드 맨 위 `CONFIG`에서 **따옴표 안 두 곳만** 채웁니다.
 
-   | 속성 | 값 |
+   | 코드 항목 | 붙여넣을 값 |
    | --- | --- |
-   | `MANIFEST_FILE_ID` | 팀원 런처가 읽는 Drive `manifest.json` 파일 ID |
-   | `DISCORD_WEBHOOK_URL` | 알림을 받을 Discord 채널의 Webhook URL |
+   | `manifestFileId` | 팀원 런처가 읽는 Drive `manifest.json`의 **파일 ID만** |
+   | `discordWebhookUrl` | 새로 발급한 Discord Webhook URL 전체 |
 
    Webhook URL은 비밀값입니다. Git, manifest.json, 팀 채팅에 올리지 마세요.
 
