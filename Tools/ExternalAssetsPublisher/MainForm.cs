@@ -1332,6 +1332,21 @@ internal sealed class MainForm : Form
 
             var latestVersion = driveManifest.LatestVersion;
             var channelId = driveManifest.ChannelId;
+
+            // 여러 배포자 안전 게이트: 비교 기준(Drive 최신)과 실제 로컬 설치본이 정확히 같지 않으면
+            // 남의 추가 파일을 '삭제됨'으로 오인할 수 있다. 확인 불가(null)도 안전하게 차단한다.
+            var installedVersion = PublisherServices.TryReadInstalledVersion(projectPath);
+            if (installedVersion != latestVersion)
+            {
+                var installedDescription = installedVersion is int installed
+                    ? $"로컬 설치본은 v{installed}"
+                    : "로컬 설치 버전을 확인할 수 없음";
+                throw new InvalidOperationException(
+                    $"게시 전 최신화가 필요합니다. Drive 최신은 v{latestVersion}, {installedDescription}입니다. "
+                    + "ProjectSLauncher에서 '업데이트 확인 → 업데이트 설치'를 완료한 뒤 다시 시도하세요. "
+                    + "(최신화 없이 게시하면 다른 배포자의 파일이 삭제로 판단될 수 있습니다.)");
+            }
+
             var latestPackage = driveManifest.Packages.FirstOrDefault(package => package.Version == latestVersion);
             var baselineSnapshotId = latestPackage?.SnapshotDriveFileId ?? string.Empty;
             if (string.IsNullOrWhiteSpace(baselineSnapshotId))
