@@ -50,9 +50,15 @@ internal sealed class MainForm : Form
     private readonly Button _createPackageButton = new() { Text = "ZIP 생성", AutoSize = true };
     private readonly Button _loadBaseZipButton = new() { Text = "Base Builder ZIP 선택", AutoSize = true };
     private readonly Button _saveManifestButton = new() { Text = "manifest.json 저장", AutoSize = true, Enabled = false };
+    private readonly TextBox _snapshotPathTextBox = new() { Dock = DockStyle.Fill };
+    private readonly TextBox _snapshotDriveIdTextBox = new() { Dock = DockStyle.Fill };
+    private readonly Button _selectSnapshotButton = new() { Text = "찾기", AutoSize = true };
+    private readonly Button _composePatchButton = new() { Text = "변경 비교 → 패치 자동 구성", AutoSize = true };
+    private readonly Button _createSnapshotButton = new() { Text = "현재 스냅샷 생성", AutoSize = true };
 
     private readonly List<SourceSelection> _sources = [];
     private PackageBuildResult? _packageBuild;
+    private string? _generatedSnapshotPath;
     private bool _isImportedBasePackage;
     private bool _isBusy;
 
@@ -76,7 +82,7 @@ internal sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(16),
             ColumnCount = 3,
-            RowCount = 12,
+            RowCount = 15,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -88,6 +94,9 @@ internal sealed class MainForm : Form
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -130,11 +139,21 @@ internal sealed class MainForm : Form
         layout.Controls.Add(actions, 1, 10);
         layout.SetColumnSpan(actions, 2);
 
+        AddRow(layout, 11, "직전 버전 스냅샷(json)", _snapshotPathTextBox, _selectSnapshotButton);
+        AddRow(layout, 12, "스냅샷 Drive 링크 / ID", _snapshotDriveIdTextBox, null);
+
+        var autoActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+        autoActions.Controls.Add(_composePatchButton);
+        autoActions.Controls.Add(_createSnapshotButton);
+        layout.Controls.Add(autoActions, 1, 13);
+        layout.SetColumnSpan(autoActions, 2);
+
         var help = new Label
         {
             AutoSize = true,
             MaximumSize = new Size(900, 0),
-            Text = "일반 ZIP 생성은 Patch v2부터입니다. 최초 Base v1은 Base Builder ZIP 선택으로 다시 압축하지 않고 검사·등록합니다. 둘 다 제한된 Drive에 올린 뒤 파일 링크 또는 ID를 붙여넣고 manifest.json을 저장하세요.",
+            Text = "수동: 파일/폴더를 골라 ZIP 생성. 자동: 직전 버전 스냅샷(json)을 지정하고 '변경 비교 → 패치 자동 구성'을 누르면 바뀐 파일만 담은 패치 ZIP과 새 스냅샷을 만들어 줍니다. "
+                + "최초 Base v1은 Base Builder ZIP 선택으로 등록합니다. 만든 ZIP·스냅샷을 제한된 Drive에 올린 뒤 각 링크/ID를 붙여넣고 manifest.json을 저장하세요.",
         };
         var footer = new FlowLayoutPanel
         {
@@ -146,7 +165,7 @@ internal sealed class MainForm : Form
         footer.Controls.Add(_statusLabel);
         footer.Controls.Add(_resultLabel);
         footer.Controls.Add(help);
-        layout.Controls.Add(footer, 1, 11);
+        layout.Controls.Add(footer, 1, 14);
         layout.SetColumnSpan(footer, 2);
 
         Controls.Add(layout);
@@ -162,6 +181,9 @@ internal sealed class MainForm : Form
         _createPackageButton.Click += async (_, _) => await CreatePackageAsync();
         _loadBaseZipButton.Click += async (_, _) => await SelectExistingBaseZipAsync();
         _saveManifestButton.Click += async (_, _) => await SaveManifestAsync();
+        _selectSnapshotButton.Click += (_, _) => SelectSnapshotPath();
+        _composePatchButton.Click += async (_, _) => await ComposePatchAsync();
+        _createSnapshotButton.Click += async (_, _) => await CreateSnapshotAsync();
         Load += (_, _) => Initialize();
     }
 
@@ -441,8 +463,190 @@ internal sealed class MainForm : Form
                 _packageTypeComboBox.SelectedItem?.ToString() ?? "patch",
                 _packageBuild,
                 _driveFileIdTextBox.Text.Trim(),
-                ParseRemovedPaths());
+                ParseRemovedPaths(),
+                _snapshotDriveIdTextBox.Text.Trim());
             SetStatus("manifest.json 저장 완료. Drive의 기존 manifest.json 파일은 새 버전으로 교체해 같은 파일 ID를 유지하세요.");
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private void SelectSnapshotPath()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "직전 배포 버전의 스냅샷(release-snapshot-vN.json)을 선택하세요.",
+            Filter = "JSON 파일 (*.json)|*.json",
+            CheckFileExists = true,
+        };
+        var initialDirectory = Path.GetDirectoryName(_snapshotPathTextBox.Text);
+        if (Directory.Exists(initialDirectory))
+        {
+            dialog.InitialDirectory = initialDirectory;
+        }
+        else if (Directory.Exists(_outputPathTextBox.Text))
+        {
+            dialog.InitialDirectory = _outputPathTextBox.Text;
+        }
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _snapshotPathTextBox.Text = dialog.FileName;
+        }
+    }
+
+    /// <summary>
+    /// 직전 버전 스냅샷과 현재 ExternalAssets를 비교해, 바뀐 파일만 담은 패치 ZIP과
+    /// 새 버전 스냅샷을 자동으로 만든다. 사람이 파일을 고르는 수동 흐름을 대신한다.
+    /// 여러 배포자 환경이라, 시작 전에 "로컬이 서버 최신보다 뒤처졌는지"를 확인해
+    /// 뒤처진 상태로 만들다 남의 추가 파일이 삭제로 잡히는 사고를 막는다.
+    /// </summary>
+    private async Task ComposePatchAsync()
+    {
+        try
+        {
+            var projectPath = GetProjectPathOrThrow();
+            var manifestPath = _manifestPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(manifestPath))
+            {
+                throw new InvalidOperationException("manifest.json 위치를 지정하세요. 직전 버전 정보를 여기서 읽습니다.");
+            }
+
+            var outputPath = _outputPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                throw new InvalidOperationException("ZIP 저장 폴더를 지정하세요.");
+            }
+
+            SetBusy(true);
+            SetStatus("manifest와 직전 스냅샷을 확인하는 중입니다.");
+            var manifest = await PublisherServices.LoadManifestAsync(manifestPath);
+            if (manifest.Packages.Count == 0)
+            {
+                throw new InvalidOperationException("manifest에 base(v1)가 없습니다. 최초 Base v1을 먼저 등록하세요. 패치는 v2부터입니다.");
+            }
+
+            var latestVersion = manifest.LatestVersion;
+            var channelId = manifest.ChannelId;
+            var baseline = await SnapshotService.ReadAsync(_snapshotPathTextBox.Text.Trim());
+            if (baseline.Version != latestVersion)
+            {
+                throw new InvalidOperationException(
+                    $"선택한 스냅샷은 v{baseline.Version}인데 manifest 최신은 v{latestVersion}입니다. 최신(v{latestVersion}) 스냅샷을 받아 사용하세요.");
+            }
+
+            if (!string.Equals(baseline.ChannelId, channelId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("스냅샷과 manifest의 channelId가 다릅니다. 같은 배포 채널의 파일을 사용하세요.");
+            }
+
+            var installedVersion = PublisherServices.TryReadInstalledVersion(projectPath);
+            if (installedVersion is int installed && installed < latestVersion)
+            {
+                throw new InvalidOperationException(
+                    $"로컬 외부 에셋이 v{installed}로 서버 최신 v{latestVersion}보다 뒤처져 있습니다. 런처로 최신 패치를 먼저 받은 뒤 다시 시도하세요. "
+                    + "(뒤처진 상태로 만들면 다른 사람이 추가한 파일이 삭제로 잡힐 수 있습니다.)");
+            }
+
+            var newVersion = latestVersion + 1;
+            SetStatus($"현재 ExternalAssets를 해시해 v{latestVersion}과 비교하는 중입니다… (파일이 많으면 시간이 걸려요)");
+            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, channelId));
+            var delta = SnapshotService.ComputeDelta(baseline, current);
+            if (!delta.HasChanges)
+            {
+                SetStatus("변경 사항이 없습니다. 만들 패치가 없어요.");
+                return;
+            }
+
+            var changedFiles = delta.Added.Concat(delta.Modified).ToArray();
+            if (changedFiles.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "이번 변경은 삭제만 있습니다. 현재 패치는 추가/수정 파일이 최소 1개 필요합니다(삭제 전용 패치는 아직 지원하지 않습니다).");
+            }
+
+            var packageName = $"Patch_v{newVersion}.zip";
+            SetStatus($"바뀐 파일 {changedFiles.Length:N0}개로 {packageName}을 만드는 중입니다…");
+            var package = await Task.Run(() => PublisherServices.CreatePatchPackageFromFiles(
+                projectPath, changedFiles, outputPath, packageName));
+
+            var snapshotOutputPath = Path.Combine(outputPath, $"release-snapshot-v{newVersion}.json");
+            await SnapshotService.WriteAsync(snapshotOutputPath, current);
+            _generatedSnapshotPath = snapshotOutputPath;
+
+            // 자동 구성 결과를 저장 흐름에 연결: 버전·이름·삭제 경로를 채우고 패키지를 확정한다.
+            _isImportedBasePackage = false;
+            _packageBuild = package;
+            _versionInput.Value = newVersion;
+            _packageTypeComboBox.SelectedItem = "patch";
+            _packageNameTextBox.Text = packageName;
+            _removedPathsTextBox.Text = string.Join("\r\n", delta.Removed);
+            _baseZipPathTextBox.Clear();
+            _driveFileIdTextBox.Clear();
+            _snapshotDriveIdTextBox.Clear();
+
+            _resultLabel.Text =
+                $"v{newVersion} 패치 구성 완료\r\n"
+                + $"추가 {delta.Added.Count:N0} · 수정 {delta.Modified.Count:N0} · 삭제 {delta.Removed.Count:N0}\r\n"
+                + $"ZIP: {package.ZipPath}  ({FormatBytes(package.SizeBytes)}, SHA-256 {package.Sha256})\r\n"
+                + $"새 스냅샷: {snapshotOutputPath}";
+
+            var removedWarning = delta.Removed.Count > 0
+                ? $" ⚠️ 삭제 {delta.Removed.Count}건 — '삭제할 상대 경로'를 꼭 확인하세요."
+                : string.Empty;
+            SetStatus(
+                $"v{newVersion} 자동 구성 완료.{removedWarning} ZIP과 새 스냅샷을 Drive에 올린 뒤 각 링크/ID를 입력하고 manifest.json을 저장하세요.");
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    /// <summary>
+    /// 현재 ExternalAssets를 manifest 최신 버전의 스냅샷으로 생성한다.
+    /// 최초 1회(v1) 기준선을 만들 때 사용한다(로컬이 정확히 그 버전일 때).
+    /// 이후 버전 스냅샷은 <see cref="ComposePatchAsync"/>가 자동으로 만든다.
+    /// </summary>
+    private async Task CreateSnapshotAsync()
+    {
+        try
+        {
+            var projectPath = GetProjectPathOrThrow();
+            var manifestPath = _manifestPathTextBox.Text.Trim();
+            var outputPath = _outputPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(manifestPath) || string.IsNullOrWhiteSpace(outputPath))
+            {
+                throw new InvalidOperationException("manifest.json 위치와 ZIP 저장 폴더를 먼저 지정하세요.");
+            }
+
+            SetBusy(true);
+            var manifest = await PublisherServices.LoadManifestAsync(manifestPath);
+            if (manifest.Packages.Count == 0)
+            {
+                throw new InvalidOperationException("manifest에 등록된 버전이 없습니다. 먼저 Base v1을 등록하세요.");
+            }
+
+            var version = manifest.LatestVersion;
+            SetStatus($"현재 ExternalAssets를 v{version} 스냅샷으로 만드는 중입니다… (파일이 많으면 시간이 걸려요)");
+            var snapshot = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, version, manifest.ChannelId));
+            var snapshotOutputPath = Path.Combine(outputPath, $"release-snapshot-v{version}.json");
+            await SnapshotService.WriteAsync(snapshotOutputPath, snapshot);
+            _generatedSnapshotPath = snapshotOutputPath;
+            _resultLabel.Text = $"v{version} 스냅샷 생성: {snapshotOutputPath}\r\n파일 {snapshot.Entries.Count:N0}개";
+            SetStatus(
+                $"v{version} 스냅샷 생성 완료. 이 파일을 제한된 Drive에 올린 뒤, (최초 1회) manifest의 v{version} 항목 snapshotDriveFileId에 파일 ID를 넣으세요. "
+                + "이후 패치는 '변경 비교 → 패치 자동 구성'이 스냅샷을 자동으로 만들어 줍니다.");
         }
         catch (Exception exception)
         {
@@ -598,6 +802,11 @@ internal sealed class MainForm : Form
         _loadBaseZipButton.Enabled = !_isBusy;
         _createPackageButton.Enabled = !_isBusy && !_isImportedBasePackage;
         _saveManifestButton.Enabled = !_isBusy && _packageBuild is not null;
+        _snapshotPathTextBox.Enabled = canInteract;
+        _snapshotDriveIdTextBox.Enabled = canInteract;
+        _selectSnapshotButton.Enabled = canInteract;
+        _composePatchButton.Enabled = !_isBusy && !_isImportedBasePackage;
+        _createSnapshotButton.Enabled = canInteract;
     }
 
     private void SetStatus(string status)

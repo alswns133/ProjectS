@@ -64,10 +64,14 @@ internal static class PublisherServices
         string packageType,
         PackageBuildResult package,
         string driveFileSource,
-        IReadOnlyList<string> removedPaths)
+        IReadOnlyList<string> removedPaths,
+        string? snapshotDriveFileSource = null)
     {
         EnsurePackageStillMatches(package);
         var driveFileId = ParseGoogleDriveFileId(driveFileSource);
+        var snapshotDriveFileId = string.IsNullOrWhiteSpace(snapshotDriveFileSource)
+            ? string.Empty
+            : ParseGoogleDriveFileId(snapshotDriveFileSource);
 
         if (packageType is not ("base" or "patch"))
         {
@@ -153,6 +157,7 @@ internal static class PublisherServices
             Name = package.PackageName,
             DriveFileId = driveFileId,
             Sha256 = package.Sha256,
+            SnapshotDriveFileId = snapshotDriveFileId,
             RemovedPaths = normalizedRemovedPaths.ToList(),
         });
 
@@ -242,6 +247,125 @@ internal static class PublisherServices
             files.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray(),
             zipInfo.LastWriteTimeUtc,
             PackageBuildOrigin.ProjectPatch);
+    }
+
+    /// <summary>
+    /// 스냅샷 diff로 뽑은 "바뀐 파일들"의 상대 경로만 받아 패치 ZIP을 만든다.
+    /// 사람이 파일을 고르는 <see cref="CreatePackage"/>와 달리, 경로가 이미 확정돼 있으므로
+    /// 각 경로가 ExternalAssets 안의 실제 파일인지만 검증하고 그대로 담는다.
+    /// (.meta는 diff가 이미 개별 파일로 잡아내므로 여기서 별도 동반 처리를 하지 않는다.)
+    /// </summary>
+    public static PackageBuildResult CreatePatchPackageFromFiles(
+        string projectPath,
+        IReadOnlyCollection<string> relativeFilePaths,
+        string outputDirectory,
+        string packageName)
+    {
+        if (!IsUnityProject(projectPath))
+        {
+            throw new InvalidOperationException("올바른 Unity 프로젝트 폴더를 선택하세요.");
+        }
+
+        if (relativeFilePaths.Count == 0)
+        {
+            throw new InvalidOperationException("패치에 담을 변경 파일이 없습니다.");
+        }
+
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            throw new InvalidOperationException("ZIP 저장 폴더를 선택하세요.");
+        }
+
+        packageName = ValidatePackageName(packageName);
+        var externalAssetsPath = GetExternalAssetsPath(projectPath);
+        if (!Directory.Exists(externalAssetsPath))
+        {
+            throw new InvalidOperationException("Assets/ExternalAssets 폴더를 찾을 수 없습니다.");
+        }
+
+        var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var relativePath in relativeFilePaths)
+        {
+            var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar).Trim();
+            if (string.IsNullOrWhiteSpace(normalized)
+                || Path.IsPathRooted(normalized)
+                || normalized.Split(Path.DirectorySeparatorChar).Any(segment => segment == ".."))
+            {
+                throw new InvalidOperationException($"패치 경로가 올바르지 않습니다: {relativePath}");
+            }
+
+            var fullPath = Path.GetFullPath(Path.Combine(externalAssetsPath, normalized));
+            var canonicalRelative = GetRelativePathUnderRoot(externalAssetsPath, fullPath);
+            if (!File.Exists(fullPath))
+            {
+                throw new InvalidOperationException($"패치에 담을 파일을 찾을 수 없습니다: {canonicalRelative}");
+            }
+
+            files[canonicalRelative] = fullPath;
+        }
+
+        var outputFullDirectory = Path.GetFullPath(outputDirectory);
+        Directory.CreateDirectory(outputFullDirectory);
+        var zipPath = Path.Combine(outputFullDirectory, packageName);
+        if (File.Exists(zipPath))
+        {
+            throw new InvalidOperationException($"같은 이름의 ZIP이 이미 있습니다: {zipPath}");
+        }
+
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            foreach (var pair in files.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                var entry = archive.CreateEntry(ToArchivePath(pair.Key), CompressionLevel.Optimal);
+                using var source = File.OpenRead(pair.Value);
+                using var destination = entry.Open();
+                source.CopyTo(destination);
+            }
+        }
+
+        var hash = ComputeSha256(zipPath);
+        var zipInfo = new FileInfo(zipPath);
+        return new PackageBuildResult(
+            zipPath,
+            packageName,
+            hash,
+            zipInfo.Length,
+            files.Count,
+            files.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray(),
+            zipInfo.LastWriteTimeUtc,
+            PackageBuildOrigin.ProjectPatch);
+    }
+
+    /// <summary>
+    /// 런처가 남긴 installed-state.json에서 로컬에 설치된 외부 에셋 버전을 읽는다.
+    /// 여러 배포자 환경에서 "로컬이 서버 최신보다 뒤처졌는지"를 게시 전에 가려,
+    /// 뒤처진 상태로 패치를 만들어 남의 추가 파일이 삭제로 잡히는 사고를 막는 데 쓴다.
+    /// 파일이 없거나 읽을 수 없으면 null(=확인 불가).
+    /// </summary>
+    public static int? TryReadInstalledVersion(string projectPath)
+    {
+        var statePath = Path.Combine(projectPath, "Library", "ExternalAssetsLauncher", "installed-state.json");
+        if (!File.Exists(statePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(statePath);
+            using var document = JsonDocument.Parse(stream);
+            if (document.RootElement.TryGetProperty("installedVersion", out var value)
+                && value.TryGetInt32(out var version))
+            {
+                return version;
+            }
+        }
+        catch
+        {
+            return null;
+        }
+
+        return null;
     }
 
     /// <summary>
