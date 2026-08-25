@@ -21,7 +21,7 @@ namespace ProjectS.Enemies
         private const float EnterTimeout = 1f;
 
         // 종료 감지 실패(클립이 루프이거나 태그 누락 등) 시 강제로 넘기는 상한. 정상 공격 길이보다 길게.
-        private const float MaxAttackTime = 5f;
+        private const float MaxAttackTime = 15f;
 
         public EnemyAttackState(Enemy enemy) : base(enemy) { }
 

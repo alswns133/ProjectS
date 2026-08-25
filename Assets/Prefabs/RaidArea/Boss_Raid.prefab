@@ -8174,6 +8174,38 @@ SkinnedMeshRenderer:
     m_Center: {x: -2.0070877, y: -0.25205758, z: -0.82030386}
     m_Extent: {x: 0.3822872, y: 0.22040239, z: 0.3932938}
   m_DirtyAABB: 0
+--- !u!1 &3713855169101047040
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5856915639671752424}
+  m_Layer: 0
+  m_Name: HitBox
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5856915639671752424
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3713855169101047040}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7871119233335044532}
+  m_Father: {fileID: 5680125826446750639}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3739754496169349725
 GameObject:
   m_ObjectHideFlags: 0
@@ -11898,6 +11930,8 @@ Transform:
   m_Children:
   - {fileID: 9033583492946465936}
   - {fileID: 2892049140261683861}
+  - {fileID: 5894830603581904179}
+  - {fileID: 5856915639671752424}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!95 &1744001967788435925
@@ -12024,9 +12058,129 @@ MonoBehaviour:
     muzzleFlash: {fileID: 0}
     canPierce: 0
   attacks:
-  - name: Attack 1
+  - name: Attack1
     kind: 0
     animationIndex: 0
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack2
+    kind: 0
+    animationIndex: 1
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack3
+    kind: 0
+    animationIndex: 2
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack4
+    kind: 0
+    animationIndex: 3
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack5
+    kind: 0
+    animationIndex: 4
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack6
+    kind: 0
+    animationIndex: 5
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack7
+    kind: 0
+    animationIndex: 6
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack8
+    kind: 0
+    animationIndex: 7
+    range: 8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Grab
+    kind: 0
+    animationIndex: 10
     range: 8
     minRange: 0
     cooldown: 2
@@ -12094,17 +12248,17 @@ MonoBehaviour:
   allyBlockRadius: 0.4
   allyBlockDistance: 1.2
   allyBlockProbeHeight: 0.5
-  allySidestepAngle: 45
+  allySidestepAngle: 0
   surroundAngleRange: 0
   hitRecoveryDelay: 0
-  grabHitbox: {fileID: 0}
+  grabHitbox: {fileID: 7871119233335044532}
   grabTargetMask:
     serializedVersion: 2
     m_Bits: 256
-  grabAnchor: {fileID: 0}
+  grabAnchor: {fileID: 5894830603581904179}
   grabDamageCoef: 1
-  throwHorizontalSpeed: 6
-  throwUpSpeed: 6
+  throwHorizontalSpeed: 0
+  throwUpSpeed: 0
 --- !u!114 &7284494763945736649
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13801,6 +13955,37 @@ SkinnedMeshRenderer:
     m_Center: {x: -0.28446326, y: -0.20675981, z: 0.0495826}
     m_Extent: {x: 0.23106048, y: 0.2990079, z: 0.34477937}
   m_DirtyAABB: 0
+--- !u!1 &5951808257894529104
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5894830603581904179}
+  m_Layer: 0
+  m_Name: GarbAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &5894830603581904179
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5951808257894529104}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5680125826446750639}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5983656477832217950
 GameObject:
   m_ObjectHideFlags: 0
@@ -15024,6 +15209,96 @@ SkinnedMeshRenderer:
     m_Center: {x: -1.2996411, y: -0.17660184, z: 0.6964044}
     m_Extent: {x: 0.43579745, y: 0.5681091, z: 0.28999192}
   m_DirtyAABB: 0
+--- !u!1 &6298175469952896753
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7871119233335044532}
+  - component: {fileID: 3804399450644318666}
+  - component: {fileID: 9005298344397130371}
+  m_Layer: 0
+  m_Name: Garb
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &7871119233335044532
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6298175469952896753}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.5, y: 1.5, z: 2.79}
+  m_LocalScale: {x: 5, y: 3, z: 5}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5856915639671752424}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &3804399450644318666
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6298175469952896753}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &9005298344397130371
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6298175469952896753}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &6328607257982031576
 GameObject:
   m_ObjectHideFlags: 0
