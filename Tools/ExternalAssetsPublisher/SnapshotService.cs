@@ -122,6 +122,44 @@ internal static class SnapshotService
         File.Move(temporaryPath, fullPath, true);
     }
 
+    /// <summary>
+    /// baseline에 '선택된 변경'만 적용한 다음 버전 스냅샷을 만든다. 체크리스트에서 일부만 골라 압축할 때,
+    /// 실제 게시되는 버전은 baseline + 선택분이므로 스냅샷도 그에 맞춰야 다음 diff가 어긋나지 않는다.
+    /// (현재 전체를 그대로 스냅샷으로 쓰면, 제외한 변경까지 '이미 올라간 것'으로 기록돼 다음에 누락된다.)
+    /// </summary>
+    public static ReleaseSnapshot BuildNextSnapshot(
+        ReleaseSnapshot baseline,
+        ReleaseSnapshot current,
+        IEnumerable<string> includedAddedOrModified,
+        IEnumerable<string> includedRemoved,
+        int version,
+        string channelId)
+    {
+        var entries = new Dictionary<string, ReleaseSnapshotEntry>(baseline.Entries, StringComparer.Ordinal);
+        foreach (var path in includedAddedOrModified)
+        {
+            var key = path.Replace('\\', '/');
+            if (current.Entries.TryGetValue(key, out var entry))
+            {
+                entries[key] = entry;
+            }
+        }
+
+        foreach (var path in includedRemoved)
+        {
+            entries.Remove(path.Replace('\\', '/'));
+        }
+
+        return new ReleaseSnapshot
+        {
+            SchemaVersion = 1,
+            Version = version,
+            ChannelId = channelId,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            Entries = entries,
+        };
+    }
+
     /// <summary>baseline(직전 버전) 대비 current(지금)의 추가/수정/삭제 파일을 계산한다.</summary>
     public static SnapshotDelta ComputeDelta(ReleaseSnapshot baseline, ReleaseSnapshot current)
     {

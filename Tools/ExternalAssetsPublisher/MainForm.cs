@@ -48,6 +48,7 @@ internal sealed class MainForm : Form
     private readonly Button _selectProjectButton = new() { Text = "찾기", AutoSize = true };
     private readonly Button _selectOutputButton = new() { Text = "찾기", AutoSize = true };
     private readonly Button _selectManifestButton = new() { Text = "찾기", AutoSize = true };
+    private readonly Button _detectChangesButton = new() { Text = "변경 파일 자동 찾기", AutoSize = true };
     private readonly Button _addFilesButton = new() { Text = "파일 추가", AutoSize = true };
     private readonly Button _addFolderButton = new() { Text = "폴더 추가", AutoSize = true };
     private readonly Button _removeSourcesButton = new() { Text = "선택 제거", AutoSize = true };
@@ -78,6 +79,13 @@ internal sealed class MainForm : Form
     private bool _isImportedBasePackage;
     private bool _isBusy;
 
+    // 변경 자동 감지(체크리스트) 모드. 목록이 SourceSelection(수동) 대신 감지된 변경 파일로 채워진다.
+    private bool _changeMode;
+    private ReleaseSnapshot? _changeBaseline;
+    private ReleaseSnapshot? _changeCurrent;
+
+    private sealed record ChangeItem(string RelativePath, string Kind);
+
     public MainForm()
     {
         Text = "ProjectS 외부 에셋 배포자";
@@ -92,9 +100,9 @@ internal sealed class MainForm : Form
         _packageTypeComboBox.SelectedItem = "patch";
         _packageNameTextBox.Text = "Patch_v2.zip";
 
-        _sourceList.Columns.Add("종류", 80);
-        _sourceList.Columns.Add("원본 위치 (ExternalAssets 기준)", 460);
-        _sourceList.Columns.Add("ZIP 내부 기록", 360);
+        _sourceList.CheckBoxes = true;
+        _sourceList.Columns.Add("종류", 90);
+        _sourceList.Columns.Add("경로 (ExternalAssets 기준)", 700);
 
         var layout = new TableLayoutPanel
         {
@@ -148,6 +156,7 @@ internal sealed class MainForm : Form
         layout.SetColumnSpan(_sourceList, 2);
 
         var sourceActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+        sourceActions.Controls.Add(_detectChangesButton);
         sourceActions.Controls.Add(_addFilesButton);
         sourceActions.Controls.Add(_addFolderButton);
         sourceActions.Controls.Add(_removeSourcesButton);
@@ -214,6 +223,7 @@ internal sealed class MainForm : Form
         _selectProjectButton.Click += (_, _) => SelectProjectFolder();
         _selectOutputButton.Click += (_, _) => SelectOutputFolder();
         _selectManifestButton.Click += (_, _) => SelectManifestPath();
+        _detectChangesButton.Click += async (_, _) => await DetectChangesAsync();
         _addFilesButton.Click += (_, _) => AddFiles();
         _addFolderButton.Click += (_, _) => AddFolder();
         _removeSourcesButton.Click += (_, _) => RemoveSelectedSources();
@@ -437,6 +447,18 @@ internal sealed class MainForm : Form
 
     private void RemoveSelectedSources()
     {
+        if (_changeMode)
+        {
+            // 감지 목록에서는 선택 행을 목록에서 빼면 그만(체크 해제로 제외해도 됨).
+            foreach (var item in _sourceList.SelectedItems.Cast<ListViewItem>().ToArray())
+            {
+                _sourceList.Items.Remove(item);
+            }
+
+            InvalidatePackageBuild();
+            return;
+        }
+
         var removedAny = false;
         foreach (ListViewItem item in _sourceList.SelectedItems)
         {
@@ -454,6 +476,97 @@ internal sealed class MainForm : Form
         RefreshSourceList();
     }
 
+    /// <summary>
+    /// 직전 버전 스냅샷과 현재 ExternalAssets를 비교해, 바뀐 파일(추가·수정)을 '압축할 원본' 목록에
+    /// 체크박스로 채운다. 유니티 패키지 임포트 창처럼, 담을 파일만 체크로 골라 'ZIP 생성'하면 된다.
+    /// 삭제된 파일은 '삭제할 상대 경로'에 자동으로 채운다.
+    /// </summary>
+    private async Task DetectChangesAsync()
+    {
+        try
+        {
+            if (_isImportedBasePackage)
+            {
+                throw new InvalidOperationException("Base 등록 모드입니다. 변경 감지는 패치 흐름에서만 씁니다.");
+            }
+
+            var projectPath = GetProjectPathOrThrow();
+            var snapshotPath = _snapshotPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(snapshotPath))
+            {
+                throw new InvalidOperationException(
+                    "‘직전 버전 스냅샷(json)’을 지정하세요. Drive에서 최신 스냅샷을 받아 넣거나, 로그인 상태면 ‘Drive와 비교’를 쓰세요.");
+            }
+
+            SetBusy(true);
+            SetStatus("직전 스냅샷을 읽고 현재 파일과 비교하는 중… (파일이 많으면 시간이 걸려요)");
+            var baseline = await SnapshotService.ReadAsync(snapshotPath);
+            var newVersion = baseline.Version + 1;
+            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, baseline.ChannelId));
+            var delta = SnapshotService.ComputeDelta(baseline, current);
+
+            _changeMode = true;
+            _changeBaseline = baseline;
+            _changeCurrent = current;
+            _sources.Clear();
+            InvalidatePackageBuild();
+            RenderChangeList(delta);
+
+            _versionInput.Value = newVersion;
+            _packageTypeComboBox.SelectedItem = "patch";
+            _packageNameTextBox.Text = $"Patch_v{newVersion}.zip";
+            _removedPathsTextBox.Text = string.Join("\r\n", delta.Removed);
+
+            if (!delta.HasChanges)
+            {
+                SetStatus($"직전 스냅샷(v{baseline.Version})과 동일합니다. 바뀐 파일이 없어요.");
+            }
+            else
+            {
+                var removedNote = delta.Removed.Count > 0 ? " 삭제는 아래 ‘삭제할 상대 경로’에 채워졌습니다." : string.Empty;
+                SetStatus($"변경 감지: 추가 {delta.Added.Count} · 수정 {delta.Modified.Count} · 삭제 {delta.Removed.Count}. "
+                    + $"담을 파일만 체크하고 ‘ZIP 생성’을 누르세요.{removedNote}");
+            }
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private void RenderChangeList(SnapshotDelta delta)
+    {
+        _sourceList.BeginUpdate();
+        _sourceList.Items.Clear();
+        try
+        {
+            foreach (var path in delta.Added)
+            {
+                AddChangeRow("추가", path);
+            }
+
+            foreach (var path in delta.Modified)
+            {
+                AddChangeRow("수정", path);
+            }
+        }
+        finally
+        {
+            _sourceList.EndUpdate();
+        }
+    }
+
+    private void AddChangeRow(string kind, string relativePath)
+    {
+        var item = new ListViewItem(kind) { Tag = new ChangeItem(relativePath, kind), Checked = true };
+        item.SubItems.Add(relativePath);
+        _sourceList.Items.Add(item);
+    }
+
     private async Task CreatePackageAsync()
     {
         try
@@ -464,9 +577,48 @@ internal sealed class MainForm : Form
             }
 
             var projectPath = GetProjectPathOrThrow();
-            var sources = _sources.ToArray();
             var outputPath = _outputPathTextBox.Text.Trim();
             var packageName = _packageNameTextBox.Text;
+
+            if (_changeMode)
+            {
+                if (_changeBaseline is null || _changeCurrent is null)
+                {
+                    throw new InvalidOperationException("먼저 ‘변경 파일 자동 찾기’로 목록을 채우세요.");
+                }
+
+                var changedFiles = _sourceList.CheckedItems.Cast<ListViewItem>()
+                    .Where(item => item.Tag is ChangeItem)
+                    .Select(item => ((ChangeItem)item.Tag!).RelativePath)
+                    .ToArray();
+                if (changedFiles.Length == 0)
+                {
+                    throw new InvalidOperationException("체크된 파일이 없습니다. 압축할 파일을 최소 1개 체크하세요.");
+                }
+
+                var removed = ParseRemovedPaths();
+                var newVersion = Decimal.ToInt32(_versionInput.Value);
+                SetBusy(true);
+                SetStatus($"체크한 {changedFiles.Length:N0}개로 {packageName}을 만드는 중…");
+                var package = await Task.Run(() => PublisherServices.CreatePatchPackageFromFiles(projectPath, changedFiles, outputPath, packageName));
+
+                // 일부만 골랐을 수 있으니, 새 스냅샷은 baseline + '선택된 변경'만 반영해야 다음 비교가 어긋나지 않는다.
+                var nextSnapshot = SnapshotService.BuildNextSnapshot(
+                    _changeBaseline, _changeCurrent, changedFiles, removed, newVersion, _changeBaseline.ChannelId);
+                var snapshotOutputPath = Path.Combine(outputPath, $"release-snapshot-v{newVersion}.json");
+                await SnapshotService.WriteAsync(snapshotOutputPath, nextSnapshot);
+                _generatedSnapshotPath = snapshotOutputPath;
+
+                _packageBuild = package;
+                _baseZipPathTextBox.Clear();
+                _driveFileIdTextBox.Clear();
+                _snapshotDriveIdTextBox.Clear();
+                _resultLabel.Text = $"생성됨: {package.ZipPath}\r\n담긴 파일 {package.FileEntryCount:N0}개 / {FormatBytes(package.SizeBytes)}\r\n삭제 {removed.Count:N0} · 새 스냅샷: {snapshotOutputPath}";
+                SetStatus($"v{newVersion} 패치 ZIP·스냅샷 생성 완료. ‘자동 업로드·게시’로 올리거나, Drive에 올린 뒤 링크를 넣고 manifest.json을 저장하세요.");
+                return;
+            }
+
+            var sources = _sources.ToArray();
             SetBusy(true);
             SetStatus("선택한 원본의 상대 경로와 .meta를 수집해 ZIP을 만드는 중입니다.");
             _packageBuild = await Task.Run(() => PublisherServices.CreatePackage(
@@ -1081,6 +1233,15 @@ internal sealed class MainForm : Form
             ResetPackageBuild();
         }
 
+        if (_changeMode)
+        {
+            // 수동 추가로 전환: 자동 감지 목록을 비우고 일반 원본 목록 모드로 돌아간다.
+            _changeMode = false;
+            _changeBaseline = null;
+            _changeCurrent = null;
+            _sourceList.Items.Clear();
+        }
+
         var fullPath = Path.GetFullPath(selection.FullPath);
         if (_sources.Any(existing => existing.IsFolder == selection.IsFolder
             && string.Equals(existing.FullPath, fullPath, StringComparison.OrdinalIgnoreCase)))
@@ -1110,8 +1271,7 @@ internal sealed class MainForm : Form
             foreach (var source in _sources)
             {
                 var relativePath = PublisherServices.GetRelativePathForDisplay(projectPath, source);
-                var item = new ListViewItem(source.IsFolder ? "폴더" : "파일") { Tag = source };
-                item.SubItems.Add(relativePath);
+                var item = new ListViewItem(source.IsFolder ? "폴더" : "파일") { Tag = source, Checked = true };
                 item.SubItems.Add(source.IsFolder ? relativePath + "/**" : relativePath);
                 _sourceList.Items.Add(item);
             }
@@ -1208,6 +1368,7 @@ internal sealed class MainForm : Form
         _selectProjectButton.Enabled = canInteract;
         _selectOutputButton.Enabled = canInteract;
         _selectManifestButton.Enabled = canInteract;
+        _detectChangesButton.Enabled = canInteract && !_isImportedBasePackage;
         _addFilesButton.Enabled = canInteract;
         _addFolderButton.Enabled = canInteract;
         _removeSourcesButton.Enabled = canInteract;
