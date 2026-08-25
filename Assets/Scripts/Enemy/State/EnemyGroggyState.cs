@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Enemies
 {
@@ -38,7 +38,7 @@ namespace ProjectS.Enemies
             // 무력화 종료: 게이지를 되돌리고(다시 그로기 가능) 전투 흐름으로 복귀한다.
             // Refill이 그로기 변화 이벤트를 발행해 UI 바도 다시 차오른다.
             enemy.Groggy?.Refill();
-            enemy.StateMachine.ChangeState(enemy.ChaseState);
+            enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
         // 무력화에서 빠져나갈 때 isGroggy를 내려 애니메이터가 로코모션으로 복귀하게 한다

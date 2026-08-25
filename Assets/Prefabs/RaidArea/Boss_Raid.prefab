@@ -12026,38 +12026,8 @@ MonoBehaviour:
   attacks:
   - name: Attack 1
     kind: 0
-    animationIndex: 1
-    range: 1.8
-    minRange: 0
-    cooldown: 2
-    coef: 1
-    weight: 1
-    trackTarget: 0
-    hitBox: {fileID: 0}
-    projectilePrefab: {fileID: 0}
-    muzzle: {fileID: 0}
-    rotationOffset: {x: 0, y: 0, z: 0}
-    muzzleFlash: {fileID: 0}
-    canPierce: 0
-  - name: Attack 2
-    kind: 0
-    animationIndex: 2
-    range: 1.8
-    minRange: 0
-    cooldown: 2
-    coef: 1
-    weight: 1
-    trackTarget: 0
-    hitBox: {fileID: 0}
-    projectilePrefab: {fileID: 0}
-    muzzle: {fileID: 0}
-    rotationOffset: {x: 0, y: 0, z: 0}
-    muzzleFlash: {fileID: 0}
-    canPierce: 0
-  - name: Attack 3
-    kind: 0
-    animationIndex: 3
-    range: 1.8
+    animationIndex: 0
+    range: 8
     minRange: 0
     cooldown: 2
     coef: 1
@@ -12107,8 +12077,8 @@ MonoBehaviour:
   patrolRadius: 0
   patrolStuckTimeout: 4
   patrolSpeed: 4
-  chaseSpeed: 8
-  detectionRange: 30
+  chaseSpeed: 10
+  detectionRange: 20
   useDetectDash: 1
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
@@ -12147,15 +12117,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7d157da5af4f2d84cb12bbb60622a6d9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.RaidBossLocomotion
-  attackRange: 10
+  attackRange: 8
   engageDist: 12
   jogDist: 20
   walkSpeed: 4
   jogSpeed: 10
   runSpeed: 15
-  strafeRadius: 10
-  strafeLookahead: 5
-  flipInterval: {x: 5, y: 0}
 --- !u!1 &5030111400024248876
 GameObject:
   m_ObjectHideFlags: 0
@@ -21882,31 +21849,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3981161161281962044, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.38550043
+      value: 0.11754605
       objectReference: {fileID: 0}
     - target: {fileID: 3981161161281962044, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.47280747
+      value: -0.0014248934
       objectReference: {fileID: 0}
     - target: {fileID: 3981161161281962044, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.5927809
+      value: -0.6403626
       objectReference: {fileID: 0}
     - target: {fileID: 3981161161281962044, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.52578825
+      value: 0.7590234
       objectReference: {fileID: 0}
     - target: {fileID: 3981161161281962044, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 165
+      value: 76.352
       objectReference: {fileID: 0}
     - target: {fileID: 3981161161281962044, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: -81.074005
+      value: -40.331
       objectReference: {fileID: 0}
     - target: {fileID: 3981161161281962044, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 90
+      value: 130.182
       objectReference: {fileID: 0}
     - target: {fileID: 4356173084764101254, guid: c6bd0b457faad3d45931b6a1cd315010, type: 3}
       propertyPath: m_Name

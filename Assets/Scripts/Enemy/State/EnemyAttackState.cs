@@ -69,7 +69,7 @@ namespace ProjectS.Enemies
                 if (enemy.Animation.IsPlaying("Attack"))
                     enteredAttack = true;
                 else if (elapsed >= EnterTimeout)
-                    enemy.StateMachine.ChangeState(enemy.ChaseState);
+                    enemy.StateMachine.ChangeState(enemy.AggroState);
 
                 return;
             }
@@ -77,7 +77,7 @@ namespace ProjectS.Enemies
             // 2단계: 클립이 끝까지 재생되면(또는 안전 상한을 넘기면) Chase로 돌아가 거리/쿨타임을 다시 판단한다.
             // 클립 길이를 인스펙터에 적지 않고 애니메이터 normalizedTime으로 종료를 판정한다.
             if (enemy.Animation.IsCurrentStateFinished() || elapsed >= MaxAttackTime)
-                enemy.StateMachine.ChangeState(enemy.ChaseState);
+                enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
         public override void Exit()
