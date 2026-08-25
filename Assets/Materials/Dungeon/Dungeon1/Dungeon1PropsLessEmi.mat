@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-2320712648346541874
+--- !u!114 &-1192288804326327441
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
@@ -20,27 +20,29 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Dungeon_01_Wall 1
-  m_Shader: {fileID: 4800000, guid: c916a174bc99ebc43b69b3bd355b5af9, type: 3}
+  m_Name: Dungeon1PropsLessEmi
+  m_Shader: {fileID: -6465566751694194690, guid: 0730dae39bc73f34796280af9875ce14, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _ALPHATEST_ON
   m_InvalidKeywords:
+  - _EMISSION
   - _NORMALMAP
-  m_LightmapFlags: 4
+  m_LightmapFlags: 2
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
+  stringTagMap:
+    RenderType: TransparentCutout
   disabledShaderPasses:
   - MOTIONVECTORS
-  m_LockedProperties: _AlphaClip
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
     - _Albedo_Map:
-        m_Texture: {fileID: 2800000, guid: 8e26c08ff2d7aa64bb204b24fdfadff6, type: 3}
+        m_Texture: {fileID: 2800000, guid: 7863b48f9e88d9143bf10004df817ad8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Emission_Map:
@@ -48,7 +50,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Normal_Map:
-        m_Texture: {fileID: 2800000, guid: 7de4b1ed5a03a0b4fa8de2a1ccff8dbe, type: 3}
+        m_Texture: {fileID: 2800000, guid: 86c70da29bc83204daf499330d029efc, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
@@ -88,20 +90,10 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _DstBlendAlpha: 0
-    - _Enable_Emission: 0
-    - _EnvironmentReflections: 1
-    - _FogStrength: 1
+    - _Enable_Emission: 1
     - _GlossMapScale: 1
     - _Glossiness: 0.2
     - _GlossyReflections: 1
-    - _HeightGradientBottomY: 0
-    - _HeightGradientDither: 0.004
-    - _HeightGradientNoiseAmount: 0
-    - _HeightGradientNoiseScale: 0.5
-    - _HeightGradientPower: 6
-    - _HeightGradientStrength: 0
-    - _HeightGradientTopY: 7.5
-    - _HeightGradientWallMask: 0
     - _Metallic: 0
     - _Mode: 0
     - _Normal_Amount: 1
@@ -122,15 +114,13 @@ Material:
     - _ZWrite: 1
     - _ZWriteControl: 0
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.5849056, g: 0.5849056, b: 0.5849056, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _EmissionColor: {r: 0.6102941, g: 0.96774846, b: 1, a: 1}
-    - _Emission_Color: {r: 0.6102941, g: 0.96774846, b: 1, a: 1}
-    - _HeightGradientEmission: {r: 0.04150939, g: 0.04150939, b: 0.04150939, a: 1}
-    - _HeightGradientTint: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Emission_Color: {r: 0.345283, g: 0.345283, b: 0.345283, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &1597527786143590888
+--- !u!114 &6391038132230860447
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
