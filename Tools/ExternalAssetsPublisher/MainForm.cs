@@ -61,6 +61,7 @@ internal sealed class MainForm : Form
     private readonly Button _selectSnapshotButton = new() { Text = "찾기", AutoSize = true };
     private readonly Button _composePatchButton = new() { Text = "변경 비교 → 패치 자동 구성", AutoSize = true };
     private readonly Button _createSnapshotButton = new() { Text = "현재 스냅샷 생성", AutoSize = true };
+    private readonly Button _attachSnapshotButton = new() { Text = "v1 스냅샷 업로드·연결", AutoSize = true, Enabled = false };
     private readonly TextBox _oauthPathTextBox = new() { Dock = DockStyle.Fill };
     private readonly TextBox _manifestDriveIdTextBox = new() { Dock = DockStyle.Fill };
     private readonly TextBox _releasesFolderIdTextBox = new() { Dock = DockStyle.Fill };
@@ -218,6 +219,7 @@ internal sealed class MainForm : Form
         publishActions.Controls.Add(_signOutButton);
         publishActions.Controls.Add(_compareDriveButton);
         publishActions.Controls.Add(_autoPublishButton);
+        publishActions.Controls.Add(_attachSnapshotButton);
         publishActions.Controls.Add(_showAdvancedCheck);
         layout.Controls.Add(publishActions, 1, 18);
         layout.SetColumnSpan(publishActions, 2);
@@ -264,6 +266,7 @@ internal sealed class MainForm : Form
         _selectSnapshotButton.Click += (_, _) => SelectSnapshotPath();
         _composePatchButton.Click += async (_, _) => await ComposePatchAsync();
         _createSnapshotButton.Click += async (_, _) => await CreateSnapshotAsync();
+        _attachSnapshotButton.Click += async (_, _) => await AttachSnapshotAsync();
         _selectOAuthButton.Click += (_, _) => SelectOAuthPath();
         _signInButton.Click += async (_, _) => await SignInAsync();
         _signOutButton.Click += async (_, _) => await SignOutAsync();
@@ -1000,8 +1003,88 @@ internal sealed class MainForm : Form
             _generatedSnapshotPath = snapshotOutputPath;
             _resultLabel.Text = $"v{version} 스냅샷 생성: {snapshotOutputPath}\r\n파일 {snapshot.Entries.Count:N0}개";
             SetStatus(
-                $"v{version} 스냅샷 생성 완료. 이 파일을 제한된 Drive에 올린 뒤, (최초 1회) manifest의 v{version} 항목 snapshotDriveFileId에 파일 ID를 넣으세요. "
-                + "이후 패치는 '변경 비교 → 패치 자동 구성'이 스냅샷을 자동으로 만들어 줍니다.");
+                $"v{version} 스냅샷 생성 완료. 'v1 스냅샷 업로드·연결'을 눌러 Drive와 manifest에 한 번에 연결하세요.");
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    /// <summary>
+    /// 최초 Base v1 스냅샷을 Drive에 올리고, 같은 manifest 파일의 v1 패키지에 그 ID를 연결한다.
+    /// manifest를 마지막에 덮어써 ZIP은 올라갔는데 기준선이 없는 중간 상태를 피한다.
+    /// </summary>
+    private async Task AttachSnapshotAsync()
+    {
+        try
+        {
+            var snapshotPath = _generatedSnapshotPath;
+            if (string.IsNullOrWhiteSpace(snapshotPath) || !File.Exists(snapshotPath))
+            {
+                throw new InvalidOperationException("먼저 '현재 스냅샷 생성'으로 v1 스냅샷을 만드세요.");
+            }
+
+            var manifestPath = _manifestPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(manifestPath))
+            {
+                throw new InvalidOperationException("manifest.json 저장 위치를 먼저 지정하세요.");
+            }
+
+            var oauthPath = _oauthPathTextBox.Text.Trim();
+            if (!File.Exists(oauthPath))
+            {
+                throw new InvalidOperationException("OAuth Desktop 앱 JSON을 지정하세요.");
+            }
+            var manifestFileId = DriveUploadClient.ExtractId(_manifestDriveIdTextBox.Text);
+            var folderId = DriveUploadClient.ExtractId(_releasesFolderIdTextBox.Text);
+
+            SetBusy(true);
+            SetStatus("Drive의 최신 manifest를 확인 중입니다…");
+            var accessToken = await _oauthClient.GetAccessTokenAsync(oauthPath, CancellationToken.None);
+            var driveManifestText = await _driveClient.DownloadTextAsync(accessToken, manifestFileId, CancellationToken.None);
+            var driveManifest = JsonSerializer.Deserialize<PublisherManifest>(driveManifestText, ManifestJsonOptions)
+                ?? throw new InvalidOperationException("Drive manifest를 읽을 수 없습니다.");
+
+            if (driveManifest.LatestVersion != 1)
+            {
+                throw new InvalidOperationException(
+                    $"이 버튼은 최초 v1 기준선 연결용입니다. Drive 최신은 v{driveManifest.LatestVersion}이므로 사용하지 마세요.");
+            }
+
+            var basePackage = driveManifest.Packages.SingleOrDefault(package => package.Version == 1)
+                ?? throw new InvalidOperationException("Drive manifest에 Base v1 항목이 없습니다.");
+            if (!string.IsNullOrWhiteSpace(basePackage.SnapshotDriveFileId))
+            {
+                throw new InvalidOperationException("Base v1 스냅샷은 이미 Drive manifest에 연결되어 있습니다.");
+            }
+
+            var driveInfo = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
+            var snapshotName = Path.GetFileName(snapshotPath);
+            SetStatus($"v1 스냅샷 업로드 중: {snapshotName}…");
+            var snapshotFileId = await _driveClient.UploadNewFileAsync(
+                accessToken, folderId, snapshotPath, snapshotName, "application/json", CancellationToken.None);
+
+            // Drive에서 방금 받은 정확한 manifest 위에만 기록한다. 다른 배포자의 변경을 덮어쓰지 않는다.
+            await File.WriteAllTextAsync(manifestPath, driveManifestText, CancellationToken.None);
+            await PublisherServices.AttachSnapshotToPackageAsync(manifestPath, 1, snapshotFileId);
+
+            var recheck = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
+            if (!string.Equals(recheck.HeadRevisionId, driveInfo.HeadRevisionId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "업로드 도중 다른 사람이 manifest를 바꿨습니다. 스냅샷은 Drive에 올라갔지만 manifest는 덮어쓰지 않았습니다. 다시 확인 후 시도하세요.");
+            }
+
+            SetStatus("Drive manifest에 v1 스냅샷을 연결하는 중…");
+            await _driveClient.UpdateFileMediaAsync(accessToken, manifestFileId, manifestPath, "application/json", CancellationToken.None);
+            _snapshotDriveIdTextBox.Text = snapshotFileId;
+            _resultLabel.Text = $"Base v1 스냅샷 연결 완료\r\n스냅샷 fileId: {snapshotFileId}";
+            SetStatus("✅ v1 기준선 연결 완료. 이제 Unity에서 수정한 뒤 'Drive와 비교 → 확인 후 게시'를 누르세요.");
         }
         catch (Exception exception)
         {
@@ -1552,6 +1635,7 @@ internal sealed class MainForm : Form
         _selectSnapshotButton.Enabled = canInteract;
         _composePatchButton.Enabled = !_isBusy && !_isImportedBasePackage;
         _createSnapshotButton.Enabled = canInteract;
+        _attachSnapshotButton.Enabled = canInteract && !string.IsNullOrWhiteSpace(_generatedSnapshotPath);
         _oauthPathTextBox.Enabled = canInteract;
         _manifestDriveIdTextBox.Enabled = canInteract;
         _releasesFolderIdTextBox.Enabled = canInteract;

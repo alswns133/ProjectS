@@ -194,6 +194,31 @@ internal static class PublisherServices
         await WriteJsonAsync(manifestPath, manifest);
     }
 
+    /// <summary>
+    /// 이미 게시된 패키지에 스냅샷 파일 ID를 연결한다. Base v1의 최초 기준선 설정에 사용한다.
+    /// 새 패키지를 추가하지 않으므로 latestVersion은 바꾸지 않는다.
+    /// </summary>
+    public static async Task AttachSnapshotToPackageAsync(
+        string manifestPath,
+        int version,
+        string snapshotDriveFileSource)
+    {
+        var snapshotDriveFileId = ParseGoogleDriveFileId(snapshotDriveFileSource);
+        var manifest = await LoadManifestAsync(manifestPath);
+        ValidateExistingManifestForAppend(manifest);
+
+        var package = manifest.Packages.SingleOrDefault(existing => existing.Version == version)
+            ?? throw new InvalidOperationException($"manifest에 v{version} 패키지가 없습니다.");
+        if (!string.IsNullOrWhiteSpace(package.SnapshotDriveFileId))
+        {
+            throw new InvalidOperationException(
+                $"v{version}에는 이미 스냅샷이 연결되어 있습니다. 기존 스냅샷을 바꾸려면 고급·수동 옵션에서 manifest를 검토하세요.");
+        }
+
+        package.SnapshotDriveFileId = snapshotDriveFileId;
+        await WriteJsonAsync(manifestPath, manifest);
+    }
+
     public static PackageBuildResult CreatePackage(
         string projectPath,
         IReadOnlyCollection<SourceSelection> selections,
