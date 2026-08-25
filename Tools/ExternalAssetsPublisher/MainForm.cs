@@ -1023,12 +1023,6 @@ internal sealed class MainForm : Form
     {
         try
         {
-            var snapshotPath = _generatedSnapshotPath;
-            if (string.IsNullOrWhiteSpace(snapshotPath) || !File.Exists(snapshotPath))
-            {
-                throw new InvalidOperationException("먼저 '현재 스냅샷 생성'으로 v1 스냅샷을 만드세요.");
-            }
-
             var manifestPath = _manifestPathTextBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(manifestPath))
             {
@@ -1064,6 +1058,7 @@ internal sealed class MainForm : Form
             }
 
             var driveInfo = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
+            var snapshotPath = FindSnapshotPathForAttachment(driveManifest.LatestVersion);
             var snapshotName = Path.GetFileName(snapshotPath);
             SetStatus($"v1 스냅샷 업로드 중: {snapshotName}…");
             var snapshotFileId = await _driveClient.UploadNewFileAsync(
@@ -1094,6 +1089,25 @@ internal sealed class MainForm : Form
         {
             SetBusy(false);
         }
+    }
+
+    private string FindSnapshotPathForAttachment(int version)
+    {
+        var candidates = new[]
+        {
+            _generatedSnapshotPath,
+            _snapshotPathTextBox.Text.Trim(),
+            Path.Combine(_outputPathTextBox.Text.Trim(), $"release-snapshot-v{version}.json"),
+        };
+
+        var snapshotPath = candidates.FirstOrDefault(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path));
+        if (snapshotPath is null)
+        {
+            throw new InvalidOperationException(
+                $"v{version} 스냅샷 파일을 찾지 못했습니다. '현재 스냅샷 생성'을 다시 누르거나, 고급·수동 옵션에서 스냅샷 파일을 지정하세요.");
+        }
+
+        return snapshotPath;
     }
 
     private void SelectOAuthPath()
@@ -1635,7 +1649,7 @@ internal sealed class MainForm : Form
         _selectSnapshotButton.Enabled = canInteract;
         _composePatchButton.Enabled = !_isBusy && !_isImportedBasePackage;
         _createSnapshotButton.Enabled = canInteract;
-        _attachSnapshotButton.Enabled = canInteract && !string.IsNullOrWhiteSpace(_generatedSnapshotPath);
+        _attachSnapshotButton.Enabled = canInteract;
         _oauthPathTextBox.Enabled = canInteract;
         _manifestDriveIdTextBox.Enabled = canInteract;
         _releasesFolderIdTextBox.Enabled = canInteract;
