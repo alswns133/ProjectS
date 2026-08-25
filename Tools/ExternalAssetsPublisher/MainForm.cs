@@ -65,6 +65,7 @@ internal sealed class MainForm : Form
     private readonly Button _selectOAuthButton = new() { Text = "찾기", AutoSize = true };
     private readonly Button _signInButton = new() { Text = "Google 로그인(쓰기)", AutoSize = true };
     private readonly Button _signOutButton = new() { Text = "로그아웃", AutoSize = true };
+    private readonly Button _compareDriveButton = new() { Text = "Drive와 비교 → 확인 후 게시", AutoSize = true };
     private readonly Button _autoPublishButton = new() { Text = "자동 업로드·게시", AutoSize = true };
     private readonly Label _loginLabel = new() { AutoSize = true };
 
@@ -179,6 +180,7 @@ internal sealed class MainForm : Form
         var publishActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         publishActions.Controls.Add(_signInButton);
         publishActions.Controls.Add(_signOutButton);
+        publishActions.Controls.Add(_compareDriveButton);
         publishActions.Controls.Add(_autoPublishButton);
         layout.Controls.Add(publishActions, 1, 18);
         layout.SetColumnSpan(publishActions, 2);
@@ -189,7 +191,7 @@ internal sealed class MainForm : Form
             MaximumSize = new Size(900, 0),
             Text = "수동: 파일/폴더를 골라 ZIP 생성. 자동: 직전 버전 스냅샷(json)을 지정하고 '변경 비교 → 패치 자동 구성'을 누르면 바뀐 파일만 담은 패치 ZIP과 새 스냅샷을 만들어 줍니다. "
                 + "최초 Base v1은 Base Builder ZIP 선택으로 등록합니다. 만든 ZIP·스냅샷을 제한된 Drive에 올린 뒤 각 링크/ID를 붙여넣고 manifest.json을 저장하세요.\r\n"
-                + "완전 자동: 'Google 로그인(쓰기)' 후 manifest 파일 ID·릴리스 폴더 ID를 넣고 '자동 업로드·게시'를 누르면 ZIP·스냅샷 업로드와 manifest 덮어쓰기(같은 파일 ID)까지 한 번에 처리합니다. "
+                + "완전 자동: 'Google 로그인(쓰기)' 후 manifest 파일 ID·릴리스 폴더 ID를 넣고 'Drive와 비교 → 확인 후 게시'를 누르면 — Drive 최신 상태를 자동으로 받아 현재 파일과 비교하고, 다른 파일 목록을 확인 창으로 보여준 뒤 동의하면 ZIP·스냅샷 업로드와 manifest 덮어쓰기까지 한 번에 처리합니다. "
                 + "여러 배포자 충돌은 게시 전/직전 버전·리비전 확인으로 막습니다. (쓰기 스코프 최초 1회 재동의 필요)",
         };
         var footer = new FlowLayoutPanel
@@ -224,6 +226,7 @@ internal sealed class MainForm : Form
         _selectOAuthButton.Click += (_, _) => SelectOAuthPath();
         _signInButton.Click += async (_, _) => await SignInAsync();
         _signOutButton.Click += async (_, _) => await SignOutAsync();
+        _compareDriveButton.Click += async (_, _) => await CompareWithDriveAsync();
         _autoPublishButton.Click += async (_, _) => await AutoPublishAsync();
         Load += (_, _) => Initialize();
     }
@@ -827,42 +830,10 @@ internal sealed class MainForm : Form
                     + "런처로 최신을 받고 '변경 비교 → 패치 자동 구성'을 다시 눌러 재구성하세요.");
             }
 
-            // Drive의 진실을 로컬 manifest로 내려, 정확히 그 위에 새 버전을 append 한다.
-            await File.WriteAllTextAsync(manifestPath, driveManifestText, CancellationToken.None);
-
-            SetStatus($"패치 ZIP 업로드 중: {package.PackageName}…");
-            var zipFileId = await _driveClient.UploadNewFileAsync(
-                accessToken, folderId, package.ZipPath, package.PackageName, "application/zip", CancellationToken.None);
-
-            var snapshotName = Path.GetFileName(snapshotPath);
-            SetStatus($"스냅샷 업로드 중: {snapshotName}…");
-            var snapshotFileId = await _driveClient.UploadNewFileAsync(
-                accessToken, folderId, snapshotPath, snapshotName, "application/json", CancellationToken.None);
-
-            _driveFileIdTextBox.Text = zipFileId;
-            _snapshotDriveIdTextBox.Text = snapshotFileId;
-
-            SetStatus("로컬 manifest에 새 버전을 기록하는 중…");
-            await PublisherServices.AppendPackageToManifestAsync(
-                manifestPath,
-                targetVersion,
-                _packageTypeComboBox.SelectedItem?.ToString() ?? "patch",
-                package,
-                zipFileId,
-                removedPaths,
-                snapshotFileId);
-
-            // 게시 직전 재확인: 내가 받은 뒤 다른 사람이 manifest를 바꿨으면 덮어쓰지 않는다.
-            var recheck = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
-            if (!string.Equals(recheck.HeadRevisionId, driveInfo.HeadRevisionId, StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException(
-                    "업로드 도중 Drive manifest가 다른 사람에 의해 바뀌었습니다. ZIP·스냅샷은 올라갔지만 manifest는 덮어쓰지 않았습니다. "
-                    + "재동기화 후 manifest만 다시 게시하세요.");
-            }
-
-            SetStatus("Drive manifest를 새 버전으로 덮어쓰는 중(게시)…");
-            await _driveClient.UpdateFileMediaAsync(accessToken, manifestFileId, manifestPath, "application/json", CancellationToken.None);
+            var (zipFileId, snapshotFileId) = await PublishComposedAsync(
+                accessToken, manifestPath, manifestFileId, folderId,
+                driveManifestText, driveInfo.HeadRevisionId,
+                targetVersion, package, snapshotPath, removedPaths);
 
             _resultLabel.Text =
                 $"게시 완료 v{targetVersion}\r\n"
@@ -880,6 +851,227 @@ internal sealed class MainForm : Form
             SetBusy(false);
             RefreshLoginLabel();
         }
+    }
+
+    /// <summary>
+    /// Drive에 올라간 최신 상태(manifest가 가리키는 최신 스냅샷)를 자동으로 받아 현재 ExternalAssets와
+    /// 비교하고, 다른 파일 목록을 확인 창으로 보여준 뒤 동의하면 패치를 만들어 업로드·게시한다.
+    /// '직전 스냅샷 json'을 손으로 지정하던 단계를 없앤, 가장 자동화된 배포 경로.
+    /// </summary>
+    private async Task CompareWithDriveAsync()
+    {
+        try
+        {
+            var projectPath = GetProjectPathOrThrow();
+            var manifestPath = _manifestPathTextBox.Text.Trim();
+            var oauthPath = _oauthPathTextBox.Text.Trim();
+            var outputPath = _outputPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(manifestPath))
+            {
+                throw new InvalidOperationException("manifest.json(로컬) 위치를 지정하세요.");
+            }
+
+            if (string.IsNullOrWhiteSpace(oauthPath))
+            {
+                throw new InvalidOperationException("OAuth Desktop 앱 JSON을 지정하세요.");
+            }
+
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                throw new InvalidOperationException("ZIP 저장 폴더를 지정하세요.");
+            }
+
+            var manifestFileId = DriveUploadClient.ExtractId(_manifestDriveIdTextBox.Text);
+            var folderId = DriveUploadClient.ExtractId(_releasesFolderIdTextBox.Text);
+
+            SetBusy(true);
+            SetStatus("Google 인증 토큰을 확인하는 중…");
+            var accessToken = await _oauthClient.GetAccessTokenAsync(oauthPath, CancellationToken.None);
+
+            SetStatus("Drive의 최신 manifest·스냅샷을 받는 중…");
+            var driveInfo = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
+            var driveManifestText = await _driveClient.DownloadTextAsync(accessToken, manifestFileId, CancellationToken.None);
+            var driveManifest = JsonSerializer.Deserialize<PublisherManifest>(driveManifestText, ManifestJsonOptions)
+                ?? throw new InvalidOperationException("Drive manifest를 해석할 수 없습니다.");
+            if (driveManifest.Packages.Count == 0)
+            {
+                throw new InvalidOperationException("Drive manifest에 base(v1)가 없습니다. 먼저 Base v1을 등록하세요.");
+            }
+
+            var latestVersion = driveManifest.LatestVersion;
+            var channelId = driveManifest.ChannelId;
+            var latestPackage = driveManifest.Packages.FirstOrDefault(package => package.Version == latestVersion);
+            var baselineSnapshotId = latestPackage?.SnapshotDriveFileId ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(baselineSnapshotId))
+            {
+                throw new InvalidOperationException(
+                    $"Drive manifest의 v{latestVersion} 항목에 스냅샷(snapshotDriveFileId)이 없습니다. "
+                    + "최초 1회 '현재 스냅샷 생성'으로 기준선을 올리고 manifest에 ID를 넣으세요.");
+            }
+
+            var baselineText = await _driveClient.DownloadTextAsync(accessToken, baselineSnapshotId, CancellationToken.None);
+            var baseline = JsonSerializer.Deserialize<ReleaseSnapshot>(baselineText, ManifestJsonOptions)
+                ?? throw new InvalidOperationException("Drive 스냅샷을 해석할 수 없습니다.");
+            if (!string.Equals(baseline.ChannelId, channelId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Drive 스냅샷과 manifest의 channelId가 다릅니다. 배포 채널을 확인하세요.");
+            }
+
+            var newVersion = latestVersion + 1;
+            SetStatus($"현재 ExternalAssets를 해시해 Drive(v{latestVersion})와 비교하는 중… (파일이 많으면 시간이 걸려요)");
+            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, channelId));
+            var delta = SnapshotService.ComputeDelta(baseline, current);
+            if (!delta.HasChanges)
+            {
+                SetStatus($"✅ 현재 파일이 Drive(v{latestVersion})와 동일합니다. 올릴 것이 없어요.");
+                return;
+            }
+
+            var changedFiles = delta.Added.Concat(delta.Modified).ToArray();
+            if (changedFiles.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "이번 변경은 삭제만 있습니다. 현재 패치는 추가/수정 파일이 최소 1개 필요합니다(삭제 전용 패치는 아직 지원하지 않습니다).");
+            }
+
+            // 확인 창: 무엇이 다른지 보여주고 올릴지 묻는다(삭제가 있으면 특히 강조).
+            var confirm = MessageBox.Show(
+                this,
+                BuildCompareMessage(latestVersion, newVersion, delta),
+                "Drive와 다른 파일 — 업로드할까요?",
+                MessageBoxButtons.YesNo,
+                delta.Removed.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes)
+            {
+                _removedPathsTextBox.Text = string.Join("\r\n", delta.Removed);
+                _resultLabel.Text = $"미리보기: 추가 {delta.Added.Count:N0} · 수정 {delta.Modified.Count:N0} · 삭제 {delta.Removed.Count:N0} (업로드 취소됨)";
+                SetStatus("업로드를 취소했어요. 검토 후 다시 눌러 진행하세요.");
+                return;
+            }
+
+            var packageName = $"Patch_v{newVersion}.zip";
+            SetStatus($"바뀐 파일 {changedFiles.Length:N0}개로 {packageName}을 만드는 중…");
+            var package = await Task.Run(() => PublisherServices.CreatePatchPackageFromFiles(projectPath, changedFiles, outputPath, packageName));
+            var snapshotOutputPath = Path.Combine(outputPath, $"release-snapshot-v{newVersion}.json");
+            await SnapshotService.WriteAsync(snapshotOutputPath, current);
+            _generatedSnapshotPath = snapshotOutputPath;
+            _isImportedBasePackage = false;
+            _packageBuild = package;
+            _versionInput.Value = newVersion;
+            _packageTypeComboBox.SelectedItem = "patch";
+            _packageNameTextBox.Text = packageName;
+            _removedPathsTextBox.Text = string.Join("\r\n", delta.Removed);
+
+            var (zipFileId, snapshotUploadedId) = await PublishComposedAsync(
+                accessToken, manifestPath, manifestFileId, folderId,
+                driveManifestText, driveInfo.HeadRevisionId,
+                newVersion, package, snapshotOutputPath, delta.Removed);
+
+            _resultLabel.Text =
+                $"게시 완료 v{newVersion} (Drive 비교 기반)\r\n"
+                + $"추가 {delta.Added.Count:N0} · 수정 {delta.Modified.Count:N0} · 삭제 {delta.Removed.Count:N0}\r\n"
+                + $"ZIP fileId: {zipFileId}\r\n스냅샷 fileId: {snapshotUploadedId}";
+            SetStatus($"✅ v{newVersion} 업로드·게시 완료. 팀원 런처에서 바로 받을 수 있습니다.");
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            RefreshLoginLabel();
+        }
+    }
+
+    private static string BuildCompareMessage(int latestVersion, int newVersion, SnapshotDelta delta)
+    {
+        const int maxList = 12;
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine($"Drive 최신 v{latestVersion}과 현재 파일이 다릅니다.");
+        builder.AppendLine();
+        builder.AppendLine($"  추가 {delta.Added.Count}  ·  수정 {delta.Modified.Count}  ·  삭제 {delta.Removed.Count}");
+        builder.AppendLine();
+        AppendSample(builder, "＋ 추가", delta.Added, maxList);
+        AppendSample(builder, "～ 수정", delta.Modified, maxList);
+        if (delta.Removed.Count > 0)
+        {
+            AppendSample(builder, "－ 삭제(주의)", delta.Removed, maxList);
+        }
+
+        builder.Append($"패치 v{newVersion}로 만들어 Drive에 업로드하고 게시할까요?");
+        return builder.ToString();
+    }
+
+    private static void AppendSample(System.Text.StringBuilder builder, string title, IReadOnlyList<string> items, int max)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine($"[{title}]");
+        foreach (var item in items.Take(max))
+        {
+            builder.AppendLine($"  {item}");
+        }
+
+        if (items.Count > max)
+        {
+            builder.AppendLine($"  … 외 {items.Count - max}개");
+        }
+
+        builder.AppendLine();
+    }
+
+    /// <summary>
+    /// 자동 구성한 패치 ZIP·스냅샷을 Drive에 올리고 manifest를 덮어써 게시하는 공통 로직.
+    /// AutoPublish와 CompareWithDrive가 함께 쓴다. manifest는 같은 파일 ID로 덮어써 런처 참조를 유지하고,
+    /// 게시 직전 headRevision을 다시 확인해 그새 남이 바꿨으면 manifest는 건드리지 않는다.
+    /// </summary>
+    private async Task<(string ZipFileId, string SnapshotFileId)> PublishComposedAsync(
+        string accessToken,
+        string manifestLocalPath,
+        string manifestFileId,
+        string folderId,
+        string driveManifestText,
+        string driveHeadRevisionBefore,
+        int targetVersion,
+        PackageBuildResult package,
+        string snapshotPath,
+        IReadOnlyList<string> removedPaths)
+    {
+        // Drive의 진실을 로컬 manifest로 내려, 정확히 그 위에 새 버전을 append 한다.
+        await File.WriteAllTextAsync(manifestLocalPath, driveManifestText, CancellationToken.None);
+
+        SetStatus($"패치 ZIP 업로드 중: {package.PackageName}…");
+        var zipFileId = await _driveClient.UploadNewFileAsync(
+            accessToken, folderId, package.ZipPath, package.PackageName, "application/zip", CancellationToken.None);
+
+        var snapshotName = Path.GetFileName(snapshotPath);
+        SetStatus($"스냅샷 업로드 중: {snapshotName}…");
+        var snapshotFileId = await _driveClient.UploadNewFileAsync(
+            accessToken, folderId, snapshotPath, snapshotName, "application/json", CancellationToken.None);
+
+        _driveFileIdTextBox.Text = zipFileId;
+        _snapshotDriveIdTextBox.Text = snapshotFileId;
+
+        SetStatus("로컬 manifest에 새 버전을 기록하는 중…");
+        await PublisherServices.AppendPackageToManifestAsync(
+            manifestLocalPath, targetVersion, "patch", package, zipFileId, removedPaths, snapshotFileId);
+
+        // 게시 직전 재확인: 내가 받은 뒤 다른 사람이 manifest를 바꿨으면 덮어쓰지 않는다.
+        var recheck = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
+        if (!string.Equals(recheck.HeadRevisionId, driveHeadRevisionBefore, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "업로드 도중 Drive manifest가 다른 사람에 의해 바뀌었습니다. ZIP·스냅샷은 올라갔지만 manifest는 덮어쓰지 않았습니다. "
+                + "재동기화 후 manifest만 다시 게시하세요.");
+        }
+
+        SetStatus("Drive manifest를 새 버전으로 덮어쓰는 중(게시)…");
+        await _driveClient.UpdateFileMediaAsync(accessToken, manifestFileId, manifestLocalPath, "application/json", CancellationToken.None);
+        return (zipFileId, snapshotFileId);
     }
 
     private void AddSource(SourceSelection selection)
@@ -1037,6 +1229,7 @@ internal sealed class MainForm : Form
         _selectOAuthButton.Enabled = canInteract;
         _signInButton.Enabled = canInteract;
         _signOutButton.Enabled = canInteract && _oauthClient.HasSavedCredentials;
+        _compareDriveButton.Enabled = canInteract;
         _autoPublishButton.Enabled = !_isBusy && _packageBuild is not null && _generatedSnapshotPath is not null;
     }
 
