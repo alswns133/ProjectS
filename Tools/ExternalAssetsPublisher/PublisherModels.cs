@@ -44,6 +44,34 @@ internal sealed class PublisherManifestPackage
     public List<string> RemovedPaths { get; set; } = [];
 }
 
+/// <summary>배포자 창의 입력값을 다음 실행 때도 그대로 쓰도록 로컬에 저장하는 설정.</summary>
+internal sealed class PublisherSettings
+{
+    [JsonPropertyName("projectPath")]
+    public string ProjectPath { get; set; } = string.Empty;
+
+    [JsonPropertyName("outputPath")]
+    public string OutputPath { get; set; } = string.Empty;
+
+    [JsonPropertyName("manifestPath")]
+    public string ManifestPath { get; set; } = string.Empty;
+
+    [JsonPropertyName("oauthPath")]
+    public string OAuthPath { get; set; } = string.Empty;
+
+    [JsonPropertyName("manifestDriveId")]
+    public string ManifestDriveId { get; set; } = string.Empty;
+
+    [JsonPropertyName("releasesFolderId")]
+    public string ReleasesFolderId { get; set; } = string.Empty;
+
+    [JsonPropertyName("snapshotPath")]
+    public string SnapshotPath { get; set; } = string.Empty;
+
+    [JsonPropertyName("showAdvanced")]
+    public bool ShowAdvanced { get; set; }
+}
+
 internal sealed record SourceSelection(string FullPath, bool IsFolder);
 
 internal enum PackageBuildOrigin

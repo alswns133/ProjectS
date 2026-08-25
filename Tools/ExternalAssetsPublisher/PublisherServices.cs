@@ -46,6 +46,36 @@ internal static class PublisherServices
     public static string GetExternalAssetsPath(string projectPath) =>
         Path.Combine(projectPath, "Assets", "ExternalAssets");
 
+    private static string GetSettingsPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ProjectSExternalAssetsPublisher",
+        "settings.json");
+
+    public static async Task<PublisherSettings> LoadSettingsAsync()
+    {
+        var path = GetSettingsPath();
+        if (!File.Exists(path))
+        {
+            return new PublisherSettings();
+        }
+
+        await using var stream = File.OpenRead(path);
+        return await JsonSerializer.DeserializeAsync<PublisherSettings>(stream, JsonOptions) ?? new PublisherSettings();
+    }
+
+    public static async Task SaveSettingsAsync(PublisherSettings settings)
+    {
+        var path = GetSettingsPath();
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var temporaryPath = path + ".tmp";
+        await using (var stream = File.Create(temporaryPath))
+        {
+            await JsonSerializer.SerializeAsync(stream, settings, JsonOptions);
+        }
+
+        File.Move(temporaryPath, path, true);
+    }
+
     public static async Task<PublisherManifest> LoadManifestAsync(string manifestPath)
     {
         if (!File.Exists(manifestPath))

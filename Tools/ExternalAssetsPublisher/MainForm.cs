@@ -74,6 +74,12 @@ internal sealed class MainForm : Form
     private readonly PublisherGoogleOAuthClient _oauthClient = new();
     private readonly DriveUploadClient _driveClient = new();
     private readonly ToolTip _fieldHelpTip = new();
+    private readonly CheckBox _showAdvancedCheck = new() { Text = "고급 · 수동 옵션 표시", AutoSize = true, Margin = new Padding(16, 6, 0, 0) };
+
+    // 기본 화면을 단순하게: 아래 컨트롤들은 '고급'일 때만 보인다. 소스 목록 행(Percent)은 별도로 접는다.
+    private readonly List<Control> _advancedControls = [];
+    private TableLayoutPanel _layout = null!;
+    private const int SourceListRowIndex = 6;
 
     private readonly List<SourceSelection> _sources = [];
     private PackageBuildResult? _packageBuild;
@@ -92,10 +98,9 @@ internal sealed class MainForm : Form
     {
         Text = "ProjectS 외부 에셋 배포자";
         StartPosition = FormStartPosition.CenterScreen;
-        // 자동 구성·자동 게시 행이 늘어 세로가 길어졌다. 최소 높이가 부족하면 Percent 행(소스 목록)이
-        // 0으로 찌그러지며 위아래 라벨이 겹치므로, 모든 행이 들어갈 높이를 확보한다.
-        MinimumSize = new Size(1000, 1080);
-        Size = new Size(1040, 1080);
+        // 기본(간단) 화면은 짧게, 고급을 펼치면 길어진다. 최소 높이는 기본 화면 기준으로 낮춰,
+        // 접었을 때 빈 공간이 남지 않게 한다(실제 높이는 고급 토글에서 조절).
+        MinimumSize = new Size(1000, 560);
         AutoScaleMode = AutoScaleMode.Font;
 
         _packageTypeComboBox.Items.AddRange(["base", "patch"]);
@@ -138,15 +143,15 @@ internal sealed class MainForm : Form
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         AddRow(layout, 0, "프로젝트 폴더", _projectPathTextBox, _selectProjectButton,
-            "ProjectS Unity 프로젝트의 최상위 폴더입니다(Assets·Packages·ProjectSettings가 있는 곳). 이 안의 Assets/ExternalAssets가 배포 대상이 됩니다.");
+            "ProjectS Unity 프로젝트의 최상위 폴더입니다(Assets·Packages·ProjectSettings가 있는 곳). 이 안의 Assets/ExternalAssets가 배포 대상이 됩니다.", advanced: true);
         AddRow(layout, 1, "외부 에셋 루트", _externalRootLabel, null,
-            "실제로 배포되는 폴더(Assets/ExternalAssets)입니다. 프로젝트 폴더에서 자동으로 정해지며, 이 안의 파일만 패치에 담깁니다.");
+            "실제로 배포되는 폴더(Assets/ExternalAssets)입니다. 프로젝트 폴더에서 자동으로 정해지며, 이 안의 파일만 패치에 담깁니다.", advanced: true);
         AddRow(layout, 2, "ZIP 저장 폴더", _outputPathTextBox, _selectOutputButton,
-            "만든 패치 ZIP과 스냅샷(json)이 저장되는 로컬 폴더입니다. 여기 생긴 파일을 Drive에 올립니다(자동 업로드를 쓰면 알아서 올라갑니다).");
+            "만든 패치 ZIP과 스냅샷(json)이 저장되는 로컬 폴더입니다. 여기 생긴 파일을 Drive에 올립니다(자동 업로드를 쓰면 알아서 올라갑니다).", advanced: true);
         AddRow(layout, 3, "manifest.json 저장 위치", _manifestPathTextBox, _selectManifestButton,
-            "버전 목록 파일(manifest.json)의 로컬 경로입니다. 새 패치 정보를 여기에 추가하고, 이 내용을 Drive의 manifest 파일로 덮어써 팀원에게 게시합니다.");
+            "버전 목록 파일(manifest.json)의 로컬 경로입니다. 새 패치 정보를 여기에 추가하고, 이 내용을 Drive의 manifest 파일로 덮어써 팀원에게 게시합니다.", advanced: true);
         AddRow(layout, 4, "Base Builder ZIP 등록", _baseZipPathTextBox, _loadBaseZipButton,
-            "최초 Base v1을 등록할 때만 씁니다. Base Builder가 만든 ZIP을 골라 검사·등록합니다. 패치(v2 이상)에는 사용하지 않습니다.");
+            "최초 Base v1을 등록할 때만 씁니다. Base Builder가 만든 ZIP을 골라 검사·등록합니다. 패치(v2 이상)에는 사용하지 않습니다.", advanced: true);
 
         var packageOptions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         packageOptions.Controls.Add(new Label { Text = "버전", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
@@ -157,11 +162,14 @@ internal sealed class MainForm : Form
         packageOptions.Controls.Add(_packageNameTextBox);
         _packageNameTextBox.Width = 260;
         AddRow(layout, 5, "패치 정보", packageOptions, null,
-            "이번에 만들 패키지의 버전·종류·ZIP 이름입니다. '변경 파일 자동 찾기'나 'Drive와 비교'를 쓰면 자동으로 채워지므로 보통 손대지 않아도 됩니다.");
+            "이번에 만들 패키지의 버전·종류·ZIP 이름입니다. '변경 파일 자동 찾기'나 'Drive와 비교'를 쓰면 자동으로 채워지므로 보통 손대지 않아도 됩니다.", advanced: true);
 
-        layout.Controls.Add(new Label { Text = "압축할 원본", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 6);
+        var sourceLabel = new Label { Text = "압축할 원본", AutoSize = true, Anchor = AnchorStyles.Left };
+        layout.Controls.Add(sourceLabel, 0, 6);
         layout.Controls.Add(_sourceList, 1, 6);
         layout.SetColumnSpan(_sourceList, 2);
+        _advancedControls.Add(sourceLabel);
+        _advancedControls.Add(_sourceList);
 
         var sourceActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         sourceActions.Controls.Add(_detectChangesButton);
@@ -170,28 +178,31 @@ internal sealed class MainForm : Form
         sourceActions.Controls.Add(_removeSourcesButton);
         layout.Controls.Add(sourceActions, 1, 7);
         layout.SetColumnSpan(sourceActions, 2);
+        _advancedControls.Add(sourceActions);
 
         AddRow(layout, 8, "삭제할 상대 경로", _removedPathsTextBox, null,
-            "이 패치에서 '삭제'할 파일들의 경로입니다(ExternalAssets 기준, 한 줄에 하나). '변경 파일 자동 찾기'를 쓰면 지워진 파일이 자동으로 채워집니다.");
+            "이 패치에서 '삭제'할 파일들의 경로입니다(ExternalAssets 기준, 한 줄에 하나). '변경 파일 자동 찾기'를 쓰면 지워진 파일이 자동으로 채워집니다.", advanced: true);
         AddRow(layout, 9, "ZIP Drive 파일 링크 / ID", _driveFileIdTextBox, null,
-            "패치 ZIP을 Drive에 올린 뒤 그 파일의 링크나 ID를 넣는 칸입니다. '자동 업로드·게시'를 쓰면 자동으로 채워집니다(수동 게시할 때만 직접 입력).");
+            "패치 ZIP을 Drive에 올린 뒤 그 파일의 링크나 ID를 넣는 칸입니다. '자동 업로드·게시'를 쓰면 자동으로 채워집니다(수동 게시할 때만 직접 입력).", advanced: true);
 
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         actions.Controls.Add(_createPackageButton);
         actions.Controls.Add(_saveManifestButton);
         layout.Controls.Add(actions, 1, 10);
         layout.SetColumnSpan(actions, 2);
+        _advancedControls.Add(actions);
 
         AddRow(layout, 11, "직전 버전 스냅샷(json)", _snapshotPathTextBox, _selectSnapshotButton,
-            "비교 기준이 되는 '직전 배포 버전의 스냅샷' 파일(release-snapshot-vN.json)입니다. Drive에서 최신 스냅샷을 받아 지정하세요. 이게 있어야 '변경 파일 자동 찾기'가 무엇이 바뀌었는지 계산합니다.");
+            "비교 기준이 되는 '직전 배포 버전의 스냅샷' 파일(release-snapshot-vN.json)입니다. Drive에서 최신 스냅샷을 받아 지정하세요. 이게 있어야 '변경 파일 자동 찾기'가 무엇이 바뀌었는지 계산합니다.", advanced: true);
         AddRow(layout, 12, "스냅샷 Drive 링크 / ID", _snapshotDriveIdTextBox, null,
-            "새로 만든 스냅샷(json)을 Drive에 올린 뒤 그 파일의 링크/ID입니다. '자동 업로드·게시'를 쓰면 자동으로 채워집니다.");
+            "새로 만든 스냅샷(json)을 Drive에 올린 뒤 그 파일의 링크/ID입니다. '자동 업로드·게시'를 쓰면 자동으로 채워집니다.", advanced: true);
 
         var autoActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         autoActions.Controls.Add(_composePatchButton);
         autoActions.Controls.Add(_createSnapshotButton);
         layout.Controls.Add(autoActions, 1, 13);
         layout.SetColumnSpan(autoActions, 2);
+        _advancedControls.Add(autoActions);
 
         AddRow(layout, 14, "OAuth Desktop 앱 JSON", _oauthPathTextBox, _selectOAuthButton,
             "Google OAuth 데스크톱 클라이언트 파일(google-oauth-client.json)입니다. 런처가 쓰는 것과 같은 파일이며, exe 옆에 두면 자동으로 인식됩니다.");
@@ -207,8 +218,10 @@ internal sealed class MainForm : Form
         publishActions.Controls.Add(_signOutButton);
         publishActions.Controls.Add(_compareDriveButton);
         publishActions.Controls.Add(_autoPublishButton);
+        publishActions.Controls.Add(_showAdvancedCheck);
         layout.Controls.Add(publishActions, 1, 18);
         layout.SetColumnSpan(publishActions, 2);
+        _advancedControls.Add(_autoPublishButton);
 
         var help = new Label
         {
@@ -234,6 +247,7 @@ internal sealed class MainForm : Form
         layout.SetColumnSpan(footer, 2);
 
         Controls.Add(layout);
+        _layout = layout;
 
         _versionInput.ValueChanged += (_, _) => UpdatePackageDefaults();
         _packageTypeComboBox.SelectedIndexChanged += (_, _) => UpdatePackageDefaults();
@@ -255,10 +269,17 @@ internal sealed class MainForm : Form
         _signOutButton.Click += async (_, _) => await SignOutAsync();
         _compareDriveButton.Click += async (_, _) => await CompareWithDriveAsync();
         _autoPublishButton.Click += async (_, _) => await AutoPublishAsync();
-        Load += (_, _) => Initialize();
+        _showAdvancedCheck.CheckedChanged += (_, _) => { SetAdvancedVisible(_showAdvancedCheck.Checked); PersistSettings(); };
+        _manifestDriveIdTextBox.Leave += (_, _) => { PersistSettings(); RefreshLoginLabel(); };
+        _releasesFolderIdTextBox.Leave += (_, _) => { PersistSettings(); RefreshLoginLabel(); };
+        _snapshotPathTextBox.Leave += (_, _) => PersistSettings();
+        _oauthPathTextBox.Leave += (_, _) => PersistSettings();
+        _outputPathTextBox.Leave += (_, _) => PersistSettings();
+        _manifestPathTextBox.Leave += (_, _) => PersistSettings();
+        Load += async (_, _) => await InitializeAsync();
     }
 
-    private void AddRow(TableLayoutPanel layout, int row, string label, Control content, Control? trailingControl, string? helpText = null)
+    private void AddRow(TableLayoutPanel layout, int row, string label, Control content, Control? trailingControl, string? helpText = null, bool advanced = false)
     {
         var labelControl = new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 5, 0, 0) };
         Control labelCell = labelControl;
@@ -283,6 +304,16 @@ internal sealed class MainForm : Form
         {
             layout.Controls.Add(trailingControl, 2, row);
         }
+
+        if (advanced)
+        {
+            _advancedControls.Add(labelCell);
+            _advancedControls.Add(content);
+            if (trailingControl is not null)
+            {
+                _advancedControls.Add(trailingControl);
+            }
+        }
     }
 
     /// <summary>항목 옆의 물음표 아이콘. 클릭하면 그 항목이 무엇인지 설명 창을 띄운다.</summary>
@@ -305,7 +336,7 @@ internal sealed class MainForm : Form
         return icon;
     }
 
-    private void Initialize()
+    private async Task InitializeAsync()
     {
         var projectPath = PublisherServices.FindProjectRoot(AppContext.BaseDirectory) ?? string.Empty;
         _projectPathTextBox.Text = projectPath;
@@ -320,9 +351,73 @@ internal sealed class MainForm : Form
             _oauthPathTextBox.Text = PublisherGoogleOAuthClient.GetDefaultConfigurationPath();
         }
 
+        // 저장된 설정이 있으면 그 값으로 채워, 매번 다시 입력하지 않게 한다.
+        var settings = await PublisherServices.LoadSettingsAsync();
+        if (PublisherServices.IsUnityProject(settings.ProjectPath))
+        {
+            _projectPathTextBox.Text = settings.ProjectPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.OutputPath))
+        {
+            _outputPathTextBox.Text = settings.OutputPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.ManifestPath))
+        {
+            _manifestPathTextBox.Text = settings.ManifestPath;
+        }
+
+        if (File.Exists(settings.OAuthPath))
+        {
+            _oauthPathTextBox.Text = settings.OAuthPath;
+        }
+
+        _manifestDriveIdTextBox.Text = settings.ManifestDriveId;
+        _releasesFolderIdTextBox.Text = settings.ReleasesFolderId;
+        _snapshotPathTextBox.Text = settings.SnapshotPath;
+        _showAdvancedCheck.Checked = settings.ShowAdvanced;
+
+        SetAdvancedVisible(settings.ShowAdvanced);
         RefreshProjectLabels();
         RefreshLoginLabel();
-        SetStatus("파일 또는 폴더를 추가한 뒤 ZIP을 생성하세요.");
+    }
+
+    /// <summary>기본 화면은 로그인·게시에 필요한 것만 보인다. '고급'을 켜면 수동 옵션·소스 목록이 나온다.</summary>
+    private void SetAdvancedVisible(bool show)
+    {
+        foreach (var control in _advancedControls)
+        {
+            control.Visible = show;
+        }
+
+        // 소스 목록 행은 Percent라 숨겨도 자리를 차지하므로 행 높이 자체를 접는다.
+        _layout.RowStyles[SourceListRowIndex] = show
+            ? new RowStyle(SizeType.Percent, 100)
+            : new RowStyle(SizeType.Absolute, 0);
+        Height = show ? 1080 : 560;
+    }
+
+    private async void PersistSettings()
+    {
+        try
+        {
+            await PublisherServices.SaveSettingsAsync(new PublisherSettings
+            {
+                ProjectPath = _projectPathTextBox.Text.Trim(),
+                OutputPath = _outputPathTextBox.Text.Trim(),
+                ManifestPath = _manifestPathTextBox.Text.Trim(),
+                OAuthPath = _oauthPathTextBox.Text.Trim(),
+                ManifestDriveId = _manifestDriveIdTextBox.Text.Trim(),
+                ReleasesFolderId = _releasesFolderIdTextBox.Text.Trim(),
+                SnapshotPath = _snapshotPathTextBox.Text.Trim(),
+                ShowAdvanced = _showAdvancedCheck.Checked,
+            });
+        }
+        catch
+        {
+            // 설정 저장 실패는 조용히 무시(핵심 기능 아님).
+        }
     }
 
     private void SelectProjectFolder()
@@ -353,6 +448,7 @@ internal sealed class MainForm : Form
 
         RefreshProjectLabels();
         RefreshSourceList();
+        PersistSettings();
     }
 
     private void SelectOutputFolder()
@@ -982,11 +1078,20 @@ internal sealed class MainForm : Form
         }
     }
 
+    /// <summary>지금 상태에서 '다음에 할 일'을 안내한다(신규 배포자가 헤매지 않게).</summary>
     private void RefreshLoginLabel()
     {
-        _loginLabel.Text = _oauthClient.HasSavedCredentials
-            ? "로그인됨 (이 PC에 토큰 저장). 다른 계정이면 로그아웃 후 다시 로그인하세요."
-            : "자동 업로드하려면 편집 권한 계정으로 'Google 로그인(쓰기)'을 하세요.";
+        if (!_oauthClient.HasSavedCredentials)
+        {
+            _loginLabel.Text = "① 편집 권한이 있는 계정으로 'Google 로그인(쓰기)'을 먼저 하세요.";
+            return;
+        }
+
+        var ready = !string.IsNullOrWhiteSpace(_manifestDriveIdTextBox.Text)
+            && !string.IsNullOrWhiteSpace(_releasesFolderIdTextBox.Text);
+        _loginLabel.Text = ready
+            ? "로그인됨 · 준비 완료 — 'Drive와 비교 → 확인 후 게시'를 누르면 됩니다."
+            : "로그인됨 — manifest 파일 ID와 릴리스 폴더 ID를 넣으세요.";
     }
 
     /// <summary>
@@ -1459,6 +1564,7 @@ internal sealed class MainForm : Form
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
+        PersistSettings();
         base.OnFormClosed(e);
         _oauthClient.Dispose();
         _driveClient.Dispose();
