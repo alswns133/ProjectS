@@ -1077,8 +1077,24 @@ internal sealed class MainForm : Form
 
             SetStatus("Drive manifest에 v1 스냅샷을 연결하는 중…");
             await _driveClient.UpdateFileMediaAsync(accessToken, manifestFileId, manifestPath, "application/json", CancellationToken.None);
+
+            // 성공 응답만 믿지 않는다. 같은 파일 ID를 다시 받아 실제로 스냅샷 ID가 기록됐는지 확인한다.
+            SetStatus("Drive manifest 반영을 확인하는 중…");
+            var verifiedManifestText = await _driveClient.DownloadTextAsync(accessToken, manifestFileId, CancellationToken.None);
+            var verifiedManifest = JsonSerializer.Deserialize<PublisherManifest>(verifiedManifestText, ManifestJsonOptions)
+                ?? throw new InvalidOperationException("갱신 뒤 Drive manifest를 다시 읽을 수 없습니다.");
+            var verifiedSnapshotId = verifiedManifest.Packages
+                .SingleOrDefault(package => package.Version == 1)?.SnapshotDriveFileId;
+            if (!string.Equals(verifiedSnapshotId, snapshotFileId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "Drive manifest 갱신 뒤 v1 스냅샷 ID를 확인하지 못했습니다. manifest는 게시된 것으로 처리하지 않았습니다.");
+            }
+
             _snapshotDriveIdTextBox.Text = snapshotFileId;
-            _resultLabel.Text = $"Base v1 스냅샷 연결 완료\r\n스냅샷 fileId: {snapshotFileId}";
+            _resultLabel.Text = $"Base v1 스냅샷 연결 완료\r\n"
+                + $"스냅샷 fileId: {snapshotFileId}\r\n"
+                + $"갱신·검증한 manifest: https://drive.google.com/open?id={manifestFileId}";
             SetStatus("✅ v1 기준선 연결 완료. 이제 Unity에서 수정한 뒤 'Drive와 비교 → 확인 후 게시'를 누르세요.");
         }
         catch (Exception exception)
