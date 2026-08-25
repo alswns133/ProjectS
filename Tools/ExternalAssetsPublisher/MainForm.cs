@@ -1054,7 +1054,12 @@ internal sealed class MainForm : Form
                 ?? throw new InvalidOperationException("Drive manifest에 Base v1 항목이 없습니다.");
             if (!string.IsNullOrWhiteSpace(basePackage.SnapshotDriveFileId))
             {
-                throw new InvalidOperationException("Base v1 스냅샷은 이미 Drive manifest에 연결되어 있습니다.");
+                _snapshotDriveIdTextBox.Text = basePackage.SnapshotDriveFileId;
+                _resultLabel.Text = $"✅ Base v1 스냅샷은 이미 연결되어 있습니다.\r\n"
+                    + $"스냅샷 fileId: {basePackage.SnapshotDriveFileId}\r\n"
+                    + $"확인한 manifest: https://drive.google.com/open?id={manifestFileId}";
+                SetStatus("✅ v1 기준선이 이미 준비되었습니다. Unity에서 수정한 뒤 'Drive와 비교 → 확인 후 게시'를 누르세요.");
+                return;
             }
 
             var driveInfo = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
