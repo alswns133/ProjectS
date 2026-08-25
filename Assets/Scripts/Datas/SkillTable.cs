@@ -15,6 +15,12 @@ namespace ProjectS.Data
         /// <summary>타격 계수. 평타는 1.0으로 두고 편차를 RandomMin/Max로 표현한다.</summary>
         public float Coef;
 
+        /// <summary>
+        /// 이 타격이 보스 그로기(무력화) 게이지를 깎는 양. HP 피해와 별개다(방어·치명타 영향 없음).
+        /// 평타는 0/소량, 스킬·강공격은 크게 둬서 "스킬로 무력화를 유발"하게 한다. 그로기가 없는 대상엔 무시된다.
+        /// </summary>
+        public float GroggyDamage;
+
         /// <summary>피해 랜덤 하한.</summary>
         public float RandomMin;
 
@@ -67,6 +73,7 @@ namespace ProjectS.Data
             if (Cooldown < 0f) Cooldown = 0f;
             if (SgCost < 0f) SgCost = 0f;
             if (SgGain < 0f) SgGain = 0f;
+            if (GroggyDamage < 0f) GroggyDamage = 0f;
 
             error = null;
             return true;

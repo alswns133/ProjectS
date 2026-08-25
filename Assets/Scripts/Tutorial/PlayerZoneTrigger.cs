@@ -76,8 +76,8 @@ namespace ProjectS.Tutorials
             if (!IsPlayer(other) || isPlayerInside) return;
 
             Notify(true);
-            Boss boss = FindAnyObjectByType<Boss>();
-            BossEvents.FireBossAppeared(boss);
+            //Boss boss = FindAnyObjectByType<Boss>();
+            //BossEvents.FireBossAppeared(boss);
         }
 
         private void OnTriggerExit(Collider other)

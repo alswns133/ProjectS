@@ -151,6 +151,10 @@ namespace ProjectS.Enemies
         public EnemyDetectState DetectState { get; private set; }
         /// <summary>플레이어를 추적하고 공격 진입을 판단하는 상태.</summary>
         public EnemyChaseState ChaseState { get; private set; }
+        /// <summary>레이드 보스 교전 로코모션 상태. RaidBossLocomotion이 붙은 보스에만 생성된다(없으면 null).</summary>
+        public RaidBossEngageState EngageState { get; private set; }
+        /// <summary>발견 후 진입할 교전 상태. 레이드 보스면 EngageState, 그 외엔 기존 ChaseState.</summary>
+        public EnemyBaseState AggroState => EngageState != null ? EngageState : ChaseState;
         /// <summary>선택된 공격 패턴을 재생하는 상태.</summary>
         public EnemyAttackState AttackState { get; private set; }
         /// <summary>피격 경직과 피격 연출을 처리하는 상태.</summary>
@@ -251,6 +255,10 @@ namespace ProjectS.Enemies
             GroggyState = new EnemyGroggyState(this);
             DeadState = new EnemyDeadState(this);
 
+            // RaidBossLocomotion이 붙어 있으면 레이드 교전 상태를 만든다(옵트인 신호). 없는 몹은 null → 기존 Chase 사용.
+            if (GetComponent<RaidBossLocomotion>() != null)
+                EngageState = new RaidBossEngageState(this);
+
             // 군중 제어 개체값: 같은 프리팹이라도 교전 거리와 회피 방향이 미묘하게 달라진다.
             // 여러 마리가 몰려와도 한 원 위에 정렬된 "레일 위를 움직이는 AI" 느낌이 나지 않게 하기 위함.
             combatDistanceFactor = Random.Range(
@@ -269,7 +277,7 @@ namespace ProjectS.Enemies
             PlayerEvents.OnPlayerDied -= OnTargetDied;
         }
 
-        private void Start()
+        protected virtual void Start()
         {
             // 참조 단일 창구: 지속 플레이어는 PlayerManager에서 pull한다(부트스트랩 Awake에서 이미 생성됨).
             // FindAnyObjectByType로 직접 찾으면 안 되는 이유: 스폰 전 지속 플레이어는 SetActive(false)라
