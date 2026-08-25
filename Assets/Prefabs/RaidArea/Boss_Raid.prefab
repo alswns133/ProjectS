@@ -11868,6 +11868,14 @@ GameObject:
   m_Component:
   - component: {fileID: 5680125826446750639}
   - component: {fileID: 1744001967788435925}
+  - component: {fileID: 24667186193134635}
+  - component: {fileID: 3884612221763277251}
+  - component: {fileID: 5595950855997811989}
+  - component: {fileID: 6521620271857858767}
+  - component: {fileID: 2003196512587332788}
+  - component: {fileID: 3880258966420860940}
+  - component: {fileID: 5728454415273324471}
+  - component: {fileID: 7284494763945736649}
   m_Layer: 0
   m_Name: Boss_Raid
   m_TagString: Untagged
@@ -11914,6 +11922,240 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &24667186193134635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b594eff9ecd28c4db0b171aa905cfad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyStats
+  monsterId: 1101
+  maxHp: 100
+  attackPower: 10
+  defense: 0
+  isBoss: 1
+  damageTextHeight: 0.5
+  hpBarHeight: 2
+--- !u!195 &3884612221763277251
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_AgentTypeID: -1372625422
+  m_Radius: 3
+  m_Speed: 3.5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 0
+  m_AutoRepath: 1
+  m_Height: 6
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 0
+--- !u!114 &5595950855997811989
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63dbb2699c23f624e873bd9bec89a708, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyMovement
+  reachSampleHeightTolerance: 0.5
+  animationSpeedDeadZone: 0.3
+  speedSmoothingTime: 0.2
+  animationMoveStartThreshold: 0.6
+  avoidancePriorityMin: 30
+  avoidancePriorityMax: 70
+  turnSpeed: 720
+  moveTurnGateAngle: 45
+--- !u!114 &6521620271857858767
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26fe52cfa5b2e9042bd8ed93b954b460, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyAnimation
+--- !u!114 &2003196512587332788
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1663c2612846ad4f8385672c9c1414b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyCombat
+  detectAttack:
+    name: Detect
+    kind: 0
+    animationIndex: 0
+    range: 1.8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  attacks:
+  - name: Attack 1
+    kind: 0
+    animationIndex: 1
+    range: 1.8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack 2
+    kind: 0
+    animationIndex: 2
+    range: 1.8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  - name: Attack 3
+    kind: 0
+    animationIndex: 3
+    range: 1.8
+    minRange: 0
+    cooldown: 2
+    coef: 1
+    weight: 1
+    trackTarget: 0
+    hitBox: {fileID: 0}
+    projectilePrefab: {fileID: 0}
+    muzzle: {fileID: 0}
+    rotationOffset: {x: 0, y: 0, z: 0}
+    muzzleFlash: {fileID: 0}
+    canPierce: 0
+  targetMask:
+    serializedVersion: 2
+    m_Bits: 256
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 128
+  eyeHeight: 1.5
+  targetAimHeight: 1
+--- !u!114 &3880258966420860940
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e95acdf234255342ae5ee9194cb3fcd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Events.MinimapMarkerSource
+  type: 1
+--- !u!114 &5728454415273324471
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b5eccf41d589084db937f872f2fd6f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.Boss
+  patrolPoints: []
+  patrolWaitTime: 1
+  patrolRadius: 0
+  patrolStuckTimeout: 4
+  patrolSpeed: 4
+  chaseSpeed: 8
+  detectionRange: 30
+  useDetectDash: 1
+  detectDashSpeedMultiplier: 1.8
+  targetNavMeshSampleRadius: 0.5
+  targetPathCheckInterval: 0.25
+  reachResultConfirmCount: 3
+  useHitStun: 0
+  hitStunDuration: 0.35
+  hitStunCooldown: 0.2
+  despawnDelay: 3
+  groggyDuration: 5
+  combatDistanceFactorMin: 0.7
+  combatDistanceFactorMax: 0.9
+  allyBlockRadius: 0.4
+  allyBlockDistance: 1.2
+  allyBlockProbeHeight: 0.5
+  allySidestepAngle: 45
+  surroundAngleRange: 0
+  hitRecoveryDelay: 0
+  grabHitbox: {fileID: 0}
+  grabTargetMask:
+    serializedVersion: 2
+    m_Bits: 256
+  grabAnchor: {fileID: 0}
+  grabDamageCoef: 1
+  throwHorizontalSpeed: 6
+  throwUpSpeed: 6
+--- !u!114 &7284494763945736649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5014772430113155349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d157da5af4f2d84cb12bbb60622a6d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.RaidBossLocomotion
+  attackRange: 10
+  engageDist: 12
+  jogDist: 20
+  walkSpeed: 4
+  jogSpeed: 10
+  runSpeed: 15
+  strafeRadius: 10
+  strafeLookahead: 5
+  flipInterval: {x: 5, y: 0}
 --- !u!1 &5030111400024248876
 GameObject:
   m_ObjectHideFlags: 0
