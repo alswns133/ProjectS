@@ -47,6 +47,9 @@ internal sealed record SnapshotDelta(
     public bool HasChanges => Added.Count > 0 || Modified.Count > 0 || Removed.Count > 0;
 }
 
+/// <summary>스냅샷 해싱 진행 보고(지금 해시 중인 파일명·처리 개수·전체 개수).</summary>
+internal sealed record SnapshotProgress(string CurrentFile, int Processed, int Total);
+
 internal static class SnapshotService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -60,7 +63,11 @@ internal static class SnapshotService
     /// 패치 패키징이 담는 파일 집합과 동일한 범위를 훑어야 diff가 어긋나지 않으므로,
     /// 루트 하위 모든 파일을 대상으로 한다(루트 밖 Assets/ExternalAssets.meta는 제외).
     /// </summary>
-    public static ReleaseSnapshot CreateFromExternalAssets(string projectPath, int version, string channelId)
+    public static ReleaseSnapshot CreateFromExternalAssets(
+        string projectPath,
+        int version,
+        string channelId,
+        IProgress<SnapshotProgress>? progress = null)
     {
         var externalAssetsPath = PublisherServices.GetExternalAssetsPath(projectPath);
         if (!Directory.Exists(externalAssetsPath))
@@ -69,17 +76,30 @@ internal static class SnapshotService
         }
 
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(externalAssetsPath));
-        var entries = new Dictionary<string, ReleaseSnapshotEntry>(StringComparer.Ordinal);
-        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        // 전체 개수를 먼저 알아야 진행률(퍼센트)을 낼 수 있어 경로 목록을 한 번 만든다(해시가 아니라 빠름).
+        var files = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToList();
+        var total = files.Count;
+        var entries = new Dictionary<string, ReleaseSnapshotEntry>(total, StringComparer.Ordinal);
+        var processed = 0;
+        foreach (var file in files)
         {
             var relativePath = Path.GetRelativePath(root, file).Replace('\\', '/');
-            using var stream = File.OpenRead(file);
-            var sha = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
-            entries[relativePath] = new ReleaseSnapshotEntry
+            using (var stream = File.OpenRead(file))
             {
-                Sha256 = sha,
-                Size = new FileInfo(file).Length,
-            };
+                var sha = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+                entries[relativePath] = new ReleaseSnapshotEntry
+                {
+                    Sha256 = sha,
+                    Size = new FileInfo(file).Length,
+                };
+            }
+
+            processed++;
+            // 파일마다 UI를 갱신하면 과부하라, 일정 간격과 마지막에만 '지금 파일'을 보고한다.
+            if (progress is not null && (processed % 16 == 0 || processed == total))
+            {
+                progress.Report(new SnapshotProgress(Path.GetFileName(file), processed, total));
+            }
         }
 
         return new ReleaseSnapshot

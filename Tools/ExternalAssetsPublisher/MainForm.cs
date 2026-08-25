@@ -45,6 +45,7 @@ internal sealed class MainForm : Form
     private readonly Label _externalRootLabel = new() { AutoSize = true };
     private readonly Label _statusLabel = new() { AutoSize = true };
     private readonly Label _resultLabel = new() { AutoSize = true, MaximumSize = new Size(900, 0) };
+    private readonly ProgressBar _progressBar = new() { Width = 760, Height = 14, Minimum = 0, Maximum = 100, Style = ProgressBarStyle.Continuous, Margin = new Padding(0, 2, 0, 8) };
     private readonly Button _selectProjectButton = new() { Text = "찾기", AutoSize = true };
     private readonly Button _selectOutputButton = new() { Text = "찾기", AutoSize = true };
     private readonly Button _selectManifestButton = new() { Text = "찾기", AutoSize = true };
@@ -225,6 +226,7 @@ internal sealed class MainForm : Form
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
         };
+        footer.Controls.Add(_progressBar);
         footer.Controls.Add(_statusLabel);
         footer.Controls.Add(_resultLabel);
         footer.Controls.Add(help);
@@ -554,7 +556,8 @@ internal sealed class MainForm : Form
             SetStatus("직전 스냅샷을 읽고 현재 파일과 비교하는 중… (파일이 많으면 시간이 걸려요)");
             var baseline = await SnapshotService.ReadAsync(snapshotPath);
             var newVersion = baseline.Version + 1;
-            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, baseline.ChannelId));
+            var hashProgress = new Progress<SnapshotProgress>(OnSnapshotProgress);
+            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, baseline.ChannelId, hashProgress));
             var delta = SnapshotService.ComputeDelta(baseline, current);
 
             _changeMode = true;
@@ -810,7 +813,8 @@ internal sealed class MainForm : Form
 
             var newVersion = latestVersion + 1;
             SetStatus($"현재 ExternalAssets를 해시해 v{latestVersion}과 비교하는 중입니다… (파일이 많으면 시간이 걸려요)");
-            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, channelId));
+            var hashProgress = new Progress<SnapshotProgress>(OnSnapshotProgress);
+            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, channelId, hashProgress));
             var delta = SnapshotService.ComputeDelta(baseline, current);
             if (!delta.HasChanges)
             {
@@ -893,7 +897,8 @@ internal sealed class MainForm : Form
 
             var version = manifest.LatestVersion;
             SetStatus($"현재 ExternalAssets를 v{version} 스냅샷으로 만드는 중입니다… (파일이 많으면 시간이 걸려요)");
-            var snapshot = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, version, manifest.ChannelId));
+            var hashProgress = new Progress<SnapshotProgress>(OnSnapshotProgress);
+            var snapshot = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, version, manifest.ChannelId, hashProgress));
             var snapshotOutputPath = Path.Combine(outputPath, $"release-snapshot-v{version}.json");
             await SnapshotService.WriteAsync(snapshotOutputPath, snapshot);
             _generatedSnapshotPath = snapshotOutputPath;
@@ -1123,7 +1128,8 @@ internal sealed class MainForm : Form
 
             var newVersion = latestVersion + 1;
             SetStatus($"현재 ExternalAssets를 해시해 Drive(v{latestVersion})와 비교하는 중… (파일이 많으면 시간이 걸려요)");
-            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, channelId));
+            var hashProgress = new Progress<SnapshotProgress>(OnSnapshotProgress);
+            var current = await Task.Run(() => SnapshotService.CreateFromExternalAssets(projectPath, newVersion, channelId, hashProgress));
             var delta = SnapshotService.ComputeDelta(baseline, current);
             if (!delta.HasChanges)
             {
@@ -1389,6 +1395,11 @@ internal sealed class MainForm : Form
     private void SetBusy(bool isBusy)
     {
         _isBusy = isBusy;
+        if (!isBusy)
+        {
+            _progressBar.Value = 0;
+        }
+
         UpdateControlState();
     }
 
@@ -1456,6 +1467,17 @@ internal sealed class MainForm : Form
     private void SetStatus(string status)
     {
         _statusLabel.Text = status;
+    }
+
+    /// <summary>스냅샷 해싱 중 '지금 파일'과 진행률을 실시간으로 보여준다(Progress&lt;T&gt;로 UI 스레드에서 호출됨).</summary>
+    private void OnSnapshotProgress(SnapshotProgress progress)
+    {
+        if (progress.Total > 0)
+        {
+            _progressBar.Value = (int)Math.Clamp((long)progress.Processed * 100 / progress.Total, 0, 100);
+        }
+
+        _statusLabel.Text = $"스냅샷 해싱 {progress.Processed:N0}/{progress.Total:N0} — {progress.CurrentFile}";
     }
 
     private void ShowError(string message)
