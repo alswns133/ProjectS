@@ -72,6 +72,7 @@ internal sealed class MainForm : Form
 
     private readonly PublisherGoogleOAuthClient _oauthClient = new();
     private readonly DriveUploadClient _driveClient = new();
+    private readonly ToolTip _fieldHelpTip = new();
 
     private readonly List<SourceSelection> _sources = [];
     private PackageBuildResult? _packageBuild;
@@ -135,11 +136,16 @@ internal sealed class MainForm : Form
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        AddRow(layout, 0, "프로젝트 폴더", _projectPathTextBox, _selectProjectButton);
-        AddRow(layout, 1, "외부 에셋 루트", _externalRootLabel, null);
-        AddRow(layout, 2, "ZIP 저장 폴더", _outputPathTextBox, _selectOutputButton);
-        AddRow(layout, 3, "manifest.json 저장 위치", _manifestPathTextBox, _selectManifestButton);
-        AddRow(layout, 4, "Base Builder ZIP 등록", _baseZipPathTextBox, _loadBaseZipButton);
+        AddRow(layout, 0, "프로젝트 폴더", _projectPathTextBox, _selectProjectButton,
+            "ProjectS Unity 프로젝트의 최상위 폴더입니다(Assets·Packages·ProjectSettings가 있는 곳). 이 안의 Assets/ExternalAssets가 배포 대상이 됩니다.");
+        AddRow(layout, 1, "외부 에셋 루트", _externalRootLabel, null,
+            "실제로 배포되는 폴더(Assets/ExternalAssets)입니다. 프로젝트 폴더에서 자동으로 정해지며, 이 안의 파일만 패치에 담깁니다.");
+        AddRow(layout, 2, "ZIP 저장 폴더", _outputPathTextBox, _selectOutputButton,
+            "만든 패치 ZIP과 스냅샷(json)이 저장되는 로컬 폴더입니다. 여기 생긴 파일을 Drive에 올립니다(자동 업로드를 쓰면 알아서 올라갑니다).");
+        AddRow(layout, 3, "manifest.json 저장 위치", _manifestPathTextBox, _selectManifestButton,
+            "버전 목록 파일(manifest.json)의 로컬 경로입니다. 새 패치 정보를 여기에 추가하고, 이 내용을 Drive의 manifest 파일로 덮어써 팀원에게 게시합니다.");
+        AddRow(layout, 4, "Base Builder ZIP 등록", _baseZipPathTextBox, _loadBaseZipButton,
+            "최초 Base v1을 등록할 때만 씁니다. Base Builder가 만든 ZIP을 골라 검사·등록합니다. 패치(v2 이상)에는 사용하지 않습니다.");
 
         var packageOptions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         packageOptions.Controls.Add(new Label { Text = "버전", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
@@ -149,7 +155,8 @@ internal sealed class MainForm : Form
         packageOptions.Controls.Add(new Label { Text = "ZIP 이름", AutoSize = true, Padding = new Padding(12, 7, 0, 0) });
         packageOptions.Controls.Add(_packageNameTextBox);
         _packageNameTextBox.Width = 260;
-        AddRow(layout, 5, "패치 정보", packageOptions, null);
+        AddRow(layout, 5, "패치 정보", packageOptions, null,
+            "이번에 만들 패키지의 버전·종류·ZIP 이름입니다. '변경 파일 자동 찾기'나 'Drive와 비교'를 쓰면 자동으로 채워지므로 보통 손대지 않아도 됩니다.");
 
         layout.Controls.Add(new Label { Text = "압축할 원본", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 6);
         layout.Controls.Add(_sourceList, 1, 6);
@@ -163,8 +170,10 @@ internal sealed class MainForm : Form
         layout.Controls.Add(sourceActions, 1, 7);
         layout.SetColumnSpan(sourceActions, 2);
 
-        AddRow(layout, 8, "삭제할 상대 경로", _removedPathsTextBox, null);
-        AddRow(layout, 9, "ZIP Drive 파일 링크 / ID", _driveFileIdTextBox, null);
+        AddRow(layout, 8, "삭제할 상대 경로", _removedPathsTextBox, null,
+            "이 패치에서 '삭제'할 파일들의 경로입니다(ExternalAssets 기준, 한 줄에 하나). '변경 파일 자동 찾기'를 쓰면 지워진 파일이 자동으로 채워집니다.");
+        AddRow(layout, 9, "ZIP Drive 파일 링크 / ID", _driveFileIdTextBox, null,
+            "패치 ZIP을 Drive에 올린 뒤 그 파일의 링크나 ID를 넣는 칸입니다. '자동 업로드·게시'를 쓰면 자동으로 채워집니다(수동 게시할 때만 직접 입력).");
 
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         actions.Controls.Add(_createPackageButton);
@@ -172,8 +181,10 @@ internal sealed class MainForm : Form
         layout.Controls.Add(actions, 1, 10);
         layout.SetColumnSpan(actions, 2);
 
-        AddRow(layout, 11, "직전 버전 스냅샷(json)", _snapshotPathTextBox, _selectSnapshotButton);
-        AddRow(layout, 12, "스냅샷 Drive 링크 / ID", _snapshotDriveIdTextBox, null);
+        AddRow(layout, 11, "직전 버전 스냅샷(json)", _snapshotPathTextBox, _selectSnapshotButton,
+            "비교 기준이 되는 '직전 배포 버전의 스냅샷' 파일(release-snapshot-vN.json)입니다. Drive에서 최신 스냅샷을 받아 지정하세요. 이게 있어야 '변경 파일 자동 찾기'가 무엇이 바뀌었는지 계산합니다.");
+        AddRow(layout, 12, "스냅샷 Drive 링크 / ID", _snapshotDriveIdTextBox, null,
+            "새로 만든 스냅샷(json)을 Drive에 올린 뒤 그 파일의 링크/ID입니다. '자동 업로드·게시'를 쓰면 자동으로 채워집니다.");
 
         var autoActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         autoActions.Controls.Add(_composePatchButton);
@@ -181,10 +192,14 @@ internal sealed class MainForm : Form
         layout.Controls.Add(autoActions, 1, 13);
         layout.SetColumnSpan(autoActions, 2);
 
-        AddRow(layout, 14, "OAuth Desktop 앱 JSON", _oauthPathTextBox, _selectOAuthButton);
-        AddRow(layout, 15, "Google 계정", _loginLabel, null);
-        AddRow(layout, 16, "manifest Drive 파일 ID", _manifestDriveIdTextBox, null);
-        AddRow(layout, 17, "릴리스 폴더 Drive ID", _releasesFolderIdTextBox, null);
+        AddRow(layout, 14, "OAuth Desktop 앱 JSON", _oauthPathTextBox, _selectOAuthButton,
+            "Google OAuth 데스크톱 클라이언트 파일(google-oauth-client.json)입니다. 런처가 쓰는 것과 같은 파일이며, exe 옆에 두면 자동으로 인식됩니다.");
+        AddRow(layout, 15, "Google 계정", _loginLabel, null,
+            "쓰기 권한 로그인 상태입니다. '자동 업로드·게시'를 하려면 편집 권한이 있는 계정으로 'Google 로그인(쓰기)'을 먼저 해야 합니다(런처의 읽기 전용 로그인과 별개).");
+        AddRow(layout, 16, "manifest Drive 파일 ID", _manifestDriveIdTextBox, null,
+            "팀원 런처가 읽는 Drive의 manifest 파일 ID입니다. 게시할 때 이 파일을 '같은 ID로' 덮어써야 런처 참조가 끊기지 않습니다.");
+        AddRow(layout, 17, "릴리스 폴더 Drive ID", _releasesFolderIdTextBox, null,
+            "패치 ZIP과 스냅샷을 새로 업로드할, 제한된 Drive 폴더의 ID입니다. 링크나 폴더 ID를 넣으면 됩니다.");
 
         var publishActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         publishActions.Controls.Add(_signInButton);
@@ -241,14 +256,51 @@ internal sealed class MainForm : Form
         Load += (_, _) => Initialize();
     }
 
-    private static void AddRow(TableLayoutPanel layout, int row, string label, Control content, Control? trailingControl)
+    private void AddRow(TableLayoutPanel layout, int row, string label, Control content, Control? trailingControl, string? helpText = null)
     {
-        layout.Controls.Add(new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left }, 0, row);
+        var labelControl = new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 5, 0, 0) };
+        Control labelCell = labelControl;
+        if (!string.IsNullOrWhiteSpace(helpText))
+        {
+            var panel = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Margin = new Padding(0),
+            };
+            panel.Controls.Add(labelControl);
+            panel.Controls.Add(CreateHelpIcon(label, helpText));
+            labelCell = panel;
+        }
+
+        layout.Controls.Add(labelCell, 0, row);
         layout.Controls.Add(content, 1, row);
         if (trailingControl is not null)
         {
             layout.Controls.Add(trailingControl, 2, row);
         }
+    }
+
+    /// <summary>항목 옆의 물음표 아이콘. 클릭하면 그 항목이 무엇인지 설명 창을 띄운다.</summary>
+    private Control CreateHelpIcon(string title, string helpText)
+    {
+        var icon = new Label
+        {
+            Text = "?",
+            AutoSize = false,
+            Size = new Size(18, 18),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font(Font.FontFamily, 8f, FontStyle.Bold),
+            ForeColor = Color.White,
+            BackColor = Color.FromArgb(120, 130, 205),
+            Margin = new Padding(6, 3, 0, 0),
+            Cursor = Cursors.Hand,
+        };
+        _fieldHelpTip.SetToolTip(icon, "클릭하면 설명");
+        icon.Click += (_, _) => MessageBox.Show(this, helpText, $"도움말 — {title}", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        return icon;
     }
 
     private void Initialize()
