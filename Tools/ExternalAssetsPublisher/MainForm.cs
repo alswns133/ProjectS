@@ -97,7 +97,7 @@ internal sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "ProjectS 외부 에셋 배포자";
+        Text = $"ProjectS 외부 에셋 배포자 · v{Application.ProductVersion}";
         StartPosition = FormStartPosition.CenterScreen;
         // 기본(간단) 화면은 짧게, 고급을 펼치면 길어진다. 최소 높이는 기본 화면 기준으로 낮춰,
         // 접었을 때 빈 공간이 남지 않게 한다(실제 높이는 고급 토글에서 조절).
