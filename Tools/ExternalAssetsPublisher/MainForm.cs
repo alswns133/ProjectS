@@ -1,7 +1,11 @@
+using System.Text.Json;
+
 namespace ProjectS.ExternalAssetsPublisher;
 
 internal sealed class MainForm : Form
 {
+    private static readonly JsonSerializerOptions ManifestJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly TextBox _projectPathTextBox = new() { Dock = DockStyle.Fill, ReadOnly = true };
     private readonly TextBox _outputPathTextBox = new() { Dock = DockStyle.Fill };
     private readonly TextBox _manifestPathTextBox = new() { Dock = DockStyle.Fill };
@@ -55,6 +59,17 @@ internal sealed class MainForm : Form
     private readonly Button _selectSnapshotButton = new() { Text = "찾기", AutoSize = true };
     private readonly Button _composePatchButton = new() { Text = "변경 비교 → 패치 자동 구성", AutoSize = true };
     private readonly Button _createSnapshotButton = new() { Text = "현재 스냅샷 생성", AutoSize = true };
+    private readonly TextBox _oauthPathTextBox = new() { Dock = DockStyle.Fill };
+    private readonly TextBox _manifestDriveIdTextBox = new() { Dock = DockStyle.Fill };
+    private readonly TextBox _releasesFolderIdTextBox = new() { Dock = DockStyle.Fill };
+    private readonly Button _selectOAuthButton = new() { Text = "찾기", AutoSize = true };
+    private readonly Button _signInButton = new() { Text = "Google 로그인(쓰기)", AutoSize = true };
+    private readonly Button _signOutButton = new() { Text = "로그아웃", AutoSize = true };
+    private readonly Button _autoPublishButton = new() { Text = "자동 업로드·게시", AutoSize = true };
+    private readonly Label _loginLabel = new() { AutoSize = true };
+
+    private readonly PublisherGoogleOAuthClient _oauthClient = new();
+    private readonly DriveUploadClient _driveClient = new();
 
     private readonly List<SourceSelection> _sources = [];
     private PackageBuildResult? _packageBuild;
@@ -82,7 +97,7 @@ internal sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(16),
             ColumnCount = 3,
-            RowCount = 15,
+            RowCount = 20,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -94,6 +109,11 @@ internal sealed class MainForm : Form
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -148,12 +168,26 @@ internal sealed class MainForm : Form
         layout.Controls.Add(autoActions, 1, 13);
         layout.SetColumnSpan(autoActions, 2);
 
+        AddRow(layout, 14, "OAuth Desktop 앱 JSON", _oauthPathTextBox, _selectOAuthButton);
+        AddRow(layout, 15, "Google 계정", _loginLabel, null);
+        AddRow(layout, 16, "manifest Drive 파일 ID", _manifestDriveIdTextBox, null);
+        AddRow(layout, 17, "릴리스 폴더 Drive ID", _releasesFolderIdTextBox, null);
+
+        var publishActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+        publishActions.Controls.Add(_signInButton);
+        publishActions.Controls.Add(_signOutButton);
+        publishActions.Controls.Add(_autoPublishButton);
+        layout.Controls.Add(publishActions, 1, 18);
+        layout.SetColumnSpan(publishActions, 2);
+
         var help = new Label
         {
             AutoSize = true,
             MaximumSize = new Size(900, 0),
             Text = "수동: 파일/폴더를 골라 ZIP 생성. 자동: 직전 버전 스냅샷(json)을 지정하고 '변경 비교 → 패치 자동 구성'을 누르면 바뀐 파일만 담은 패치 ZIP과 새 스냅샷을 만들어 줍니다. "
-                + "최초 Base v1은 Base Builder ZIP 선택으로 등록합니다. 만든 ZIP·스냅샷을 제한된 Drive에 올린 뒤 각 링크/ID를 붙여넣고 manifest.json을 저장하세요.",
+                + "최초 Base v1은 Base Builder ZIP 선택으로 등록합니다. 만든 ZIP·스냅샷을 제한된 Drive에 올린 뒤 각 링크/ID를 붙여넣고 manifest.json을 저장하세요.\r\n"
+                + "완전 자동: 'Google 로그인(쓰기)' 후 manifest 파일 ID·릴리스 폴더 ID를 넣고 '자동 업로드·게시'를 누르면 ZIP·스냅샷 업로드와 manifest 덮어쓰기(같은 파일 ID)까지 한 번에 처리합니다. "
+                + "여러 배포자 충돌은 게시 전/직전 버전·리비전 확인으로 막습니다. (쓰기 스코프 최초 1회 재동의 필요)",
         };
         var footer = new FlowLayoutPanel
         {
@@ -165,7 +199,7 @@ internal sealed class MainForm : Form
         footer.Controls.Add(_statusLabel);
         footer.Controls.Add(_resultLabel);
         footer.Controls.Add(help);
-        layout.Controls.Add(footer, 1, 14);
+        layout.Controls.Add(footer, 1, 19);
         layout.SetColumnSpan(footer, 2);
 
         Controls.Add(layout);
@@ -184,6 +218,10 @@ internal sealed class MainForm : Form
         _selectSnapshotButton.Click += (_, _) => SelectSnapshotPath();
         _composePatchButton.Click += async (_, _) => await ComposePatchAsync();
         _createSnapshotButton.Click += async (_, _) => await CreateSnapshotAsync();
+        _selectOAuthButton.Click += (_, _) => SelectOAuthPath();
+        _signInButton.Click += async (_, _) => await SignInAsync();
+        _signOutButton.Click += async (_, _) => await SignOutAsync();
+        _autoPublishButton.Click += async (_, _) => await AutoPublishAsync();
         Load += (_, _) => Initialize();
     }
 
@@ -207,7 +245,13 @@ internal sealed class MainForm : Form
             _manifestPathTextBox.Text = Path.Combine(projectPath, "ExternalAssetsReleases", "manifest.json");
         }
 
+        if (File.Exists(PublisherGoogleOAuthClient.GetDefaultConfigurationPath()))
+        {
+            _oauthPathTextBox.Text = PublisherGoogleOAuthClient.GetDefaultConfigurationPath();
+        }
+
         RefreshProjectLabels();
+        RefreshLoginLabel();
         SetStatus("파일 또는 폴더를 추가한 뒤 ZIP을 생성하세요.");
     }
 
@@ -658,6 +702,183 @@ internal sealed class MainForm : Form
         }
     }
 
+    private void SelectOAuthPath()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Google OAuth Desktop 앱 JSON을 선택하세요.",
+            Filter = "JSON 파일 (*.json)|*.json",
+            CheckFileExists = true,
+        };
+        var directory = Path.GetDirectoryName(_oauthPathTextBox.Text);
+        if (Directory.Exists(directory))
+        {
+            dialog.InitialDirectory = directory;
+        }
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _oauthPathTextBox.Text = dialog.FileName;
+        }
+    }
+
+    private async Task SignInAsync()
+    {
+        try
+        {
+            var oauthPath = _oauthPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(oauthPath))
+            {
+                throw new InvalidOperationException("OAuth Desktop 앱 JSON을 지정하세요.");
+            }
+
+            SetBusy(true);
+            SetStatus("브라우저에서 Google 로그인(쓰기 권한)을 진행하세요…");
+            await _oauthClient.SignInAsync(oauthPath, CancellationToken.None);
+            SetStatus("Google 로그인 완료. 이제 '자동 업로드·게시'를 쓸 수 있습니다.");
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            RefreshLoginLabel();
+        }
+    }
+
+    private async Task SignOutAsync()
+    {
+        try
+        {
+            SetBusy(true);
+            await _oauthClient.SignOutAsync(CancellationToken.None);
+            SetStatus("Google 로그아웃 완료.");
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            RefreshLoginLabel();
+        }
+    }
+
+    private void RefreshLoginLabel()
+    {
+        _loginLabel.Text = _oauthClient.HasSavedCredentials
+            ? "로그인됨 (이 PC에 토큰 저장). 다른 계정이면 로그아웃 후 다시 로그인하세요."
+            : "자동 업로드하려면 편집 권한 계정으로 'Google 로그인(쓰기)'을 하세요.";
+    }
+
+    /// <summary>
+    /// 자동 구성으로 만든 패치 ZIP·스냅샷을 Drive에 올리고, manifest를 새 버전으로 덮어써 게시한다.
+    /// 여러 배포자 충돌을 막기 위해 (1) 게시 전 Drive 최신 버전이 예상과 같은지, (2) 업로드 도중
+    /// manifest headRevision이 바뀌지 않았는지 두 번 확인한다. manifest는 같은 파일 ID로 덮어써
+    /// 팀원 런처의 참조가 끊기지 않게 한다.
+    /// </summary>
+    private async Task AutoPublishAsync()
+    {
+        try
+        {
+            if (_packageBuild is null || _generatedSnapshotPath is null)
+            {
+                throw new InvalidOperationException("먼저 '변경 비교 → 패치 자동 구성'으로 패치와 스냅샷을 만든 뒤 자동 게시하세요.");
+            }
+
+            var manifestPath = _manifestPathTextBox.Text.Trim();
+            var oauthPath = _oauthPathTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(manifestPath))
+            {
+                throw new InvalidOperationException("manifest.json(로컬) 위치를 지정하세요.");
+            }
+
+            if (string.IsNullOrWhiteSpace(oauthPath))
+            {
+                throw new InvalidOperationException("OAuth Desktop 앱 JSON을 지정하세요.");
+            }
+
+            var manifestFileId = DriveUploadClient.ExtractId(_manifestDriveIdTextBox.Text);
+            var folderId = DriveUploadClient.ExtractId(_releasesFolderIdTextBox.Text);
+            var package = _packageBuild;
+            var snapshotPath = _generatedSnapshotPath;
+            var targetVersion = Decimal.ToInt32(_versionInput.Value);
+            var removedPaths = ParseRemovedPaths();
+
+            SetBusy(true);
+            SetStatus("Google 인증 토큰을 확인하는 중…");
+            var accessToken = await _oauthClient.GetAccessTokenAsync(oauthPath, CancellationToken.None);
+
+            SetStatus("Drive의 현재 manifest를 확인하는 중…");
+            var driveInfo = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
+            var driveManifestText = await _driveClient.DownloadTextAsync(accessToken, manifestFileId, CancellationToken.None);
+            var driveManifest = JsonSerializer.Deserialize<PublisherManifest>(driveManifestText, ManifestJsonOptions)
+                ?? throw new InvalidOperationException("Drive manifest를 해석할 수 없습니다.");
+            if (driveManifest.LatestVersion != targetVersion - 1)
+            {
+                throw new InvalidOperationException(
+                    $"Drive 최신이 v{driveManifest.LatestVersion}입니다(이 패치는 v{targetVersion}). 그새 누가 먼저 게시했을 수 있어요. "
+                    + "런처로 최신을 받고 '변경 비교 → 패치 자동 구성'을 다시 눌러 재구성하세요.");
+            }
+
+            // Drive의 진실을 로컬 manifest로 내려, 정확히 그 위에 새 버전을 append 한다.
+            await File.WriteAllTextAsync(manifestPath, driveManifestText, CancellationToken.None);
+
+            SetStatus($"패치 ZIP 업로드 중: {package.PackageName}…");
+            var zipFileId = await _driveClient.UploadNewFileAsync(
+                accessToken, folderId, package.ZipPath, package.PackageName, "application/zip", CancellationToken.None);
+
+            var snapshotName = Path.GetFileName(snapshotPath);
+            SetStatus($"스냅샷 업로드 중: {snapshotName}…");
+            var snapshotFileId = await _driveClient.UploadNewFileAsync(
+                accessToken, folderId, snapshotPath, snapshotName, "application/json", CancellationToken.None);
+
+            _driveFileIdTextBox.Text = zipFileId;
+            _snapshotDriveIdTextBox.Text = snapshotFileId;
+
+            SetStatus("로컬 manifest에 새 버전을 기록하는 중…");
+            await PublisherServices.AppendPackageToManifestAsync(
+                manifestPath,
+                targetVersion,
+                _packageTypeComboBox.SelectedItem?.ToString() ?? "patch",
+                package,
+                zipFileId,
+                removedPaths,
+                snapshotFileId);
+
+            // 게시 직전 재확인: 내가 받은 뒤 다른 사람이 manifest를 바꿨으면 덮어쓰지 않는다.
+            var recheck = await _driveClient.GetFileInfoAsync(accessToken, manifestFileId, CancellationToken.None);
+            if (!string.Equals(recheck.HeadRevisionId, driveInfo.HeadRevisionId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "업로드 도중 Drive manifest가 다른 사람에 의해 바뀌었습니다. ZIP·스냅샷은 올라갔지만 manifest는 덮어쓰지 않았습니다. "
+                    + "재동기화 후 manifest만 다시 게시하세요.");
+            }
+
+            SetStatus("Drive manifest를 새 버전으로 덮어쓰는 중(게시)…");
+            await _driveClient.UpdateFileMediaAsync(accessToken, manifestFileId, manifestPath, "application/json", CancellationToken.None);
+
+            _resultLabel.Text =
+                $"게시 완료 v{targetVersion}\r\n"
+                + $"ZIP fileId: {zipFileId}\r\n"
+                + $"스냅샷 fileId: {snapshotFileId}\r\n"
+                + "manifest: 같은 파일 ID로 덮어씀";
+            SetStatus($"✅ v{targetVersion} 자동 업로드·게시 완료. 팀원 런처에서 바로 받을 수 있습니다.");
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            RefreshLoginLabel();
+        }
+    }
+
     private void AddSource(SourceSelection selection)
     {
         if (_isImportedBasePackage)
@@ -807,6 +1028,20 @@ internal sealed class MainForm : Form
         _selectSnapshotButton.Enabled = canInteract;
         _composePatchButton.Enabled = !_isBusy && !_isImportedBasePackage;
         _createSnapshotButton.Enabled = canInteract;
+        _oauthPathTextBox.Enabled = canInteract;
+        _manifestDriveIdTextBox.Enabled = canInteract;
+        _releasesFolderIdTextBox.Enabled = canInteract;
+        _selectOAuthButton.Enabled = canInteract;
+        _signInButton.Enabled = canInteract;
+        _signOutButton.Enabled = canInteract && _oauthClient.HasSavedCredentials;
+        _autoPublishButton.Enabled = !_isBusy && _packageBuild is not null && _generatedSnapshotPath is not null;
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        base.OnFormClosed(e);
+        _oauthClient.Dispose();
+        _driveClient.Dispose();
     }
 
     private void SetStatus(string status)
