@@ -72,7 +72,12 @@ namespace ProjectS.Skills
         public void Apply(IReadOnlyList<SkillLevelChange> changes)
         {
             // 배운 레벨 저장 대상(세이브의 스킬 레벨·SP)이 아직 없어 실제 반영은 못 한다. 확인 흐름 검증용 로그만.
-            // TODO: 세이브 스키마에 스킬 레벨/사용 SP가 생기면 여기서 커밋한다.
+            // TODO(스킬 세이브): 이 자리가 [확인] 커밋 지점이다. 세이브 스키마(CharacterSaveData의 스킬 필드)가
+            //   확정되면 여기서:
+            //     1) 바뀐 레벨을 캐릭터별 스킬 상태(SkillManager 등)에 반영하고,
+            //     2) PlayerSaveService.SaveNow()(즉시 커밋) 또는 MarkDirty()로 저장을 건다
+            //        — 강화/구매 커밋과 같은 정책. 그러면 CharacterSaveData → Firebase까지 이어진다.
+            //   읽는 쪽(현재 레벨)은 SkillProgress.GetLevel의 동일 TODO 참고.
             if (changes == null || changes.Count == 0) return;
 
             foreach (SkillLevelChange change in changes)
