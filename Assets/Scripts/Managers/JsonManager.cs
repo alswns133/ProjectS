@@ -31,6 +31,7 @@ namespace ProjectS.Managers
         public IReadOnlyDictionary<int, PlayerLevelTable> PlayerLevelDict => GetTable<PlayerLevelTable>();
         public IReadOnlyDictionary<int, MonsterStatTable> MonsterStatDict => GetTable<MonsterStatTable>();
         public IReadOnlyDictionary<int, SkillTable> SkillDict => GetTable<SkillTable>();
+        public IReadOnlyDictionary<int, SkillGrowthTable> SkillGrowthDict => GetTable<SkillGrowthTable>();
 
         public IReadOnlyDictionary<int, ItemData> ItemDict => GetTable<ItemData>();
         public IReadOnlyDictionary<int, EquipmentData> EquipmentDict => GetTable<EquipmentData>();
@@ -69,6 +70,12 @@ namespace ProjectS.Managers
             await RegisterAsync<PlayerLevelTable>();
             await RegisterAsync<MonsterStatTable>();
             await RegisterAsync<SkillTable>();
+
+            // 스킬 성장 테이블(스킬창 K)은 2026-08-26 신설이라 어드레서블 "SkillGrowthTable"이 아직
+            // 없을 수 있다. 키가 없으면 LoadAssetAsync가 throw해 이후 등록과 IsReady까지 막으므로,
+            // 이 한 줄만 감싸 부팅이 멈추지 않게 한다(어드레서블 등록 후엔 정상 로드).
+            try { await RegisterAsync<SkillGrowthTable>(); }
+            catch (Exception e) { Debug.LogWarning($"[JsonManager] SkillGrowthTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
             await RegisterAsync<ItemData>();
             await RegisterAsync<EquipmentData>();
