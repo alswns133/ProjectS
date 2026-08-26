@@ -31,6 +31,7 @@ namespace ProjectS.UI
         protected override void Subscribe()
         {
             view.OnEnhanceRequested += HandleEnhanceRequested;
+            view.OnOpened += HandlePopupOpened;
             // 대상 선택 두 가지(구 InventorySlotView 설계 의도 유지): 인벤 장비를 코어 슬롯에 드래그드롭 + 인벤 장비 좌더블클릭.
             // 둘 다 실제 인벤 슬롯(InventoryItemSlot)에서 나오며, 강화창이 열려 있는 동안(=이 구독이 사는 동안)만 반응한다.
             CoreSlotDropTarget.OnDropped += HandleEquipmentChosen;
@@ -41,6 +42,7 @@ namespace ProjectS.UI
         protected override void Unsubscribe()
         {
             view.OnEnhanceRequested -= HandleEnhanceRequested;
+            view.OnOpened -= HandlePopupOpened;
             CoreSlotDropTarget.OnDropped -= HandleEquipmentChosen;
             InventoryItemSlot.OnEquipmentDoubleClicked -= HandleEquipmentChosen;
             PlayerEvents.OnGoldChanged -= HandleGoldChanged;
@@ -48,8 +50,16 @@ namespace ProjectS.UI
 
         private void HandleEquipmentChosen(EquipmentInstance chosen)
         {
+            if (chosen == null) return;
             target = chosen;
             RefreshView();
+        }
+
+        private void HandlePopupOpened()
+        {
+            // 팝업 재오픈은 항상 사진 1번의 초기 화면에서 시작한다.
+            target = null;
+            view.SetOwnedGold(InventoryManager.Instance != null ? InventoryManager.Instance.Gold : 0);
         }
 
         private void HandleGoldChanged(int gold)
@@ -119,7 +129,8 @@ namespace ProjectS.UI
             EnsureService();
 
             var info = service.BuildInfo(target);
-            view.SetTarget(target.Item, info);
+            view.SetTarget(target.Item, target.Equipment, info);
+            view.SetCoreEquipment(target);   // 코어 hover 툴팁이 이 인스턴스(롤 스탯·옵션·+N)를 띄운다.
             view.SetMaterials(BuildMaterials(info));
             view.SetOwnedGold(InventoryManager.Instance != null ? InventoryManager.Instance.Gold : 0);
         }
@@ -154,7 +165,7 @@ namespace ProjectS.UI
             string name = item != null ? item.Name : "재료";
             string iconAddress = item != null ? item.IconAddress : null;
 
-            list.Add(new MaterialSlotInfo(iconAddress, name, owned, required));
+            list.Add(new MaterialSlotInfo(iconAddress, name, owned, required, itemId));
         }
     }
 }

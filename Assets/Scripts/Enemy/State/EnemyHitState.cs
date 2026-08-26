@@ -51,7 +51,7 @@ namespace ProjectS.Enemies
 
             // 경직 시간(HitStunDuration + HitRecoveryDelay)이 끝나면 다시 Chase로 돌아가 전투 흐름을 이어간다.
             if (elapsed >= enemy.HitStunDuration + enemy.HitRecoveryDelay)
-                enemy.StateMachine.ChangeState(enemy.ChaseState);
+                enemy.StateMachine.ChangeState(enemy.AggroState);
         }
     }
 }

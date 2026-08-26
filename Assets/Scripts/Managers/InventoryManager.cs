@@ -622,6 +622,10 @@ namespace ProjectS.Managers
         {
             if (!result.Success) return;
             RecomputeEquipmentStats(true);
+
+            // 커밋: 강화 성공(+N 상승)은 즉시 저장한다. Spend의 SaveNow는 EnhanceService가 ApplyStep을
+            // 부르기 "전"에 찍혀 옛 단계만 담기므로, 실제 +N이 오른 이 시점에 다시 저장해야 유실되지 않는다.
+            PlayerSaveService.SaveNow();
         }
 
         /// <summary>
