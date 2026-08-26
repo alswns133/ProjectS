@@ -3,16 +3,14 @@
 namespace ProjectS.Enemies
 {
     /// <summary>
-    /// 레이드 보스 교전 로코모션 상태. 플레이어와의 거리에 따라 멀면 Run/Jog로 접근,
-    /// 교전권에선 좌우로 도는 "간보기"(strafe), 사거리 안이면 정지(Idle)한다.
+    /// 레이드 보스 교전 로코모션 상태. 플레이어와의 거리에 따라 Run/Jog/Walk로 직진 접근하고,
+    /// 사거리 안(AttackRange)에 들면 쿨다운이 찼을 때 공격 상태로 전환한다.
     /// 항상 플레이어를 바라본 채 이동해 8방향 로코모션(MoveX/MoveY)이 살아난다.
-    /// 튜닝값은 <see cref="RaidBossLocomotion"/>에서 읽는다. (공격/특수 전이는 이후 단계)
+    /// 튜닝값은 <see cref="RaidBossLocomotion"/>에서 읽는다.
     /// </summary>
     public class RaidBossEngageState : EnemyBaseState
     {
         private RaidBossLocomotion config;
-        private float strafeSide = 1f;   // +1 오른쪽, -1 왼쪽
-        private float flipTimer;
 
         public RaidBossEngageState(Enemy enemy) : base(enemy) { }
 
@@ -21,7 +19,6 @@ namespace ProjectS.Enemies
             config = enemy.GetComponent<RaidBossLocomotion>();
             enemy.Movement.SetAutoRotation(false);   // 회전은 코드가 소유(플레이어 바라보기)
             enemy.Movement.Resume();
-            if (config != null) ResetFlipTimer();
         }
 
         public override void Exit()
@@ -37,7 +34,6 @@ namespace ProjectS.Enemies
             Vector3 toPlayer = enemy.Target.position - enemy.transform.position;
             toPlayer.y = 0f;
             float dist = toPlayer.magnitude;
-            Vector3 dirToPlayer = dist > 0.01f ? toPlayer / dist : enemy.transform.forward;
 
             // --- 거리 밴드로 속도/목적지 결정 ---
             if (dist > config.JogDist)              // 아주 멀다 → Run 직진
@@ -52,22 +48,23 @@ namespace ProjectS.Enemies
                 enemy.Movement.Resume();
                 enemy.Movement.SetDestination(enemy.Target.position);
             }
-            else if (dist > config.AttackRange)     // 교전권 → 좌우 간보기(Walk)
+            else if (dist > config.AttackRange)     // 교전권 → 걸어서 접근
             {
                 enemy.Movement.SetMoveSpeed(config.WalkSpeed);
                 enemy.Movement.Resume();
-
-                Vector3 tangent = Vector3.Cross(Vector3.up, dirToPlayer);                    // 오른쪽
-                Vector3 orbit = enemy.Target.position - dirToPlayer * config.StrafeRadius;    // 반경 유지 지점
-                Vector3 dest = orbit + tangent * strafeSide * config.StrafeLookahead;
-                enemy.Movement.SetDestination(dest);
-
-                flipTimer -= Time.deltaTime;
-                if (flipTimer <= 0f) { strafeSide = -strafeSide; ResetFlipTimer(); }
+                enemy.Movement.SetDestination(enemy.Target.position);
             }
-            else                                     // 사거리 안 → 정지(Idle)
+            else // 사거리 안 → 공격 시도, 아니면 정지
             {
                 enemy.Movement.Stop();
+
+                // 이 밴드(dist <= config.AttackRange) 자체가 이미 사거리 게이트라
+                // ChaseState처럼 거리 재검사는 불필요. 쿨다운·시야만 확인하고 넘긴다.
+                if (enemy.Combat.CanAttack && enemy.Combat.HasLineOfSight())
+                {
+                    enemy.StateMachine.ChangeState(enemy.AttackState);
+                    return; // 상태가 바뀌었으니 이 프레임의 나머지 로코모션 갱신(Face/SetMove/SetSpeed)은 건너뛴다
+                }
             }
 
             // --- 항상 플레이어 바라보기 ---
@@ -78,8 +75,5 @@ namespace ProjectS.Enemies
             enemy.Animation.SetMove(d.x, d.z);
             enemy.Animation.SetSpeed(enemy.Movement.CurrentSpeed);
         }
-
-        private void ResetFlipTimer()
-            => flipTimer = Random.Range(config.FlipInterval.x, config.FlipInterval.y);
     }
 }
