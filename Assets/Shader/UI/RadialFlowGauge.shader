@@ -27,6 +27,11 @@ Shader "ProjectS/UI Radial Flow Gauge"
         [Header(Gauge)]
         _Fill ("Fill (0~1) - 컴포넌트가 채움", Range(0, 1)) = 0.62
 
+        // 기본 성공률 지점. [0, _BaseFill]은 밑색(파랑), [_BaseFill, _Fill]은 _PityColor(노랑=천장 자비 보너스).
+        // 컴포넌트가 채운다. 기본값 1 = 전부 밑색(자비 0일 때와 동일 — 배선 안 해도 안전).
+        _BaseFill ("Base Fill (0~1) - 기본 성공률", Range(0, 1)) = 1
+        _PityColor ("Pity Color (천장 보너스 구간)", Color) = (1, 0.78, 0.15, 1)
+
         // 링의 진행도 p를 뽑는 매핑. 컴포넌트가 Image 설정에서 계산해 넣는다.
         // _AngleOffset: 12시를 0으로 본 시계방향 시작 각도(0~1). Top=0, Right=0.25, Bottom=0.5, Left=0.75
         // _Dir: 1=시계방향, -1=반시계방향
@@ -135,6 +140,8 @@ Shader "ProjectS/UI Radial Flow Gauge"
             float4 _ClipRect;
 
             float  _Fill;
+            float  _BaseFill;
+            fixed4 _PityColor;
             float  _AngleOffset;
             float  _Dir;
 
@@ -183,6 +190,14 @@ Shader "ProjectS/UI Radial Flow Gauge"
 
                 // Image의 FillOrigin/Clockwise에 맞춘 진행도. 채움 시작점이 0.
                 float p = frac((aCW - _AngleOffset) * _Dir);
+
+                // ── 천장(자비) 구간 색 분기 ─────────────────────────────────
+                // 기본 성공률(_BaseFill)까지는 밑색(파랑), 그 위 채움 끝(_Fill)까지는 _PityColor(노랑).
+                // Filled 메시가 이미 _Fill에서 잘라주므로 여기선 _BaseFill 경계만 부드럽게 갈아끼운다.
+                // _BaseFill>=_Fill(자비 0)이면 경계가 끝점 밖이라 전부 밑색으로 남는다.
+                // 열·글로우보다 먼저 깔아, 노란 구간이 지날 때 그 위에서 달아오르고 빛나게 한다.
+                float pity = smoothstep(_BaseFill - fwidth(p), _BaseFill + fwidth(p), p);
+                col.rgb = lerp(col.rgb, _PityColor.rgb, pity * _PityColor.a);
 
                 // 밴드: 머리(_FlowHead) 뒤쪽으로 _TrailLen 만큼 꼬리가 붙는다.
                 float back  = _FlowHead - p;

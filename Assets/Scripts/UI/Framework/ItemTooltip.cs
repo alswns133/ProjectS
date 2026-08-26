@@ -149,7 +149,9 @@ namespace ProjectS.UI.Framework
                 if (classText != null) classText.text = ClassLabel(e.EquipSlot, e.WeaponType);
                 if (reqLevelText != null) reqLevelText.text = $"요구 레벨 {item.Level}";
 
-                if (mainStatText != null) mainStatText.text = $"{MainStatLabel(e.MainStatType)} {equip.RolledMainStat}";
+                // 롤값(+0 기준)이 아니라 강화 보너스까지 반영한 실제 주 스탯을 보여준다
+                // (전투 스탯·강화창과 같은 EquipmentStatCalculator 경로 — 강화하면 이 값이 오른다).
+                if (mainStatText != null) mainStatText.text = $"{MainStatLabel(e.MainStatType)} {EquipmentStatCalculator.MainStat(equip)}";
 
                 // 0강은 "+0"을 보여주지 않는다(기본값이라 정보량이 없음). 1강 이상일 때만 켠다.
                 if (enhanceText != null)

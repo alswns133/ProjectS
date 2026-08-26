@@ -80,6 +80,10 @@ namespace ProjectS.UI
 
         // 평상시 자리(= 현 단계 성공률). 실패 후 여기로 되돌아온다.
         private float restRate;
+        // 평상시 천장 색 경계(= 자비 전 기본 성공률). 게이지가 정착한 평상시(Idle)에만 이 값으로 노랑을 보이고,
+        // 스윕·되돌아가는 애니메이션(비Idle) 동안에는 전부 파랑(=1)으로 덮는다.
+        // 기본 1 = 전부 파랑(천장 없음) — 대상 선택 전 안전한 초기값.
+        private float restBaseRate = 1f;
         // 이번 스윕이 출발한 높이. 연출 도중 성공률이 갱신돼도 궤적이 튀지 않게 따로 들고 있다.
         private float startFill;
         private bool success;
@@ -123,6 +127,7 @@ namespace ProjectS.UI
 
             popup.OnTargetChanged += HandleTargetChanged;
             popup.OnResultPlay += HandleResultPlay;
+            popup.OnOpened += HandleOpened;
 
             // 연출 도중 창이 닫히면 OnResultPlayFinished가 오지 않는다.
             // 다시 열렸을 때 게이지가 정점에 얼어붙어 있지 않도록 평상시 자리로 되돌린다.
@@ -139,12 +144,31 @@ namespace ProjectS.UI
 
             popup.OnTargetChanged -= HandleTargetChanged;
             popup.OnResultPlay -= HandleResultPlay;
+            popup.OnOpened -= HandleOpened;
         }
 
         private void HandleTargetChanged(EnhanceInfo info)
         {
             // MAX 단계는 더 강화할 수 없으므로 게이지를 가득 채워 둔다.
             SetRate(info.IsMax ? 1f : info.SuccessRate);
+
+            // 천장(자비) 구간 색 분기 기준(자비 전 기본 성공률). 기본율까지 파랑, 그 위 실효율까지 노랑.
+            // MAX는 전부 파랑(가득 참·천장 개념 없음).
+            restBaseRate = info.IsMax ? 1f : info.BaseSuccessRate;
+
+            // 정착한 평상시(Idle)면 즉시 노랑을 반영한다. 스윕/되돌아가는 애니메이션 중이면 자리만 기억하고
+            // 반영은 정착 순간(SetPhase(Idle))에 한다.
+            if (phase == Phase.Idle && fx != null) fx.SetBaseFill(restBaseRate);
+        }
+
+        // 팝업이 빈 화면(대상 미선택)으로 열리면 게이지도 0으로 되돌린다.
+        // 코어에 장비가 없으면 성공률 자체가 없으므로 이전 대상의 성공률 자리에 남아 있지 않게 한다
+        // (Presenter도 같은 OnOpened로 target=null을 만든다 — 둘이 같은 신호로 초기화된다).
+        private void HandleOpened()
+        {
+            SetRate(0f);
+            restBaseRate = 1f;   // 빈 상태 — 천장 노랑 구간 없음
+            if (phase == Phase.Idle && fx != null) fx.SetBaseFill(restBaseRate);
         }
 
         /// <summary>
@@ -268,7 +292,16 @@ namespace ProjectS.UI
         private void SetPhase(Phase next)
         {
             phase = next;
-            if (fx != null) fx.SetHeatActive(next != Phase.Idle);
+            if (fx == null) return;
+
+            fx.SetHeatActive(next != Phase.Idle);
+
+            // 연출(비Idle) 동안엔 전부 파랑으로 덮는다. Idle로 정착할 때 노랑을 켜는 건 여기서 하지 않고,
+            // 뒤이어 오는 대상 갱신(HandleTargetChanged)이 "최종 정착한 성공률" 기준으로 반영한다.
+            // ★ 성공 시 게이지는 1.0에 잠깐 머문다(Reach→Idle, hold). 그 순간은 Idle이지만 아직 정착 전이라,
+            //   여기서 노랑을 켜면 fill=1.0/옛 기준이 맞물려 꼭대기에 노랑이 뜬다(성공인데 노랑이 새는 버그).
+            //   그래서 Idle 진입에선 baseFill을 건드리지 않고, 연출 시작(비Idle)에서만 파랑으로 눌러 둔다.
+            if (next != Phase.Idle) fx.SetBaseFill(1f);
         }
 
         private void Apply(float fill)

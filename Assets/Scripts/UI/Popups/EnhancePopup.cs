@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.Enhance;
+using ProjectS.Items;
 using ProjectS.Managers;
 using ProjectS.UI.Framework;
 
@@ -15,14 +16,17 @@ namespace ProjectS.UI
     /// 강화창 본체(순수 View). 판정·검증을 절대 알지 않고, 참조 보유와 표시/연출만 담당한다.
     /// 실제 강화 로직은 EnhancePresenter → EnhanceService로 흐른다.
     /// 상점·인벤·장비창과 같은 급의 창이라 BasePopup이다(패널 스택이 아니라 공존 창 — 인벤토리 팝업에서
-    /// 장비를 드래그해 강화하는 흐름상 인벤과 동시에 떠 있어야 한다). 장비 선택은 위에 뜨는 ItemSelectPopup으로 처리한다.
+    /// 장비를 드래그하거나 좌더블클릭해 강화하는 흐름상 인벤과 동시에 떠 있어야 한다.
     /// (2026-07-23 TH / 2026-08-19 Panel→Popup 전환)
     /// </summary>
     public class EnhancePopup : BasePopup
     {
         [Header("코어")]
         [SerializeField] private Image coreIcon;
-        [SerializeField] private Button coreSlotButton;   // 클릭 시 장비 선택 팝업
+        [Tooltip("코어 슬롯의 드롭/hover 컴포넌트(CoreSlotDropTarget). 선택한 장비를 알려 hover 시 아이템 툴팁이 뜨게 한다.")]
+        [SerializeField] private CoreSlotDropTarget coreSlot;
+        [Tooltip("코어 슬롯 위 강화 단계 배지(+N). 인벤/장비 슬롯과 같은 표기. 0강이면 숨긴다. 비워두면 표시 안 함.")]
+        [SerializeField] private TMP_Text coreEnhanceText;
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text typeText;
         [SerializeField] private TMP_Text curLevelText;
@@ -30,7 +34,9 @@ namespace ProjectS.UI
 
         [Header("확률")]
         [SerializeField] private TMP_Text rateText;
-        [SerializeField] private SegmentGaugeView rateGauge;
+        // 성공률 게이지(세그먼트 링)는 팝업이 직접 값을 넣지 않는다. 게이지 채움은 EnhanceGaugeSweep이
+        // OnTargetChanged로 성공률을 받아 소유하고, SegmentGaugeView가 그 fillAmount를 미러링한다.
+        // (씬에서 SegmentGaugeView.sourceFill = GaugeF의 Image로 배선) — rateText만 숫자로 표기한다.
 
         [Header("비용")]
         [SerializeField] private TMP_Text costText;
@@ -40,19 +46,33 @@ namespace ProjectS.UI
         [SerializeField] private Button enhanceButton;
         [SerializeField] private Button closeButton;
 
-        [Header("재료 리스트")]
+        [Header("재료 (리뉴얼: 고정 3×2 슬롯)")]
+        [Tooltip("리뉴얼 UI의 재료 슬롯 6개를 왼쪽 위부터 순서대로 연결한다. 현재 강화는 2종만 쓰며 나머지는 빈칸으로 유지된다.")]
+        [SerializeField] private MaterialSlotView[] fixedMaterialSlots = new MaterialSlotView[6];
+
+        [Header("재료 (구 UI 호환용)")]
         [SerializeField] private Transform materialListRoot;
         [SerializeField] private MaterialSlotView materialSlotPrefab;
 
-        [Header("스탯 프리뷰")]
+        [Header("스탯 프리뷰 (리뉴얼: 현재 / 다음 고정 표기)")]
+        [SerializeField] private TMP_Text currentStatLabelText;
+        [SerializeField] private TMP_Text currentStatValueText;
+        [SerializeField] private TMP_Text nextStatLabelText;
+        [SerializeField] private TMP_Text nextStatValueText;
+
+        [Header("스탯 프리뷰 (구 UI 호환용)")]
         [SerializeField] private Transform statListRoot;
         [SerializeField] private StatRowView statRowPrefab;
 
         private readonly List<MaterialSlotView> materialSlots = new();
         private readonly List<StatRowView> statRows = new();
+        private string coreIconAddress;
 
         /// <summary>강화 버튼을 눌렀을 때. Presenter가 검증·판정을 시작한다.</summary>
         public event Action OnEnhanceRequested;
+
+        /// <summary>팝업이 열려 초기 선택 상태를 준비했을 때. Presenter는 이전 대상을 비운다.</summary>
+        public event Action OnOpened;
 
         /// <summary>
         /// 강화 결과 연출이 시작될 때. 창 안의 데코 연출(코어 링 회전 등)이 여기에 붙는다.
@@ -97,6 +117,13 @@ namespace ProjectS.UI
                 window.SetWindowId(WindowIds.Enhance);
         }
 
+        protected override void OnShow()
+        {
+            // 팝업은 재사용되므로 직전에 선택했던 장비/비용/성공률이 다음 오픈에 남으면 안 된다.
+            SetEmptyState();
+            OnOpened?.Invoke();
+        }
+
         protected override void OnHide()
         {
             // NPC 허브에서 열렸다면 닫힐 때 허브로 돌아가 상호작용 잠금을 푼다(ShopPopup.OnHide와 동일 흐름).
@@ -108,22 +135,27 @@ namespace ProjectS.UI
         /// 강화 대상과 정보를 표시한다. 아이콘/이름/레벨/확률/비용/스탯 프리뷰를 갱신한다.
         /// </summary>
         /// <param name="item">대상 아이템 공통 정보</param>
+        /// <param name="equipment">대상 장비 고유 정보(무기 종류·주스탯)</param>
         /// <param name="info">현재 상태 기준 강화 정보 스냅샷</param>
-        public void SetTarget(ItemData item, EnhanceInfo info)
+        public void SetTarget(ItemData item, EquipmentData equipment, EnhanceInfo info)
         {
             if (item != null)
             {
-                if (nameText != null) nameText.text = item.Name;
-                if (typeText != null) typeText.text = item.Category.ToString();
+                if (nameText != null) nameText.text = $"{item.Name} +{info.CurrentStep}";
+                if (typeText != null) typeText.text = FormatTypeGrade(item, equipment);
+                SetCoreIcon(item.IconAddress);
             }
 
             if (curLevelText != null) curLevelText.text = $"+{info.CurrentStep}";
             if (nextLevelText != null) nextLevelText.text = info.IsMax ? "MAX" : $"+{info.CurrentStep + 1}";
+            // 코어 슬롯 위 강화 배지(+N). 인벤/장비 슬롯과 같은 표기 — 0강은 숨긴다.
+            if (coreEnhanceText != null) coreEnhanceText.text = info.CurrentStep > 0 ? $"+{info.CurrentStep}" : string.Empty;
 
-            if (rateText != null) rateText.text = info.IsMax ? "-" : $"{info.SuccessRate * 100f:0.#}%";
-            if (rateGauge != null) rateGauge.SetRatio(info.SuccessRate);
+            if (rateText != null) rateText.text = info.IsMax ? "MAX" : $"{info.SuccessRate * 100f:0}%";
+            // 게이지는 OnTargetChanged → EnhanceGaugeSweep 경로로만 움직인다(여기서 직접 세팅하면 궤적이 두 갈래).
 
-            if (costText != null) costText.text = info.IsMax ? "-" : info.ZenyCost.ToString();
+            if (costText != null) costText.text = info.IsMax ? "-" : info.ZenyCost.ToString("N0");
+            if (enhanceButton != null) enhanceButton.interactable = !info.IsMax;
 
             BuildStatRows(info);
 
@@ -136,6 +168,23 @@ namespace ProjectS.UI
         /// <param name="mats">재료 표시 DTO 목록</param>
         public void SetMaterials(IReadOnlyList<MaterialSlotInfo> mats)
         {
+            if (HasFixedMaterialSlots())
+            {
+                for (int i = 0; i < fixedMaterialSlots.Length; i++)
+                {
+                    MaterialSlotView slot = fixedMaterialSlots[i];
+                    if (slot == null) continue;
+
+                    if (mats != null && i < mats.Count)
+                    {
+                        MaterialSlotInfo material = mats[i];
+                        slot.Set(material.IconAddress, material.Name, material.Owned, material.Required, material.ItemId);
+                    }
+                    else slot.SetEmpty();
+                }
+                return;
+            }
+
             // 빌더가 넣어둔 디자인 샘플 슬롯까지 포함해 기존 자식을 모두 정리한다
             // (자기가 만든 것만 지우면 샘플 슬롯이 남아 중복된다).
             if (materialListRoot != null)
@@ -149,7 +198,7 @@ namespace ProjectS.UI
             foreach (var m in mats)
             {
                 var view = Instantiate(materialSlotPrefab, materialListRoot);
-                view.Set(m.IconAddress, m.Name, m.Owned, m.Required);
+                view.Set(m.IconAddress, m.Name, m.Owned, m.Required, m.ItemId);
                 materialSlots.Add(view);
             }
         }
@@ -164,13 +213,50 @@ namespace ProjectS.UI
         }
 
         /// <summary>
+        /// 장비를 아직 올리지 않은 초기 화면. 사진의 안내문·0%·빈 코어·고정 6칸·+0→+0을 만든다.
+        /// </summary>
+        public void SetEmptyState()
+        {
+            if (nameText != null) nameText.text = "강화할 장비를 선택해주세요.";
+            if (typeText != null) typeText.text = string.Empty;
+            ClearCoreIcon();
+            SetCoreEquipment(null);   // 빈 슬롯이므로 hover 툴팁 대상도 비운다.
+
+            if (curLevelText != null) curLevelText.text = "+0";
+            if (nextLevelText != null) nextLevelText.text = "+0";
+            if (coreEnhanceText != null) coreEnhanceText.text = string.Empty;   // 빈 슬롯 — 강화 배지 숨김
+            if (rateText != null) rateText.text = "0%";
+            if (costText != null) costText.text = "0";
+            if (enhanceButton != null) enhanceButton.interactable = false;
+
+            SetMaterials(null);
+            SetStatPreview(MainStatType.None, 0, 0, true);
+
+            foreach (StatRowView row in statRows)
+            {
+                if (row != null) Destroy(row.gameObject);
+            }
+            statRows.Clear();
+        }
+
+        /// <summary>
+        /// 코어에 올라간 장비를 코어 슬롯(<see cref="CoreSlotDropTarget"/>)에 알린다. hover 아이템 툴팁이 이 대상을 쓴다.
+        /// 아이콘/이름/스탯 프리뷰는 <see cref="SetTarget"/>가 이미 갱신하므로, 여기선 툴팁 대상만 넘긴다.
+        /// Presenter가 대상 갱신 시 호출하고, 빈 상태에서는 null로 지운다.
+        /// </summary>
+        /// <param name="equip">현재 강화 대상(없으면 null)</param>
+        public void SetCoreEquipment(EquipmentInstance equip)
+        {
+            if (coreSlot != null) coreSlot.SetEquipment(equip);
+        }
+
+        /// <summary>
         /// 강화 버튼/슬롯 조작 가능 여부. 연출 중 연타를 막기 위해 false로 잠근다.
         /// </summary>
         /// <param name="value">true면 조작 가능</param>
         public void SetInteractable(bool value)
         {
             if (enhanceButton != null) enhanceButton.interactable = value;
-            if (coreSlotButton != null) coreSlotButton.interactable = value;
         }
 
         /// <summary>
@@ -196,6 +282,11 @@ namespace ProjectS.UI
         // 주 스탯 한 줄 프리뷰. 옵션 프리뷰가 늘어나면 여러 줄로 확장한다.
         private void BuildStatRows(EnhanceInfo info)
         {
+            SetStatPreview(info.MainStatType, info.CurrentMainStat, info.NextMainStat, info.IsMax);
+
+            // 리뉴얼 UI의 고정 현재/다음 텍스트가 연결됐다면 구 프리팹 목록은 만들지 않는다.
+            if (HasFixedStatPreview()) return;
+
             foreach (var row in statRows)
             {
                 if (row != null) Destroy(row.gameObject);
@@ -212,6 +303,76 @@ namespace ProjectS.UI
 
             view.Set(info.MainStatType.ToString(), info.CurrentMainStat.ToString(), next, delta, deltaValue);
             statRows.Add(view);
+        }
+
+        private bool HasFixedMaterialSlots()
+        {
+            if (fixedMaterialSlots == null || fixedMaterialSlots.Length == 0) return false;
+            foreach (MaterialSlotView slot in fixedMaterialSlots)
+                if (slot != null) return true;
+            return false;
+        }
+
+        private bool HasFixedStatPreview()
+            => currentStatLabelText != null || currentStatValueText != null ||
+               nextStatLabelText != null || nextStatValueText != null;
+
+        private void SetStatPreview(MainStatType type, int current, int next, bool isEmptyOrMax)
+        {
+            string label = type == MainStatType.None ? "메인 스탯" : LocalizeStat(type);
+            string currentText = type == MainStatType.None ? "-" : current.ToString("N0");
+            string nextText = (type == MainStatType.None || isEmptyOrMax) ? "-" : next.ToString("N0");
+
+            if (currentStatLabelText != null) currentStatLabelText.text = label;
+            if (currentStatValueText != null) currentStatValueText.text = currentText;
+            if (nextStatLabelText != null) nextStatLabelText.text = label;
+            if (nextStatValueText != null) nextStatValueText.text = nextText;
+        }
+
+        private static string LocalizeStat(MainStatType type)
+            => type == MainStatType.AttackDamage ? "공격력" :
+               type == MainStatType.Defense ? "방어력" : "메인 스탯";
+
+        private static string FormatTypeGrade(ItemData item, EquipmentData equipment)
+        {
+            string type = equipment != null && equipment.WeaponType != WeaponType.None
+                ? equipment.WeaponType.ToString().ToUpperInvariant()
+                : item.Category.ToString().ToUpperInvariant();
+            return $"{type} / {item.Grade.ToString().ToUpperInvariant()}";
+        }
+
+        private async void SetCoreIcon(string address)
+        {
+            if (coreIcon == null) return;
+
+            coreIconAddress = address;
+            ShowCoreIcon(null);   // 로드 전엔 투명(흰 사각형 팝인 방지) — 단 enabled는 유지해 드롭 판정면을 살려둔다.
+            Sprite sprite = await ItemIconLoader.LoadAsync(address);
+            if (this == null || coreIcon == null || !isActiveAndEnabled) return;
+            if (!string.Equals(coreIconAddress, address)) return;
+
+            ShowCoreIcon(sprite);
+        }
+
+        private void ClearCoreIcon()
+        {
+            coreIconAddress = null;
+            ShowCoreIcon(null);
+        }
+
+        // 코어 아이콘은 항상 enabled로 두고 스프라이트 유무로 알파만 토글해 시각만 숨긴다.
+        // ★ enabled=false로 끄면 이 이미지가 코어 슬롯의 유일한 raycastTarget이라(배경 raycast는 off)
+        //   빈 슬롯에서 드롭·hover 판정면이 통째로 사라져, 첫 오픈 때 드래그가 코어에 안 붙는다.
+        private void ShowCoreIcon(Sprite sprite)
+        {
+            if (coreIcon == null) return;
+
+            coreIcon.sprite = sprite;
+            coreIcon.enabled = true;   // raycast 유지(빈 슬롯에서도 드롭을 받는다)
+
+            Color c = coreIcon.color;
+            c.a = sprite != null ? 1f : 0f;   // 스프라이트 없으면 투명(빈 슬롯 배경이 그대로 보인다)
+            coreIcon.color = c;
         }
     }
 }

@@ -15,8 +15,11 @@ namespace ProjectS.Enhance
         /// <summary>최대 단계 도달 여부. true면 확률·비용·다음 스탯은 의미가 없다.</summary>
         public readonly bool IsMax;
 
-        /// <summary>다음 단계 성공 확률(0~1).</summary>
+        /// <summary>다음 단계 성공 확률(0~1). 기본 + 연속실패 자비 보너스가 더해진 실효율.</summary>
         public readonly float SuccessRate;
+
+        /// <summary>자비 보너스를 빼기 전 기본 성공 확률(0~1). 게이지가 기본/천장 구간을 색으로 가르는 데 쓴다.</summary>
+        public readonly float BaseSuccessRate;
 
         /// <summary>다음 시도의 골드 비용.</summary>
         public readonly int ZenyCost;
@@ -36,12 +39,13 @@ namespace ProjectS.Enhance
         /// <summary>주 스탯 종류(라벨 표시용).</summary>
         public readonly MainStatType MainStatType;
 
-        public EnhanceInfo(int currentStep, bool isMax, float successRate, int zenyCost,
+        public EnhanceInfo(int currentStep, bool isMax, float successRate, float baseSuccessRate, int zenyCost,
             int lowMaterial, int highMaterial, int currentMainStat, int nextMainStat, MainStatType mainStatType)
         {
             CurrentStep = currentStep;
             IsMax = isMax;
             SuccessRate = successRate;
+            BaseSuccessRate = baseSuccessRate;
             ZenyCost = zenyCost;
             LowMaterial = lowMaterial;
             HighMaterial = highMaterial;
