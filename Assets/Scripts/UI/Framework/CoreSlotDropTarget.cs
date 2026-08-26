@@ -15,10 +15,13 @@ namespace ProjectS.UI.Framework
     /// (2026-07-23 TH / 2026-08-19 실제 인벤 슬롯 InventoryItemSlot과 연결 / 2026-08-25 hover 툴팁)
     /// </summary>
     public class CoreSlotDropTarget : MonoBehaviour,
-        IDropHandler, IPointerEnterHandler, IPointerExitHandler
+        IDropHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
     {
         /// <summary>코어 슬롯에 장비를 드롭했을 때 발행. 강화 Presenter가 대상으로 잡는다.</summary>
         public static event Action<EquipmentInstance> OnDropped;
+
+        /// <summary>코어 슬롯을 우클릭해 올려둔 장비를 내렸을 때 발행. 강화 Presenter가 대상을 비운다(빈 슬롯 복귀).</summary>
+        public static event Action OnCleared;
 
         // 지금 코어에 올라가 있는 장비. 강화창이 대상 갱신/초기화 때 넣어준다(더블클릭·드래그 어느 경로로 골랐든).
         // 툴팁은 이 인스턴스를 인벤 슬롯 툴팁과 같은 형식으로 띄운다(롤 주스탯·옵션·+N 포함).
@@ -35,6 +38,17 @@ namespace ProjectS.UI.Framework
                 : null;
 
             if (slot != null && slot.Equipment != null) OnDropped?.Invoke(slot.Equipment);
+        }
+
+        /// <summary>코어 슬롯을 우클릭하면 올려둔 장비를 내린다(강화 대상 해제). 빈 슬롯이면 무시한다.</summary>
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (eventData.button != PointerEventData.InputButton.Right) return;
+            if (current == null) return;
+
+            // hover 툴팁이 이 슬롯 것으로 떠 있으면 함께 닫는다(대상이 사라지므로).
+            ItemTooltip.Instance?.Hide(this);
+            OnCleared?.Invoke();
         }
 
         /// <summary>
@@ -67,6 +81,10 @@ namespace ProjectS.UI.Framework
 
         /// <summary>static 이벤트 구독 초기화(도메인 리로드를 꺼도 이전 세션 구독자가 남지 않게).</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() => OnDropped = null;
+        private static void ResetStatics()
+        {
+            OnDropped = null;
+            OnCleared = null;
+        }
     }
 }
