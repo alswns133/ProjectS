@@ -21,12 +21,16 @@ namespace ProjectS.Enhance
         /// <summary>이번 강화에 필요한 양.</summary>
         public readonly int Required;
 
-        public MaterialSlotInfo(string iconAddress, string name, int owned, int required)
+        /// <summary>재료 아이템 ID(슬롯 hover 툴팁 조회용). 0이면 툴팁 없음.</summary>
+        public readonly int ItemId;
+
+        public MaterialSlotInfo(string iconAddress, string name, int owned, int required, int itemId = 0)
         {
             IconAddress = iconAddress;
             Name = name;
             Owned = owned;
             Required = required;
+            ItemId = itemId;
         }
     }
 }

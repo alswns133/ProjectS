@@ -21,7 +21,7 @@ namespace ProjectS.Enemies
         private const float EnterTimeout = 1f;
 
         // 종료 감지 실패(클립이 루프이거나 태그 누락 등) 시 강제로 넘기는 상한. 정상 공격 길이보다 길게.
-        private const float MaxAttackTime = 5f;
+        private const float MaxAttackTime = 15f;
 
         public EnemyAttackState(Enemy enemy) : base(enemy) { }
 
@@ -69,7 +69,7 @@ namespace ProjectS.Enemies
                 if (enemy.Animation.IsPlaying("Attack"))
                     enteredAttack = true;
                 else if (elapsed >= EnterTimeout)
-                    enemy.StateMachine.ChangeState(enemy.ChaseState);
+                    enemy.StateMachine.ChangeState(enemy.AggroState);
 
                 return;
             }
@@ -77,7 +77,7 @@ namespace ProjectS.Enemies
             // 2단계: 클립이 끝까지 재생되면(또는 안전 상한을 넘기면) Chase로 돌아가 거리/쿨타임을 다시 판단한다.
             // 클립 길이를 인스펙터에 적지 않고 애니메이터 normalizedTime으로 종료를 판정한다.
             if (enemy.Animation.IsCurrentStateFinished() || elapsed >= MaxAttackTime)
-                enemy.StateMachine.ChangeState(enemy.ChaseState);
+                enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
         public override void Exit()

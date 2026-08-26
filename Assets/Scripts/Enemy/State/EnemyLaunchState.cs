@@ -80,7 +80,7 @@ namespace ProjectS.Enemies
         private void Land()
         {
             enemy.Movement.EndRootMotionAndLand();
-            enemy.StateMachine.ChangeState(enemy.ChaseState);
+            enemy.StateMachine.ChangeState(enemy.AggroState);
         }
     }
 }

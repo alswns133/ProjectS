@@ -24,7 +24,7 @@ namespace ProjectS.Items
                 if (eq?.Equipment == null || eq.Item == null) continue;
 
                 // 주 스탯 = 롤된 기준값 + 강화 보너스. 무기=공격력, 방어구=방어도.
-                int main = eq.RolledMainStat + EnhanceBonus(eq.Item.Category, eq.Item.Grade, eq.EnhanceStep);
+                int main = MainStat(eq);
                 if (eq.Equipment.MainStatType == MainStatType.AttackDamage) s.FlatAD += main;
                 else if (eq.Equipment.MainStatType == MainStatType.Defense) s.FlatDef += main;
 
@@ -34,6 +34,19 @@ namespace ProjectS.Items
             }
 
             return s;
+        }
+
+        /// <summary>
+        /// 장비 1개의 주 스탯 실제값(롤된 기준값 + 강화 보너스)을 돌려준다. 무기=공격력, 방어구=방어도.
+        /// 툴팁·상세 표시가 전투 스탯·강화창과 <b>같은 값</b>을 쓰게 하는 단일 계산 경로다 — 강화하면 이 값이 오른다.
+        /// (툴팁이 RolledMainStat만 찍어 강화 보너스가 안 보이던 것을 이 경로로 통일.)
+        /// </summary>
+        /// <param name="eq">장비 인스턴스(장비 아님·데이터 미로드면 0)</param>
+        /// <returns>강화 반영 주 스탯</returns>
+        public static int MainStat(EquipmentInstance eq)
+        {
+            if (eq?.Equipment == null || eq.Item == null) return 0;
+            return eq.RolledMainStat + EnhanceBonus(eq.Item.Category, eq.Item.Grade, eq.EnhanceStep);
         }
 
         // 강화창과 동일: (장비종류 × 등급) 보너스 행에서 단계별 총 보너스.

@@ -208,6 +208,41 @@ JSON 테이블과 어드레서블의 적용 범위 기준입니다. 개발 중�
 - 이벤트 발행 메서드: `FireXxx`.
 - bool 값: `IsXxx`, `HasXxx`, `CanXxx` 형태를 우선합니다.
 
+### 씬/UI 오브젝트 이름 규칙 (2026-08-20 확정)
+
+Enhance 팝업의 표기를 기준으로 삼되, **배경 이름만 의도적으로 예외**입니다. 새 UI를 만들 때 이 규칙을 따릅니다.
+
+- **`PascalCase`. 띄어쓰기·언더바 금지, 단어 구분은 오직 대소문자로 합니다.**
+  `Card Horizontal Line` → `CardHorizontalLine00`, `Left_Material` → `LeftMaterial`, `Skill_01` → `Skill01`.
+  이유는 오브젝트 이름이 **애니메이션 클립의 커브 경로**(`"Parent/Child"`)로 쓰이기 때문입니다. 공백이 하나
+  더 붙거나 끝에 붙으면 에러도 경고도 없이 애니메이션만 조용히 멈추고, Hierarchy에서는 구별이 불가능합니다.
+  실제로 `InventoryItemSlot.prefab`의 `'Text '`와 `QuestEnumSlot.prefab`의 `'exclamation mark '`가
+  끝에 공백이 붙은 채 존재합니다. 통계로도 띄어쓰기 있는 이름은 27%가 표기가 무너져 있었고 없는 이름은 2%였습니다.
+- **배경은 `Bg`가 아니라 `Background`.** Enhance는 `Bg`를 쓰지만 그쪽을 표준으로 삼지 않았습니다.
+  Unity가 Slider 등에 자동 생성하는 노드 이름이 `Background`라, `Bg`를 택하면 우리가 손댈 수 없는
+  Unity 노드와 우리 노드가 **영구히 두 이름으로 갈립니다.** 또 Enhance 어휘(`Title`/`Body`/`Frame`/
+  `Preview`/`Divider`) 중 줄임말은 `Bg` 하나뿐이라 그것만 튀는 문제도 있었습니다.
+- **관용 약어는 그대로 둡니다** — `Num`(`CooldownNum`, `SliderNum`), `HP`, `SG`, `EXP`, `SP`, `PCB`.
+  펼쳐서 얻는 게 없습니다. 반면 `BG`/`ICN`/`ICON`처럼 **읽는 사람마다 달리 해석되는 축약**은 씁니다:
+  `Background`, `Icon`.
+- **접두사(`SPR_`, `PT_`)를 쓰지 않습니다.** Synty 에셋에서 딸려온 표기입니다. 역할로 이름 짓습니다
+  (`SPR_CoolDown` → `CooldownFill`). 래퍼와 실물이 겹치면 래퍼에 `Root`/`Pivot`을 붙여 가릅니다
+  (`IconRoot > IconPivot > Icon`).
+- **형제 반복 요소는 2자리 제로패딩** — `Slot00`, `Slot01`… Unity가 붙이는 `Slot (1)`은 쓰지 않습니다.
+  프리팹 인스턴스의 기준 이름은 **프리팹 에셋 이름**입니다(`SkillCard (1)` 같은 표류를 막기 위함).
+  단 `Skill01`/`Potion00`처럼 **번호가 게임 안의 의미(단축키 배치 등)를 갖는 것**은 자기 이름을 유지합니다.
+- **약어 표기는 프로젝트에 이미 굳은 쪽을 따릅니다** — 이펙트는 `FX`가 아니라 `Fx`
+  (`FxRoot`, `QuestFxLayer`, `BossIntroFx`). 그래서 `FX_Overlay`는 `FXOverlay`가 아니라 `FxOverlay`입니다.
+- **예외: Slider·Scrollbar가 스스로 만드는 내부 노드**(`Fill Area`, `Handle Slide Area`, `Sliding Area`)는
+  그대로 둡니다. 새 위젯을 만들 때마다 Unity가 같은 이름으로 다시 만들어 고쳐도 되돌아옵니다.
+  반면 `Scroll View`처럼 "우리가 만든 오브젝트의 기본 이름"일 뿐인 것은 규칙대로 `ScrollView`가 됩니다.
+- **반복 요소를 손으로 복사하지 않습니다.** 프리팹 인스턴스로 배치합니다. 손복사본은 프리팹을 고쳐도
+  따라오지 않아, 실제로 `Skill_01`만 프리팹이고 `Skill_02~04`는 사본으로 갈려 있었습니다.
+
+이 규칙을 기존 씬에 일괄 적용하는 에디터 툴이 있습니다:
+`Assets/Scripts/Editor/HudConventionUnifier.cs` (메뉴 **Tools ▸ ProjectS ▸ Unify HUD Conventions**).
+반드시 [검사]로 리포트를 확인한 뒤 [적용]하세요.
+
 ### Unity 규칙
 
 - `GetComponent`는 `Awake`에서 한 번 캐싱합니다.
