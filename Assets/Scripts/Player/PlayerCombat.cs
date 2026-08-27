@@ -7,6 +7,7 @@ using ProjectS.Debugging;
 using ProjectS.Effects;
 using ProjectS.Events;
 using ProjectS.Managers;
+using ProjectS.Skills;
 
 namespace ProjectS.Players
 {
@@ -402,10 +403,15 @@ namespace ProjectS.Players
             if (skill == null) return false;
 
             PlayerStats stats = player.Stats;
+
+            // 스킬 계수는 기본값(SkillTable) × 레벨 성장 배율(SkillGrowthTable)이다. 성장행이 없는
+            // 평타·강공격이나 세이브 전(레벨=1)에는 배율 1.0이라 기본값 그대로 나간다.
+            float coef = skill.Coef * SkillProgress.GetCoefMultiplier(skillId);
+
             attack = new AttackContext
             {
                 AttackPower = stats.AttackPower,
-                Coef = skill.Coef,
+                Coef = coef,
                 RandomMin = skill.RandomMin,
                 RandomMax = skill.RandomMax,
                 CritChance = stats.CritChance,
