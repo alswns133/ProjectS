@@ -55,6 +55,17 @@ namespace ProjectS.Data
         /// <summary>HUD 포션 퀵슬롯에 등록된 소비품 itemId(인덱스=슬롯, 0=빈칸). 캐릭터 로드아웃이라 캐릭터별 저장.</summary>
         public int[] potionQuickSlots = new int[2];
 
+        // ── 스킬창(배운 레벨·사용 SP) ─────────────────────────────────────────
+        // TODO(스킬 세이브): 스킬창에서 올린 레벨은 캐릭터별 영구 상태라 여기에 저장해야 한다.
+        //   지금은 SkillGrowthTable이 확정 전이라 스키마를 확정하지 못해 필드를 비워 둔다(저장 안 됨 →
+        //   SkillProgress.GetLevel이 항상 1을 반환, 데미지·UI에 미반영). 테이블이 확정되면:
+        //     1) 여기에 배운 레벨을 담을 필드를 추가한다(예: List<SkillLevelSave>{ skillId, level } — SP는
+        //        레벨 합에서 파생 가능하면 저장 생략, 리스펙/환불이 생기면 usedSp를 별도로 둘지 결정).
+        //     2) PlayerSaveService.SaveNow에서 SkillManager.WriteTo(save)를 함께 호출(수집 경로 연결).
+        //     3) 로드 주입(RestoreFrom) 후 TableSkillSource가 이 값을 현재 레벨의 바닥으로 읽고,
+        //        SkillProgress.GetLevel이 여기서 레벨을 돌려주도록 바꾼다.
+        //   연관: Skill/SkillProgress.cs, Skill/TableSkillSource.cs(Apply/BuildFromTable)의 동일 TODO.
+
         public CharacterSaveData() { }
 
         public CharacterSaveData(long uniqueId, int characterType, string name)
