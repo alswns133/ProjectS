@@ -22,11 +22,12 @@ namespace ProjectS.Skills
     public static class SkillProgress
     {
         /// <summary>
-        /// 이 스킬의 현재 배운 레벨. TODO: 세이브에 스킬 레벨이 생기면 거기서 읽는다(지금은 항상 1).
+        /// 이 스킬의 현재 배운 레벨. 런타임 저장소(<see cref="SkillState"/>)에서 읽는다.
+        /// 영속화(세이브)는 SkillState의 TODO 참고 — 지금은 게임 재시작 전까지만 유지된다.
         /// </summary>
         /// <param name="skillId">스킬 식별자</param>
-        /// <returns>현재 레벨(최소 1)</returns>
-        public static int GetLevel(int skillId) => 1;
+        /// <returns>현재 레벨</returns>
+        public static int GetLevel(int skillId) => SkillState.GetLevel(skillId);
 
         /// <summary>
         /// 현재 레벨 기준 계수 배율. 성장행이 없거나 로딩 전이면 1.0.

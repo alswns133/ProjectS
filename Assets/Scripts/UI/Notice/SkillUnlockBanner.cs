@@ -2,6 +2,10 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using ProjectS.Data;
+using ProjectS.Events;
+using ProjectS.Items;
+using ProjectS.Managers;
 
 namespace ProjectS.UI
 {
@@ -68,6 +72,33 @@ namespace ProjectS.UI
         }
 
         private readonly Queue<Entry> pending = new();
+
+        // 구독은 GameObject 활성 상태에 묶지 않는다(재생 후 스스로 비활성되므로 — ToastNotice와 같은 이유).
+        // Awake에서 구독하고 OnDestroy에서만 해제한다. 해금 요청이 오면 Show가 Play로 오브젝트를 다시 켠다.
+        protected override void Awake()
+        {
+            base.Awake();
+            SkillEvents.OnSkillUnlocked += OnSkillUnlocked;
+        }
+
+        private void OnDestroy()
+        {
+            SkillEvents.OnSkillUnlocked -= OnSkillUnlocked;
+        }
+
+        // 스킬 해금 이벤트를 받아 이름·아이콘을 SkillGrowthTable에서 조회해 배너로 띄운다.
+        private async void OnSkillUnlocked(int skillId)
+        {
+            SkillGrowthTable row = JsonManager.Instance != null ? JsonManager.Instance.Get<SkillGrowthTable>(skillId) : null;
+            string skillName = row != null ? row.Name : "새 스킬";
+
+            Sprite icon = (row != null && !string.IsNullOrEmpty(row.IconAddress))
+                ? await ItemIconLoader.LoadAsync(row.IconAddress)
+                : null;
+            if (this == null) return;   // 아이콘 로드 대기 중 파괴됐을 수 있다.
+
+            Show(skillName, icon);
+        }
 
         /// <summary>
         /// 스킬 해금 알림을 예약한다. 배너가 비어 있으면 즉시 재생하고, 재생 중이면 끝난 뒤 이어서 보여준다.

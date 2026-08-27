@@ -55,16 +55,24 @@ namespace ProjectS.Data
         /// <summary>HUD 포션 퀵슬롯에 등록된 소비품 itemId(인덱스=슬롯, 0=빈칸). 캐릭터 로드아웃이라 캐릭터별 저장.</summary>
         public int[] potionQuickSlots = new int[2];
 
-        // ── 스킬창(배운 레벨·사용 SP) ─────────────────────────────────────────
-        // TODO(스킬 세이브): 스킬창에서 올린 레벨은 캐릭터별 영구 상태라 여기에 저장해야 한다.
-        //   지금은 SkillGrowthTable이 확정 전이라 스키마를 확정하지 못해 필드를 비워 둔다(저장 안 됨 →
-        //   SkillProgress.GetLevel이 항상 1을 반환, 데미지·UI에 미반영). 테이블이 확정되면:
-        //     1) 여기에 배운 레벨을 담을 필드를 추가한다(예: List<SkillLevelSave>{ skillId, level } — SP는
-        //        레벨 합에서 파생 가능하면 저장 생략, 리스펙/환불이 생기면 usedSp를 별도로 둘지 결정).
-        //     2) PlayerSaveService.SaveNow에서 SkillManager.WriteTo(save)를 함께 호출(수집 경로 연결).
-        //     3) 로드 주입(RestoreFrom) 후 TableSkillSource가 이 값을 현재 레벨의 바닥으로 읽고,
-        //        SkillProgress.GetLevel이 여기서 레벨을 돌려주도록 바꾼다.
-        //   연관: Skill/SkillProgress.cs, Skill/TableSkillSource.cs(Apply/BuildFromTable)의 동일 TODO.
+        // ── 스킬창(배운 레벨·단축키 등록) — SkillState가 저장 WriteTo·복원 RestoreFrom ──
+        /// <summary>
+        /// 스킬창에서 올린 배운 레벨. 시작 레벨(액티브 1 / 패시브 0)을 넘긴 스킬만 담는다(기본값은 생략해 용량 절약).
+        /// SP 사용량은 이 레벨 합에서 파생되므로 따로 저장하지 않는다.
+        /// </summary>
+        public List<SkillLevelSave> skillLevels = new();
+
+        /// <summary>
+        /// 단축키 로드아웃. 인덱스 i = 슬롯 i+1에 등록된 스킬ID(0=빈칸). 캐릭터별 배치라 캐릭터마다 저장한다
+        /// (포션 퀵슬롯 potionQuickSlots와 같은 방식). 비어 있으면 복원 시 액티브 순서로 기본 배치된다.
+        /// </summary>
+        public int[] skillLoadout = new int[4];
+
+        /// <summary>
+        /// 해금한 액티브 스킬 ID 목록(스킬2·3·4 = 102·103·104 등). 스킬1은 생성 시부터 항상 열려 있어 담지 않고,
+        /// 메인 퀘스트 보상(SkillUnlock)으로 열린 것만 저장한다. 패시브는 게이트가 없어 담지 않는다.
+        /// </summary>
+        public List<int> unlockedSkills = new();
 
         public CharacterSaveData() { }
 
@@ -74,6 +82,17 @@ namespace ProjectS.Data
             this.characterType = characterType;
             this.name = name;
         }
+    }
+
+    /// <summary>배운 스킬 레벨 하나의 세이브. 정의(이름·효과)는 SkillGrowthTable로 복원하므로 ID와 레벨만 담는다.</summary>
+    [Serializable]
+    public class SkillLevelSave
+    {
+        /// <summary>스킬 ID(SkillGrowthTable.SkillId).</summary>
+        public int skillId;
+
+        /// <summary>배운 레벨.</summary>
+        public int level;
     }
 
     /// <summary>

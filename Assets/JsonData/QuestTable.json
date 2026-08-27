@@ -10,7 +10,6 @@
     "RequiredLevel": 0,
     "PrerequisiteQuestId": 0,
     "Rewards": [
-      { "Type": "SkillUnlock", "TargetId": 102, "Amount": 1, "IconAddress": "" },
       { "Type": "Exp", "TargetId": 0, "Amount": 200, "IconAddress": "" }
     ],
     "IntroDialogueId": 700101,
@@ -52,7 +51,6 @@
     "RequiredLevel": 0,
     "PrerequisiteQuestId": 501002,
     "Rewards": [
-      { "Type": "SkillUnlock", "TargetId": 103, "Amount": 1, "IconAddress": "" },
       { "Type": "Gold", "TargetId": 0, "Amount": 1000, "IconAddress": "" },
       { "Type": "Exp", "TargetId": 0, "Amount": 800, "IconAddress": "" }
     ],
@@ -301,5 +299,65 @@
     "TurnInDialogueId": 700602,
     "Title": "로봇 처치",
     "Description": "쓸모가 없어진 로봇 4개를 없애라."
+  },
+  {
+    "QuestId": 501005,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 8 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 0,
+    "Rewards": [
+      { "Type": "SkillUnlock", "TargetId": 2, "Amount": 1, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 500, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 0,
+    "TurnInDialogueId": 0,
+    "Title": "두 번째 각성",
+    "Description": "수련이 무르익었다. 던전의 몬스터 8마리를 처치해 두 번째 스킬을 각성하라.",
+    "TrackerText": "던전 몬스터 8 처치 (Lv.10)"
+  },
+  {
+    "QuestId": 501006,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1102, "RequiredCount": 10 }
+    ],
+    "RequiredLevel": 6,
+    "PrerequisiteQuestId": 501005,
+    "Rewards": [
+      { "Type": "SkillUnlock", "TargetId": 3, "Amount": 1, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 1500, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 0,
+    "TurnInDialogueId": 0,
+    "Title": "세 번째 각성",
+    "Description": "한 단계 더. 더 강한 몬스터 10마리를 처치해 세 번째 스킬을 각성하라.",
+    "TrackerText": "강한 몬스터 10 처치 (Lv.20)"
+  },
+  {
+    "QuestId": 501007,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1109, "RequiredCount": 1 }
+    ],
+    "RequiredLevel": 7,
+    "PrerequisiteQuestId": 501006,
+    "Rewards": [
+      { "Type": "SkillUnlock", "TargetId": 4, "Amount": 1, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 3000, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 0,
+    "TurnInDialogueId": 0,
+    "Title": "각성기 개방",
+    "Description": "진정한 힘을 시험할 때다. 던전의 보스를 쓰러뜨리고 각성기를 개방하라.",
+    "TrackerText": "던전 보스 처치 (Lv.30)"
   }
 ]
