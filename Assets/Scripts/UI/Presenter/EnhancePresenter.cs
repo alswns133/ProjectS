@@ -35,6 +35,7 @@ namespace ProjectS.UI
             // 대상 선택 두 가지(구 InventorySlotView 설계 의도 유지): 인벤 장비를 코어 슬롯에 드래그드롭 + 인벤 장비 좌더블클릭.
             // 둘 다 실제 인벤 슬롯(InventoryItemSlot)에서 나오며, 강화창이 열려 있는 동안(=이 구독이 사는 동안)만 반응한다.
             CoreSlotDropTarget.OnDropped += HandleEquipmentChosen;
+            CoreSlotDropTarget.OnCleared += HandleTargetCleared;
             InventoryItemSlot.OnEquipmentDoubleClicked += HandleEquipmentChosen;
             PlayerEvents.OnGoldChanged += HandleGoldChanged;
         }
@@ -44,6 +45,7 @@ namespace ProjectS.UI
             view.OnEnhanceRequested -= HandleEnhanceRequested;
             view.OnOpened -= HandlePopupOpened;
             CoreSlotDropTarget.OnDropped -= HandleEquipmentChosen;
+            CoreSlotDropTarget.OnCleared -= HandleTargetCleared;
             InventoryItemSlot.OnEquipmentDoubleClicked -= HandleEquipmentChosen;
             PlayerEvents.OnGoldChanged -= HandleGoldChanged;
         }
@@ -53,6 +55,14 @@ namespace ProjectS.UI
             if (chosen == null) return;
             target = chosen;
             RefreshView();
+        }
+
+        // 코어 슬롯 우클릭으로 대상을 내렸을 때. 강화 연출 중(isBusy)에는 무시해 진행 중 판정이 어긋나지 않게 한다.
+        private void HandleTargetCleared()
+        {
+            if (isBusy) return;
+            target = null;
+            view.SetEmptyState();   // 팝업 첫 오픈과 같은 빈 화면으로 되돌린다(코어 hover 대상도 null로 비워짐).
         }
 
         private void HandlePopupOpened()

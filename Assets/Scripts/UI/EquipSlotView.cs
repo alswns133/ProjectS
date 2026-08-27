@@ -55,7 +55,12 @@ namespace ProjectS.UI
             LoadIcon(eq.Item);
         }
 
-        /// <summary>인벤에서 드래그한 장비를 이 부위에 착용한다(부위·직업이 안 맞으면 Equip이 거부).</summary>
+        /// <summary>
+        /// 인벤에서 드래그한 장비를 이 부위에 착용한다. 이 슬롯이 담당하는 부위(<see cref="slot"/>)와 아이템 부위가
+        /// 다르면 거부한다 — 부위가 다른 슬롯에 드롭하면 아무 일도 일어나지 않고 인벤 슬롯 복귀 로직이 원래 자리로 되돌린다.
+        /// (<see cref="InventoryManager.Equip"/>은 아이템 자신의 부위로 착용하므로, 드롭 대상 슬롯 검사는 여기서 한다.
+        /// 이게 없으면 헬멧을 무기 슬롯에 놓아도 헬멧 슬롯에 착용돼 버린다.) 무기의 직업 제한은 Equip이 마저 거른다.
+        /// </summary>
         public void OnDrop(PointerEventData eventData)
         {
             InventoryItemSlot source = eventData.pointerDrag != null
@@ -63,7 +68,12 @@ namespace ProjectS.UI
                 : null;
 
             EquipmentInstance eq = source?.Equipment;
-            if (eq != null) InventoryManager.Instance?.Equip(eq);
+            if (eq?.Equipment == null) return;
+
+            // 이 슬롯이 담당하는 부위와 아이템 부위가 다르면 착용 거부(원래 자리로 되돌아감).
+            if (eq.Equipment.EquipSlot != slot) return;
+
+            InventoryManager.Instance?.Equip(eq);
         }
 
         /// <summary>슬롯을 클릭하면 착용 장비를 해제해 가방으로 되돌린다.</summary>

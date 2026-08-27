@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Core;
 using ProjectS.Effects;
@@ -23,6 +24,14 @@ namespace ProjectS.Enemies
 
             /// <summary>총구에서 투사체를 발사하고, 판정은 투사체가 스스로 한다.</summary>
             Projectile,
+
+            /// <summary>
+            /// 전진하며 스치는 대상을 훑는 돌진. 이동은 공격 클립의 전방 루트모션이 담당하고
+            /// (EnemyAttackState가 돌진 슬롯일 때만 <see cref="EnemyMovement.BeginAttackRootMotion"/>을 켠다),
+            /// 판정은 Melee와 같은 hitBox를 쓰되 히트 프레임 1회가 아니라 슬라이드 구간 동안 연속으로 훑는다
+            /// (같은 대상 중복 방지). 히트 구간은 클립의 Animation Event <c>OnChargeHitBegin</c>/<c>OnChargeHitEnd</c>로 연다.
+            /// </summary>
+            Charge,
         }
 
         // 공격 1개에 필요한 데이터 묶음. 공격별 사거리/쿨타임/데미지/히트박스를 에디터에서 따로 세팅한다.
@@ -81,7 +90,8 @@ namespace ProjectS.Enemies
 
             // 이 Transform의 위치/회전/스케일이 곧 판정 박스다.
             // 공격 클립별 손/무기 위치에 맞춘 자식 오브젝트를 연결한다.
-            [ShowIfEnum(nameof(kind), (int)AttackKind.Melee)]
+            // 돌진(Charge)도 같은 hitBox를 쓴다 — 다른 건 "1회 판정 vs 슬라이드 연속 판정"뿐이라 박스 지정은 동일하다.
+            [ShowIfEnum(nameof(kind), (int)AttackKind.Melee, (int)AttackKind.Charge)]
             public Transform hitBox;
 
             // 발사할 투사체 프리팹. 반드시 owner가 Enemy이고 targetMask가 플레이어 레이어인
@@ -162,6 +172,14 @@ namespace ProjectS.Enemies
         private AttackPattern currentAttack;
         private Enemy enemy;
 
+        // 돌진(Charge) 슬라이드 히트 창이 열려 있는지. 클립의 Animation Event(OnChargeHitBegin/End)로 열고 닫으며,
+        // 열려 있는 동안 EnemyAttackState.Update가 매 프레임 UpdateChargeHit를 호출해 스친 대상을 훑는다.
+        private bool chargeHitActive;
+
+        // 이번 돌진에서 이미 때린 대상. 슬라이드로 여러 프레임 겹쳐 있어도 같은 대상을 중복 타격하지 않게 막는다.
+        // 돌진 시작(OnChargeHitBegin)마다 비운다.
+        private readonly HashSet<IDamageable> chargeHitTargets = new HashSet<IDamageable>();
+
         private void Awake()
         {
             enemy = GetComponent<Enemy>();
@@ -188,15 +206,77 @@ namespace ProjectS.Enemies
         public bool CanAttack => Time.time >= nextAttackTime && GetDefaultAttack() != null;
 
         /// <summary>
+        /// 이번에 선택된 공격이 돌진(Charge)인지 여부. EnemyAttackState가 진입 시 이 값으로
+        /// 전방 루트모션(<see cref="EnemyMovement.BeginAttackRootMotion"/>)을 켤지 판단한다.
+        /// </summary>
+        public bool IsCurrentAttackCharge => currentAttack != null && currentAttack.kind == AttackKind.Charge;
+
+        /// <summary>
         /// 공격 상태 진입 시 호출된다. 현재 거리에서 가능한 공격 중 하나를 가중치 기반으로 고르고 쿨다운을 시작한다.
         /// 실제 애니메이션 재생은 EnemyAttackState가 CurrentAttackIndex를 읽어 EnemyAnimation에 위임한다.
         /// </summary>
         public void BeginAttack(float distanceToTarget)
         {
+            // 이전 돌진의 히트 창이 어떤 이유로든 닫히지 못한 채 남았어도, 새 공격을 시작하며 확실히 닫는다
+            // (열린 채로 남으면 돌진이 아닌 공격 중에도 UpdateChargeHit가 판정할 수 있다).
+            chargeHitActive = false;
+
             currentAttack = SelectAttack(distanceToTarget);
             if (currentAttack == null) return;
 
             nextAttackTime = Time.time + currentAttack.cooldown;
+        }
+
+        /// <summary>
+        /// 돌진 슬라이드 히트 창을 연다. 돌진 클립에서 몸이 전진하기 시작하는 프레임에 Animation Event로 찍는다.
+        /// 이 시점부터 <see cref="OnChargeHitEnd"/>(또는 공격 종료)까지, EnemyAttackState.Update가 매 프레임
+        /// <see cref="UpdateChargeHit"/>를 호출해 hitBox에 겹친 대상을 훑는다(같은 대상은 이번 돌진에 1회만).
+        /// </summary>
+        public void OnChargeHitBegin()
+        {
+            // 돌진이 아닌 공격 클립에 실수로 찍혔거나, 공격 상태가 끝난 뒤 블렌드 아웃 중 도착한 이벤트는 무시한다.
+            if (enemy == null || enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState) return;
+            if (currentAttack == null || currentAttack.kind != AttackKind.Charge) return;
+
+            chargeHitActive = true;
+            chargeHitTargets.Clear();
+        }
+
+        /// <summary>돌진 슬라이드 히트 창을 닫는다. 돌진이 멈추는 프레임에 Animation Event로 찍는다.</summary>
+        public void OnChargeHitEnd() => chargeHitActive = false;
+
+        /// <summary>
+        /// 돌진 히트 창이 열려 있는 동안 매 프레임 hitBox 범위를 훑어, 아직 안 맞은 대상에게 데미지를 준다.
+        /// EnemyAttackState.Update가 호출한다. 창이 닫혀 있으면 즉시 반환하므로 항상 호출해도 안전하다.
+        /// 단발 히트 프레임(OnAttackHit)과 달리 슬라이드로 스쳐 지나가는 대상을 놓치지 않게 연속 판정한다.
+        /// </summary>
+        public void UpdateChargeHit()
+        {
+            if (!chargeHitActive || currentAttack == null || currentAttack.hitBox == null) return;
+
+            int count = Physics.OverlapBoxNonAlloc(
+                currentAttack.hitBox.position,
+                currentAttack.hitBox.lossyScale * 0.5f,
+                buffer,
+                currentAttack.hitBox.rotation,
+                targetMask);
+
+            AttackContext attackContext = BuildAttackContext(currentAttack.coef);
+
+            for (int i = 0; i < count; i++)
+            {
+                // 현재 프로젝트 규칙: 피격 레이어 콜라이더와 IDamageable은 같은 루트 GameObject에 둔다.
+                if (!buffer[i].TryGetComponent<IDamageable>(out var target)) continue;
+
+                // 이번 돌진에 이미 때린 대상이면 건너뛴다(Add가 false면 이미 들어 있던 것).
+                if (!chargeHitTargets.Add(target)) continue;
+
+                DamageResult result = DamageCalculator.Calculate(in attackContext, target.Defense, target.IsBoss);
+
+                // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다(구르기 무적에 씹힌 스침에 이펙트가 나오지 않게).
+                if (target.TakeDamage(in result))
+                    CombatEvents.FireEnemyHitLanded(buffer[i].ClosestPoint(currentAttack.hitBox.position));
+            }
         }
 
         /// <summary>
