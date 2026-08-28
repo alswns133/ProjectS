@@ -279,7 +279,7 @@ namespace ProjectS.Players
             // 테이블이 아직 없으면 쿨타임·소모량을 알 수 없다. 0 쿨타임·0 소모로 발동시키면
             // 로딩 중에만 스킬이 공짜가 되므로, 데이터가 준비될 때까지 막는다.
             int skillId = GetSkillId(n);
-            return skillId != 0 && GetSkillRow(skillId) != null;
+            return skillId != 0 && SkillState.IsUnlocked(skillId) && GetSkillRow(skillId) != null;
         }
 
         public float GetRemainingCooldown(int n)
@@ -300,41 +300,69 @@ namespace ProjectS.Players
             return skill != null ? skill.SgCost : 0f;
         }
 
+        // n = 눌린 단축키(1~4). 등록(로드아웃)으로 키와 스킬이 분리됐으므로 안에서 스킬 고유 번호로 환산한다.
         public bool UseSkill(int n)
         {
             if (!CanUseSkill(n)) return false;
 
-            SkillTable skill = GetSkillRow(GetSkillId(n));
+            int skillId = GetSkillId(n);
+            SkillTable skill = GetSkillRow(skillId);
             if (skill == null) return false;
+
+            // ★ 애니메이션·히트박스·각성기 판정은 스킬 '고유 번호'(s)를 써야 등록을 바꿔도 실제 스킬이 바뀐다.
+            //   (히트박스 이벤트 키가 Skill{s}, 애니 State가 스킬 s의 클립이므로.) 누른 키(n)를 그대로 쓰면
+            //   데이터만 바뀌고 모션·타격은 그 키의 원래 스킬로 나간다. 쿨타임 배열·HUD 표시는 키(n) 기준으로 둔다.
+            int s = IntrinsicSkillNumber(skillId);
+            if (s <= 0) return false;
 
             // 실제 발동에 성공했을 때만 쿨타임과 시전 상태를 시작한다.
             // 실패한 스킬 입력은 이동 잠금으로 이어지면 안 된다.
             skillReadyTime[n] = Time.time + skill.Cooldown;
             IsCastingSkill = true;
             currentAction = CombatAction.Skill;
-            currentSkillNumber = n;
-
-            // [임시 디버그] 각성기 무적 씹힘 추적용. 원인 확인되면 이 로그 제거.
-            Debug.Log($"[스킬시전] n={n} skillId={GetSkillId(n)} Invincible={skill.Invincible}  frame={Time.frameCount}");
+            currentSkillNumber = s;
 
             // 무적 스킬(SkillTable.Invincible)이면 시전 동안 무적을 켠다. 무적이 아닌 스킬(캔슬 창에서
             // 다른 스킬로 이어감 포함)이면 직전 무적이 남아 있었어도 여기서 꺼진다.
             SetSkillInvincibility(skill.Invincible);
 
-            anim.PlaySkill(n);
+            // TODO(sound): 스킬 시전음 — 스킬 s별로 다름. SoundManager.Instance.PlaySFX(<스킬 s 시전 SFX>); (각성기=4는 별도 컷인 음)
+            anim.PlaySkill(s);
 
-            // UI(쿨타임 표시)가 이 신호로 카운트다운을 시작한다. 발동 성공 시에만 발행.
+            // UI(쿨타임 표시)가 이 신호로 카운트다운을 시작한다. 발동 성공 시에만 발행. HUD 슬롯은 누른 키(n).
             PlayerEvents.FireSkillUsed(n, skill.Cooldown);
             return true;
         }
 
-        // 스킬 번호(1~)를 이 캐릭터의 SkillTable 행 ID로 바꾼다. 해당 번호의 스킬이 없으면 0.
+        // 스킬 번호(1~)를 실제 발동할 SkillTable 행 ID로 바꾼다. 플레이어가 등록한 로드아웃(단축키 배치)을
+        // 우선 따르고, 아직 로드아웃이 없으면(빈 슬롯) 기존 고정 순서로 폴백한다. 해당 번호 스킬이 없으면 0.
         private int GetSkillId(int n)
         {
+            int mapped = SkillState.GetSlot(n);
+            if (mapped != 0) return mapped;
+
+            // 빈 슬롯(0): 로드아웃이 준비된 뒤라면 '의도적으로 비운 슬롯'이므로 스킬 없음(0) → 발동·쿨타임 없음.
+            // 아직 초기화 전(데이터/캐릭터 미준비)에만 기존 고정 순서로 폴백한다.
+            if (SkillState.IsLoadoutReady) return 0;
+
             int[] ids = GetCharacterSkillIds();
             if (ids == null || n < 1 || n > ids.Length) return 0;
 
             return ids[n - 1];
+        }
+
+        // 스킬ID를 그 스킬의 '고유 번호'(1~)로 바꾼다 = 이 캐릭터 스킬 목록(SkillId 오름차순)에서의 순번.
+        // 애니메이션 State·히트박스 이벤트 키(Skill{n})·각성기 판정이 이 번호를 기준으로 저작돼 있어,
+        // 단축키에 어떤 스킬을 등록하든 스킬 본래의 모션·타격이 나가게 하는 환산이다. 없으면 0.
+        private int IntrinsicSkillNumber(int skillId)
+        {
+            int[] ids = GetCharacterSkillIds();
+            if (ids == null) return 0;
+
+            for (int i = 0; i < ids.Length; i++)
+                if (ids[i] == skillId) return i + 1;
+
+            return 0;
         }
 
         // 이 캐릭터의 스킬 행 ID 목록을 만든다(SkillId 오름차순 = 스킬 1, 2, 3, 궁 순서).
@@ -479,6 +507,7 @@ namespace ProjectS.Players
             // 해제는 로코모션 복귀(ComboResetBehaviour→ResetCombo) 또는 안전장치 경로가 담당.
             IsCastingSkill = true;
             currentAction = CombatAction.StrongAttack;
+            // TODO(sound): 강공격(우클릭) 시전음 — SoundManager.Instance.PlaySFX(<강공격 SFX>);
             anim.PlayStrongAttack();
             return true;
         }
@@ -493,6 +522,7 @@ namespace ProjectS.Players
             CancelAction();
             IsCastingSkill = true;
             currentAction = CombatAction.RunAttack;
+            // TODO(sound): 달리기 공격 시전음 — SoundManager.Instance.PlaySFX(<러시 공격 SFX>);
             anim.PlayRunAttack();
         }
 
@@ -505,6 +535,7 @@ namespace ProjectS.Players
             CancelAction();
             IsCastingSkill = true;
             currentAction = CombatAction.JumpAttack;
+            // TODO(sound): 점프 공격 시전음 — SoundManager.Instance.PlaySFX(<점프 공격 SFX>);
             anim.PlayJumpAttack();
         }
 
@@ -692,6 +723,7 @@ namespace ProjectS.Players
             comboCancelWindowOpen = false;
             comboWindowOpen = false;
 
+            // TODO(sound): 평타 휘두르는 소리(콤보 타수 step별로 달리 가능) — SoundManager.Instance.PlaySFX(<콤보 step SFX>);
             ComboStepStarted?.Invoke();
             DevLog.Log(comboStep);
         }

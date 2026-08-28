@@ -13,6 +13,42 @@ namespace ProjectS.Data
     }
 
     /// <summary>
+    /// 패시브가 올리는 스탯 종류. 퍼센트 계열(Percent)은 비율, 그 외는 정수 값이다.
+    /// 액티브(데미지 스킬)는 <see cref="SkillEffectType.None"/>.
+    /// </summary>
+    /// <remarks>
+    /// <b>표시·데이터용 분류일 뿐, 아직 스탯에 실제로 적용하는 시스템은 없다(2026-08-26).</b>
+    /// 적용은 배운 레벨 저장(LearnedSkillIds/레벨)과 함께 붙을 다음 시스템의 몫이다
+    /// (읽는 쪽은 <c>ProjectS.Skills.SkillProgress.GetLevel</c>의 TODO 참고).
+    /// </remarks>
+    public enum SkillEffectType
+    {
+        /// <summary>효과 없음(액티브 스킬).</summary>
+        None,
+
+        /// <summary>전체 공격력 +x%/레벨.</summary>
+        AttackPercent,
+
+        /// <summary>치명타 확률 +x/레벨(비율).</summary>
+        CritChance,
+
+        /// <summary>최대 스태미나 +x/레벨(정수).</summary>
+        StaminaMax,
+
+        /// <summary>치명타 피해 +x%/레벨.</summary>
+        CritDamagePercent,
+
+        /// <summary>전체 방어도 +x%/레벨.</summary>
+        DefensePercent,
+
+        /// <summary>최대 HP +x%/레벨.</summary>
+        HpPercent,
+
+        /// <summary>방어력 관통 +x%/레벨.</summary>
+        ArmorPenetrationPercent,
+    }
+
+    /// <summary>
     /// 스킬 "성장·배분" 행. 스킬창(K)이 레벨업/SP 배분에 쓴다. 한 방의 데미지 수치는
     /// <see cref="SkillTable"/>가 소유하고(역할 분리), 이 테이블은 <see cref="SkillId"/>로 그 행과 이어진다.
     /// </summary>
@@ -55,10 +91,25 @@ namespace ProjectS.Data
         public int MaxLevel;
 
         /// <summary>
-        /// 레벨업 SP 비용. 인덱스 <c>i</c> = 레벨 <c>(i+1) → (i+2)</c>로 올리는 비용. 길이는 <c>MaxLevel-1</c>.
-        /// 비었거나 짧으면 Validate가 부족분을 1로 채운다(구간별 차등을 안 쓰면 통째로 비워 둬도 된다).
+        /// 시작(바닥) 레벨. <b>액티브는 1</b>(해금되면 1레벨부터), <b>패시브는 0</b>(찍기 전엔 <c>0/5</c>에서 시작).
+        /// SP는 이 레벨을 넘어 올린 만큼만 든다. <see cref="Kind"/>에서 유도하므로 JSON에 적지 않는다.
+        /// </summary>
+        public int StartLevel => Kind == SkillKind.Active ? 1 : 0;
+
+        /// <summary>
+        /// 레벨업 SP 비용. 인덱스 <c>i</c> = <c>(StartLevel+i) → (StartLevel+i+1)</c>로 올리는 비용.
+        /// 길이는 <c>MaxLevel-StartLevel</c>. 비었거나 짧으면 Validate가 부족분을 1로 채운다(현재 전부 1).
         /// </summary>
         public int[] SpCostPerLevel;
+
+        /// <summary>패시브가 올리는 스탯 종류(액티브는 None). 데이터·표시용 — 아직 스탯 적용 시스템은 없다.</summary>
+        public SkillEffectType EffectType;
+
+        /// <summary>
+        /// 레벨당 효과량. 퍼센트 계열은 비율(<c>0.02 = +2%/레벨</c>), 정수 계열은 값(<c>10 = +10/레벨</c>).
+        /// 최대치 = <c>EffectPerLevel × (MaxLevel - StartLevel)</c>. 적용은 후속 시스템 몫(값만 보관).
+        /// </summary>
+        public float EffectPerLevel;
 
         /// <summary>
         /// 레벨별 계수(데미지) 배율. 인덱스 <c>i</c> = 레벨 <c>i+1</c>의 배율. 길이는 <c>MaxLevel</c>.
@@ -97,8 +148,10 @@ namespace ProjectS.Data
             // 레벨이 1 미만이면 스테퍼가 성립하지 않는다.
             if (MaxLevel < 1) MaxLevel = 1;
 
-            // 비용 배열을 MaxLevel-1 길이로 정규화한다(부족분 = 1). MaxLevel==1이면 올릴 구간이 없어 빈 배열.
-            int need = MaxLevel - 1;
+            // 비용 배열을 (MaxLevel-StartLevel) 길이로 정규화한다(부족분 = 1). 올릴 구간이 없으면 빈 배열.
+            // 패시브(StartLevel 0)는 5칸, 액티브(StartLevel 1)는 4칸이 된다.
+            int need = MaxLevel - StartLevel;
+            if (need < 0) need = 0;
             if (SpCostPerLevel == null || SpCostPerLevel.Length != need)
             {
                 int[] fixedCost = new int[need];

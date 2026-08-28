@@ -85,6 +85,7 @@ namespace ProjectS.UI
 
         private void HandleSlotFocused(int skillId)
         {
+            // 이름·설명은 액티브·패시브 모두, 소개 영상 이미지는 액티브만 — 분기는 SetPreview가 IsActive로 처리한다.
             if (allocation != null && allocation.TryGetInfo(skillId, out SkillSlotInfo info))
                 view.SetPreview(info);
         }
@@ -123,7 +124,7 @@ namespace ProjectS.UI
         {
             RefreshGroup(source.GetActiveSlots());
             RefreshGroup(source.GetPassiveSlots());
-            view.SetSp(allocation.UsedSp, allocation.TotalSp);
+            view.SetSp(allocation.RemainingSp);
         }
 
         private void RefreshGroup(IReadOnlyList<SkillSlotInfo> slots)
@@ -143,6 +144,7 @@ namespace ProjectS.UI
 
         private void ShowFirstPreview()
         {
+            // 첫 액티브를 띄운다(소개 영상 포함). 액티브가 없으면 첫 패시브(이름·설명만, 소개 영상은 SetPreview가 끔).
             IReadOnlyList<SkillSlotInfo> active = source.GetActiveSlots();
             if (active != null && active.Count > 0)
             {

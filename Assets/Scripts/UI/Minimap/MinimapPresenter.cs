@@ -28,7 +28,7 @@ namespace ProjectS.UI
             // 이미 정해진 배경과 등록된 대상들을 한 번 훑어 따라잡는다.
             // 이게 없으면 이 Presenter가 켜지기 전에 발행된 이벤트를 놓쳐 배경·마커가 비어 보인다.
             if (MinimapEvents.HasStage)
-                view.SetBackground(MinimapEvents.StageSprite, MinimapEvents.StageCenter, MinimapEvents.StageSize);
+                view.SetBackground(MinimapEvents.StageSprite, MinimapEvents.StageCenter, MinimapEvents.StageSize, MinimapEvents.StageName);
 
             var active = MinimapEvents.Active;
             for (int i = 0; i < active.Count; i++)

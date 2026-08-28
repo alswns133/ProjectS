@@ -31,6 +31,7 @@ namespace ProjectS.Enemies
             elapsed = 0f;
             enteredDetect = false;
 
+            // TODO(sound): 몬스터 발견(조우) 알림음 — SoundManager.Instance.PlaySFX3D(<발견 SFX>, enemy.transform.position); (보스면 등장 포효)
             enemy.Animation.PlayDetect();
             // 발견 이펙트는 발견 클립의 Animation Event(OnEffect)가 재생한다(클립 주도).
 

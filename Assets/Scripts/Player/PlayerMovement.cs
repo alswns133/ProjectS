@@ -84,6 +84,10 @@ namespace ProjectS.Players
         [SerializeField] private float groundSnapSpeed = 6f;
 
         private CharacterController controller;
+
+        // 루트모션을 CharacterController로 태워 충돌을 존중하기 위한 애니메이터 참조(같은 오브젝트).
+        // OnAnimatorMove가 이 델타를 controller.Move로 흘려보낸다.
+        private Animator rootAnimator;
         private PlayerInputHandler inputHandler;   // 점프 관성 방향·대시 방향 산출에 현재 입력을 읽는다(값만 소비)
         private Transform cam;
 
@@ -277,6 +281,7 @@ namespace ProjectS.Players
         {
             controller = GetComponent<CharacterController>();
             inputHandler = GetComponent<PlayerInputHandler>();
+            rootAnimator = GetComponent<Animator>();
             TryCacheMainCamera();
 
             // 씬 진입 호출(EnterVillage/EnterDungeon) 전에도 유효한 속도가 있도록 마을 세트로 초기화한다.
@@ -400,6 +405,9 @@ namespace ProjectS.Players
             // v = sqrt(2gh). 이후 ApplyGravity에서 낙하 가속을 더 크게 주기 때문에
             // jumpHeight는 정확한 높이라기보다 튜닝 기준값에 가깝다.
             verticalVelocity = Mathf.Sqrt(2f * jumpHeight * gravity);
+
+            // TODO(sound): 점프 발동음 — SoundManager.Instance.PlaySFX(<점프 SFX>);
+            //   (착지음/발소리(SoundID.SFX_MoveSound)는 별도 — 걷기·달리기 클립의 Animation Event로 스텝마다 재생하는 게 자연스럽다.)
 
             // 방향은 현재 입력에서, 크기는 지상에서 측정한 실제 속도에서 가져온다.
             // → 달리다 뛰면 달리기 속도로, 걷다 뛰면 걷기 속도로 자연스럽게 이어진다.
@@ -640,6 +648,42 @@ namespace ProjectS.Players
             if (!TryCacheMainCamera()) return;
 
             FaceInstantly(cam.forward);
+        }
+
+        /// <summary>
+        /// 애니메이션 루트모션을 <b>CharacterController를 통해</b> 적용한다. applyRootMotion이 켜져 있어도
+        /// OnAnimatorMove를 정의하면 Unity가 transform에 직접 적용하지 않고 이쪽에 위임하므로, 여기서
+        /// <c>controller.Move</c>로 흘려보내 충돌을 존중하게 한다.
+        /// </summary>
+        /// <remarks>
+        /// 이걸 안 하면(=Unity 기본 적용) 루트모션이 transform을 직접 옮겨 CharacterController 충돌을 우회한다.
+        /// 그러면 각성기처럼 큰 전진 루트모션이 얇은 경계 콜라이더를 한 프레임에 넘어가 버리고,
+        /// 이후 디펜트레이션이 바깥쪽으로 밀어내 "제한 레이어를 뚫는" 현상이 생긴다(2026-08-28 수정).
+        /// 외부가 위치를 직접 제어하는 동안(보스 잡기 = controller.enabled false)엔 적용하지 않는다.
+        /// 수직 성분도 그대로 태운다 — 대시/체공 높이 보정은 LateUpdate가 그 뒤에 다시 잡는다(기존과 동일 순서).
+        /// </remarks>
+        private void OnAnimatorMove()
+        {
+            if (rootAnimator == null || controller == null || !controller.enabled) return;
+
+            Vector3 rootDelta = rootAnimator.deltaPosition;
+            if (rootDelta == Vector3.zero) return;
+
+            // 각성기 돌진처럼 한 프레임 이동량이 크면 controller.Move 스윕이 얇은 벽을 건너뛴다(터널링).
+            // 컨트롤러 반경의 절반을 최대 스텝으로 삼아 여러 번 나눠 이동해, 각 스텝마다 충돌을 확실히 잡는다.
+            // (플레이어가 경계 밖으로 나가면 그를 따라가는 카메라도 함께 밖으로 나가 '카메라도 뚫는' 것처럼 보인다.)
+            float maxStep = Mathf.Max(0.05f, controller.radius * 0.5f);
+            float dist = rootDelta.magnitude;
+
+            if (dist <= maxStep)
+            {
+                controller.Move(rootDelta);
+                return;
+            }
+
+            int steps = Mathf.CeilToInt(dist / maxStep);
+            Vector3 stepDelta = rootDelta / steps;
+            for (int i = 0; i < steps; i++) controller.Move(stepDelta);
         }
 
         // 루트모션과 controller.Move가 모두 적용된 뒤(프레임 끝)에 실행된다.

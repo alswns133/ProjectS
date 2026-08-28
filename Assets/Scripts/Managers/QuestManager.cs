@@ -325,6 +325,7 @@ namespace ProjectS.Managers
 
             quest = new QuestData(definition);
             activeQuests.Add(quest);
+            // TODO(sound): 퀘스트 수락음 — SoundManager.Instance.PlaySFX(<퀘스트 수락 SFX>);
             QuestEvents.FireQuestAccepted(quest);
 
             // 커밋(①): 수락은 중요 이벤트 → 즉시 저장(씬 전환 전에 종료돼도 유실 방지).
@@ -347,6 +348,7 @@ namespace ProjectS.Managers
             if (quest.QuestType != QuestType.Repeat)
                 completedQuestIds.Add(quest.QuestId);
 
+            // TODO(sound): 퀘스트 완료/반납음 — SoundManager.Instance.PlaySFX(<퀘스트 완료 SFX>); (보상 지급 팡파레와 겹치지 않게 조율)
             QuestEvents.FireQuestCompleted(quest);
 
             // 커밋(①): 보상 지급(OnQuestCompleted 구독자가 동기 처리 — 골드·경험치 등)이 끝난 뒤 즉시 저장한다.
