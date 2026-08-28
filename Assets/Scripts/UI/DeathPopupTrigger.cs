@@ -7,7 +7,7 @@ namespace ProjectS.UI
     /// <summary>
     /// 플레이어 사망(<see cref="PlayerEvents.OnPlayerDied"/>)을 받아 사망 팝업(<see cref="DeathPopup"/>)을 띄운다.
     /// 팝업 GameObject는 평소 비활성이라 스스로 이벤트를 구독할 수 없으므로, 씬을 넘어 상주하는 이 컴포넌트가
-    /// 대신 구독한다(<see cref="InventoryHotkey"/>와 같은 방침). UIManager 오브젝트에 붙인다.
+    /// 대신 구독한다(<see cref="PopupHotkey"/>와 같은 방침). UIManager 오브젝트에 붙인다.
     /// </summary>
     public class DeathPopupTrigger : MonoBehaviour
     {

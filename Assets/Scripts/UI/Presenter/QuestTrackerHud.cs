@@ -223,9 +223,18 @@ namespace ProjectS.UI
 
         // ---------- 단축키 ----------
 
-        // 한 번에 '창 펼침 + 마우스 모드'를 함께 처리한다. 둘을 따로 하면 Alt → 트래커 클릭 → 카드 클릭으로
-        // 상세를 보기까지 3스텝이 걸려, 저널을 없앤 이 설계의 이점이 사라진다.
-        private void OnToggleShortcut(InputAction.CallbackContext _)
+        // J 단축키 진입점. 실제 동작은 공개 메서드로 빼, HUD 메뉴의 퀘스트 아이콘(HudMenuButton)도 같은 경로를 쓴다.
+        private void OnToggleShortcut(InputAction.CallbackContext _) => ToggleWithCursor();
+
+        /// <summary>
+        /// 트래커를 '창 펼침 + 마우스 모드'로 함께 토글한다. 접혀 있으면 펼치며 커서를 풀고,
+        /// 펼쳐져 있으면 접으며 커서를 잠근다. J 단축키와 HUD 메뉴의 퀘스트 아이콘이 같은 진입점을 쓴다.
+        /// </summary>
+        /// <remarks>
+        /// 펼침과 마우스 모드를 한 번에 처리한다 — 둘을 따로 하면 Alt → 트래커 클릭 → 카드 클릭으로
+        /// 상세를 보기까지 3스텝이 걸려, 저널을 없앤 이 설계의 이점이 사라진다.
+        /// </remarks>
+        public void ToggleWithCursor()
         {
             bool opening = IsCollapsed;
 

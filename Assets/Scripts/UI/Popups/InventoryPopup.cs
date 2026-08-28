@@ -18,7 +18,7 @@ namespace ProjectS.UI
     ///
     /// 장비·스킬 등 다른 창과 <b>동시에 띄워두는</b> 창이라 스택형 BasePanel이 아니라 리스트형 BasePopup이다
     /// (서로 밀어내지 않고 공존). 이동식(<see cref="DraggableWindow"/>)이라 배치가 사용자 설정처럼 유지된다.
-    /// I키(<see cref="InventoryHotkey"/>)로 이 창만 토글한다.
+    /// I키(<see cref="PopupHotkey"/>)로 이 창만 토글한다.
     /// </summary>
     public class InventoryPopup : BasePopup
     {
