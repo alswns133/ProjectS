@@ -2,6 +2,7 @@
 using ProjectS.Data;
 using ProjectS.Events;
 using ProjectS.Players;
+using ProjectS.Skills;
 using ProjectS.Debugging;
 
 namespace ProjectS.Managers
@@ -53,8 +54,9 @@ namespace ProjectS.Managers
                     break;
 
                 case QuestRewardType.SkillUnlock:
-                    // TODO: 캐릭터 세이브 LearnedSkillIds에 추가로 교체.
-                    DevLog.Log($"[Reward] '{questTitle}' 스킬 해금 {reward.TargetId} (스텁 — 세이브 대기)");
+                    // TargetId(스킬 ID)를 해금한다. SkillState가 해금 배너 발행·자동 등록·저장까지 처리한다.
+                    SkillState.Unlock(reward.TargetId);
+                    DevLog.Log($"[Reward] '{questTitle}' 스킬 해금 {reward.TargetId}");
                     break;
 
                 case QuestRewardType.ClassWeapon:

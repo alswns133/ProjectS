@@ -258,13 +258,32 @@ namespace ProjectS.UI
                 ? item.Name
                 : $"아이템 {itemId}";
 
-        // 스킬 이름을 테이블에서 조회한다(없거나 로딩 전이면 ID로 폴백).
-        private static string ResolveSkillName(int skillId)
-            => JsonManager.Instance != null
-               && JsonManager.Instance.SkillDict.TryGetValue(skillId, out SkillTable skill)
-               && !string.IsNullOrEmpty(skill.NameKey)
-                ? skill.NameKey
-                : $"스킬 {skillId}";
+        // 스킬 해금 보상의 이름을 조회한다. 보상 TargetId는 스킬 번호(2·3·4)일 수 있어 현재 캐릭터 스킬로
+        // 환산한 뒤(SkillState.Unlock과 같은 규칙), 표시용 이름은 SkillGrowthTable에서 가져온다
+        // (SkillTable의 NameKey는 "SW_SKILL_2" 같은 내부 키라 표시에 부적합). 없으면 NameKey→ID로 폴백.
+        private static string ResolveSkillName(int targetId)
+        {
+            JsonManager json = JsonManager.Instance;
+            if (json == null) return $"스킬 {targetId}";
+
+            int skillId = ResolveSkillId(targetId);
+
+            if (json.SkillGrowthDict.TryGetValue(skillId, out SkillGrowthTable row) && !string.IsNullOrEmpty(row.Name))
+                return row.Name;
+
+            if (json.SkillDict.TryGetValue(skillId, out SkillTable skill) && !string.IsNullOrEmpty(skill.NameKey))
+                return skill.NameKey;
+
+            return $"스킬 {skillId}";
+        }
+
+        // 스킬 번호(1~4)면 현재 캐릭터 스킬ID로 환산한다(예: 거너(2) + 3 → 203). 완성 ID(>=100)면 그대로.
+        private static int ResolveSkillId(int idOrNumber)
+        {
+            if (idOrNumber >= 100) return idOrNumber;
+            int charId = PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0;
+            return charId > 0 ? charId * 100 + idOrNumber : idOrNumber;
+        }
 
         // 수량 표기. 스킬 해금·직업무기는 개수 개념이 없어 비운다(칸에서 자동으로 숨겨진다).
         private static string RewardAmount(QuestRewardData reward) => reward.Type switch

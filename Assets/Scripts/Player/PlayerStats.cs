@@ -6,6 +6,7 @@ using ProjectS.Data;
 using ProjectS.Events;
 using ProjectS.Items;
 using ProjectS.Managers;
+using ProjectS.Skills;
 
 namespace ProjectS.Players
 {
@@ -14,6 +15,10 @@ namespace ProjectS.Players
         // 착용 장비 보너스 합계(장착/해제 시 InventoryManager가 ApplyEquipmentStats로 갱신).
         // 기본 스탯(테이블)과 별개로 들고, 아래 getter들이 base와 합성해 최종값을 돌려준다.
         private EquipmentStats equipStats;
+
+        // 배분한 패시브 스킬 보너스 합계(스킬창 [확인] 시 SkillState가 ApplyPassiveStats로 갱신).
+        // 장비와 같은 자리에 가산돼 getter가 base·장비·패시브를 함께 합성한다.
+        private PassiveStats passiveStats;
 
         [SerializeField] private int characterId = 1;   // 이 ID로 스탯 테이블 조회
 
@@ -97,41 +102,44 @@ namespace ProjectS.Players
         /// <summary>현재 레벨에서 쌓은 경험치(0 ~ RequiredExp).</summary>
         public int CurrentExp => currentExp;
 
-        /// <summary>총 AD = (기본 AD + 장비 깡공) × (1 + 장비 공퍼). 계산기·호출부는 이 프로퍼티만 읽는다.</summary>
-        public float AttackPower => (attackPower + equipStats.FlatAD) * (1f + equipStats.PercentAD);
+        /// <summary>총 AD = (기본 AD + 장비 깡공) × (1 + 장비 공퍼 + 패시브 공퍼). 계산기·호출부는 이 프로퍼티만 읽는다.</summary>
+        public float AttackPower => (attackPower + equipStats.FlatAD) * (1f + equipStats.PercentAD + passiveStats.AttackPercent);
 
-        /// <summary>치명타 확률(0~1). 기본 + 장비 치확.</summary>
-        public float CritChance => critChance + equipStats.CritChance;
+        /// <summary>치명타 확률(0~1). 기본 + 장비 치확 + 패시브 치확.</summary>
+        public float CritChance => critChance + equipStats.CritChance + passiveStats.CritChance;
 
-        /// <summary>치명타 배율. 기본 + 장비 치피.</summary>
-        public float CritDamage => critDamage + equipStats.CritDamage;
+        /// <summary>치명타 배율. 기본 + 장비 치피 + 패시브 치피.</summary>
+        public float CritDamage => critDamage + equipStats.CritDamage + passiveStats.CritDamage;
 
-        /// <summary>IDamageable. 방어도 = (기본 방어 + 장비 깡방) × (1 + 장비 방퍼). 때린 쪽이 읽어 경감 계산.</summary>
-        public float Defense => (defense + equipStats.FlatDef) * (1f + equipStats.PercentDef);
+        /// <summary>IDamageable. 방어도 = (기본 방어 + 장비 깡방) × (1 + 장비 방퍼 + 패시브 방퍼). 때린 쪽이 읽어 경감 계산.</summary>
+        public float Defense => (defense + equipStats.FlatDef) * (1f + equipStats.PercentDef + passiveStats.DefensePercent);
 
         /// <summary> 현재 HP </summary>
         public int CurrentHp => currentHp;
 
-        /// <summary>최대 HP = (기본 최대HP + 장비 깡체) × (1 + 장비 체퍼). HP 풀·표시·발행이 모두 이 값을 쓴다.</summary>
-        public int MaxHp => Mathf.RoundToInt((maxHp + equipStats.FlatHp) * (1f + equipStats.PercentHp));
+        /// <summary>최대 HP = (기본 최대HP + 장비 깡체) × (1 + 장비 체퍼 + 패시브 체퍼). HP 풀·표시·발행이 모두 이 값을 쓴다.</summary>
+        public int MaxHp => Mathf.RoundToInt((maxHp + equipStats.FlatHp) * (1f + equipStats.PercentHp + passiveStats.HpPercent));
 
         /// <summary>보스 추가 피해(장비 옵션 전용). 전투에서 대상이 보스일 때 곱연산.</summary>
         public float BossDamage => equipStats.BossDamage;
 
-        /// <summary>방어력 관통(장비 옵션 전용).</summary>
-        public float DefensePenetration => equipStats.DefensePen;
+        /// <summary>방어력 관통(장비 옵션 + 패시브).</summary>
+        public float DefensePenetration => equipStats.DefensePen + passiveStats.Penetration;
 
         /// <summary>데미지 증가(장비 옵션 전용). 최종 데미지에 곱연산.</summary>
         public float DamageIncrease => equipStats.DamageIncrease;
 
-        /// <summary>최대 스태미나(장비 영향 없음 — 옵션에 스태미나 항목이 없다).</summary>
-        public float MaxStamina => maxStamina;
+        /// <summary>최대 스태미나 = 기본 + 패시브(장비 옵션엔 스태미나 항목이 없어 장비 영향은 없다).</summary>
+        public float MaxStamina => maxStamina + passiveStats.StaminaFlat;
 
         /// <summary>초당 스태미나 회복.</summary>
         public float StaminaRegen => staminaRegenPerSecond;
 
         /// <summary>최대 스킬 게이지(장비 영향 없음).</summary>
         public float MaxSkillGauge => maxSkillGauge;
+
+        /// <summary>현재 스킬 게이지(SG). HUD 스킬 슬롯이 등록 스킬의 SgCost와 비교해 게이지 부족 표시를 켤 때 읽는다.</summary>
+        public float CurrentSkillGauge => currentSkillGauge;
 
         /// <summary>초당 스킬 게이지 회복.</summary>
         public float SkillGaugeRegen => skillGaugeRegenPerSecond;
@@ -221,6 +229,10 @@ namespace ProjectS.Players
             // 테이블로 최대치가 바뀌었으므로 자원을 다시 채우고 UI를 갱신한다.
             FillResourcesToMax();
             PublishAllStats();
+
+            // 스킬 배운 레벨·단축키 로드아웃 복원(테이블·플레이어가 준비된 지금 주입해야 패시브 스탯·발동에 반영된다).
+            // 세션이 없으면(직접 씬 테스트) save=null → SkillState가 기본 상태로 둔다.
+            SkillState.RestoreFrom(GameSession.SelectedCharacter);
         }
 
         // 선택된 캐릭터 세이브(GameSession)의 성장 값을 반영한다. 스탯 테이블 로딩 '전에' 호출해야
@@ -409,6 +421,21 @@ namespace ProjectS.Players
 
             PublishAllStats();                          // HUD: HP/스태미나/SG 등
             PlayerEvents.FireCombatStatsChanged();      // 장비창: AD/방어/치명/옵션 스탯
+        }
+
+        /// <summary>
+        /// 배분한 패시브 스킬 보너스 합계를 반영한다(스킬창 [확인] 시 <see cref="ProjectS.Skills.SkillState"/>가 호출).
+        /// 장비 보너스(<see cref="ApplyEquipmentStats"/>)와 같은 방식으로 getter가 base와 합성하며,
+        /// HP% 증가로 최대치가 커져도 현재 HP는 그대로 두고 초과 시에만 클램프한다(장비와 동일 정책).
+        /// </summary>
+        /// <param name="stats">계산된 패시브 보너스 합계</param>
+        public void ApplyPassiveStats(PassiveStats stats)
+        {
+            passiveStats = stats;
+            if (currentHp > MaxHp) currentHp = MaxHp;
+
+            PublishAllStats();                          // HUD: 최대 HP/스태미나 변화
+            PlayerEvents.FireCombatStatsChanged();      // 장비창: AD/방어/치명/관통/스태미나
         }
 
         private void PublishAllStats()

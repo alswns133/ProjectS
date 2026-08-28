@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using ProjectS.Core;
 using ProjectS.Events;
 using ProjectS.Players;
@@ -78,10 +78,10 @@ namespace ProjectS.Enemies
         [Header("잡기")]
         // 잡기 패턴 목록. 각 슬롯의 animationIndex를 EnemyCombat의 잡기 공격 슬롯 animationIndex와 맞춘다.
         // 잡기 클립을 새로 만들어 종류를 늘릴 때마다 여기에 슬롯을 추가한다(슬롯이 하나면 그 하나가 모든 잡기에 폴백된다).
-        [SerializeField] private GrabPattern[] grabs =
+        [SerializeField] private GrabPattern[] grabs /*=
         {
             new GrabPattern { name = "Grab" },
-        };
+        }*/;
 
         // 포착 대상 레이어(플레이어 피격 콜라이더). 잡기 종류가 달라도 대상은 항상 플레이어라 슬롯별로 나누지 않고
         // 하나로 공유한다(보통 EnemyCombat의 targetMask와 같은 값을 넣는다).

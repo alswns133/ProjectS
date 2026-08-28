@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Players;
+using ProjectS.Skills;
 
 namespace ProjectS.Managers
 {
@@ -47,12 +48,7 @@ namespace ProjectS.Managers
             if (player != null) player.Stats.WriteTo(save);
             if (InventoryManager.Instance != null) InventoryManager.Instance.WriteTo(save);
             if (QuestManager.Instance != null) QuestManager.Instance.WriteTo(save);
-
-            // TODO(스킬 세이브): 스킬창에서 올린 레벨도 여기서 수집해야 Firebase에 함께 저장된다
-            //   (다른 매니저처럼 WriteTo(save) 한 줄 추가). 지금은 SkillGrowthTable 확정 전이라
-            //   세이브 스키마(CharacterSaveData의 스킬 필드)가 비어 있어 연결하지 않는다.
-            //   테이블 확정 후 CharacterSaveData의 동일 TODO대로 필드를 추가하고 아래를 살린다:
-            //   if (SkillManager.Instance != null) SkillManager.Instance.WriteTo(save);
+            SkillState.WriteTo(save);   // 스킬창 배운 레벨 + 단축키 로드아웃(static 상태라 인스턴스 없음)
 
             // 스냅샷을 떴으므로 dirty를 내린다. 업로드가 실패해도 값은 GameSession에 남고,
             // 이후 변경이 다시 dirty로 만들거나 다음 경계 flush가 재시도한다.

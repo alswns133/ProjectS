@@ -91,13 +91,14 @@ namespace ProjectS.Skills
         public bool CanIncrease(int skillId)
         {
             if (!infos.TryGetValue(skillId, out SkillSlotInfo info)) return false;
+            if (!info.IsUnlocked) return false;   // 잠긴 스킬은 SP를 투자할 수 없다
             if (pending[skillId] >= info.MaxLevel) return false;
             return RemainingSp >= source.SpCost(skillId, pending[skillId]);
         }
 
-        /// <summary>이 슬롯을 ▼로 내릴 수 있는가(이번 세션에 올린 만큼만 = committed 초과분).</summary>
+        /// <summary>이 슬롯을 ▼로 내릴 수 있는가(시작 레벨까지 자유 환불 — 확정 전엔 자유 편집).</summary>
         public bool CanDecrease(int skillId)
-            => committed.TryGetValue(skillId, out int baseLv) && pending[skillId] > baseLv;
+            => infos.TryGetValue(skillId, out SkillSlotInfo info) && pending[skillId] > info.MinLevel;
 
         /// <summary>레벨을 1 올린다. 올릴 수 없으면(상한/SP부족) false.</summary>
         public bool Increase(int skillId)
@@ -115,11 +116,14 @@ namespace ProjectS.Skills
             return true;
         }
 
-        /// <summary>이번 세션 배치를 전부 되돌린다(pending ← committed). RESET·취소가 쓴다.</summary>
+        /// <summary>
+        /// 완전 초기화: 모든 스킬을 시작 레벨로 되돌린다(pending ← MinLevel). RESET 버튼이 쓴다.
+        /// 이미 확정(committed)한 레벨도 함께 시작으로 내려 SP를 전액 환불한다 — [확인]을 눌러야 실제 반영된다.
+        /// </summary>
         public void Reset()
         {
             foreach (int id in order)
-                pending[id] = committed[id];
+                pending[id] = infos[id].MinLevel;
         }
 
         /// <summary>확인 전 편집 내용이 남아 있는가(pending ≠ committed인 슬롯이 하나라도 있는가).</summary>
