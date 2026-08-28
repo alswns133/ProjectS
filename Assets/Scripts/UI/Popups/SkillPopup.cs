@@ -27,6 +27,8 @@ namespace ProjectS.UI
         [SerializeField] private SkillSlotView[] passiveSlots = new SkillSlotView[7];
 
         [Header("프리뷰 (우측)")]
+        [Tooltip("소개 영상/이미지 영역 루트. 패시브 스킬엔 소개 영상을 띄우지 않으므로 이 영역만 끈다(비우면 previewImage 오브젝트로 폴백). 이름·설명은 패시브도 표시.")]
+        [SerializeField] private GameObject previewMediaRoot;
         [Tooltip("스킬 소개 영상/이미지 자리. 영상 재생은 후속 작업 — 지금은 아이콘 스프라이트만 띄운다.")]
         [SerializeField] private Image previewImage;
         [SerializeField] private TMP_Text previewNameText;
@@ -100,6 +102,8 @@ namespace ProjectS.UI
                 slot.Increased += s => OnIncreaseRequested?.Invoke(s.SkillId);
                 slot.Decreased += s => OnDecreaseRequested?.Invoke(s.SkillId);
                 slot.Focused += s => OnSlotFocused?.Invoke(s.SkillId);
+                // 우클릭 → 단축키 등록 메뉴(화면 계층이 연다. Framework 슬롯은 콜백만 올림).
+                slot.RightClicked += (s, e) => SkillContextMenu.Instance?.Show(s.SkillId, e.position);
             }
         }
 
@@ -145,24 +149,37 @@ namespace ProjectS.UI
                 view.SetLevel(current, max, canUp, canDown);
         }
 
-        /// <summary>SP 표기를 갱신한다(사용 / 총).</summary>
-        /// <param name="used">사용한 SP</param>
-        /// <param name="total">총 SP</param>
-        public void SetSp(int used, int total)
+        /// <summary>SP 표기를 갱신한다. "사용/총"이 아니라 <b>남은 포인트 하나</b>를 보여준다(1레벨당 1 SP).</summary>
+        /// <param name="remaining">남은 SP</param>
+        public void SetSp(int remaining)
         {
-            if (spText != null) spText.text = $"{used} / {total}";
+            if (spText != null) spText.text = remaining.ToString();
         }
 
-        /// <summary>우측 프리뷰(이름·설명·이미지)를 갱신한다.</summary>
+        /// <summary>
+        /// 우측 프리뷰를 갱신한다. 이름·설명은 액티브·패시브 모두 표시하고, <b>소개 영상 이미지는 액티브만</b> 띄운다
+        /// (패시브는 소개 영상 영역을 끈다 — 기획).
+        /// </summary>
         /// <param name="info">표시할 스킬 정보</param>
         public void SetPreview(SkillSlotInfo info)
         {
             if (previewNameText != null) previewNameText.text = info.Name;
             if (previewDescriptionText != null) previewDescriptionText.text = info.Description;
 
+            // 소개 영상 이미지는 액티브 전용. 패시브면 영역을 끄고 로드하지 않는다.
+            SetMediaActive(info.IsActive);
+            if (!info.IsActive) return;
+
             // 소개 영상 자리 — 지금은 아이콘 스프라이트를 이미지로 띄운다(주소가 있으면).
             string address = string.IsNullOrEmpty(info.PreviewMediaAddress) ? info.IconAddress : info.PreviewMediaAddress;
             LoadPreviewImage(address);
+        }
+
+        // 소개 영상 이미지 영역만 켜고 끈다(패시브=off). 루트 미지정 시 previewImage 오브젝트로 폴백.
+        private void SetMediaActive(bool on)
+        {
+            if (previewMediaRoot != null) previewMediaRoot.SetActive(on);
+            else if (previewImage != null) previewImage.gameObject.SetActive(on);
         }
 
         /// <summary>확인/취소를 눌러 창을 닫는다(Presenter가 로직을 마친 뒤 호출).</summary>

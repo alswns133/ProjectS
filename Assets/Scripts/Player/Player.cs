@@ -624,8 +624,17 @@ namespace ProjectS.Players
             }
 
             // ★ 판정 순서: 쿨타임 → 게이지 → 발동. 어느 한쪽만 소모되는 사고를 막는다.
-            if (!Combat.CanUseSkill(n)) return;
-            if (!Stats.TryUseSkillGauge(Combat.GetSkillGaugeCost(n))) return;
+            if (!Combat.CanUseSkill(n))
+            {
+                // 쿨타임 중이면 안내한다. 빈 슬롯(등록 안 됨)·로딩 중은 쿨타임이 0이라 조용히 무시된다.
+                if (Combat.GetRemainingCooldown(n) > 0f) UIEvents.FireToast("쿨타임입니다.");
+                return;
+            }
+            if (!Stats.TryUseSkillGauge(Combat.GetSkillGaugeCost(n)))
+            {
+                UIEvents.FireToast("SG가 부족하여 사용할 수 없습니다.");
+                return;
+            }
             if (!Combat.UseSkill(n)) return;   // 쿨타임은 위에서 확인했으므로 사실상 항상 성공
 
             if (usesTags) Combat.SetInCombo(false);   // 평타를 캔슬하고 나온 것이므로 콤보 종료
