@@ -38,9 +38,10 @@ namespace ProjectS.Skills
             for (int i = 0; i < PassiveCount; i++)
             {
                 int id = 2001 + i;
+                // 패시브는 찍기 전 0/5에서 시작(액티브와 달리 바닥이 0).
                 passive.Add(new SkillSlotInfo(
                     id, $"패시브 스킬 {i + 1}", "스킬 설명 (임시)", null,
-                    isActive: false, minLevel: 1, maxLevel: MaxLevel, currentLevel: 1));
+                    isActive: false, minLevel: 0, maxLevel: MaxLevel, currentLevel: 0));
             }
         }
 

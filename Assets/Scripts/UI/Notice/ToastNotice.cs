@@ -10,24 +10,29 @@ namespace ProjectS.UI
     /// 뒤 스스로 사라지므로 패널 스택·포커스 관리 대상이 아니다(LevelUpNotice와 같은 결).
     /// </summary>
     /// <remarks>
-    /// <b>씬에서 활성(켜 둔) 상태로 배치할 것.</b> 이벤트 구독은 <see cref="OnEnable"/>에서 일어나므로,
-    /// 오브젝트가 꺼져 있으면 토스트 요청을 받지 못한다. <see cref="TimedNoticeView.Awake"/>가 알파를 0으로
-    /// 내려 켜 둬도 보이지 않는 상태로 시작한다(요청이 오면 그때 페이드 인).
+    /// <b>씬에서 활성(켜 둔) 상태로 배치할 것.</b> 구독은 <see cref="Awake"/>에서 한 번 일어나므로 오브젝트가
+    /// 처음부터 켜져 있어야 한다(<see cref="TimedNoticeView.Awake"/>가 알파를 0으로 내려 켜 둬도 안 보인다).
+    /// <para>
+    /// <b>★구독을 OnEnable/OnDisable에 두지 않는 이유(버그 방지):</b> 이 알림은 재생이 끝나면 베이스가
+    /// <c>SetActive(false)</c>로 스스로 꺼진다. 구독을 <c>OnDisable</c>에서 해제하면 <b>첫 토스트가 사라지는
+    /// 순간 구독이 끊겨 이후 토스트를 하나도 못 받는다.</b> 그래서 GameObject 활성 상태와 무관하게 살아 있도록
+    /// <see cref="Awake"/>에서 구독하고 <see cref="OnDestroy"/>에서만 해제한다. 꺼진 동안 요청이 와도
+    /// <see cref="Show"/>가 <see cref="TimedNoticeView.Play"/>로 오브젝트를 다시 켜므로 안전하다.
+    /// </para>
     /// </remarks>
     public class ToastNotice : TimedNoticeView
     {
         [SerializeField] private TMP_Text messageText;
 
-        private void OnEnable()
+        protected override void Awake()
         {
+            base.Awake();
             UIEvents.OnToast += Show;
         }
 
-        // 구독/해제를 대칭으로 맞춘다. 베이스가 OnDisable을 virtual로 열어 두었으므로 override해 base를 부른다.
-        protected override void OnDisable()
+        private void OnDestroy()
         {
             UIEvents.OnToast -= Show;
-            base.OnDisable();
         }
 
         /// <summary>

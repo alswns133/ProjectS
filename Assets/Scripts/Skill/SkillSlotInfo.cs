@@ -43,8 +43,12 @@ namespace ProjectS.Skills
         /// </summary>
         public readonly string PreviewMediaAddress;
 
+        /// <summary>사용 가능(해금)한 스킬인지. 잠긴 액티브 스킬2·3·4는 false → 창에서 투자·등록 불가, 흐리게 표시.</summary>
+        public readonly bool IsUnlocked;
+
         public SkillSlotInfo(int skillId, string name, string description, string iconAddress,
-            bool isActive, int minLevel, int maxLevel, int currentLevel, string previewMediaAddress = null)
+            bool isActive, int minLevel, int maxLevel, int currentLevel, string previewMediaAddress = null,
+            bool isUnlocked = true)
         {
             SkillId = skillId;
             Name = name;
@@ -55,6 +59,7 @@ namespace ProjectS.Skills
             MaxLevel = maxLevel;
             CurrentLevel = currentLevel;
             PreviewMediaAddress = previewMediaAddress;
+            IsUnlocked = isUnlocked;
         }
     }
 
