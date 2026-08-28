@@ -92,7 +92,10 @@ namespace ProjectS.Enemies
 
             // 0 도달 → 무력화 진입. 게이지 리필은 무력화 상태가 끝날 때 Refill로 되돌린다.
             if (currentGroggy <= 0f)
+            {
+                // TODO(sound): 보스 그로기(무력화) 돌입음 — SoundManager.Instance.PlaySFX3D(<그로기 SFX>, transform.position);
                 enemy?.EnterGroggy();
+            }
         }
 
         /// <summary>

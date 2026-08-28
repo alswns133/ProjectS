@@ -59,6 +59,7 @@ namespace ProjectS.UI
             // 릴이 있으면 숫자는 릴이 그린다. 여기서 텍스트를 덮어쓰면 릴의 원본 라벨과 충돌한다.
             if (levelReel == null && levelText != null) levelText.text = string.Format(levelFormat, level);
 
+            // TODO(sound): 레벨업 팡파레 — SoundManager.Instance.PlaySFX(<레벨업 SFX>);
             Play();
 
             // 재생 시작은 Play() 뒤여야 한다. Play()가 오브젝트를 켜는데, 꺼져 있는 동안 부른 Play는

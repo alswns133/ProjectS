@@ -87,6 +87,8 @@ namespace ProjectS.Managers
             // TODO 가방 여유 확인: AddItem은 꽉 차면 초과분을 버린다(돈은 나감). 넣을 자리부터 확인할 것.
             //      (장비=빈 셀 count개 / 스택=기존 스택 여유 + 빈 셀 계산)
 
+            // TODO(sound): 상점 구매음(코인/거래 성사) — SoundManager.Instance.PlaySFX(<구매 SFX>);
+            //   구매 실패(잔액/자리 부족)는 위 return 경로에서 별도 '거부' 음을 낼 수도 있다.
             inventory.Spend(total, 0, 0); // 차감 + FireGoldChanged + 저장
             inventory.AddItem(entry.ItemId, count);
             return true;

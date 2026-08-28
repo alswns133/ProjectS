@@ -42,6 +42,7 @@ namespace ProjectS.Players
             // 구를 방향을 즉시 바라본다 → 이후 전진은 앞구르기 클립의 루트 모션이 담당,
             // 몸이 바라보는 방향 = 구르는 방향이 되므로 여기서 방향이 확정된다.
             player.Movement.FaceInstantly(rollDirection);
+            // TODO(sound): 구르기(회피) 발동음 — SoundManager.Instance.PlaySFX(<구르기 SFX>);
             player.Animation.PlayRoll();
 
             player.Stats.SetInvincible(true);

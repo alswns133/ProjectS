@@ -107,6 +107,8 @@ namespace ProjectS.Enhance
             int before = target.EnhanceStep;
             int after = success ? before + 1 : before;
 
+            // TODO(sound): 강화 결과음 — success면 성공 SFX, 아니면 실패 SFX.
+            //   SoundManager.Instance.PlaySFX(success ? <강화 성공 SFX> : <강화 실패 SFX>); (전용 SoundID 필요)
             target.ApplyStep(after);
             target.RecordAttempt(success);
 

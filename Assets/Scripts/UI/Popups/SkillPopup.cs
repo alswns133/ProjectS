@@ -10,7 +10,7 @@ using ProjectS.UI.Framework;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 스킬창 본체(순수 View). K키로 열리며(<see cref="SkillHotkey"/>), 액티브·패시브 스킬 레벨을
+    /// 스킬창 본체(순수 View). K키로 열리며(<see cref="PopupHotkey"/>), 액티브·패시브 스킬 레벨을
     /// ▲/▼로 미리 배치하고 [확인]으로 일괄 커밋한다. 판정·SP 계산은 절대 알지 않고,
     /// 실제 로직은 <see cref="SkillPresenter"/> → <see cref="ISkillWindowSource"/>로 흐른다.
     /// </summary>

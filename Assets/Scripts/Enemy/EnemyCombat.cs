@@ -344,6 +344,7 @@ namespace ProjectS.Enemies
             // 원거리는 여기서 판정하지 않는다. 투사체를 내보내고 판정은 투사체가 스스로 한다.
             if (attack.kind == AttackKind.Projectile)
             {
+                // TODO(sound): 원거리 몬스터 발사음 — SoundManager.Instance.PlaySFX3D(<발사 SFX>, transform.position);
                 FireProjectile(attack);
                 return;
             }
@@ -354,6 +355,7 @@ namespace ProjectS.Enemies
                 return;
             }
 
+            // TODO(sound): 근접 몬스터 공격음(휘두름) — SoundManager.Instance.PlaySFX3D(<근접 공격 SFX>, transform.position);
             ApplyBoxHit(attack.hitBox, attack.coef);
         }
 
