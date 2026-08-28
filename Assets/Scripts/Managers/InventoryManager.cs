@@ -415,6 +415,8 @@ namespace ProjectS.Managers
                 AddToStacks(item, consumable, count);
             }
 
+            // TODO(sound): 아이템 획득음 — SoundManager.Instance.PlaySFX(<획득 SFX>);
+            //   등급/종류(장비·소비·재료)별로 갈라도 된다. 골드 획득(AddGold)은 별도 코인음이 자연스럽다.
             InventoryEvents.FireItemAdded(item);
             PlayerSaveService.MarkDirty();
         }
@@ -449,6 +451,7 @@ namespace ProjectS.Managers
 
         /// <summary>
         /// 인벤토리 안에서 아이템을 옮긴다(드래그-드롭). 빈 셀로 옮기면 이동, 다른 아이템 위로 옮기면 자리 교환(swap).
+        /// 소모품 탭에서 <b>같은 아이템끼리</b> 겹치면 교환 대신 스택을 병합한다(도착을 MaxStack까지 채우고 출발을 그만큼 줄임).
         /// 같은 탭 격자 안에서만 동작하며, 변경을 <see cref="InventoryEvents.OnInventoryChanged"/>로 알리고 저장 dirty로 잡는다.
         /// </summary>
         /// <param name="equipmentTab">true=장비 탭 격자, false=소모품 탭 격자</param>
@@ -459,10 +462,35 @@ namespace ProjectS.Managers
             if (from == to) return;
 
             if (equipmentTab) SwapCells(equipGrid, from, to);
-            else SwapCells(consumeGrid, from, to);
+            else if (!TryMergeStacks(from, to)) SwapCells(consumeGrid, from, to);   // 같은 소모품이면 병합, 아니면 자리 교환
 
             InventoryEvents.FireInventoryChanged();
             PlayerSaveService.MarkDirty();
+        }
+
+        // 소모품 격자에서 같은 아이템 스택을 드롭했을 때 병합한다. 도착 스택을 MaxStack까지 채우고
+        // 출발 스택을 옮긴 만큼 줄인다 — 출발이 0이 되면 셀을 비우고(사라짐), 남으면 잔량을 그대로 둔다.
+        // 병합했으면 true(호출부는 자리 교환을 건너뛴다). 다른 아이템·빈칸·도착이 이미 가득이면 false → 기존 교환에 맡긴다.
+        private bool TryMergeStacks(int from, int to)
+        {
+            if (from < 0 || from >= consumeGrid.Length || to < 0 || to >= consumeGrid.Length) return false;
+
+            ItemStack src = consumeGrid[from];
+            ItemStack dst = consumeGrid[to];
+
+            // 둘 다 스택이고 같은 아이템이며 도착에 여유가 있어야 병합한다. 도착이 가득이면 병합할 게 없어 교환으로 넘긴다.
+            if (src == null || dst == null) return false;
+            if (src.Item == null || dst.Item == null || src.Item.Index != dst.Item.Index) return false;
+            if (dst.IsFull) return false;
+
+            int leftover = dst.Add(src.Count);   // 도착을 MaxStack까지 채우고 못 담은 잉여를 돌려받는다
+            int moved = src.Count - leftover;
+            if (moved <= 0) return false;
+
+            src.Remove(moved);
+            if (src.Count <= 0) consumeGrid[from] = null;   // 출발 스택이 비면 셀을 비운다
+
+            return true;
         }
 
         // ---------- 파괴(버리기) ----------
@@ -658,6 +686,7 @@ namespace ProjectS.Managers
             if (data.CooldownSec > 0f)
                 consumableCooldowns[itemId] = Time.time + data.CooldownSec;
 
+            // TODO(sound): 소모품(포션) 사용음 — SoundManager.Instance.PlaySFX(<포션 사용 SFX>); (회복/버프 종류별로 갈라도 됨)
             InventoryEvents.FireConsumableUsed(itemId, data.CooldownSec);
 
             // 수량 차감(0이면 격자 셀 비움).
@@ -821,6 +850,7 @@ namespace ProjectS.Managers
             if(stack.Count <= 0)
                 RemoveFromGrid(consumeGrid, stack); // 기존 private 헬퍼 재사용
 
+            // TODO(sound): 아이템 판매음(코인/거래 성사) — SoundManager.Instance.PlaySFX(<판매 SFX>);
             AddGold(payout);
             InventoryEvents.FireItemRemoved(stack.Item);
             InventoryEvents.FireInventoryChanged();

@@ -161,6 +161,7 @@ namespace ProjectS.UI
                 skillIcon.gameObject.SetActive(entry.Icon != null);
             }
 
+            // TODO(sound): 스킬 해금 배너음 — SoundManager.Instance.PlaySFX(<스킬 해금 SFX>);
             Play();
         }
     }

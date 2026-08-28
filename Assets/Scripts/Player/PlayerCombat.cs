@@ -326,6 +326,7 @@ namespace ProjectS.Players
             // 다른 스킬로 이어감 포함)이면 직전 무적이 남아 있었어도 여기서 꺼진다.
             SetSkillInvincibility(skill.Invincible);
 
+            // TODO(sound): 스킬 시전음 — 스킬 s별로 다름. SoundManager.Instance.PlaySFX(<스킬 s 시전 SFX>); (각성기=4는 별도 컷인 음)
             anim.PlaySkill(s);
 
             // UI(쿨타임 표시)가 이 신호로 카운트다운을 시작한다. 발동 성공 시에만 발행. HUD 슬롯은 누른 키(n).
@@ -506,6 +507,7 @@ namespace ProjectS.Players
             // 해제는 로코모션 복귀(ComboResetBehaviour→ResetCombo) 또는 안전장치 경로가 담당.
             IsCastingSkill = true;
             currentAction = CombatAction.StrongAttack;
+            // TODO(sound): 강공격(우클릭) 시전음 — SoundManager.Instance.PlaySFX(<강공격 SFX>);
             anim.PlayStrongAttack();
             return true;
         }
@@ -520,6 +522,7 @@ namespace ProjectS.Players
             CancelAction();
             IsCastingSkill = true;
             currentAction = CombatAction.RunAttack;
+            // TODO(sound): 달리기 공격 시전음 — SoundManager.Instance.PlaySFX(<러시 공격 SFX>);
             anim.PlayRunAttack();
         }
 
@@ -532,6 +535,7 @@ namespace ProjectS.Players
             CancelAction();
             IsCastingSkill = true;
             currentAction = CombatAction.JumpAttack;
+            // TODO(sound): 점프 공격 시전음 — SoundManager.Instance.PlaySFX(<점프 공격 SFX>);
             anim.PlayJumpAttack();
         }
 
@@ -719,6 +723,7 @@ namespace ProjectS.Players
             comboCancelWindowOpen = false;
             comboWindowOpen = false;
 
+            // TODO(sound): 평타 휘두르는 소리(콤보 타수 step별로 달리 가능) — SoundManager.Instance.PlaySFX(<콤보 step SFX>);
             ComboStepStarted?.Invoke();
             DevLog.Log(comboStep);
         }

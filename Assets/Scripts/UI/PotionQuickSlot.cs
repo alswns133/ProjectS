@@ -31,6 +31,9 @@ namespace ProjectS.UI
         [SerializeField] private Color inStockColor = Color.white;
         [SerializeField] private Color emptyStockColor = new Color(1f, 1f, 1f, 0.4f);
 
+        // 수량 표기 상한. 총 보유량이 이 값을 넘으면 실제 숫자 대신 "99+"로 줄여 표시한다(칸이 좁아 자릿수 폭주 방지).
+        private const int MaxCountDisplay = 99;
+
         private int registeredId;
         private Coroutine cooldownRoutine;
 
@@ -106,7 +109,8 @@ namespace ProjectS.UI
         {
             int count = InventoryManager.Instance != null ? InventoryManager.Instance.GetConsumableCount(registeredId) : 0;
 
-            if (countText != null) countText.text = count.ToString();
+            // 99를 넘으면 "99+"로 축약(여러 스택 합산이라 총량은 99를 넘을 수 있다).
+            if (countText != null) countText.text = count > MaxCountDisplay ? $"{MaxCountDisplay}+" : count.ToString();
             if (icon != null) icon.color = count > 0 ? inStockColor : emptyStockColor;   // 재고 0이면 흐리게
         }
 
