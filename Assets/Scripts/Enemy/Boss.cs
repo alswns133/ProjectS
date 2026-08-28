@@ -134,6 +134,7 @@ namespace ProjectS.Enemies
                     // 플레이어는 하나뿐 — 처음 찾은 대상에서 성공/실패를 판정하고 끝낸다.
                     if (player.OnGrabbed(this, currentGrab.grabAnchor))
                     {
+                        // TODO(sound): 보스 잡기 성공(포착)음 — SoundManager.Instance.PlaySFX3D(<잡기 포착 SFX>, transform.position);
                         grabbedPlayer = player;
                         return;                 // 잡기 성공
                     }
@@ -181,6 +182,7 @@ namespace ProjectS.Enemies
         private void NotifyGrabFailed()
         {
             grabbedPlayer = null;
+            // TODO(sound): 보스 헛잡기(허공 포착 실패)음 — SoundManager.Instance.PlaySFX3D(<헛잡기 SFX>, transform.position);
             Animation.PlayGrabFail();
         }
 

@@ -104,6 +104,8 @@ namespace ProjectS.UI
         {
             data = DungeonResultContext.Current;
 
+            // TODO(sound): 던전 클리어 결과 팡파레 — SoundManager.Instance.PlaySFX(SoundID.SFX_Win);
+            //   (BGM을 결과 화면용으로 바꾸거나 잠깐 낮출지도 함께 결정. 실패/전멸 결과가 생기면 SFX_GameOver로 분기.)
             BindScore();
             BindReward();
             GoToPage(0);

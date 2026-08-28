@@ -415,6 +415,8 @@ namespace ProjectS.Managers
                 AddToStacks(item, consumable, count);
             }
 
+            // TODO(sound): 아이템 획득음 — SoundManager.Instance.PlaySFX(<획득 SFX>);
+            //   등급/종류(장비·소비·재료)별로 갈라도 된다. 골드 획득(AddGold)은 별도 코인음이 자연스럽다.
             InventoryEvents.FireItemAdded(item);
             PlayerSaveService.MarkDirty();
         }
@@ -684,6 +686,7 @@ namespace ProjectS.Managers
             if (data.CooldownSec > 0f)
                 consumableCooldowns[itemId] = Time.time + data.CooldownSec;
 
+            // TODO(sound): 소모품(포션) 사용음 — SoundManager.Instance.PlaySFX(<포션 사용 SFX>); (회복/버프 종류별로 갈라도 됨)
             InventoryEvents.FireConsumableUsed(itemId, data.CooldownSec);
 
             // 수량 차감(0이면 격자 셀 비움).
@@ -847,6 +850,7 @@ namespace ProjectS.Managers
             if(stack.Count <= 0)
                 RemoveFromGrid(consumeGrid, stack); // 기존 private 헬퍼 재사용
 
+            // TODO(sound): 아이템 판매음(코인/거래 성사) — SoundManager.Instance.PlaySFX(<판매 SFX>);
             AddGold(payout);
             InventoryEvents.FireItemRemoved(stack.Item);
             InventoryEvents.FireInventoryChanged();

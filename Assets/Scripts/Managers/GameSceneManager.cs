@@ -186,6 +186,8 @@ namespace ProjectS.Managers
             // Enter보다 먼저 발행해도, 늦게 켜지는 미니맵은 MinimapEvents 캐시로 따라잡는다.
             MinimapRegistry.ApplyStage(next);
 
+            // TODO(sound): 씬 BGM 시작 — 씬마다 다르므로 각 BaseScene.Enter()에서 SoundManager.Instance.PlayBgm(<그 씬 BGM ID>) 호출이 자연스럽다.
+            //   (타이틀=SoundID.BGM_MainTitle, 숲=BGM_ForestLoop, 사막=BGM_DesertLoop 등. 씬 SFX 프리로드는 위 preloadTasks의 PreloadSceneSounds 자리.)
             if (sceneDic.ContainsKey(next)) sceneDic[next].Enter();  // 새 씬의 Enter 호출
             current = next;
 

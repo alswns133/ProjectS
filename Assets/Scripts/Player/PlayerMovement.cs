@@ -406,6 +406,9 @@ namespace ProjectS.Players
             // jumpHeight는 정확한 높이라기보다 튜닝 기준값에 가깝다.
             verticalVelocity = Mathf.Sqrt(2f * jumpHeight * gravity);
 
+            // TODO(sound): 점프 발동음 — SoundManager.Instance.PlaySFX(<점프 SFX>);
+            //   (착지음/발소리(SoundID.SFX_MoveSound)는 별도 — 걷기·달리기 클립의 Animation Event로 스텝마다 재생하는 게 자연스럽다.)
+
             // 방향은 현재 입력에서, 크기는 지상에서 측정한 실제 속도에서 가져온다.
             // → 달리다 뛰면 달리기 속도로, 걷다 뛰면 걷기 속도로 자연스럽게 이어진다.
             Vector2 moveInput = inputHandler != null ? inputHandler.MoveInput : Vector2.zero;

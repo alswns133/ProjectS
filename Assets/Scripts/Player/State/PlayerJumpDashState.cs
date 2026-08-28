@@ -23,6 +23,7 @@ namespace ProjectS.Players
             player.Movement.StrongAttackRising = false;   // 올려치기 상승 상태도 해제
 
             player.Movement.StartJumpDash();
+            // TODO(sound): 공중 대시(공중 회피) 발동음 — SoundManager.Instance.PlaySFX(<공중대시 SFX>);
             player.Animation.PlayJumpDash();
             player.Stats.SetInvincible(true);
         }
