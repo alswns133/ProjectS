@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using ProjectS.Data;
+using ProjectS.Enhance;
 using ProjectS.Events;
 using ProjectS.Managers;
 using ProjectS.UI.Framework;
@@ -75,6 +76,9 @@ namespace ProjectS.UI
             InventoryEvents.OnItemRemoved += HandleItemsChanged;
             InventoryEvents.OnInventoryChanged += HandleInventoryChanged;
             PlayerEvents.OnGoldChanged += SetGold;
+            // 강화로 +N이 바뀌면 그리드의 강화 배지가 stale해진다(재료 소모 없이 골드만 드는 단계도 있어
+            // 아이템 제거 이벤트만으로는 못 잡는다) → 강화 완료 시 다시 그린다.
+            EnhanceEvents.OnEnhanced += HandleEnhanced;
 
             // 골드 소유자(InventoryManager)에게 현재 값 재발행을 요청한다(HUD와 같은 스냅샷 경로).
             PlayerEvents.FireStatsRefreshRequested();
@@ -91,6 +95,7 @@ namespace ProjectS.UI
             InventoryEvents.OnItemRemoved -= HandleItemsChanged;
             InventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
             PlayerEvents.OnGoldChanged -= SetGold;
+            EnhanceEvents.OnEnhanced -= HandleEnhanced;
 
             // 툴팁은 여기서 무조건 닫지 않는다 — 그러면 인벤을 닫을 때 장비창에서 띄운 툴팁까지 사라진다.
             // 대신 슬롯의 OnDisable이 "자기가 주인인 툴팁만" 닫는다(InventoryItemSlot.OnDisable → ItemTooltip.Hide(this)).
@@ -177,6 +182,12 @@ namespace ProjectS.UI
 
         // 위치 이동 등 배치 변경 시 현재 탭을 다시 그린다.
         private void HandleInventoryChanged()
+        {
+            if (IsVisible) Rebuild();
+        }
+
+        // 강화 성공/실패로 대상 장비의 +N이 바뀌었을 수 있으니 현재 탭을 다시 그려 배지를 맞춘다.
+        private void HandleEnhanced(EnhanceResult _)
         {
             if (IsVisible) Rebuild();
         }
