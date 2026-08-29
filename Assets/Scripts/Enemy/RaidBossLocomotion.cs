@@ -8,8 +8,7 @@ namespace ProjectS.Enemies
     /// </summary>
     public class RaidBossLocomotion : MonoBehaviour
     {
-        [Header("거리 밴드 (안쪽 < 바깥 순서 필수)")]
-        [SerializeField, Min(0f)] private float attackRange = 3f;   // 정지 후 공격
+        [Header("거리 밴드 (안쪽 < 바깥 순서 필수) — 공격 사거리는 Combat이 소유")]
         [SerializeField, Min(0f)] private float engageDist = 12f;   // Walk 직진 접근
         [SerializeField, Min(0f)] private float jogDist = 20f;      // engageDist~jogDist → Jog, 초과 → Run
 
@@ -18,7 +17,6 @@ namespace ProjectS.Enemies
         [SerializeField, Min(0f)] private float jogSpeed = 10f;
         [SerializeField, Min(0f)] private float runSpeed = 15f;
 
-        public float AttackRange => attackRange;
         public float EngageDist => engageDist;
         public float JogDist => jogDist;
         public float WalkSpeed => walkSpeed;

@@ -54,6 +54,11 @@
         // 대쉬는 에이전트를 켜둔 채 NavMesh에 클램프해야 하기 때문에 useRootMotion과 분리
         private bool useAttackRootMotion;
 
+        // 돌진 루트모션이 이 대상보다 chargeKeepDistance 안쪽으로는 전진하지 않게 막는다(모션은 유지, 위치 전진만 정지).
+        // 0이면 비활성 → 일반 잡몹은 영향 없음. 대상 null이면(공중 런처 등) 클램프 안 함.
+        [SerializeField, Min(0f)] private float chargeKeepDistance = 0f;
+        private Transform chargeKeepTarget;
+
         // 발견 대시처럼 일시적으로 속도를 바꾼 뒤 원래 값으로 되돌리기 위한 기준 속도.
         // NavMeshAgent의 기본 speed는 에디터 튜닝 값이므로 Awake에서 보관한다.
         private float baseSpeed;
@@ -296,8 +301,9 @@
         /// 공중 런처(BeginRootMotion)와 달리 에이전트를 끄지 않는다 — NavMesh 클램프를 살려 대쉬가 벽/절벽을 넘지 않게 한다.
         /// EnemyAttackState.Enter에서 켜고 Exit에서 반드시 끈다(피격/사망으로 끊겨도 전진이 남지 않게).
         /// </summary>
-        public void BeginAttackRootMotion()
+        public void BeginAttackRootMotion(Transform keepAwayFrom = null)
         {
+            chargeKeepTarget = keepAwayFrom;
             if (agent.enabled) agent.enabled = false;
             useRootMotion = true;
         }
@@ -307,8 +313,8 @@
         /// </summary>
         public void EndAttackRootMotion()
         {
+            chargeKeepTarget = null;
             useRootMotion = false;
-
             if (!agent.enabled) agent.enabled = true;
         }
 
@@ -335,10 +341,25 @@
         /// </summary>
         private void OnAnimatorMove()
         {
-            // 공중 런처: 에이전트를 끈 구간이라 위치를 직접 밀어 올린다(수직 포함).
             if (useRootMotion)
             {
-                transform.position += animator.deltaPosition;
+                Vector3 delta = animator.deltaPosition;
+
+                if (chargeKeepTarget != null && chargeKeepDistance > 0f)
+                {
+                    Vector3 toPlayer = chargeKeepTarget.position - transform.position;
+                    toPlayer.y = 0f;
+
+                    // 유지 거리 안 + 델타가 플레이어 쪽으로 파고드는 성분일 때만 수평 전진을 버린다(수직은 유지).
+                    Vector3 flat = new Vector3(delta.x, 0f, delta.z);
+                    if (toPlayer.magnitude <= chargeKeepDistance && Vector3.Dot(flat, toPlayer) > 0f)
+                    {
+                        delta.x = 0f;
+                        delta.z = 0f;
+                    }
+                }
+
+                transform.position += delta;
                 return;
             }
         }
