@@ -39,6 +39,11 @@
         // 회전-먼저-이동을 만드는 문턱. 작으면 자주 멈춰 돌고, 크면 거의 이동하며 돈다.
         [SerializeField, Range(0f, 180f)] private float moveTurnGateAngle = 45f;
 
+        [Header("루트모션 복귀")]
+        // 대쉬 루트모션(발견/공격)이 끝나 에이전트를 다시 켤 때, 이 반경 안에서 가장 가까운 NavMesh 지점을 찾아 복귀한다.
+        // 루트모션이 mesh 밖으로 조금 벗어나도 다시 붙게 하기 위함. 너무 크게 잡으면 엉뚱한 곳으로 순간이동할 수 있다.
+        [SerializeField, Min(0.1f)] private float agentReturnSampleRadius = 2f;
+
         private NavMeshAgent agent;
         private NavMeshPath path;
 
@@ -88,7 +93,7 @@
         }
 
         /// <summary>현재 경로의 끝에 도달했는지 여부. 순찰 상태가 지점 도착 판정에 쓴다.</summary>
-        public bool ReachedPathEnd => agent.enabled && !agent.pathPending
+        public bool ReachedPathEnd => agent.enabled && agent.isOnNavMesh && !agent.pathPending
             && agent.remainingDistance <= agent.stoppingDistance;
 
         private void Awake()
@@ -103,9 +108,24 @@
                 avoidancePriorityMin, Mathf.Max(avoidancePriorityMin, avoidancePriorityMax) + 1);
         }
 
+        // 스폰/재활성 시 에이전트를 NavMesh에 확실히 올린다. 스포너가 mesh에서 살짝 벗어난 곳(스폰 y=0 등)에
+        // 소환해도 가까운 지점으로 warp해 붙인다. off-mesh면 SetDestination이 무시돼 적이 아예 안 움직이기 때문이다.
+        // 풀링으로 재활성되는 적도 매번 붙도록 Start가 아니라 OnEnable에서 한다.
+        private void OnEnable()
+        {
+            if (agent == null || !agent.enabled || agent.isOnNavMesh) return;
+
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, agentReturnSampleRadius, NavMesh.AllAreas))
+                agent.Warp(hit.position);
+            else
+                Debug.LogWarning($"{name}: 스폰 지점 {transform.position} 근처({agentReturnSampleRadius}m)에 NavMesh가 없어 " +
+                                 "에이전트가 붙지 못했다 → 움직이지 못한다. NavMesh 베이크/스폰 위치를 확인하라.", this);
+        }
+
         private void Update()
         {
-            float raw = (!agent.enabled || agent.isStopped) ? 0f : agent.velocity.magnitude;
+            // isStopped는 NavMesh 위 활성 에이전트에서만 읽을 수 있다 → off-mesh면 정지로 간주하고 먼저 걸러낸다.
+            float raw = (!agent.enabled || !agent.isOnNavMesh || agent.isStopped) ? 0f : agent.velocity.magnitude;
 
             // 지수 이동 평균. Lerp 계수를 deltaTime 기반 지수식으로 계산해 프레임레이트와 무관하게 감쇠된다.
             smoothedSpeed = speedSmoothingTime <= 0f
@@ -297,8 +317,9 @@
         }
 
         /// <summary>
-        /// 공격 대쉬 시작. 이 구간 동안 OnAnimatorMove가 공격 클립의 수평 루트모션을 agent.Move로 적용해 전진시킨다.
-        /// 공중 런처(BeginRootMotion)와 달리 에이전트를 끄지 않는다 — NavMesh 클램프를 살려 대쉬가 벽/절벽을 넘지 않게 한다.
+        /// 공격 대쉬 시작. 이 구간 동안 <see cref="OnAnimatorMove"/>가 공격 클립의 수평 루트모션을 transform에 직접 더해 전진시킨다.
+        /// 에이전트는 끈다(켜 두면 NavMesh 높이로 몸을 끌어내려 루트모션이 뭉개진다). transform 직접 이동이라
+        /// NavMesh 클램프가 없어 mesh 밖으로 벗어날 수 있으므로, 종료 시 <see cref="EndAttackRootMotion"/>이 가까운 지점으로 복귀시킨다.
         /// EnemyAttackState.Enter에서 켜고 Exit에서 반드시 끈다(피격/사망으로 끊겨도 전진이 남지 않게).
         /// </summary>
         public void BeginAttackRootMotion(Transform keepAwayFrom = null)
@@ -311,11 +332,23 @@
         /// <summary>
         /// 공격 대쉬 종료. 루트모션 전진을 끈다. 끄지 않으면 이후 Idle/Walk 클립의 미세 루트모션이 위치에 샌다.
         /// </summary>
+        /// <remarks>
+        /// 대쉬 루트모션은 <see cref="OnAnimatorMove"/>에서 transform을 직접 옮기므로 NavMesh 클램프가 없다 →
+        /// mesh 밖으로 벗어난 채 에이전트를 켜면 "not close enough to the NavMesh"로 생성이 실패한다.
+        /// 그래서 착지(<see cref="EndRootMotionAndLand"/>)와 같이, 켜기 전에 가장 가까운 NavMesh 지점으로 먼저 끌어온다.
+        /// </remarks>
         public void EndAttackRootMotion()
         {
             chargeKeepTarget = null;
             useRootMotion = false;
-            if (!agent.enabled) agent.enabled = true;
+            if (agent.enabled) return;
+
+            // NavMesh 밖으로 벗어났을 수 있으므로, 켜기 전에 가까운 지점을 찾아 transform을 먼저 그 위로 올린다
+            // (transform을 먼저 옮겨두면 enabled = true가 그 자리에서 성공한다).
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, agentReturnSampleRadius, NavMesh.AllAreas))
+                transform.position = hit.position;
+
+            agent.enabled = true;
         }
 
         /// <summary>

@@ -82,14 +82,25 @@ namespace ProjectS.Enemies
                 return;
             }
 
-            // 2단계: 클립이 끝까지 재생되면(또는 안전 상한을 넘기면) Chase로 돌아가 거리/쿨타임을 다시 판단한다.
-            // 클립 길이를 인스펙터에 적지 않고 애니메이터 normalizedTime으로 종료를 판정한다.
-            if (enemy.Animation.IsCurrentStateFinished() || elapsed >= MaxAttackTime)
+            // 2단계: 공격이 끝나면 Chase로 돌아가 거리/쿨타임을 다시 판단한다. 클립 길이는 인스펙터에 적지 않는다.
+            // 종료 판정을 둘로 본다:
+            //   (1) IsCurrentStateFinished: 공격 클립이 그 State에 머문 채 98%까지 재생된 경우(자동 전이 없는 셋업).
+            //   (2) !IsPlaying("Attack"): 애니메이터가 Attack State를 이미 떠난 경우(Has Exit Time 등 자동 전이 셋업).
+            // (2)가 없으면, 자동 전이로 Idle로 넘어간 순간부터 (1)이 '현재 Idle 클립'의 normalizedTime을 재게 되어
+            // Idle 길이만큼(수 초) 늦게 종료됐다. enteredAttack 이후 Attack 태그가 사라졌다는 것 자체가 공격 종료다.
+            bool attackFinished = enemy.Animation.IsCurrentStateFinished()
+                               || !enemy.Animation.IsPlaying("Attack");
+
+            if (attackFinished || elapsed >= MaxAttackTime)
                 enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
         public override void Exit()
         {
+            // 공격이 어떻게 끝나든(정상 종료·피격·사망) 남아 있을 수 있는 예고 장판을 끈다.
+            // 정상 경로는 OnAttackHit에서 이미 껐지만, 타격 프레임 전에 끊긴 경우는 여기서만 정리된다.
+            enemy.Combat.HideTelegraph();
+
             // 돌진이었으면 전방 루트모션과 히트 창을 되돌린다. 피격/사망 등으로 공격이 중간에 끊겨도
             // 루트모션 전진이나 열린 히트 창이 다음 상태로 새지 않게 한다(창은 이 공격 한정이어야 한다).
             if (isCharging)

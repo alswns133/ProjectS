@@ -145,6 +145,10 @@ namespace ProjectS.Enemies
         // 현재 프로젝트 규칙: 피격 레이어 콜라이더와 IDamageable은 같은 루트 GameObject에 둔다.
         [SerializeField] private LayerMask targetMask;
 
+        // 공격 범위 예고 장판(보스 전용, 선택). 붙지 않으면(null) 예고를 건너뛴다 → 일반 몬스터는 자동으로 미표시.
+        // 지금은 제자리 멜리 공격만 예고한다(돌진/원거리는 제외).
+        [SerializeField] private AttackTelegraph telegraph;
+
         // ── 시야 ─────────────────────────────────────────────────────────
         // 공격 진입 전 "대상이 실제로 보이는지" 검사에 쓰는 설정.
         // NavMesh 경로 검사(Enemy.CanReachTarget)는 갈 수 있는지만 보므로 벽 너머 사격을 못 막는다.
@@ -225,7 +229,16 @@ namespace ProjectS.Enemies
             if (currentAttack == null) return;
 
             nextAttackTime = Time.time + currentAttack.cooldown;
+
+            // 공격 범위 예고(보스 전용). 히트박스가 한 자리에 있는 제자리 멜리만 미리 보여준다 —
+            // 돌진(Charge)은 박스가 이동하는 경로를 따로 재야 하므로 제외, 원거리(Projectile)는 히트박스가 없다.
+            // telegraph가 null(일반 몬스터)이면 아무 일도 안 한다. 타격 프레임(OnAttackHit)에서 Hide된다.
+            if (telegraph != null && currentAttack.kind == AttackKind.Melee && currentAttack.hitBox != null)
+                telegraph.Show(currentAttack.hitBox);
         }
+
+        /// <summary>공격 예고 장판을 끈다. 공격이 중간에 끊길 때(EnemyAttackState.Exit)를 위해 공개한다.</summary>
+        public void HideTelegraph() => telegraph?.Hide();
 
         /// <summary>
         /// 돌진 슬라이드 히트 창을 연다. 돌진 클립에서 몸이 전진하기 시작하는 프레임에 Animation Event로 찍는다.
@@ -316,6 +329,9 @@ namespace ProjectS.Enemies
 
             // Animation Event가 공격 선택 직후가 아닌 시점에 와도 마지막 선택 공격 기준으로 판정한다.
             ExecuteAttackHit(currentAttack ?? GetDefaultAttack());
+
+            // 타격이 실제로 일어난 순간 예고 장판을 끈다("예고 → 타격 → 사라짐"). 중단 시엔 Exit가 대신 끈다.
+            telegraph?.Hide();
         }
 
         /// <summary>
