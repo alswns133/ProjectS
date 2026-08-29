@@ -55,9 +55,15 @@
         // 평소 이동은 NavMeshAgent가 위치를 소유하므로 꺼져 있으면 루트모션을 무시
         private bool useRootMotion;
 
-        // true인 동안 OnAnimatorMove가 공격 클립의 수명 루트모션을 agent.move로 위치에 반영
-        // 대쉬는 에이전트를 켜둔 채 NavMesh에 클램프해야 하기 때문에 useRootMotion과 분리
-        private bool useAttackRootMotion;
+        // 코드 구동 대시(돌진) 상태. 루트모션이 없는(제자리) 돌진 클립을 위해, 시작 순간 방향으로 커밋해
+        // 커브가 지정한 속도로 일직선 전진시킨다(멧돼지 돌진 — 진행 중 대상을 추적하지 않음).
+        // 루트모션 돌진(useRootMotion)과 달리 에이전트를 끄지 않는다: agent.Move가 NavMesh에 클램프하므로
+        // 종료 시 재클램프(EndAttackRootMotion의 SamplePosition)가 필요 없다.
+        private bool codedCharging;
+        private Vector3 codedChargeDir;
+        private float codedChargeDuration;
+        private float codedChargeElapsed;
+        private AnimationCurve codedChargeCurve;
 
         // 돌진 루트모션이 이 대상보다 chargeKeepDistance 안쪽으로는 전진하지 않게 막는다(모션은 유지, 위치 전진만 정지).
         // 0이면 비활성 → 일반 잡몹은 영향 없음. 대상 null이면(공중 런처 등) 클램프 안 함.
@@ -350,6 +356,53 @@
 
             agent.enabled = true;
         }
+
+        /// <summary>
+        /// 코드 구동 대시(돌진) 시작. 루트모션이 없는 돌진 클립을 위해, 시작 순간의 <paramref name="direction"/>으로
+        /// 방향을 잠그고(평면화·정규화) <paramref name="speedCurve"/>가 지정한 속도로 <paramref name="duration"/>초 동안
+        /// 일직선 전진시킨다. 진행 중 방향을 다시 잡지 않아 대상을 추적하지 않는다(멧돼지 돌진).
+        /// </summary>
+        /// <remarks>
+        /// 루트모션 돌진(<see cref="BeginAttackRootMotion"/>)과 달리 에이전트를 끄지 않는다:
+        /// <see cref="TickCodedCharge"/>가 <c>agent.Move</c>로 밀어 NavMesh에 클램프되므로, 종료 시 가까운
+        /// NavMesh 지점으로 되돌리는 재클램프가 필요 없다. EnemyAttackState.Enter에서 켜고 Exit에서 반드시
+        /// <see cref="EndCodedCharge"/>로 끈다(피격/사망으로 끊겨도 전진이 다음 상태로 새지 않게).
+        /// </remarks>
+        public void BeginCodedCharge(Vector3 direction, float duration, AnimationCurve speedCurve)
+        {
+            Vector3 flat = new Vector3(direction.x, 0f, direction.z);
+            // 방향이 사실상 0(대상과 같은 자리)일 땐 바라보는 방향으로 돌진한다.
+            codedChargeDir = flat.sqrMagnitude > 0.0001f ? flat.normalized : transform.forward;
+            codedChargeDuration = Mathf.Max(0f, duration);
+            codedChargeCurve = speedCurve;
+            codedChargeElapsed = 0f;
+            codedCharging = true;
+        }
+
+        /// <summary>
+        /// 코드 구동 대시를 한 프레임 진행한다. EnemyAttackState.Update가 돌진 동안 매 프레임 호출한다.
+        /// 커브를 정규화 시간(경과/지속)으로 샘플해 속도(m/s)를 얻고, 잠긴 방향으로 <c>agent.Move</c>한다.
+        /// 지속 시간이 다 차면 스스로 정지한다 — 커브가 시작 속도 0이어도 시간은 흐르므로 데드락이 없다.
+        /// </summary>
+        public void TickCodedCharge(float deltaTime)
+        {
+            if (!codedCharging) return;
+            if (!agent.enabled || !agent.isOnNavMesh) return;
+
+            codedChargeElapsed += deltaTime;
+            float t = codedChargeDuration > 0f ? Mathf.Clamp01(codedChargeElapsed / codedChargeDuration) : 1f;
+            float speed = codedChargeCurve != null ? codedChargeCurve.Evaluate(t) : 0f;
+
+            if (speed > 0f) agent.Move(codedChargeDir * (speed * deltaTime));
+
+            if (codedChargeElapsed >= codedChargeDuration) codedCharging = false;
+        }
+
+        /// <summary>
+        /// 코드 구동 대시를 끝낸다(전진 정지). 공격이 정상 종료되든 피격/사망으로 끊기든
+        /// EnemyAttackState.Exit에서 반드시 호출한다.
+        /// </summary>
+        public void EndCodedCharge() => codedCharging = false;
 
         /// <summary>
         /// 착지 처리) 루트모션 적용을 끄고 현재 위치에서 가장 가까운 NavMesh 지점으로 에이전트를 복귀

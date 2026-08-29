@@ -21,6 +21,10 @@ namespace ProjectS.Enemies
         // 이 공격 동안만 굴린다. Exit에서 루트모션을 되돌릴 때도 이 플래그로 "켰던 것만 끈다".
         private bool isCharging;
 
+        // 이번 돌진이 코드 구동(커브 속도)인지. isCharging의 하위 구분으로, Update의 전진 틱과
+        // Exit의 정리를 루트모션/코드 중 어느 경로로 되돌릴지 가른다.
+        private bool isCodedCharging;
+
         // 진입 감지 실패(공격 상태에 못 들어감) 시 강제로 Chase로 넘기는 시간. 전환 시간보다 넉넉하게.
         private const float EnterTimeout = 1f;
 
@@ -50,10 +54,27 @@ namespace ProjectS.Enemies
             enemy.Animation.PlayAttack(enemy.Combat.CurrentAttackIndex);
             // 공격 이펙트는 공격 클립의 Animation Event(OnEffect)가 실제 타격 프레임에 재생한다(클립 주도).
 
-            // 돌진 슬롯이면 이 공격 동안만 전방 루트모션을 켜, 돌진 클립의 전진을 실제 위치에 반영한다.
+            // 돌진 슬롯이면 이 공격 동안만 전진을 켠다. 두 구동 방식으로 가른다:
+            //   코드 구동(커브 속도) → 시작 순간 대상 방향으로 커밋해 일직선 전진(멧돼지 돌진, 추적 없음).
+            //   클립 루트모션 → 돌진 클립의 전진을 위치에 반영(에이전트 끔).
             // 제자리 공격에는 켜지 않아 에이전트를 끄지 않는다(불필요한 NavMesh 이탈 방지).
             isCharging = enemy.Combat.IsCurrentAttackCharge;
-            if (isCharging) enemy.Movement.BeginAttackRootMotion(enemy.Target);
+            isCodedCharging = enemy.Combat.IsCurrentChargeCoded;
+            if (isCharging)
+            {
+                if (isCodedCharging)
+                {
+                    // 방향은 시작 순간 대상 쪽으로 한 번만 잠근다(Enter의 Face와 같은 방향). 이후 재계산하지 않아 일직선.
+                    Vector3 dir = enemy.Target != null
+                        ? enemy.Target.position - enemy.transform.position
+                        : enemy.transform.forward;
+                    enemy.Movement.BeginCodedCharge(dir, enemy.Combat.CurrentChargeDuration, enemy.Combat.CurrentChargeCurve);
+                }
+                else
+                {
+                    enemy.Movement.BeginAttackRootMotion(enemy.Target);
+                }
+            }
 
         }
 
@@ -64,6 +85,9 @@ namespace ProjectS.Enemies
             // 돌진 슬라이드 히트: 창이 열려 있는 동안(OnChargeHitBegin~OnChargeHitEnd)만 실제 판정한다.
             // 창이 닫혀 있으면 UpdateChargeHit가 즉시 반환하므로, 돌진 공격에서 매 프레임 호출해도 안전하다.
             if (isCharging) enemy.Combat.UpdateChargeHit();
+
+            // 코드 구동 돌진: 잠긴 방향으로 커브 속도만큼 일직선 전진(지속 시간이 다 되면 스스로 정지).
+            if (isCodedCharging) enemy.Movement.TickCodedCharge(Time.deltaTime);
 
             // 조준 유지 공격(원거리 등)은 히트 프레임까지 대상을 계속 바라본다.
             // 이게 없으면 조준 모션이 긴 공격에서 시작 시점의 방향으로 쏘게 되어
@@ -105,9 +129,11 @@ namespace ProjectS.Enemies
             // 루트모션 전진이나 열린 히트 창이 다음 상태로 새지 않게 한다(창은 이 공격 한정이어야 한다).
             if (isCharging)
             {
-                enemy.Movement.EndAttackRootMotion();
+                if (isCodedCharging) enemy.Movement.EndCodedCharge();
+                else enemy.Movement.EndAttackRootMotion();
                 enemy.Combat.OnChargeHitEnd();
                 isCharging = false;
+                isCodedCharging = false;
             }
         }
     }

@@ -94,6 +94,34 @@ namespace ProjectS.Enemies
             [ShowIfEnum(nameof(kind), (int)AttackKind.Melee, (int)AttackKind.Charge)]
             public Transform hitBox;
 
+            // ── 돌진(Charge) 구동 방식 ──────────
+            // 돌진 클립 중 루트모션이 없는 것(제자리 애니메이션)도 있어, 전진을 두 방식으로 가른다.
+            // true=클립 루트모션이 전진을 구동(현행, 하위호환 기본값). 이 필드가 없던 기존 돌진 프리팹은 그대로 루트모션.
+            // false=코드가 커브로 전진을 구동(시작 방향 커밋 후 일직선, 추적 없음).
+            [Tooltip("돌진 전진을 무엇이 구동하는가.\n" +
+                     "체크(기본): 클립 루트모션이 전진을 구동한다(전진이 클립에 구워진 돌진 클립).\n" +
+                     "해제: 코드가 아래 지속 시간·속도 커브로 전진을 구동한다" +
+                     "(루트모션이 없는 제자리 돌진 클립용. 시작 방향으로 일직선 돌진, 추적 없음).")]
+            [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
+            public bool useRootMotionCharge = true;
+
+            // 코드 구동 돌진의 지속 시간(초). 속도 커브 X축(정규화 시간) 1.0에 해당한다.
+            [Tooltip("코드 구동 돌진의 지속 시간(초). 이 시간이 지나면 돌진이 멈춘다.\n" +
+                     "아래 속도 커브의 X축(정규화 시간) 1.0이 이 시간에 해당한다.\n" +
+                     "Use Root Motion Charge가 해제된 돌진에만 쓰인다.")]
+            [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
+            [Min(0f)] public float chargeDuration = 0.6f;
+
+            // 코드 구동 돌진의 속도 프로파일. X=정규화 시간(0~1), Y=속도(m/s). 가속·순항·감속을 이 커브 하나로 그린다.
+            // ★ 빈 커브(new AnimationCurve())는 어디서나 0을 반환해 전혀 안 움직이므로 반드시 기본 커브를 둔다.
+            // 기본값은 0→12m/s 가속. 시간 종료 모델이라 시작 속도 0이어도 데드락은 없다.
+            [Tooltip("코드 구동 돌진의 속도 프로파일. X=정규화 시간(0~1), Y=속도(m/s).\n" +
+                     "가속·순항·감속을 이 커브 하나로 그린다. 이동 거리는 커브 적분의 결과값이다.\n" +
+                     "★ 커브를 비우면 어디서나 속도 0이라 전혀 안 움직인다 — 반드시 값을 채워둘 것.\n" +
+                     "Use Root Motion Charge가 해제된 돌진에만 쓰인다.")]
+            [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
+            public AnimationCurve chargeSpeedCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 12f);
+
             // 발사할 투사체 프리팹. 반드시 owner가 Enemy이고 targetMask가 플레이어 레이어인
             // 프리팹이어야 한다(플레이어용 검기와 프리팹을 나눈다).
             [ShowIfEnum(nameof(kind), (int)AttackKind.Projectile)]
@@ -215,6 +243,20 @@ namespace ProjectS.Enemies
         /// 전방 루트모션(<see cref="EnemyMovement.BeginAttackRootMotion"/>)을 켤지 판단한다.
         /// </summary>
         public bool IsCurrentAttackCharge => currentAttack != null && currentAttack.kind == AttackKind.Charge;
+
+        /// <summary>
+        /// 현재 돌진이 코드 구동(커브 속도)인지 여부. false면 클립 루트모션 구동이다.
+        /// EnemyAttackState가 진입 시 이 값으로 <see cref="EnemyMovement.BeginCodedCharge"/>와
+        /// <see cref="EnemyMovement.BeginAttackRootMotion"/> 중 무엇을 켤지 가른다.
+        /// </summary>
+        public bool IsCurrentChargeCoded =>
+            currentAttack != null && currentAttack.kind == AttackKind.Charge && !currentAttack.useRootMotionCharge;
+
+        /// <summary>코드 구동 돌진의 지속 시간(초). <see cref="IsCurrentChargeCoded"/>일 때만 유효.</summary>
+        public float CurrentChargeDuration => currentAttack != null ? currentAttack.chargeDuration : 0f;
+
+        /// <summary>코드 구동 돌진의 속도 커브(X=정규화 시간, Y=m/s). <see cref="IsCurrentChargeCoded"/>일 때만 유효.</summary>
+        public AnimationCurve CurrentChargeCurve => currentAttack != null ? currentAttack.chargeSpeedCurve : null;
 
         /// <summary>
         /// 공격 상태 진입 시 호출된다. 현재 거리에서 가능한 공격 중 하나를 가중치 기반으로 고르고 쿨다운을 시작한다.
