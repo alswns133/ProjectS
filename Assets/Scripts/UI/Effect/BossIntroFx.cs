@@ -191,6 +191,8 @@ namespace ProjectS.UI
             if (sparkBurst == null) sparkBurst = GetComponentInChildren<SparkBurstFx>(true);
             if (ashDissolve == null) ashDissolve = GetComponentInChildren<AshDissolveFx>(true);
 
+            // TODO(sound): 보스 등장 연출음 — 등장 스팅/전용 BGM 전환. SoundManager.Instance.PlaySFX(<보스 등장 SFX>) 또는 PlayBgm(<보스 BGM>);
+            //   커튼 슬램(slamTriggerRatio) 타이밍에 맞춰 임팩트음을 PlayRoutine 안에서 따로 낼 수도 있다.
             if (routine != null) StopCoroutine(routine);
             routine = StartCoroutine(PlayRoutine());
             UIManager.Instance.gameObject.SetActive(false);

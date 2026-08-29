@@ -52,10 +52,10 @@ namespace ProjectS.Events
         public static event Action<Transform> OnUnregistered;
 
         /// <summary>
-        /// 스테이지가 바뀌어 미니맵 배경·범위를 교체함(마을→던전 등). 인자는 (스냅샷, 월드중심, 월드크기).
-        /// 씬 진입 시 발행하고, Presenter가 받아 View에 배경을 적용한다.
+        /// 스테이지가 바뀌어 미니맵 배경·범위·이름을 교체함(마을→던전 등). 인자는 (스냅샷, 월드중심, 월드크기, 맵이름).
+        /// 씬 진입 시 발행하고, Presenter가 받아 View에 배경과 이름을 적용한다.
         /// </summary>
-        public static event Action<Sprite, Vector2, Vector2> OnStageChanged;
+        public static event Action<Sprite, Vector2, Vector2, string> OnStageChanged;
 
         // 마지막으로 적용된 스테이지 배경. 씬이 HUD보다 먼저 발행하거나 View가 늦게 켜져도
         // 따라잡을 수 있게 캐싱한다(Active 목록과 같은 이유의 상태 보관).
@@ -63,6 +63,7 @@ namespace ProjectS.Events
         private static Sprite stageSprite;
         private static Vector2 stageCenter;
         private static Vector2 stageSize;
+        private static string stageName;
 
         /// <summary>스테이지 배경이 한 번이라도 지정됐는지. View가 켜질 때 초기 배경 복원 여부 판단에 쓴다.</summary>
         public static bool HasStage => hasStage;
@@ -72,6 +73,8 @@ namespace ProjectS.Events
         public static Vector2 StageCenter => stageCenter;
         /// <summary>마지막으로 지정된 스테이지 월드 크기.</summary>
         public static Vector2 StageSize => stageSize;
+        /// <summary>마지막으로 지정된 스테이지 이름.</summary>
+        public static string StageName => stageName;
 
         /// <summary>
         /// 스테이지 미니맵 배경·범위를 교체한다. 씬 진입 시(BaseScene.Enter) 그 씬의 MinimapData로 호출한다.
@@ -79,13 +82,15 @@ namespace ProjectS.Events
         /// <param name="snapshot">배경 스냅샷. null이면 그림은 유지하고 범위만 바꾼다.</param>
         /// <param name="worldCenter">스냅샷이 담는 월드 사각형 중심(XZ).</param>
         /// <param name="worldSize">스냅샷이 담는 월드 사각형 크기(XZ).</param>
-        public static void FireStageChanged(Sprite snapshot, Vector2 worldCenter, Vector2 worldSize)
+        /// <param name="mapName">미니맵에 표시할 스테이지 이름. null/빈 문자열이면 이름 라벨은 유지한다.</param>
+        public static void FireStageChanged(Sprite snapshot, Vector2 worldCenter, Vector2 worldSize, string mapName)
         {
             hasStage = true;
             stageSprite = snapshot;
             stageCenter = worldCenter;
             stageSize = worldSize;
-            OnStageChanged?.Invoke(snapshot, worldCenter, worldSize);
+            stageName = mapName;
+            OnStageChanged?.Invoke(snapshot, worldCenter, worldSize, mapName);
         }
 
         /// <summary>
@@ -134,6 +139,7 @@ namespace ProjectS.Events
             OnStageChanged = null;
             hasStage = false;
             stageSprite = null;
+            stageName = null;
         }
     }
 }

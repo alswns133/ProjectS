@@ -566,6 +566,10 @@ namespace ProjectS.Players
             currentHp = Mathf.Max(0, currentHp - amount);
             PlayerEvents.FireHpChanged(currentHp, MaxHp);
 
+            // TODO(sound): 플레이어 피격음 — SoundManager.Instance.PlaySFX(<플레이어 피격 SFX>);
+            //   무적으로 씹힌 타격은 위에서 이미 return 됐으니 여기는 '실제로 맞은' 순간이다.
+            //   LastHitWasStrong로 강/약 피격음을 갈라도 된다(전용 SoundID 아직 없음, 추가 필요).
+
             // 플레이어가 맞은 것이므로 때린 쪽의 치명타 여부와 무관하게 항상 '플레이어 피격'으로 띄운다.
             CombatEvents.FireDamageDealt(
                 transform.position + Vector3.up * damageTextHeight,
@@ -573,7 +577,10 @@ namespace ProjectS.Players
                 DamageTextKind.PlayerDamaged);
 
             if (IsDead)                          // 이번 데미지로 0이 됐으면
+            {
+                // TODO(sound): 플레이어 사망음 — SoundManager.Instance.PlaySFX(SoundID.SFX_GameOver);
                 PlayerEvents.FirePlayerDied();   // 죽음 발행 (경직 대신 사망이 우선)
+            }
             else
                 Damaged?.Invoke();               // 살아 있을 때만 피격 경직으로 연결
 

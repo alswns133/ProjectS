@@ -199,6 +199,13 @@ namespace ProjectS.Players
         private bool CombatAllowed => combatEnabled && !mouseMode;
 
         /// <summary>
+        /// 현재 전투 구역인지(true=던전 등 전투 허용, false=마을 등 전투 비활성).
+        /// HUD 스킬 슬롯이 스폰 시 <see cref="ProjectS.Events.PlayerEvents.OnCombatZoneChanged"/>를
+        /// 놓쳤을 때 초기값을 직접 끌어오기 위해 노출한다.
+        /// </summary>
+        public bool IsCombatEnabled => combatEnabled;
+
+        /// <summary>
         /// 이동이 잠겨 있는지 여부. 공격/스킬 발동 중 true.
         /// FreeState가 매 프레임 이 값을 확인해, 잠금 중이면 수평 이동을 멈춘다.
         /// 태그 기반 캐릭터에서는 매 프레임 공격 태그로 재계산되고, 그 외엔 Lock/Unlock 호출로 관리된다.
@@ -256,6 +263,9 @@ namespace ProjectS.Players
 
             Combat.CancelAction();
             UnlockMovement();
+
+            // HUD 스킬 슬롯이 마을에선 아이콘을 흐리게 표시하도록 알린다(스킬 사용 불가 안내).
+            PlayerEvents.FireCombatZoneChanged(combatEnabled);
         }
 
         /// <summary>
@@ -267,6 +277,9 @@ namespace ProjectS.Players
             combatEnabled = true;
             Animation.UseDungeonController();
             Movement.UseDungeonSpeed();
+
+            // HUD 스킬 슬롯의 흐림 표시를 원래대로(사용 가능) 되돌리도록 알린다.
+            PlayerEvents.FireCombatZoneChanged(combatEnabled);
         }
 
         /// <summary>
@@ -589,7 +602,13 @@ namespace ProjectS.Players
 
         private void OnSkill(int n)
         {
-            if (!CombatAllowed) return;        // 마을(전투 비활성) 또는 마우스 모드에서는 스킬 입력 무시
+            // 마을 등 전투 비활성 구역에서는 스킬을 쓸 수 없음을 문구로 안내한다(슬롯 흐림 표시와 짝).
+            if (!combatEnabled)
+            {
+                UIEvents.FireToast("해당 지역에서 사용할 수 없습니다.");
+                return;
+            }
+            if (mouseMode) return;             // 마우스 모드(HUD 클릭 등)에서는 기존대로 조용히 무시
             if (Stats.IsDead) return;
             if (IsGrabbed) return;             // 보스에게 잡힌 동안 스킬 금지
             if (IsRolling) return;             // 구르기 중 스킬 금지(회피 커밋 유지)

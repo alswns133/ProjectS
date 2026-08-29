@@ -41,7 +41,7 @@ namespace ProjectS.UI
             if (string.IsNullOrEmpty(sceneName)) return;
             if (!stages.TryGetValue(sceneName, out MinimapData data) || data == null) return;
 
-            MinimapEvents.FireStageChanged(data.Snapshot, data.WorldCenter, data.WorldSize);
+            MinimapEvents.FireStageChanged(data.Snapshot, data.WorldCenter, data.WorldSize, data.DisplayName);
         }
 
         /// <summary>등록을 모두 비운다. 씬을 넘어 유지되는 static이므로 필요 시 초기화 경로에서 부른다.</summary>

@@ -34,10 +34,13 @@ namespace ProjectS.UI
         [SerializeField] private GameObject insufficientGaugeIcon;
         [Tooltip("SG 부족 시 스킬 아이콘을 흐리게 할 알파값(0~1). 번개 표시와 함께 시각적으로 강조.")]
         [SerializeField, Range(0f, 1f)] private float insufficientAlpha = 0.4f;
+        [Tooltip("마을 등 스킬을 쓸 수 없는 구역에서 아이콘을 흐리게 할 알파값(0~1). SG 부족보다 더 눌러 사용 불가를 알림.")]
+        [SerializeField, Range(0f, 1f)] private float unusableAlpha = 0.35f;
 
         private int registeredId;
         private float registeredSgCost;   // 등록 스킬의 SG 소모량(부족 표시 비교용)
         private float currentSg = float.MaxValue;   // 현재 SG(첫 이벤트 전엔 충분한 것으로 본다)
+        private bool combatUsable = true;   // 현재 구역에서 스킬을 쓸 수 있는지(마을=false). 마을에선 아이콘을 흐리게.
         private GameObject dragGhost;
 
         // 드래그가 어떤 슬롯에 드롭됐는지 추적한다. 드롭되지 않은 채 끝나면(슬롯 밖) 해제로 본다.
@@ -54,12 +57,17 @@ namespace ProjectS.UI
         {
             SkillEvents.OnLoadoutChanged += HandleLoadoutChanged;
             PlayerEvents.OnSGChanged += HandleSgChanged;
+            PlayerEvents.OnCombatZoneChanged += HandleCombatZoneChanged;
 
-            // 켤 때 현재 등록·SG 상태를 끌어와 맞춘다.
+            // 켤 때 현재 등록·SG·구역 상태를 끌어와 맞춘다.
             registeredId = SkillState.GetSlot(slotNumber);
-            var stats = PlayerManager.Instance != null && PlayerManager.Instance.Player != null
-                ? PlayerManager.Instance.Player.Stats : null;
-            if (stats != null) currentSg = stats.CurrentSkillGauge;
+            var player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            if (player != null)
+            {
+                if (player.Stats != null) currentSg = player.Stats.CurrentSkillGauge;
+                // 스폰 순서상 EnterVillage/EnterDungeon이 이 구독보다 먼저 불렸을 수 있어, 초기값을 직접 끌어온다.
+                combatUsable = player.IsCombatEnabled;
+            }
 
             Refresh();
         }
@@ -68,6 +76,7 @@ namespace ProjectS.UI
         {
             SkillEvents.OnLoadoutChanged -= HandleLoadoutChanged;
             PlayerEvents.OnSGChanged -= HandleSgChanged;
+            PlayerEvents.OnCombatZoneChanged -= HandleCombatZoneChanged;
             SkillTooltip.Instance?.Hide(this);
         }
 
@@ -167,6 +176,13 @@ namespace ProjectS.UI
             UpdateGaugeIndicator();
         }
 
+        // 마을↔던전 전환 시 흐림 표시를 다시 판단한다.
+        private void HandleCombatZoneChanged(bool combatEnabled)
+        {
+            combatUsable = combatEnabled;
+            UpdateGaugeIndicator();
+        }
+
         // 등록 스킬 아이콘 + SG 부족 표시 갱신(빈 슬롯이면 아이콘을 끄고 표시도 끈다).
         private void Refresh()
         {
@@ -187,19 +203,22 @@ namespace ProjectS.UI
             UpdateGaugeIndicator();
         }
 
-        // 등록 스킬이 있고 현재 SG가 그 소모량보다 적으면 부족 표시(번개)를 켜고 아이콘을 흐리게 한다.
+        // 아이콘 흐림·SG 부족 표시를 한곳에서 갱신한다. 알파의 주인은 이 함수뿐이라
+        // 마을 흐림과 SG 부족 흐림이 서로 덮어쓰며 싸우지 않는다.
         private void UpdateGaugeIndicator()
         {
-            bool insufficient = registeredId != 0 && registeredSgCost > 0f && currentSg < registeredSgCost;
+            // 마을 등 사용 불가 구역이면 SG와 무관하게 흐리게 하고, 번개(부족) 표시는 켜지 않는다.
+            bool insufficient = combatUsable && registeredId != 0 && registeredSgCost > 0f && currentSg < registeredSgCost;
 
             if (insufficientGaugeIcon != null && insufficientGaugeIcon.activeSelf != insufficient)
                 insufficientGaugeIcon.SetActive(insufficient);
 
-            // 아이콘 알파: 부족하면 흐리게, 충분하면 원래대로. RGB는 유지하고 알파만 바꾼다.
+            // 아이콘 알파: 사용 불가 구역 > SG 부족 > 정상 순으로 눌러 표시. RGB는 유지하고 알파만 바꾼다.
             if (icon != null)
             {
+                float alpha = !combatUsable ? unusableAlpha : (insufficient ? insufficientAlpha : 1f);
                 Color c = icon.color;
-                c.a = insufficient ? insufficientAlpha : 1f;
+                c.a = alpha;
                 icon.color = c;
             }
         }
