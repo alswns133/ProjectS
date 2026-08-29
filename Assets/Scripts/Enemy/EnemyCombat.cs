@@ -146,6 +146,7 @@ namespace ProjectS.Enemies
         [SerializeField] private LayerMask targetMask;
 
         // 공격 범위 예고 장판(보스 전용, 선택). 붙지 않으면(null) 예고를 건너뛴다 → 일반 몬스터는 자동으로 미표시.
+        // 표시 타이밍은 클립의 Animation Event(OnTelegraphShow)로 잡고, 타격 프레임(OnAttackHit)에서 꺼진다.
         // 지금은 제자리 멜리 공격만 예고한다(돌진/원거리는 제외).
         [SerializeField] private AttackTelegraph telegraph;
 
@@ -229,11 +230,24 @@ namespace ProjectS.Enemies
             if (currentAttack == null) return;
 
             nextAttackTime = Time.time + currentAttack.cooldown;
+        }
 
-            // 공격 범위 예고(보스 전용). 히트박스가 한 자리에 있는 제자리 멜리만 미리 보여준다 —
-            // 돌진(Charge)은 박스가 이동하는 경로를 따로 재야 하므로 제외, 원거리(Projectile)는 히트박스가 없다.
-            // telegraph가 null(일반 몬스터)이면 아무 일도 안 한다. 타격 프레임(OnAttackHit)에서 Hide된다.
-            if (telegraph != null && currentAttack.kind == AttackKind.Melee && currentAttack.hitBox != null)
+        /// <summary>
+        /// 공격 범위 예고 장판을 켠다. 클립에서 예고를 띄우고 싶은 프레임(선딜 시작 등)에 Animation Event로 찍는다.
+        /// 예고 지속 시간은 이 이벤트와 타격 프레임(<see cref="OnAttackHit"/>) 사이 간격으로 클립에서 직접 조절한다 —
+        /// 코드에 타이머를 두지 않는 것은 클립을 바꿔도 값이 어긋나지 않게 하기 위함이다.
+        /// <para>
+        /// 히트박스가 한 자리에 있는 제자리 멜리만 예고한다 — 돌진(Charge)은 박스가 이동하는 경로를 따로 재야 하므로
+        /// 제외, 원거리(Projectile)는 히트박스가 없다. telegraph가 null(일반 몬스터)이면 아무 일도 안 한다.
+        /// </para>
+        /// </summary>
+        public void OnTelegraphShow()
+        {
+            // 공격 상태가 끝난 뒤(피격·사망 등) 블렌드 아웃 중 도착한 이벤트는 무시한다 — 다른 이벤트 메서드와 같은 가드.
+            if (enemy == null || enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState) return;
+
+            if (telegraph != null && currentAttack != null
+                && currentAttack.kind == AttackKind.Melee && currentAttack.hitBox != null)
                 telegraph.Show(currentAttack.hitBox);
         }
 
