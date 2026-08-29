@@ -53,7 +53,8 @@ namespace ProjectS.Enemies
             // 돌진 슬롯이면 이 공격 동안만 전방 루트모션을 켜, 돌진 클립의 전진을 실제 위치에 반영한다.
             // 제자리 공격에는 켜지 않아 에이전트를 끄지 않는다(불필요한 NavMesh 이탈 방지).
             isCharging = enemy.Combat.IsCurrentAttackCharge;
-            if (isCharging) enemy.Movement.BeginAttackRootMotion();
+            if (isCharging) enemy.Movement.BeginAttackRootMotion(enemy.Target);
+
         }
 
         public override void Update()
