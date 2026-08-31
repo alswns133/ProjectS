@@ -107,6 +107,20 @@ namespace ProjectS.Enemies
             && animator.GetCurrentAnimatorStateInfo(0).normalizedTime >= threshold;
 
         /// <summary>
+        /// 지정 태그를 가진 State들을 완전히 벗어나 다른(그 태그가 없는) State에 안착했는지 여부.
+        /// 다단 모션(Start→Loop→End처럼 여러 State가 한 공격을 이루는 경우)의 종료 판정에 쓴다.
+        /// <para>
+        /// <see cref="IsPlaying"/>의 단순 부정과 다른 점: State 간 전이 중(<c>IsInTransition</c>)에는 아직
+        /// 벗어난 것으로 보지 않는다. Start→Loop, Loop→End 같은 <b>태그 내부 전이</b> 순간에도 IsPlaying은
+        /// (전이 가드 때문에) false라, 그 부정을 종료로 쓰면 다단 모션이 첫 전이에서 잘린다. 오직 전이가 끝나고
+        /// 태그 없는 State에 안착했을 때(End→로코모션 완료)만 진짜 종료로 본다.
+        /// </para>
+        /// </summary>
+        public bool HasSettledOutsideTag(string stateTag)
+            => !animator.IsInTransition(0)
+            && !animator.GetCurrentAnimatorStateInfo(0).IsTag(stateTag);
+
+        /// <summary>
         /// 지상 피격 트리거
         /// </summary>
         public void PlayHit() => animator.Play(HitState, 0, 0f);

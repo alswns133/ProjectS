@@ -61,6 +61,10 @@ namespace ProjectS.UI
         [Tooltip("고정 구간에서 그릴 게이지 비율. 0(사망)일 때는 이 값과 무관하게 완전히 비운다.")]
         [SerializeField, Range(0f, 0.2f)] private float minVisibleHpRatio = 0.02f;
 
+        [Header("히트 콤보")]
+        [Tooltip("연속 유효타 수를 그리는 텍스트. 콤보가 0일 땐 오브젝트째 숨긴다.")]
+        [SerializeField] private TMP_Text hitCombo;
+
         protected override void OnInit()
         {
             hp.Init(this);
@@ -74,6 +78,9 @@ namespace ProjectS.UI
             staminaRoot.SetActive(false);
 
             hpEcg.SetMaterial(hp.Material);
+
+            // 시작 시엔 콤보가 0이므로 숨긴 채로 둔다. 첫 적중 이벤트(SetHitCombo)가 오면 켜진다.
+            hitCombo.gameObject.SetActive(false);
         }
 
         public async void SetSymbol(int charId)
@@ -195,6 +202,26 @@ namespace ProjectS.UI
             if (index < 0 || index >= skillSlots.Length) return;
 
             skillSlots[index]?.StartCooldown(duration);
+        }
+
+        /// <summary>
+        /// 히트 콤보 표시를 갱신한다. 히트 수 계산·리셋은 PlayerHitCombo가 하고, 여기선 표시만 한다.
+        /// 0이 오면(리셋) 텍스트를 지우는 대신 오브젝트째 숨겨 화면에서 완전히 치운다.
+        /// </summary>
+        /// <param name="hitCount">현재 누적 히트 수(0이면 콤보 없음)</param>
+        public void SetHitCombo(int hitCount)
+        {
+            // 이미 숨겨져 있는데 또 0이 오면(중복 리셋 등) 할 일이 없으니 빠진다.
+            if (hitCount == 0 && hitCombo.gameObject.activeSelf == false) return;
+
+            hitCombo.gameObject.SetActive(true);
+            hitCombo.SetText(hitCount.ToString());
+
+            // 0은 "콤보 없음"이라 숫자를 남기지 않고 다시 숨긴다.
+            if (hitCount == 0)
+            {
+                hitCombo.gameObject.SetActive(false);
+            }
         }
     }
 }
