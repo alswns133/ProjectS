@@ -79,6 +79,12 @@ namespace ProjectS.Events
         /// </summary>
         public static event Action<bool> OnCombatZoneChanged;
 
+        /// <summary>
+        /// 히트 콤보(연속 유효타) 수 변경 (현재 히트 수). 적중으로 올라갈 때와 리셋으로 0이 될 때 모두 발행된다.
+        /// HUD가 구독해 "N HITS" 표시를 갱신하며, 0이면 숨긴다.
+        /// </summary>
+        public static event Action<int> OnHitComboChanged;
+
         // Fire 메서드 (Player쪽에서 호출)
 
         /// <summary>
@@ -170,6 +176,14 @@ namespace ProjectS.Events
             => OnCombatZoneChanged?.Invoke(combatEnabled);
 
         /// <summary>
+        /// 히트 콤보 수 변경 이벤트 발행. 카운트 증감(리셋 포함)은 PlayerHitCombo가 판단하고,
+        /// 이 메서드는 바뀐 결과값만 전달한다. 리셋 시엔 0으로 호출된다.
+        /// </summary>
+        /// <param name="hitCount">현재 누적 히트 수(0이면 콤보 없음)</param>
+        public static void FireHitComboChanged(int hitCount)
+            => OnHitComboChanged?.Invoke(hitCount);
+
+        /// <summary>
         /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다.
         /// (static 이벤트가 이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지)
         /// </summary>
@@ -188,7 +202,8 @@ namespace ProjectS.Events
             OnSkillUsed = null;
             OnPlayerDied = null;
             OnCursorModeChanged = null;
-            OnCombatZoneChanged = null;   // ★ 새 이벤트는 여기에도 반드시 추가
+            OnCombatZoneChanged = null;
+            OnHitComboChanged = null;  // ★ 새 이벤트는 여기에도 반드시 추가
         }
     }
 }

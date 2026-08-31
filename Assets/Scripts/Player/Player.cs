@@ -25,7 +25,7 @@ namespace ProjectS.Players
     // 미니맵 등록도 부품처럼 강제한다. 자동 추가 시 type 기본값이 Enemy이므로,
     // 플레이어는 인스펙터에서 MinimapMarkerSource의 type을 Player로 한 번 바꿔 줘야 한다.
     [RequireComponent(typeof(MinimapMarkerSource))]
-
+    [RequireComponent(typeof(PlayerHitCombo))]
     public class Player : MonoBehaviour
     {
         // 컴포넌트 참조: 외부에선 읽기만(접근은 허용, 교체는 금지) → { get; private set; }
@@ -51,6 +51,9 @@ namespace ProjectS.Players
         public PlayerGrabbedState GrabbedState { get; private set; }
 
         public PlayerEffects Effect { get; private set; }
+
+        /// <summary>연속 유효타 카운터(히트 콤보). <see cref="OnTargetHit"/>가 적중마다 AddHit을 호출한다.</summary>
+        public PlayerHitCombo HitCombo { get; private set; }
 
         private PlayerStateMachine sm; // 전환(Exit→Enter)을 책임지는 머신. 내부 전용
 
@@ -347,6 +350,7 @@ namespace ProjectS.Players
             Combat = GetComponent<PlayerCombat>();
             Stats = GetComponent<PlayerStats>();
             Effect = GetComponent<PlayerEffects>();
+            HitCombo = GetComponent<PlayerHitCombo>();
 
             sm = new PlayerStateMachine();
             // 상태를 미리 생성해 보관 → 전환할 때마다 new 하지 않으므로 GC 부담이 없다.
@@ -838,8 +842,12 @@ namespace ProjectS.Players
             LockMovement();
         }
 
-        // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다. 회복량은 SkillTable 행(SgGain)이 소유한다.
-        private void OnTargetHit(float gaugeGain) => Stats.GainSkillGauge(gaugeGain);
+        // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다. 회복량은 SkillTable 행(SgGain)이 소유한다. 히트시 히트콤보를 올린다.
+        private void OnTargetHit(float gaugeGain)
+        {
+            Stats.GainSkillGauge(gaugeGain);
+            HitCombo.AddHit();
+        }
 
         // 데미지가 실제로 적용됐을 때 피격 경직으로 전환한다.
         // 구르기 중에는 진입하지 않는다(회피 커밋 유지 — 기획).
@@ -870,6 +878,10 @@ namespace ProjectS.Players
         private void OnDied()
         {
             sm.ChangeState(DeadState);
+
+            // 사망 시 히트 콤보를 즉시 비운다. 안 비우면 죽은 뒤에도 감쇠 시간(comboResetDelay)만큼
+            // HUD에 지난 콤보 수가 남아 있게 된다.
+            HitCombo.ResetHitCombo();
         }
 
         /// <summary>

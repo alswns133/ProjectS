@@ -25,6 +25,11 @@ namespace ProjectS.Enemies
         // Exit의 정리를 루트모션/코드 중 어느 경로로 되돌릴지 가른다.
         private bool isCodedCharging;
 
+        // 이번 공격이 Start→Loop→End처럼 여러 State로 이어지는 다단 모션인지. Enter에서 Combat이 고른 슬롯을 읽어
+        // 종료 판정 규칙을 가른다. 다단이면 "클립 하나가 끝났다"를 공격 종료로 오인하지 않고(Start 클립 끝에서 잘리는 원인),
+        // 애니메이터가 "Attack" 태그를 완전히 벗어날 때까지(End→로코모션 자동 전이) 상태를 유지한다.
+        private bool isMultiPhase;
+
         // 진입 감지 실패(공격 상태에 못 들어감) 시 강제로 Chase로 넘기는 시간. 전환 시간보다 넉넉하게.
         private const float EnterTimeout = 1f;
 
@@ -60,6 +65,9 @@ namespace ProjectS.Enemies
             // 제자리 공격에는 켜지 않아 에이전트를 끄지 않는다(불필요한 NavMesh 이탈 방지).
             isCharging = enemy.Combat.IsCurrentAttackCharge;
             isCodedCharging = enemy.Combat.IsCurrentChargeCoded;
+
+            // 다단 모션 여부를 이번 공격 슬롯에서 읽어 둔다(Update의 종료 판정에서 규칙을 가른다).
+            isMultiPhase = enemy.Combat.IsCurrentAttackMultiPhase;
             if (isCharging)
             {
                 if (isCodedCharging)
@@ -107,13 +115,23 @@ namespace ProjectS.Enemies
             }
 
             // 2단계: 공격이 끝나면 Chase로 돌아가 거리/쿨타임을 다시 판단한다. 클립 길이는 인스펙터에 적지 않는다.
-            // 종료 판정을 둘로 본다:
+            // 종료 판정은 이번 공격이 단일 클립인지 다단(Start→Loop→End)인지에 따라 갈린다.
+            //
+            // 단일 클립: 다음 둘 중 하나로 종료를 본다.
             //   (1) IsCurrentStateFinished: 공격 클립이 그 State에 머문 채 98%까지 재생된 경우(자동 전이 없는 셋업).
             //   (2) !IsPlaying("Attack"): 애니메이터가 Attack State를 이미 떠난 경우(Has Exit Time 등 자동 전이 셋업).
-            // (2)가 없으면, 자동 전이로 Idle로 넘어간 순간부터 (1)이 '현재 Idle 클립'의 normalizedTime을 재게 되어
-            // Idle 길이만큼(수 초) 늦게 종료됐다. enteredAttack 이후 Attack 태그가 사라졌다는 것 자체가 공격 종료다.
-            bool attackFinished = enemy.Animation.IsCurrentStateFinished()
-                               || !enemy.Animation.IsPlaying("Attack");
+            //   (2)가 없으면, 자동 전이로 Idle로 넘어간 순간부터 (1)이 '현재 Idle 클립'의 normalizedTime을 재게 되어
+            //   Idle 길이만큼(수 초) 늦게 종료됐다. enteredAttack 이후 Attack 태그가 사라졌다는 것 자체가 공격 종료다.
+            //
+            // 다단(isMultiPhase): (1)을 쓰면 Start 클립이 98%에 닿는 순간 공격 종료로 오인해 Loop/End가 잘린다.
+            //   그래서 (1)을 빼고, "Attack 태그를 완전히 벗어나 다른 State에 안착"했을 때만 종료로 본다
+            //   (HasSettledOutsideTag). (2)의 !IsPlaying을 쓰지 않는 이유: IsPlaying은 전이 중 false라
+            //   Start→Loop 같은 태그 내부 전이 순간에도 종료로 오인한다. Start/Loop/End 모든 State에 "Attack"
+            //   태그를 달고 End→로코모션 자동 전이(Has Exit Time)를 두면, 그 전이가 끝나는 순간이 진짜 종료다
+            //   (자동 전이가 없으면 아래 MaxAttackTime 안전장치까지 유지된다).
+            bool attackFinished = isMultiPhase
+                ? enemy.Animation.HasSettledOutsideTag("Attack")
+                : (enemy.Animation.IsCurrentStateFinished() || !enemy.Animation.IsPlaying("Attack"));
 
             if (attackFinished || elapsed >= MaxAttackTime)
                 enemy.StateMachine.ChangeState(enemy.AggroState);
