@@ -85,6 +85,15 @@ namespace ProjectS.Enemies
             // Projectile 슬롯에서는 몸 회전뿐 아니라 발사 방향도 발사 순간의 대상 위치로 다시 잡는다.
             public bool trackTarget;
 
+            // 이 공격이 Start→Loop→End처럼 여러 Animator State로 이어지는 다단(연결) 모션인지.
+            // false(기본) = 단일 클립. State가 클립 하나 끝(IsCurrentStateFinished)으로 공격 종료를 판단한다 — 기존 몬스터는 전부 이쪽이라 동작이 바뀌지 않는다.
+            // true = 여러 모션이 한 공격으로 뭉친 다단. State가 "클립 하나 끝"을 공격 종료로 오인하지 않고,
+            //   애니메이터가 마지막 State(End)에서 로코모션으로 자동 전이해 "Attack" 태그를 완전히 벗어날 때까지 상태를 유지한다.
+            //   ★ 계약: 다단 공격은 Start·Loop·End 모든 State에 "Attack" 태그를 달고, End→로코모션 자동 전이(Has Exit Time)를 둔다.
+            //     자동 전이가 없으면 태그를 못 벗어나 안전 타임아웃(EnemyAttackState.MaxAttackTime)까지 굳는다.
+            //   근접/돌진/원거리/보스 잡기 어느 kind든 공통으로 적용된다(모션 '형태'라 kind와 직교).
+            public bool multiPhase;
+
             // ── 이하 kind별 설정. 해당 kind일 때만 인스펙터에 나타난다 ──────────
             // 숨겨진 필드도 값은 직렬화되어 남는다(표시만 감춘다) → kind를 되돌리면 이전 참조가 그대로 살아난다.
 
@@ -243,6 +252,13 @@ namespace ProjectS.Enemies
         /// 전방 루트모션(<see cref="EnemyMovement.BeginAttackRootMotion"/>)을 켤지 판단한다.
         /// </summary>
         public bool IsCurrentAttackCharge => currentAttack != null && currentAttack.kind == AttackKind.Charge;
+
+        /// <summary>
+        /// 이번에 선택된 공격이 Start→Loop→End처럼 여러 State로 이어지는 다단 모션인지 여부.
+        /// EnemyAttackState가 진입 시 이 값으로 종료 판정 규칙을 가른다(다단이면 "클립 하나 끝"이 아니라
+        /// "Attack 태그 완전 이탈"만 공격 종료로 본다). 잡기 클립을 Start/Loop/End로 나눈 보스 패턴도 이 슬롯 플래그로 표현한다.
+        /// </summary>
+        public bool IsCurrentAttackMultiPhase => currentAttack != null && currentAttack.multiPhase;
 
         /// <summary>
         /// 현재 돌진이 코드 구동(커브 속도)인지 여부. false면 클립 루트모션 구동이다.
