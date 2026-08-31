@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -26,9 +26,14 @@ namespace ProjectS.UI
     public class PerformanceGaugeView : MonoBehaviour
     {
         [Header("게이지")]
-        [Tooltip("Filled · Radial360 이미지. 채움 값만 바꾸고 흐름 연출은 별도 Fx가 얹힌다.")]
+        [Tooltip("Filled · Radial360 이미지. 채움(fillAmount)은 잠금 애니메이션 클립이 직접 몬다(코드가 안 건드림).")]
         [SerializeField] private Image fill;
+
+        [Tooltip("퍼센트 표기(TMP). 매 프레임 fill의 채움 값을 읽어 따라 적는다 — 애니메이션과 자동 동기화.")]
         [SerializeField] private TMP_Text num;
+
+        [Header("등급")]
+        [SerializeField] private TMP_Text rank;
 
         [Header("잠금 연출")]
         [Tooltip("4조각 잠금 안무를 도는 Animator. 비워 두면 연출 없이 값만 표시한다.")]
@@ -37,14 +42,31 @@ namespace ProjectS.UI
         [Tooltip("재생할 애니메이터 State 이름. 매번 같은 연출이라 파라미터 없이 이름으로 바로 재생한다.")]
         [SerializeField] private string lockStateName = "Lock";
 
-        /// <summary>게이지 채움과 퍼센트 표기를 갱신한다.</summary>
-        /// <param name="ratio">채움 비율(0~1). 범위를 벗어나면 잘라낸다</param>
-        public void SetRatio(float ratio)
-        {
-            float clamped = Mathf.Clamp01(ratio);
+        // 마지막으로 숫자에 반영한 퍼센트. 값이 바뀔 때만 TMP 텍스트를 갱신해 매 프레임 재빌드를 피한다.
+        private int shownPercent = -1;
 
-            if (fill != null) fill.fillAmount = clamped;
-            if (num != null) num.text = $"{Mathf.RoundToInt(clamped * 100f)}%";
+        // 게이지 채움(fill.fillAmount)은 잠금 애니메이션 클립이 직접 몬다(프레임 단위로 애니와 완벽히 동기화).
+        // 숫자(%)는 커브로 만들 수 없는 TMP 텍스트라, 여기서 매 프레임 fill 값을 읽어 그대로 따라 적는다.
+        // 이렇게 두면 채움도 숫자도 애니메이션 하나가 원천이라 속도가 어긋나지 않는다.
+        private void Update()
+        {
+            if (fill == null || num == null) return;
+
+            int percent = Mathf.RoundToInt(fill.fillAmount * 100f);
+            if (percent == shownPercent) return;
+
+            shownPercent = percent;
+            num.text = $"{percent}%";
+        }
+
+        /// <summary>
+        /// 게이지 중앙의 성과 등급 문자를 채운다. 표시 On/Off는 잠금 애니메이션(GaugeRank)이 맡으므로
+        /// 여기서는 내용만 갱신한다. 비어 있으면 "-"로 둔다.
+        /// </summary>
+        /// <param name="grade">등급 문자(S/A/B…). 비어 있으면 미정 표시("-").</param>
+        public void SetRank(string grade)
+        {
+            if (rank != null) rank.text = string.IsNullOrEmpty(grade) ? "-" : grade;
         }
 
         /// <summary>

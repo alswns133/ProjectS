@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Managers;
@@ -35,9 +35,6 @@ namespace ProjectS.UI
         [Header("안내")]
         [SerializeField] private TMP_Text missionNoticeText;   // ③ UI_RS_022
 
-        [Tooltip("남은 미션 수 안내 문구. {0}에 수량이 들어간다.")]
-        [SerializeField] private string missionFormat = "클리어 가능한 미션이 {0}개 남았습니다.";
-
         private int remainingMissions;
 
         /// <summary>ESC로 닫지 못한다. 둘 중 하나를 반드시 골라야 던전을 빠져나갈 수 있다.</summary>
@@ -51,24 +48,12 @@ namespace ProjectS.UI
         public void SetMissionCount(int count)
         {
             remainingMissions = count;
-            RefreshNotice();
         }
 
         protected override void OnInit()
         {
             if (returnButton != null) returnButton.onClick.AddListener(OnReturnClicked);
             if (retryButton != null) retryButton.onClick.AddListener(OnRetryClicked);
-        }
-
-        protected override void OnShow() => RefreshNotice();
-
-        private void RefreshNotice()
-        {
-            if (missionNoticeText == null) return;
-
-            bool hasMission = remainingMissions > 0;
-            missionNoticeText.gameObject.SetActive(hasMission);
-            if (hasMission) missionNoticeText.text = string.Format(missionFormat, remainingMissions);
         }
 
         private void OnReturnClicked()

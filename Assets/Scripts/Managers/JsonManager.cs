@@ -43,6 +43,7 @@ namespace ProjectS.Managers
         public IReadOnlyDictionary<int, QuestTable> QuestDict => GetTable<QuestTable>();
         public IReadOnlyDictionary<int, DialogueTable> DialogueDict => GetTable<DialogueTable>();
         public IReadOnlyDictionary<int, ShopTable> ShopDict => GetTable<ShopTable>();
+        public IReadOnlyDictionary<int, DungeonRewardTable> DungeonRewardDict => GetTable<DungeonRewardTable>();
 
         // 에디터에서 로드된 데이터를 확인하기 위한 디버그 리스트
 #if UNITY_EDITOR
@@ -87,6 +88,11 @@ namespace ProjectS.Managers
             await RegisterAsync<QuestTable>();
             await RegisterAsync<DialogueTable>();
             await RegisterAsync<ShopTable>();
+
+            // 던전 보상 테이블(결과 화면)은 신설이라 어드레서블 "DungeonRewardTable"이 아직 없을 수 있다.
+            // 키가 없으면 LoadAssetAsync가 throw해 부팅이 멈추므로, SkillGrowthTable과 같은 방식으로 감싼다.
+            try { await RegisterAsync<DungeonRewardTable>(); }
+            catch (Exception e) { Debug.LogWarning($"[JsonManager] DungeonRewardTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
             IsReady = true;   // ★ 모든 로딩이 끝난 뒤에야 true
 

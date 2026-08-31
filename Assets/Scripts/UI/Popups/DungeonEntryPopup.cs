@@ -396,7 +396,8 @@ namespace ProjectS.UI
             RequestClose();
 
             // 어느 씬으로 가는지는 이 화면이 알 필요가 없다 — 세션에 싣는 것도 씬을 고르는 것도 라우터가 한다.
-            DungeonRouter.Enter(mode, dungeonId);
+            // 던전 표시 이름은 이 화면만 알고 있어(재도전은 ID만 안다) 여기서 함께 넘긴다.
+            DungeonRouter.Enter(mode, dungeonId, episode.DisplayName);
         }
 
         private bool CanEnter()
