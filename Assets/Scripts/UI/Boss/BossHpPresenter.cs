@@ -31,6 +31,7 @@ namespace ProjectS.UI
             BossEvents.OnBossDisappeared += OnBossDisappeared;
             BossEvents.OnBossGroggyChanged += OnBossGroggyChanged;
             CombatEvents.OnEnemyHealthChanged += OnEnemyHealthChanged;
+            PlayerEvents.OnCombatZoneChanged += OnCombatZoneChanged;
         }
 
         protected override void Unsubscribe()
@@ -39,6 +40,17 @@ namespace ProjectS.UI
             BossEvents.OnBossDisappeared -= OnBossDisappeared;
             BossEvents.OnBossGroggyChanged -= OnBossGroggyChanged;
             CombatEvents.OnEnemyHealthChanged -= OnEnemyHealthChanged;
+            PlayerEvents.OnCombatZoneChanged -= OnCombatZoneChanged;
+        }
+
+        // 마을 진입 등 전투 구역이 아닌 곳으로 바뀌면 보스 바를 내린다. 보스를 잡지 않고 던전을 떠난 경우
+        // (사망 후 마을 복귀 등)에는 OnBossDisappeared가 오지 않아 바가 남으므로, 마을 진입 신호로 확실히 숨긴다.
+        private void OnCombatZoneChanged(bool combatEnabled)
+        {
+            if (combatEnabled) return;   // 던전 진입(true)에서는 등장 이벤트가 바를 관리한다.
+
+            view.Hide();
+            currentBoss = null;
         }
 
         // 보스 등장: 바를 켜고 이름·초기 HP·초기 그로기를 세팅한다.

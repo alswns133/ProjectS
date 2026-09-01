@@ -35,8 +35,10 @@ namespace ProjectS.Enemies
         {
             elapsed += Time.deltaTime;
 
+            // SetActive를 직접 부르지 않고 Enemy.Despawn()을 거친다 — 소멸 직전 훅(OnDespawn)이
+            // 함께 돌아야 보스 퇴장 이벤트가 이 시점에 발행된다(잡몹은 훅이 no-op이라 동작 동일).
             if (elapsed >= enemy.DespawnDelay)
-                enemy.gameObject.SetActive(false);
+                enemy.Despawn();
         }
     }
 }

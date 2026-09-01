@@ -1,9 +1,13 @@
+﻿using System.Collections.Generic;
 using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using ProjectS.Data;
+using ProjectS.Items;
 using ProjectS.Managers;
+using ProjectS.Players;
 using ProjectS.Scenes;
 using ProjectS.UI.Framework;
 
@@ -51,17 +55,15 @@ namespace ProjectS.UI
 
         [Header("성과 — 우 (UI_RS_003)")]
         [SerializeField] private TMP_Text dungeonNameText;
-        [SerializeField] private TMP_Text stageText;
         [SerializeField] private SegmentGaugeView achieveBar;
         [SerializeField] private TMP_Text achieveNum;
 
         [Header("보상 — 좌 (UI_RS_011)")]
-        [Tooltip("0 기본 보상 · 1 확정 획득 · 2 랜덤 획득 순서.")]
-        [SerializeField] private ResultRewardSlot[] rewardSlots;
+        [Tooltip("보상 슬롯들이 생성될 부모. Layout Group을 붙이면 자동 정렬된다.")]
+        [SerializeField] private RectTransform root;
 
-        [Header("보상 — 중앙 (UI_RS_012)")]
-        [SerializeField] private TMP_Text gradeText;
-        [SerializeField] private Image itemPreview;
+        [Tooltip("보상 슬롯 프리팹(ResultRewardSlot). 보상 아이템 수만큼 이 밑에 생성된다.")]
+        [SerializeField] private GameObject slotPrefab;
 
         [Header("보상 — 우 (UI_RS_013 · 014)")]
         [SerializeField] private TMP_Text expNum;
@@ -73,6 +75,9 @@ namespace ProjectS.UI
 
         private DungeonResultData data;
         private int page;
+
+        // 동적으로 생성한 보상 슬롯. 재열림 때 재사용하고(매번 생성/파괴 회피), 필요한 개수만 활성화한다.
+        private readonly List<ResultRewardSlot> spawnedSlots = new();
 
         /// <summary>
         /// 결과를 싣고 결과 화면을 연다. 클리어 판정을 내린 쪽이 부르는 유일한 진입점이다.
@@ -104,6 +109,9 @@ namespace ProjectS.UI
         {
             data = DungeonResultContext.Current;
 
+            // 결과창 동안 마우스 커서를 풀고(버튼 클릭용) 플레이어 조작을 막는다. 닫힐 때 OnHide에서 원복한다.
+            SetResultInteraction(true);
+
             // TODO(sound): 던전 클리어 결과 팡파레 — SoundManager.Instance.PlaySFX(SoundID.SFX_Win);
             //   (BGM을 결과 화면용으로 바꾸거나 잠깐 낮출지도 함께 결정. 실패/전멸 결과가 생기면 SFX_GameOver로 분기.)
             BindScore();
@@ -113,8 +121,31 @@ namespace ProjectS.UI
 
         protected override void OnHide()
         {
+            // 커서 잠금·플레이어 입력을 플레이 상태로 되돌린다(마을 복귀·재도전으로 이 패널이 닫힐 때).
+            SetResultInteraction(false);
+
             // 다음에 열 때 이전 판의 카운트업이 이어지지 않게 끊는다.
             if (playScoreNum != null) playScoreNum.SetImmediate(0);
+        }
+
+        /// <summary>
+        /// 결과창용 상호작용 상태를 켜고 끈다. 켜면 마우스 커서를 풀고 플레이어 게임플레이 입력을 잠근다.
+        /// </summary>
+        /// <remarks>
+        /// 커서 처리는 사망 팝업(<see cref="DeathPopup"/>)과 같은 방식이다. 입력 잠금은 컷신용
+        /// <c>Player.BeginCutscene</c>이 아니라 <see cref="PlayerInputHandler.SetInputSuspended"/>를 직접 쓴다 —
+        /// 결과창은 열려 있는 시간이 정해지지 않아, BeginCutscene의 안전 타이머가 도중에 입력을 되살리면
+        /// 패널 뒤에서 플레이어가 움직인다. 패널의 진행 키(스페이스/엔터/ESC)는 자체 Update가 직접 읽으므로
+        /// 이 잠금과 무관하게 동작한다.
+        /// </remarks>
+        /// <param name="active">true면 결과창 상호작용(커서 해제·입력 잠금), false면 플레이 상태로 원복.</param>
+        private void SetResultInteraction(bool active)
+        {
+            Cursor.lockState = active ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = active;
+
+            Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            player?.Input?.SetInputSuspended(active);
         }
 
         private void Update()
@@ -169,6 +200,7 @@ namespace ProjectS.UI
             if (index != 0) return;
 
             if (playScoreNum != null) playScoreNum.Play(data.playScore);
+            // 게이지 채움·숫자는 잠금 애니메이션이 몬다(fill은 클립, 숫자는 뷰가 미러링). 여기선 재생만 건다.
             if (performanceGauge != null) performanceGauge.PlayLock();
         }
 
@@ -184,8 +216,6 @@ namespace ProjectS.UI
                 return;
             }
 
-            // ★ 값 주입은 반드시 ShowPopup 전에. 뒤에 부르면 이미 옛 수량으로 그려진 뒤다.
-            exitPopup.SetMissionCount(data.remainingMissions);
             UIManager.Instance.ShowPopup<DungeonExitPopup>();
         }
 
@@ -198,11 +228,12 @@ namespace ProjectS.UI
             SetStatRow(2, "메이즈 난이도", DifficultyLabel(data.difficulty));
             SetStatRow(3, "최대 콤보", data.maxCombo.ToString(CultureInfo.InvariantCulture));
 
-            if (performanceGauge != null) performanceGauge.SetRatio(data.performanceRatio);
+            // 등급 내용만 여기서 세팅한다(노출 타이밍은 잠금 애니메이션이 맡음).
+            // 게이지 채움은 즉시 세팅하지 않고, 페이지 진입 시 PlayRise로 0→목표까지 서서히 올린다.
+            if (performanceGauge != null) performanceGauge.SetRank(data.grade);
 
             if (dungeonNameText != null)
                 dungeonNameText.text = string.IsNullOrEmpty(data.dungeonName) ? "-" : data.dungeonName;
-            if (stageText != null) stageText.text = $"{data.stage} 단계";
 
             float achieve = Mathf.Clamp01(data.achieveRatio);
             if (achieveBar != null) achieveBar.SetRatio(achieve);
@@ -211,24 +242,73 @@ namespace ProjectS.UI
 
         private void BindReward()
         {
-            // 드랍 테이블이 아직 없다(2026-08-24). 슬롯 자리만 잡아 두고 랜덤 칸만 '?'로 표시한다.
-            if (rewardSlots != null)
-            {
-                for (int i = 0; i < rewardSlots.Length; i++)
-                {
-                    if (rewardSlots[i] == null) continue;
-
-                    bool isRandom = i == rewardSlots.Length - 1;
-                    if (isRandom) rewardSlots[i].Set(null, "?", 0, true);
-                    else rewardSlots[i].Clear();
-                }
-            }
-
-            if (gradeText != null) gradeText.text = string.IsNullOrEmpty(data.grade) ? "-" : data.grade;
-            if (itemPreview != null) itemPreview.enabled = itemPreview.sprite != null;
+            BindRewardSlots();
 
             if (expNum != null) expNum.text = data.exp.ToString("N0", CultureInfo.InvariantCulture);
             if (goldNum != null) goldNum.text = data.gold.ToString("N0", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// 이번 판 보상 아이템 수만큼 슬롯을 만들어 그린다. 확정 보상(기본+확정) 뒤에 뽑힌 랜덤 보상을 붙인다.
+        /// 즉시 지급·공개 모델이라 '?' 슬롯은 두지 않는다(랜덤도 뽑힌 실제 아이템으로 보인다).
+        /// </summary>
+        private void BindRewardSlots()
+        {
+            if (root == null || slotPrefab == null) return;
+
+            DungeonRewardDisplayItem[] confirmed = data.rewards ?? System.Array.Empty<DungeonRewardDisplayItem>();
+            int total = confirmed.Length + (data.hasRandomReward ? 1 : 0);
+
+            EnsureSlotCount(total);
+
+            int idx = 0;
+            foreach (DungeonRewardDisplayItem item in confirmed)
+                FillRewardSlot(spawnedSlots[idx++], item);
+
+            if (data.hasRandomReward)
+                FillRewardSlot(spawnedSlots[idx++], data.randomReward);
+        }
+
+        /// <summary>
+        /// 슬롯을 정확히 <paramref name="count"/>개 활성화한다. 모자라면 <see cref="slotPrefab"/>으로 만들어
+        /// <see cref="spawnedSlots"/>에 쌓고, 남으면 비활성화한다 — 재열림 때 재사용해 매번 생성/파괴를 피한다.
+        /// </summary>
+        private void EnsureSlotCount(int count)
+        {
+            while (spawnedSlots.Count < count)
+            {
+                GameObject go = Instantiate(slotPrefab, root);
+                ResultRewardSlot slot = go.GetComponent<ResultRewardSlot>();
+                if (slot == null)
+                    Debug.LogWarning($"{name}: 슬롯 프리팹에 ResultRewardSlot이 없어 보상을 못 그린다.", this);
+
+                spawnedSlots.Add(slot);   // null이어도 자리를 채워 인덱스가 어긋나지 않게 한다
+            }
+
+            for (int i = 0; i < spawnedSlots.Count; i++)
+                if (spawnedSlots[i] != null) spawnedSlots[i].gameObject.SetActive(i < count);
+        }
+
+        /// <summary>
+        /// 한 보상 슬롯을 아이템으로 채운다. 이름은 <see cref="ItemData"/>에서, 아이콘은
+        /// <see cref="ItemIconLoader"/>로 비동기 로드해 꽂는다(로드가 끝나면 슬롯이 갱신된다).
+        /// </summary>
+        /// <remarks>
+        /// async void로 두는 것은 UI 이벤트 핸들러와 같은 결의 fire-and-forget이다. 로딩 도중 패널이 닫혀
+        /// 슬롯이 파괴됐을 수 있어, await 뒤 <c>slot == null</c>을 다시 확인한다(Unity의 == 오버로드로 파괴 감지).
+        /// 아이템 행이 없으면 이름 대신 ID를, 아이콘 없으면 아이콘 칸을 비운 채로 둔다.
+        /// </remarks>
+        private async void FillRewardSlot(ResultRewardSlot slot, DungeonRewardDisplayItem item)
+        {
+            ItemData row = null;
+            if (JsonManager.Instance != null)
+                JsonManager.Instance.ItemDict.TryGetValue(item.itemId, out row);
+
+            string itemName = row != null ? row.Name : $"#{item.itemId}";
+            Sprite icon = row != null ? await ItemIconLoader.LoadAsync(row.IconAddress) : null;
+
+            if (slot == null) return;   // 로딩 중 패널이 닫혀 슬롯이 파괴된 경우
+            slot.Set(icon, itemName, item.count, false);
         }
 
         private void SetStatRow(int index, string label, string value)
