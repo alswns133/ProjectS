@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Scenes
 {
@@ -24,14 +24,8 @@ namespace ProjectS.Scenes
         /// <summary>이번 판의 최대 콤보.</summary>
         public int maxCombo;
 
-        /// <summary>원형 퍼포먼스 게이지 채움 비율(0~1).</summary>
-        public float performanceRatio;
-
         /// <summary>표시할 던전 이름.</summary>
         public string dungeonName;
-
-        /// <summary>던전 단계 표시(예: 3단계).</summary>
-        public int stage;
 
         /// <summary>달성현황 바 비율(0~1).</summary>
         public float achieveRatio;
@@ -45,8 +39,28 @@ namespace ProjectS.Scenes
         /// <summary>완료 보상 재화(재니 = 골드).</summary>
         public int gold;
 
-        /// <summary>퇴장 선택창에 안내할 남은 미션 수.</summary>
-        public int remainingMissions;
+        /// <summary>
+        /// 결과 화면 보상 슬롯에 표시할 <b>확정 획득</b> 아이템들(기본 보상 + 확정 보상을 합친 것).
+        /// 랜덤 보상은 여기 담지 않고 <see cref="randomReward"/>로 따로 싣는다. null·빈 배열이면 슬롯을 비운다.
+        /// </summary>
+        public DungeonRewardDisplayItem[] rewards;
+
+        /// <summary>랜덤 보상 풀에서 실제로 뽑은 아이템이 있는지. false면 랜덤 슬롯을 '?'로 둔다.</summary>
+        public bool hasRandomReward;
+
+        /// <summary>이번 판에 뽑혀 지급된 랜덤 보상. <see cref="hasRandomReward"/>가 true일 때만 의미 있다.</summary>
+        public DungeonRewardDisplayItem randomReward;
+    }
+
+    /// <summary>결과 화면 보상 슬롯 하나에 그릴 아이템(테이블 ID + 수량). 이름·아이콘은 ItemData에서 조회한다.</summary>
+    [System.Serializable]
+    public struct DungeonRewardDisplayItem
+    {
+        /// <summary>표시할 아이템의 테이블 ID(ItemData.Index).</summary>
+        public int itemId;
+
+        /// <summary>표시 수량.</summary>
+        public int count;
     }
 
     /// <summary>

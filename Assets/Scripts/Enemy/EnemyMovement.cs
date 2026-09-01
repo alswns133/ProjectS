@@ -39,6 +39,11 @@
         // 회전-먼저-이동을 만드는 문턱. 작으면 자주 멈춰 돌고, 크면 거의 이동하며 돈다.
         [SerializeField, Range(0f, 180f)] private float moveTurnGateAngle = 45f;
 
+        [Header("루트모션 복귀")]
+        // 대쉬 루트모션(발견/공격)이 끝나 에이전트를 다시 켤 때, 이 반경 안에서 가장 가까운 NavMesh 지점을 찾아 복귀한다.
+        // 루트모션이 mesh 밖으로 조금 벗어나도 다시 붙게 하기 위함. 너무 크게 잡으면 엉뚱한 곳으로 순간이동할 수 있다.
+        [SerializeField, Min(0.1f)] private float agentReturnSampleRadius = 2f;
+
         private NavMeshAgent agent;
         private NavMeshPath path;
 
@@ -50,9 +55,20 @@
         // 평소 이동은 NavMeshAgent가 위치를 소유하므로 꺼져 있으면 루트모션을 무시
         private bool useRootMotion;
 
-        // true인 동안 OnAnimatorMove가 공격 클립의 수명 루트모션을 agent.move로 위치에 반영
-        // 대쉬는 에이전트를 켜둔 채 NavMesh에 클램프해야 하기 때문에 useRootMotion과 분리
-        private bool useAttackRootMotion;
+        // 코드 구동 대시(돌진) 상태. 루트모션이 없는(제자리) 돌진 클립을 위해, 시작 순간 방향으로 커밋해
+        // 커브가 지정한 속도로 일직선 전진시킨다(멧돼지 돌진 — 진행 중 대상을 추적하지 않음).
+        // 루트모션 돌진(useRootMotion)과 달리 에이전트를 끄지 않는다: agent.Move가 NavMesh에 클램프하므로
+        // 종료 시 재클램프(EndAttackRootMotion의 SamplePosition)가 필요 없다.
+        private bool codedCharging;
+        private Vector3 codedChargeDir;
+        private float codedChargeDuration;
+        private float codedChargeElapsed;
+        private AnimationCurve codedChargeCurve;
+
+        // 돌진 루트모션이 이 대상보다 chargeKeepDistance 안쪽으로는 전진하지 않게 막는다(모션은 유지, 위치 전진만 정지).
+        // 0이면 비활성 → 일반 잡몹은 영향 없음. 대상 null이면(공중 런처 등) 클램프 안 함.
+        [SerializeField, Min(0f)] private float chargeKeepDistance = 0f;
+        private Transform chargeKeepTarget;
 
         // 발견 대시처럼 일시적으로 속도를 바꾼 뒤 원래 값으로 되돌리기 위한 기준 속도.
         // NavMeshAgent의 기본 speed는 에디터 튜닝 값이므로 Awake에서 보관한다.
@@ -83,7 +99,7 @@
         }
 
         /// <summary>현재 경로의 끝에 도달했는지 여부. 순찰 상태가 지점 도착 판정에 쓴다.</summary>
-        public bool ReachedPathEnd => agent.enabled && !agent.pathPending
+        public bool ReachedPathEnd => agent.enabled && agent.isOnNavMesh && !agent.pathPending
             && agent.remainingDistance <= agent.stoppingDistance;
 
         private void Awake()
@@ -98,9 +114,24 @@
                 avoidancePriorityMin, Mathf.Max(avoidancePriorityMin, avoidancePriorityMax) + 1);
         }
 
+        // 스폰/재활성 시 에이전트를 NavMesh에 확실히 올린다. 스포너가 mesh에서 살짝 벗어난 곳(스폰 y=0 등)에
+        // 소환해도 가까운 지점으로 warp해 붙인다. off-mesh면 SetDestination이 무시돼 적이 아예 안 움직이기 때문이다.
+        // 풀링으로 재활성되는 적도 매번 붙도록 Start가 아니라 OnEnable에서 한다.
+        private void OnEnable()
+        {
+            if (agent == null || !agent.enabled || agent.isOnNavMesh) return;
+
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, agentReturnSampleRadius, NavMesh.AllAreas))
+                agent.Warp(hit.position);
+            else
+                Debug.LogWarning($"{name}: 스폰 지점 {transform.position} 근처({agentReturnSampleRadius}m)에 NavMesh가 없어 " +
+                                 "에이전트가 붙지 못했다 → 움직이지 못한다. NavMesh 베이크/스폰 위치를 확인하라.", this);
+        }
+
         private void Update()
         {
-            float raw = (!agent.enabled || agent.isStopped) ? 0f : agent.velocity.magnitude;
+            // isStopped는 NavMesh 위 활성 에이전트에서만 읽을 수 있다 → off-mesh면 정지로 간주하고 먼저 걸러낸다.
+            float raw = (!agent.enabled || !agent.isOnNavMesh || agent.isStopped) ? 0f : agent.velocity.magnitude;
 
             // 지수 이동 평균. Lerp 계수를 deltaTime 기반 지수식으로 계산해 프레임레이트와 무관하게 감쇠된다.
             smoothedSpeed = speedSmoothingTime <= 0f
@@ -292,12 +323,14 @@
         }
 
         /// <summary>
-        /// 공격 대쉬 시작. 이 구간 동안 OnAnimatorMove가 공격 클립의 수평 루트모션을 agent.Move로 적용해 전진시킨다.
-        /// 공중 런처(BeginRootMotion)와 달리 에이전트를 끄지 않는다 — NavMesh 클램프를 살려 대쉬가 벽/절벽을 넘지 않게 한다.
+        /// 공격 대쉬 시작. 이 구간 동안 <see cref="OnAnimatorMove"/>가 공격 클립의 수평 루트모션을 transform에 직접 더해 전진시킨다.
+        /// 에이전트는 끈다(켜 두면 NavMesh 높이로 몸을 끌어내려 루트모션이 뭉개진다). transform 직접 이동이라
+        /// NavMesh 클램프가 없어 mesh 밖으로 벗어날 수 있으므로, 종료 시 <see cref="EndAttackRootMotion"/>이 가까운 지점으로 복귀시킨다.
         /// EnemyAttackState.Enter에서 켜고 Exit에서 반드시 끈다(피격/사망으로 끊겨도 전진이 남지 않게).
         /// </summary>
-        public void BeginAttackRootMotion()
+        public void BeginAttackRootMotion(Transform keepAwayFrom = null)
         {
+            chargeKeepTarget = keepAwayFrom;
             if (agent.enabled) agent.enabled = false;
             useRootMotion = true;
         }
@@ -305,12 +338,71 @@
         /// <summary>
         /// 공격 대쉬 종료. 루트모션 전진을 끈다. 끄지 않으면 이후 Idle/Walk 클립의 미세 루트모션이 위치에 샌다.
         /// </summary>
+        /// <remarks>
+        /// 대쉬 루트모션은 <see cref="OnAnimatorMove"/>에서 transform을 직접 옮기므로 NavMesh 클램프가 없다 →
+        /// mesh 밖으로 벗어난 채 에이전트를 켜면 "not close enough to the NavMesh"로 생성이 실패한다.
+        /// 그래서 착지(<see cref="EndRootMotionAndLand"/>)와 같이, 켜기 전에 가장 가까운 NavMesh 지점으로 먼저 끌어온다.
+        /// </remarks>
         public void EndAttackRootMotion()
         {
+            chargeKeepTarget = null;
             useRootMotion = false;
+            if (agent.enabled) return;
 
-            if (!agent.enabled) agent.enabled = true;
+            // NavMesh 밖으로 벗어났을 수 있으므로, 켜기 전에 가까운 지점을 찾아 transform을 먼저 그 위로 올린다
+            // (transform을 먼저 옮겨두면 enabled = true가 그 자리에서 성공한다).
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, agentReturnSampleRadius, NavMesh.AllAreas))
+                transform.position = hit.position;
+
+            agent.enabled = true;
         }
+
+        /// <summary>
+        /// 코드 구동 대시(돌진) 시작. 루트모션이 없는 돌진 클립을 위해, 시작 순간의 <paramref name="direction"/>으로
+        /// 방향을 잠그고(평면화·정규화) <paramref name="speedCurve"/>가 지정한 속도로 <paramref name="duration"/>초 동안
+        /// 일직선 전진시킨다. 진행 중 방향을 다시 잡지 않아 대상을 추적하지 않는다(멧돼지 돌진).
+        /// </summary>
+        /// <remarks>
+        /// 루트모션 돌진(<see cref="BeginAttackRootMotion"/>)과 달리 에이전트를 끄지 않는다:
+        /// <see cref="TickCodedCharge"/>가 <c>agent.Move</c>로 밀어 NavMesh에 클램프되므로, 종료 시 가까운
+        /// NavMesh 지점으로 되돌리는 재클램프가 필요 없다. EnemyAttackState.Enter에서 켜고 Exit에서 반드시
+        /// <see cref="EndCodedCharge"/>로 끈다(피격/사망으로 끊겨도 전진이 다음 상태로 새지 않게).
+        /// </remarks>
+        public void BeginCodedCharge(Vector3 direction, float duration, AnimationCurve speedCurve)
+        {
+            Vector3 flat = new Vector3(direction.x, 0f, direction.z);
+            // 방향이 사실상 0(대상과 같은 자리)일 땐 바라보는 방향으로 돌진한다.
+            codedChargeDir = flat.sqrMagnitude > 0.0001f ? flat.normalized : transform.forward;
+            codedChargeDuration = Mathf.Max(0f, duration);
+            codedChargeCurve = speedCurve;
+            codedChargeElapsed = 0f;
+            codedCharging = true;
+        }
+
+        /// <summary>
+        /// 코드 구동 대시를 한 프레임 진행한다. EnemyAttackState.Update가 돌진 동안 매 프레임 호출한다.
+        /// 커브를 정규화 시간(경과/지속)으로 샘플해 속도(m/s)를 얻고, 잠긴 방향으로 <c>agent.Move</c>한다.
+        /// 지속 시간이 다 차면 스스로 정지한다 — 커브가 시작 속도 0이어도 시간은 흐르므로 데드락이 없다.
+        /// </summary>
+        public void TickCodedCharge(float deltaTime)
+        {
+            if (!codedCharging) return;
+            if (!agent.enabled || !agent.isOnNavMesh) return;
+
+            codedChargeElapsed += deltaTime;
+            float t = codedChargeDuration > 0f ? Mathf.Clamp01(codedChargeElapsed / codedChargeDuration) : 1f;
+            float speed = codedChargeCurve != null ? codedChargeCurve.Evaluate(t) : 0f;
+
+            if (speed > 0f) agent.Move(codedChargeDir * (speed * deltaTime));
+
+            if (codedChargeElapsed >= codedChargeDuration) codedCharging = false;
+        }
+
+        /// <summary>
+        /// 코드 구동 대시를 끝낸다(전진 정지). 공격이 정상 종료되든 피격/사망으로 끊기든
+        /// EnemyAttackState.Exit에서 반드시 호출한다.
+        /// </summary>
+        public void EndCodedCharge() => codedCharging = false;
 
         /// <summary>
         /// 착지 처리) 루트모션 적용을 끄고 현재 위치에서 가장 가까운 NavMesh 지점으로 에이전트를 복귀
@@ -335,10 +427,25 @@
         /// </summary>
         private void OnAnimatorMove()
         {
-            // 공중 런처: 에이전트를 끈 구간이라 위치를 직접 밀어 올린다(수직 포함).
             if (useRootMotion)
             {
-                transform.position += animator.deltaPosition;
+                Vector3 delta = animator.deltaPosition;
+
+                if (chargeKeepTarget != null && chargeKeepDistance > 0f)
+                {
+                    Vector3 toPlayer = chargeKeepTarget.position - transform.position;
+                    toPlayer.y = 0f;
+
+                    // 유지 거리 안 + 델타가 플레이어 쪽으로 파고드는 성분일 때만 수평 전진을 버린다(수직은 유지).
+                    Vector3 flat = new Vector3(delta.x, 0f, delta.z);
+                    if (toPlayer.magnitude <= chargeKeepDistance && Vector3.Dot(flat, toPlayer) > 0f)
+                    {
+                        delta.x = 0f;
+                        delta.z = 0f;
+                    }
+                }
+
+                transform.position += delta;
                 return;
             }
         }

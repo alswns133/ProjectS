@@ -223,7 +223,7 @@ NavMeshAgent:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 656041855149676506}
   m_Enabled: 1
-  m_AgentTypeID: 0
+  m_AgentTypeID: -334000983
   m_Radius: 0.5
   m_Speed: 3.5
   m_Acceleration: 80
@@ -257,6 +257,8 @@ MonoBehaviour:
   avoidancePriorityMax: 70
   turnSpeed: 720
   moveTurnGateAngle: 45
+  agentReturnSampleRadius: 2
+  chargeKeepDistance: 0
 --- !u!114 &7362677270953172903
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -316,6 +318,7 @@ MonoBehaviour:
   targetMask:
     serializedVersion: 2
     m_Bits: 256
+  telegraph: {fileID: 0}
   obstacleMask:
     serializedVersion: 2
     m_Bits: 128

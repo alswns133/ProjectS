@@ -85,6 +85,15 @@ namespace ProjectS.Enemies
             // Projectile 슬롯에서는 몸 회전뿐 아니라 발사 방향도 발사 순간의 대상 위치로 다시 잡는다.
             public bool trackTarget;
 
+            // 이 공격이 Start→Loop→End처럼 여러 Animator State로 이어지는 다단(연결) 모션인지.
+            // false(기본) = 단일 클립. State가 클립 하나 끝(IsCurrentStateFinished)으로 공격 종료를 판단한다 — 기존 몬스터는 전부 이쪽이라 동작이 바뀌지 않는다.
+            // true = 여러 모션이 한 공격으로 뭉친 다단. State가 "클립 하나 끝"을 공격 종료로 오인하지 않고,
+            //   애니메이터가 마지막 State(End)에서 로코모션으로 자동 전이해 "Attack" 태그를 완전히 벗어날 때까지 상태를 유지한다.
+            //   ★ 계약: 다단 공격은 Start·Loop·End 모든 State에 "Attack" 태그를 달고, End→로코모션 자동 전이(Has Exit Time)를 둔다.
+            //     자동 전이가 없으면 태그를 못 벗어나 안전 타임아웃(EnemyAttackState.MaxAttackTime)까지 굳는다.
+            //   근접/돌진/원거리/보스 잡기 어느 kind든 공통으로 적용된다(모션 '형태'라 kind와 직교).
+            public bool multiPhase;
+
             // ── 이하 kind별 설정. 해당 kind일 때만 인스펙터에 나타난다 ──────────
             // 숨겨진 필드도 값은 직렬화되어 남는다(표시만 감춘다) → kind를 되돌리면 이전 참조가 그대로 살아난다.
 
@@ -93,6 +102,34 @@ namespace ProjectS.Enemies
             // 돌진(Charge)도 같은 hitBox를 쓴다 — 다른 건 "1회 판정 vs 슬라이드 연속 판정"뿐이라 박스 지정은 동일하다.
             [ShowIfEnum(nameof(kind), (int)AttackKind.Melee, (int)AttackKind.Charge)]
             public Transform hitBox;
+
+            // ── 돌진(Charge) 구동 방식 ──────────
+            // 돌진 클립 중 루트모션이 없는 것(제자리 애니메이션)도 있어, 전진을 두 방식으로 가른다.
+            // true=클립 루트모션이 전진을 구동(현행, 하위호환 기본값). 이 필드가 없던 기존 돌진 프리팹은 그대로 루트모션.
+            // false=코드가 커브로 전진을 구동(시작 방향 커밋 후 일직선, 추적 없음).
+            [Tooltip("돌진 전진을 무엇이 구동하는가.\n" +
+                     "체크(기본): 클립 루트모션이 전진을 구동한다(전진이 클립에 구워진 돌진 클립).\n" +
+                     "해제: 코드가 아래 지속 시간·속도 커브로 전진을 구동한다" +
+                     "(루트모션이 없는 제자리 돌진 클립용. 시작 방향으로 일직선 돌진, 추적 없음).")]
+            [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
+            public bool useRootMotionCharge = true;
+
+            // 코드 구동 돌진의 지속 시간(초). 속도 커브 X축(정규화 시간) 1.0에 해당한다.
+            [Tooltip("코드 구동 돌진의 지속 시간(초). 이 시간이 지나면 돌진이 멈춘다.\n" +
+                     "아래 속도 커브의 X축(정규화 시간) 1.0이 이 시간에 해당한다.\n" +
+                     "Use Root Motion Charge가 해제된 돌진에만 쓰인다.")]
+            [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
+            [Min(0f)] public float chargeDuration = 0.6f;
+
+            // 코드 구동 돌진의 속도 프로파일. X=정규화 시간(0~1), Y=속도(m/s). 가속·순항·감속을 이 커브 하나로 그린다.
+            // ★ 빈 커브(new AnimationCurve())는 어디서나 0을 반환해 전혀 안 움직이므로 반드시 기본 커브를 둔다.
+            // 기본값은 0→12m/s 가속. 시간 종료 모델이라 시작 속도 0이어도 데드락은 없다.
+            [Tooltip("코드 구동 돌진의 속도 프로파일. X=정규화 시간(0~1), Y=속도(m/s).\n" +
+                     "가속·순항·감속을 이 커브 하나로 그린다. 이동 거리는 커브 적분의 결과값이다.\n" +
+                     "★ 커브를 비우면 어디서나 속도 0이라 전혀 안 움직인다 — 반드시 값을 채워둘 것.\n" +
+                     "Use Root Motion Charge가 해제된 돌진에만 쓰인다.")]
+            [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
+            public AnimationCurve chargeSpeedCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 12f);
 
             // 발사할 투사체 프리팹. 반드시 owner가 Enemy이고 targetMask가 플레이어 레이어인
             // 프리팹이어야 한다(플레이어용 검기와 프리팹을 나눈다).
@@ -144,6 +181,11 @@ namespace ProjectS.Enemies
         // 플레이어 루트 콜라이더가 있는 레이어만 넣는다.
         // 현재 프로젝트 규칙: 피격 레이어 콜라이더와 IDamageable은 같은 루트 GameObject에 둔다.
         [SerializeField] private LayerMask targetMask;
+
+        // 공격 범위 예고 장판(보스 전용, 선택). 붙지 않으면(null) 예고를 건너뛴다 → 일반 몬스터는 자동으로 미표시.
+        // 표시 타이밍은 클립의 Animation Event(OnTelegraphShow)로 잡고, 타격 프레임(OnAttackHit)에서 꺼진다.
+        // 지금은 제자리 멜리 공격만 예고한다(돌진/원거리는 제외).
+        [SerializeField] private AttackTelegraph telegraph;
 
         // ── 시야 ─────────────────────────────────────────────────────────
         // 공격 진입 전 "대상이 실제로 보이는지" 검사에 쓰는 설정.
@@ -212,6 +254,27 @@ namespace ProjectS.Enemies
         public bool IsCurrentAttackCharge => currentAttack != null && currentAttack.kind == AttackKind.Charge;
 
         /// <summary>
+        /// 이번에 선택된 공격이 Start→Loop→End처럼 여러 State로 이어지는 다단 모션인지 여부.
+        /// EnemyAttackState가 진입 시 이 값으로 종료 판정 규칙을 가른다(다단이면 "클립 하나 끝"이 아니라
+        /// "Attack 태그 완전 이탈"만 공격 종료로 본다). 잡기 클립을 Start/Loop/End로 나눈 보스 패턴도 이 슬롯 플래그로 표현한다.
+        /// </summary>
+        public bool IsCurrentAttackMultiPhase => currentAttack != null && currentAttack.multiPhase;
+
+        /// <summary>
+        /// 현재 돌진이 코드 구동(커브 속도)인지 여부. false면 클립 루트모션 구동이다.
+        /// EnemyAttackState가 진입 시 이 값으로 <see cref="EnemyMovement.BeginCodedCharge"/>와
+        /// <see cref="EnemyMovement.BeginAttackRootMotion"/> 중 무엇을 켤지 가른다.
+        /// </summary>
+        public bool IsCurrentChargeCoded =>
+            currentAttack != null && currentAttack.kind == AttackKind.Charge && !currentAttack.useRootMotionCharge;
+
+        /// <summary>코드 구동 돌진의 지속 시간(초). <see cref="IsCurrentChargeCoded"/>일 때만 유효.</summary>
+        public float CurrentChargeDuration => currentAttack != null ? currentAttack.chargeDuration : 0f;
+
+        /// <summary>코드 구동 돌진의 속도 커브(X=정규화 시간, Y=m/s). <see cref="IsCurrentChargeCoded"/>일 때만 유효.</summary>
+        public AnimationCurve CurrentChargeCurve => currentAttack != null ? currentAttack.chargeSpeedCurve : null;
+
+        /// <summary>
         /// 공격 상태 진입 시 호출된다. 현재 거리에서 가능한 공격 중 하나를 가중치 기반으로 고르고 쿨다운을 시작한다.
         /// 실제 애니메이션 재생은 EnemyAttackState가 CurrentAttackIndex를 읽어 EnemyAnimation에 위임한다.
         /// </summary>
@@ -226,6 +289,28 @@ namespace ProjectS.Enemies
 
             nextAttackTime = Time.time + currentAttack.cooldown;
         }
+
+        /// <summary>
+        /// 공격 범위 예고 장판을 켠다. 클립에서 예고를 띄우고 싶은 프레임(선딜 시작 등)에 Animation Event로 찍는다.
+        /// 예고 지속 시간은 이 이벤트와 타격 프레임(<see cref="OnAttackHit"/>) 사이 간격으로 클립에서 직접 조절한다 —
+        /// 코드에 타이머를 두지 않는 것은 클립을 바꿔도 값이 어긋나지 않게 하기 위함이다.
+        /// <para>
+        /// 히트박스가 한 자리에 있는 제자리 멜리만 예고한다 — 돌진(Charge)은 박스가 이동하는 경로를 따로 재야 하므로
+        /// 제외, 원거리(Projectile)는 히트박스가 없다. telegraph가 null(일반 몬스터)이면 아무 일도 안 한다.
+        /// </para>
+        /// </summary>
+        public void OnTelegraphShow()
+        {
+            // 공격 상태가 끝난 뒤(피격·사망 등) 블렌드 아웃 중 도착한 이벤트는 무시한다 — 다른 이벤트 메서드와 같은 가드.
+            if (enemy == null || enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState) return;
+
+            if (telegraph != null && currentAttack != null
+                && currentAttack.kind == AttackKind.Melee && currentAttack.hitBox != null)
+                telegraph.Show(currentAttack.hitBox);
+        }
+
+        /// <summary>공격 예고 장판을 끈다. 공격이 중간에 끊길 때(EnemyAttackState.Exit)를 위해 공개한다.</summary>
+        public void HideTelegraph() => telegraph?.Hide();
 
         /// <summary>
         /// 돌진 슬라이드 히트 창을 연다. 돌진 클립에서 몸이 전진하기 시작하는 프레임에 Animation Event로 찍는다.
@@ -316,6 +401,9 @@ namespace ProjectS.Enemies
 
             // Animation Event가 공격 선택 직후가 아닌 시점에 와도 마지막 선택 공격 기준으로 판정한다.
             ExecuteAttackHit(currentAttack ?? GetDefaultAttack());
+
+            // 타격이 실제로 일어난 순간 예고 장판을 끈다("예고 → 타격 → 사라짐"). 중단 시엔 Exit가 대신 끈다.
+            telegraph?.Hide();
         }
 
         /// <summary>
@@ -344,6 +432,7 @@ namespace ProjectS.Enemies
             // 원거리는 여기서 판정하지 않는다. 투사체를 내보내고 판정은 투사체가 스스로 한다.
             if (attack.kind == AttackKind.Projectile)
             {
+                // TODO(sound): 원거리 몬스터 발사음 — SoundManager.Instance.PlaySFX3D(<발사 SFX>, transform.position);
                 FireProjectile(attack);
                 return;
             }
@@ -354,6 +443,7 @@ namespace ProjectS.Enemies
                 return;
             }
 
+            // TODO(sound): 근접 몬스터 공격음(휘두름) — SoundManager.Instance.PlaySFX3D(<근접 공격 SFX>, transform.position);
             ApplyBoxHit(attack.hitBox, attack.coef);
         }
 

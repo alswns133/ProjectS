@@ -33,10 +33,12 @@ namespace ProjectS.Scenes
         /// </remarks>
         /// <param name="mode">던전인지 레이드인지</param>
         /// <param name="dungeonId">2자리 던전 ID(docs/ID_NUMBERING.md §4)</param>
+        /// <param name="dungeonName">결과 화면에 찍을 던전 표시 이름. 입장 화면만 알고 있어 여기로 넘긴다.
+        /// null이면 세션의 기존 이름을 유지한다(재도전은 ID만 들고 다시 들어오므로 이름을 지우지 않기 위함).</param>
         /// <returns>전환을 요청했으면 true. 갈 씬이 없으면 false</returns>
-        public static bool Enter(EntryMode mode, int dungeonId)
+        public static bool Enter(EntryMode mode, int dungeonId, string dungeonName = null)
         {
-            GameSession.SetSelectedDungeon(dungeonId);
+            GameSession.SetSelectedDungeon(dungeonId, dungeonName);
 
             // ★ 씬을 로드하기 전에 컨텍스트를 먼저 채운다. 순서 때문이다.
             //   GameSceneManager는 "새 씬 오브젝트의 Start까지 완료된 뒤" 씬의 Enter를 부른다.

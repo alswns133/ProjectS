@@ -35,42 +35,23 @@ namespace ProjectS.Enemies
             toPlayer.y = 0f;
             float dist = toPlayer.magnitude;
 
-            // --- 거리 밴드로 속도/목적지 결정 ---
-            if (dist > config.JogDist)              // 아주 멀다 → Run 직진
-            {
-                enemy.Movement.SetMoveSpeed(config.RunSpeed);
-                enemy.Movement.Resume();
-                enemy.Movement.SetDestination(enemy.Target.position);
-            }
-            else if (dist > config.EngageDist)      // 멀다 → Jog 접근
-            {
-                enemy.Movement.SetMoveSpeed(config.JogSpeed);
-                enemy.Movement.Resume();
-                enemy.Movement.SetDestination(enemy.Target.position);
-            }
-            else if (dist > config.AttackRange)     // 교전권 → 걸어서 접근
-            {
-                enemy.Movement.SetMoveSpeed(config.WalkSpeed);
-                enemy.Movement.Resume();
-                enemy.Movement.SetDestination(enemy.Target.position);
-            }
-            else // 사거리 안 → 공격 시도, 아니면 정지
+            // --- 공격 판단 (사다리 밖, 독립): 사거리 안 + 쿨다운 + 시야면 그 자리에서 공격 ---
+            if (dist <= enemy.Combat.AttackRange && enemy.Combat.CanAttack && enemy.Combat.HasLineOfSight())
             {
                 enemy.Movement.Stop();
-
-                // 이 밴드(dist <= config.AttackRange) 자체가 이미 사거리 게이트라
-                // ChaseState처럼 거리 재검사는 불필요. 쿨다운·시야만 확인하고 넘긴다.
-                if (enemy.Combat.CanAttack && enemy.Combat.HasLineOfSight())
-                {
-                    enemy.StateMachine.ChangeState(enemy.AttackState);
-                    return; // 상태가 바뀌었으니 이 프레임의 나머지 로코모션 갱신(Face/SetMove/SetSpeed)은 건너뛴다
-                }
+                enemy.StateMachine.ChangeState(enemy.AttackState);
+                return;
             }
 
-            // --- 항상 플레이어 바라보기 ---
+            // --- 이동 속도: 공격 사거리와 무관한 순수 거리 밴드 ---
+            if (dist > config.JogDist) enemy.Movement.SetMoveSpeed(config.RunSpeed);
+            else if (dist > config.EngageDist) enemy.Movement.SetMoveSpeed(config.JogSpeed);
+            else enemy.Movement.SetMoveSpeed(config.WalkSpeed);
+
+            enemy.Movement.Resume();
+            enemy.Movement.SetDestination(enemy.Target.position);
             enemy.Movement.Face(enemy.Target.position);
 
-            // --- 애니메이터: 방향 → MoveX/MoveY, 속력 → Speed ---
             Vector3 d = enemy.Movement.LocalMoveDirection();
             enemy.Animation.SetMove(d.x, d.z);
             enemy.Animation.SetSpeed(enemy.Movement.CurrentSpeed);

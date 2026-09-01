@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Events;
@@ -42,6 +43,9 @@ namespace ProjectS.UI
 
         // 미니맵 배경 그림. placeholder 사각형이나 맵 스냅샷 Image. 플레이어 위치에 맞춰 스크롤된다.
         [SerializeField] private Image background;
+
+        // 현재 스테이지 이름 라벨. 씬 진입 시 MinimapData의 표시명으로 갱신된다. 비워도 미니맵은 동작한다.
+        [SerializeField] private TMP_Text mapNameLabel;
 
         // 플레이어를 중심으로 보여줄 반경(월드 미터). 이 거리가 미니맵 가장자리에 닿는다 = 줌 정도.
         // 작을수록 확대(주변만 크게), 클수록 축소(넓게). 30이면 반경 30m가 화면 반절에 들어온다.
@@ -105,12 +109,15 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 씬별 미니맵 배경과 맵 범위를 한 번에 교체한다. 씬 진입 시 호출한다.
+        /// 씬별 미니맵 배경·맵 범위·이름을 한 번에 교체한다. 씬 진입 시 호출한다.
         /// sprite가 null이면 그림은 그대로 두고 범위만 바꾼다(placeholder 유지).
+        /// mapName이 비어 있으면 이름 라벨은 그대로 둔다(범위만 바꾸는 호출에서 이름을 지우지 않기 위함).
         /// </summary>
-        public void SetBackground(Sprite sprite, Vector2 worldCenter, Vector2 worldSize)
+        public void SetBackground(Sprite sprite, Vector2 worldCenter, Vector2 worldSize, string mapName)
         {
             if (sprite != null && background != null) background.sprite = sprite;
+
+            if (!string.IsNullOrEmpty(mapName) && mapNameLabel != null) mapNameLabel.text = mapName;
 
             this.worldCenter = worldCenter;
             this.worldSize = worldSize;

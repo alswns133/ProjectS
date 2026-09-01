@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using ProjectS.Core;
+using ProjectS.Effects;
 using ProjectS.Events;
 using ProjectS.Players;
 using UnityEngine;
@@ -78,10 +79,10 @@ namespace ProjectS.Enemies
         [Header("잡기")]
         // 잡기 패턴 목록. 각 슬롯의 animationIndex를 EnemyCombat의 잡기 공격 슬롯 animationIndex와 맞춘다.
         // 잡기 클립을 새로 만들어 종류를 늘릴 때마다 여기에 슬롯을 추가한다(슬롯이 하나면 그 하나가 모든 잡기에 폴백된다).
-        [SerializeField] private GrabPattern[] grabs =
+        [SerializeField] private GrabPattern[] grabs /*=
         {
             new GrabPattern { name = "Grab" },
-        };
+        }*/;
 
         // 포착 대상 레이어(플레이어 피격 콜라이더). 잡기 종류가 달라도 대상은 항상 플레이어라 슬롯별로 나누지 않고
         // 하나로 공유한다(보통 EnemyCombat의 targetMask와 같은 값을 넣는다).
@@ -102,6 +103,29 @@ namespace ProjectS.Enemies
         {
             base.Start(); // Enemy.Start(Target 획득 + 상태머신 시작) 먼저
             BossEvents.FireBossAppeared(this);
+        }
+
+        /// <summary>
+        /// 소멸(사망 연출이 끝나 오브젝트가 내려가는) 시점. 등장(<see cref="Start"/>의 FireBossAppeared)과
+        /// 짝을 맞춰 퇴장을 발행한다. 이 신호로 보스 HP 바가 내려가고, 던전/레이드 결과 화면이 열린다.
+        /// B안(사망 연출 종료 후 표시)이라 사망 즉시가 아니라 이 소멸 프레임에서 발행한다.
+        /// </summary>
+        protected override void OnDespawn()
+        {
+            base.OnDespawn();
+            BossEvents.FireBossDisappeared(this);
+        }
+
+        /// <summary>
+        /// 보스 사망 진입점. 잡몹 처리(사망 상태 전환)를 그대로 두고, 보스만 마지막 타격을 강조하는
+        /// 슬로우모션 연출을 얹는다. 사망 "순간"(마지막 타격)이라 소멸(<see cref="OnDespawn"/>)이 아니라 여기서 부른다.
+        /// </summary>
+        public override void OnDied()
+        {
+            base.OnDied();
+
+            // 씬에 슬로우모션 컨트롤러가 없으면 조용히 넘어간다(연출 없이 사망만 진행).
+            SlowMotionController.Instance?.Play();
         }
 
         /// <summary>
@@ -134,6 +158,7 @@ namespace ProjectS.Enemies
                     // 플레이어는 하나뿐 — 처음 찾은 대상에서 성공/실패를 판정하고 끝낸다.
                     if (player.OnGrabbed(this, currentGrab.grabAnchor))
                     {
+                        // TODO(sound): 보스 잡기 성공(포착)음 — SoundManager.Instance.PlaySFX3D(<잡기 포착 SFX>, transform.position);
                         grabbedPlayer = player;
                         return;                 // 잡기 성공
                     }
@@ -181,6 +206,7 @@ namespace ProjectS.Enemies
         private void NotifyGrabFailed()
         {
             grabbedPlayer = null;
+            // TODO(sound): 보스 헛잡기(허공 포착 실패)음 — SoundManager.Instance.PlaySFX3D(<헛잡기 SFX>, transform.position);
             Animation.PlayGrabFail();
         }
 

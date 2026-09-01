@@ -141,6 +141,9 @@ namespace ProjectS.Enemies
             // 피격 피드백: 하이라이트를 잠깐 번쩍인다(사망 타격 포함, "맞았다"를 항상 보여준다).
             hitHighlight?.Flash();
 
+            // TODO(sound): 몬스터 피격음 — SoundManager.Instance.PlaySFX3D(SoundID.SFX_MonsterHit, transform.position);
+            //   여기가 "실제 데미지 적용" 타이밍. 사망 타격도 여기를 지나므로, 처치음을 따로 낼지는 아래 사망 분기와 조율.
+
             // 연출은 이벤트로만 알린다(데미지 텍스트·이펙트가 각자 구독).
             // 받은 쪽이 발행하는 이유: 방어력까지 반영된 '실제 적용된' 수치를 아는 곳이 여기이기 때문.
             // 치명타 여부는 때린 쪽만 알 수 있어 DamageResult에 실려 온다.
@@ -157,6 +160,9 @@ namespace ProjectS.Enemies
             {
                 // 비활성화 '전에' 발행해야 구독자(처치 이펙트 등)가 위치를 신뢰할 수 있다.
                 CombatEvents.FireEnemyDied(transform.position);
+
+                // TODO(sound): 몬스터 처치음 — SoundManager.Instance.PlaySFX3D(<처치 SFX>, transform.position);
+                //   전용 SoundID가 아직 없음(추가 필요). 보스면 별도 처치/사망 음으로 갈릴 수 있다.
 
                 // 퀘스트 처치 목표 집계용. 어떤 몬스터를 잡았는지(종류)를 알린다.
                 CombatEvents.FireEnemyKilled(monsterId);

@@ -25,7 +25,7 @@ namespace ProjectS.Players
     // 미니맵 등록도 부품처럼 강제한다. 자동 추가 시 type 기본값이 Enemy이므로,
     // 플레이어는 인스펙터에서 MinimapMarkerSource의 type을 Player로 한 번 바꿔 줘야 한다.
     [RequireComponent(typeof(MinimapMarkerSource))]
-
+    [RequireComponent(typeof(PlayerHitCombo))]
     public class Player : MonoBehaviour
     {
         // 컴포넌트 참조: 외부에선 읽기만(접근은 허용, 교체는 금지) → { get; private set; }
@@ -51,6 +51,9 @@ namespace ProjectS.Players
         public PlayerGrabbedState GrabbedState { get; private set; }
 
         public PlayerEffects Effect { get; private set; }
+
+        /// <summary>연속 유효타 카운터(히트 콤보). <see cref="OnTargetHit"/>가 적중마다 AddHit을 호출한다.</summary>
+        public PlayerHitCombo HitCombo { get; private set; }
 
         private PlayerStateMachine sm; // 전환(Exit→Enter)을 책임지는 머신. 내부 전용
 
@@ -199,6 +202,13 @@ namespace ProjectS.Players
         private bool CombatAllowed => combatEnabled && !mouseMode;
 
         /// <summary>
+        /// 현재 전투 구역인지(true=던전 등 전투 허용, false=마을 등 전투 비활성).
+        /// HUD 스킬 슬롯이 스폰 시 <see cref="ProjectS.Events.PlayerEvents.OnCombatZoneChanged"/>를
+        /// 놓쳤을 때 초기값을 직접 끌어오기 위해 노출한다.
+        /// </summary>
+        public bool IsCombatEnabled => combatEnabled;
+
+        /// <summary>
         /// 이동이 잠겨 있는지 여부. 공격/스킬 발동 중 true.
         /// FreeState가 매 프레임 이 값을 확인해, 잠금 중이면 수평 이동을 멈춘다.
         /// 태그 기반 캐릭터에서는 매 프레임 공격 태그로 재계산되고, 그 외엔 Lock/Unlock 호출로 관리된다.
@@ -256,6 +266,9 @@ namespace ProjectS.Players
 
             Combat.CancelAction();
             UnlockMovement();
+
+            // HUD 스킬 슬롯이 마을에선 아이콘을 흐리게 표시하도록 알린다(스킬 사용 불가 안내).
+            PlayerEvents.FireCombatZoneChanged(combatEnabled);
         }
 
         /// <summary>
@@ -267,6 +280,9 @@ namespace ProjectS.Players
             combatEnabled = true;
             Animation.UseDungeonController();
             Movement.UseDungeonSpeed();
+
+            // HUD 스킬 슬롯의 흐림 표시를 원래대로(사용 가능) 되돌리도록 알린다.
+            PlayerEvents.FireCombatZoneChanged(combatEnabled);
         }
 
         /// <summary>
@@ -334,6 +350,7 @@ namespace ProjectS.Players
             Combat = GetComponent<PlayerCombat>();
             Stats = GetComponent<PlayerStats>();
             Effect = GetComponent<PlayerEffects>();
+            HitCombo = GetComponent<PlayerHitCombo>();
 
             sm = new PlayerStateMachine();
             // 상태를 미리 생성해 보관 → 전환할 때마다 new 하지 않으므로 GC 부담이 없다.
@@ -589,7 +606,13 @@ namespace ProjectS.Players
 
         private void OnSkill(int n)
         {
-            if (!CombatAllowed) return;        // 마을(전투 비활성) 또는 마우스 모드에서는 스킬 입력 무시
+            // 마을 등 전투 비활성 구역에서는 스킬을 쓸 수 없음을 문구로 안내한다(슬롯 흐림 표시와 짝).
+            if (!combatEnabled)
+            {
+                UIEvents.FireToast("해당 지역에서 사용할 수 없습니다.");
+                return;
+            }
+            if (mouseMode) return;             // 마우스 모드(HUD 클릭 등)에서는 기존대로 조용히 무시
             if (Stats.IsDead) return;
             if (IsGrabbed) return;             // 보스에게 잡힌 동안 스킬 금지
             if (IsRolling) return;             // 구르기 중 스킬 금지(회피 커밋 유지)
@@ -624,8 +647,17 @@ namespace ProjectS.Players
             }
 
             // ★ 판정 순서: 쿨타임 → 게이지 → 발동. 어느 한쪽만 소모되는 사고를 막는다.
-            if (!Combat.CanUseSkill(n)) return;
-            if (!Stats.TryUseSkillGauge(Combat.GetSkillGaugeCost(n))) return;
+            if (!Combat.CanUseSkill(n))
+            {
+                // 쿨타임 중이면 안내한다. 빈 슬롯(등록 안 됨)·로딩 중은 쿨타임이 0이라 조용히 무시된다.
+                if (Combat.GetRemainingCooldown(n) > 0f) UIEvents.FireToast("쿨타임입니다.");
+                return;
+            }
+            if (!Stats.TryUseSkillGauge(Combat.GetSkillGaugeCost(n)))
+            {
+                UIEvents.FireToast("SG가 부족하여 사용할 수 없습니다.");
+                return;
+            }
             if (!Combat.UseSkill(n)) return;   // 쿨타임은 위에서 확인했으므로 사실상 항상 성공
 
             if (usesTags) Combat.SetInCombo(false);   // 평타를 캔슬하고 나온 것이므로 콤보 종료
@@ -810,8 +842,12 @@ namespace ProjectS.Players
             LockMovement();
         }
 
-        // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다. 회복량은 SkillTable 행(SgGain)이 소유한다.
-        private void OnTargetHit(float gaugeGain) => Stats.GainSkillGauge(gaugeGain);
+        // 공격/스킬 적중마다 스킬 게이지(SG)를 회복한다. 회복량은 SkillTable 행(SgGain)이 소유한다. 히트시 히트콤보를 올린다.
+        private void OnTargetHit(float gaugeGain)
+        {
+            Stats.GainSkillGauge(gaugeGain);
+            HitCombo.AddHit();
+        }
 
         // 데미지가 실제로 적용됐을 때 피격 경직으로 전환한다.
         // 구르기 중에는 진입하지 않는다(회피 커밋 유지 — 기획).
@@ -842,6 +878,10 @@ namespace ProjectS.Players
         private void OnDied()
         {
             sm.ChangeState(DeadState);
+
+            // 사망 시 히트 콤보를 즉시 비운다. 안 비우면 죽은 뒤에도 감쇠 시간(comboResetDelay)만큼
+            // HUD에 지난 콤보 수가 남아 있게 된다.
+            HitCombo.ResetHitCombo();
         }
 
         /// <summary>

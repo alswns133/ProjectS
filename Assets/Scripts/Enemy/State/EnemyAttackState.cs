@@ -21,6 +21,15 @@ namespace ProjectS.Enemies
         // 이 공격 동안만 굴린다. Exit에서 루트모션을 되돌릴 때도 이 플래그로 "켰던 것만 끈다".
         private bool isCharging;
 
+        // 이번 돌진이 코드 구동(커브 속도)인지. isCharging의 하위 구분으로, Update의 전진 틱과
+        // Exit의 정리를 루트모션/코드 중 어느 경로로 되돌릴지 가른다.
+        private bool isCodedCharging;
+
+        // 이번 공격이 Start→Loop→End처럼 여러 State로 이어지는 다단 모션인지. Enter에서 Combat이 고른 슬롯을 읽어
+        // 종료 판정 규칙을 가른다. 다단이면 "클립 하나가 끝났다"를 공격 종료로 오인하지 않고(Start 클립 끝에서 잘리는 원인),
+        // 애니메이터가 "Attack" 태그를 완전히 벗어날 때까지(End→로코모션 자동 전이) 상태를 유지한다.
+        private bool isMultiPhase;
+
         // 진입 감지 실패(공격 상태에 못 들어감) 시 강제로 Chase로 넘기는 시간. 전환 시간보다 넉넉하게.
         private const float EnterTimeout = 1f;
 
@@ -50,10 +59,31 @@ namespace ProjectS.Enemies
             enemy.Animation.PlayAttack(enemy.Combat.CurrentAttackIndex);
             // 공격 이펙트는 공격 클립의 Animation Event(OnEffect)가 실제 타격 프레임에 재생한다(클립 주도).
 
-            // 돌진 슬롯이면 이 공격 동안만 전방 루트모션을 켜, 돌진 클립의 전진을 실제 위치에 반영한다.
+            // 돌진 슬롯이면 이 공격 동안만 전진을 켠다. 두 구동 방식으로 가른다:
+            //   코드 구동(커브 속도) → 시작 순간 대상 방향으로 커밋해 일직선 전진(멧돼지 돌진, 추적 없음).
+            //   클립 루트모션 → 돌진 클립의 전진을 위치에 반영(에이전트 끔).
             // 제자리 공격에는 켜지 않아 에이전트를 끄지 않는다(불필요한 NavMesh 이탈 방지).
             isCharging = enemy.Combat.IsCurrentAttackCharge;
-            if (isCharging) enemy.Movement.BeginAttackRootMotion();
+            isCodedCharging = enemy.Combat.IsCurrentChargeCoded;
+
+            // 다단 모션 여부를 이번 공격 슬롯에서 읽어 둔다(Update의 종료 판정에서 규칙을 가른다).
+            isMultiPhase = enemy.Combat.IsCurrentAttackMultiPhase;
+            if (isCharging)
+            {
+                if (isCodedCharging)
+                {
+                    // 방향은 시작 순간 대상 쪽으로 한 번만 잠근다(Enter의 Face와 같은 방향). 이후 재계산하지 않아 일직선.
+                    Vector3 dir = enemy.Target != null
+                        ? enemy.Target.position - enemy.transform.position
+                        : enemy.transform.forward;
+                    enemy.Movement.BeginCodedCharge(dir, enemy.Combat.CurrentChargeDuration, enemy.Combat.CurrentChargeCurve);
+                }
+                else
+                {
+                    enemy.Movement.BeginAttackRootMotion(enemy.Target);
+                }
+            }
+
         }
 
         public override void Update()
@@ -63,6 +93,9 @@ namespace ProjectS.Enemies
             // 돌진 슬라이드 히트: 창이 열려 있는 동안(OnChargeHitBegin~OnChargeHitEnd)만 실제 판정한다.
             // 창이 닫혀 있으면 UpdateChargeHit가 즉시 반환하므로, 돌진 공격에서 매 프레임 호출해도 안전하다.
             if (isCharging) enemy.Combat.UpdateChargeHit();
+
+            // 코드 구동 돌진: 잠긴 방향으로 커브 속도만큼 일직선 전진(지속 시간이 다 되면 스스로 정지).
+            if (isCodedCharging) enemy.Movement.TickCodedCharge(Time.deltaTime);
 
             // 조준 유지 공격(원거리 등)은 히트 프레임까지 대상을 계속 바라본다.
             // 이게 없으면 조준 모션이 긴 공격에서 시작 시점의 방향으로 쏘게 되어
@@ -81,21 +114,44 @@ namespace ProjectS.Enemies
                 return;
             }
 
-            // 2단계: 클립이 끝까지 재생되면(또는 안전 상한을 넘기면) Chase로 돌아가 거리/쿨타임을 다시 판단한다.
-            // 클립 길이를 인스펙터에 적지 않고 애니메이터 normalizedTime으로 종료를 판정한다.
-            if (enemy.Animation.IsCurrentStateFinished() || elapsed >= MaxAttackTime)
+            // 2단계: 공격이 끝나면 Chase로 돌아가 거리/쿨타임을 다시 판단한다. 클립 길이는 인스펙터에 적지 않는다.
+            // 종료 판정은 이번 공격이 단일 클립인지 다단(Start→Loop→End)인지에 따라 갈린다.
+            //
+            // 단일 클립: 다음 둘 중 하나로 종료를 본다.
+            //   (1) IsCurrentStateFinished: 공격 클립이 그 State에 머문 채 98%까지 재생된 경우(자동 전이 없는 셋업).
+            //   (2) !IsPlaying("Attack"): 애니메이터가 Attack State를 이미 떠난 경우(Has Exit Time 등 자동 전이 셋업).
+            //   (2)가 없으면, 자동 전이로 Idle로 넘어간 순간부터 (1)이 '현재 Idle 클립'의 normalizedTime을 재게 되어
+            //   Idle 길이만큼(수 초) 늦게 종료됐다. enteredAttack 이후 Attack 태그가 사라졌다는 것 자체가 공격 종료다.
+            //
+            // 다단(isMultiPhase): (1)을 쓰면 Start 클립이 98%에 닿는 순간 공격 종료로 오인해 Loop/End가 잘린다.
+            //   그래서 (1)을 빼고, "Attack 태그를 완전히 벗어나 다른 State에 안착"했을 때만 종료로 본다
+            //   (HasSettledOutsideTag). (2)의 !IsPlaying을 쓰지 않는 이유: IsPlaying은 전이 중 false라
+            //   Start→Loop 같은 태그 내부 전이 순간에도 종료로 오인한다. Start/Loop/End 모든 State에 "Attack"
+            //   태그를 달고 End→로코모션 자동 전이(Has Exit Time)를 두면, 그 전이가 끝나는 순간이 진짜 종료다
+            //   (자동 전이가 없으면 아래 MaxAttackTime 안전장치까지 유지된다).
+            bool attackFinished = isMultiPhase
+                ? enemy.Animation.HasSettledOutsideTag("Attack")
+                : (enemy.Animation.IsCurrentStateFinished() || !enemy.Animation.IsPlaying("Attack"));
+
+            if (attackFinished || elapsed >= MaxAttackTime)
                 enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
         public override void Exit()
         {
+            // 공격이 어떻게 끝나든(정상 종료·피격·사망) 남아 있을 수 있는 예고 장판을 끈다.
+            // 정상 경로는 OnAttackHit에서 이미 껐지만, 타격 프레임 전에 끊긴 경우는 여기서만 정리된다.
+            enemy.Combat.HideTelegraph();
+
             // 돌진이었으면 전방 루트모션과 히트 창을 되돌린다. 피격/사망 등으로 공격이 중간에 끊겨도
             // 루트모션 전진이나 열린 히트 창이 다음 상태로 새지 않게 한다(창은 이 공격 한정이어야 한다).
             if (isCharging)
             {
-                enemy.Movement.EndAttackRootMotion();
+                if (isCodedCharging) enemy.Movement.EndCodedCharge();
+                else enemy.Movement.EndAttackRootMotion();
                 enemy.Combat.OnChargeHitEnd();
                 isCharging = false;
+                isCodedCharging = false;
             }
         }
     }

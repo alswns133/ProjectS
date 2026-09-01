@@ -18,6 +18,10 @@ namespace ProjectS.UI
     [CreateAssetMenu(fileName = "MinimapData", menuName = "ProjectS/Minimap Data")]
     public class MinimapData : ScriptableObject
     {
+        // 미니맵에 표시할 이 스테이지의 이름(예: "시작의 마을", "던전 1층"). 기획이 정하는 표시명이라
+        // 씬 이름 자동 유도가 아니라 여기에 직접 적는다. 비워 두면 미니맵은 이름 라벨을 그대로 둔다.
+        [SerializeField] private string displayName;
+
         // 미니맵 배경 그림. 맵을 직교 탑다운 카메라로 찍은 스냅샷. 아직 없으면 비워 둔다(placeholder 유지).
         [SerializeField] private Sprite snapshot;
 
@@ -25,6 +29,8 @@ namespace ProjectS.UI
         [SerializeField] private Vector2 worldCenter = Vector2.zero;
         [SerializeField] private Vector2 worldSize = new Vector2(100f, 100f);
 
+        /// <summary>미니맵에 표시할 스테이지 이름. 비어 있으면 미니맵 이름 라벨을 바꾸지 않는다.</summary>
+        public string DisplayName => displayName;
         /// <summary>미니맵 배경 스냅샷. null이면 배경을 바꾸지 않고 범위만 적용한다.</summary>
         public Sprite Snapshot => snapshot;
         /// <summary>스냅샷이 담는 월드 사각형의 중심(XZ).</summary>

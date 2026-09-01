@@ -71,6 +71,20 @@ namespace ProjectS.Events
         /// </summary>
         public static event Action<bool> OnCursorModeChanged;
 
+        /// <summary>
+        /// 전투 구역 전환(true=던전 등 전투 허용, false=마을 등 전투 비활성). 마을 진입/이탈 시 발행된다.
+        /// HUD 스킬 슬롯이 이 신호로 "지금 스킬을 쓸 수 있는 구역인가"를 갈라 아이콘을 흐리게/원래대로 표시한다.
+        /// combatEnabled와 같은 의미이며, 슬롯이 스폰 타이밍상 이 이벤트를 놓쳤을 때를 대비해
+        /// 구독자는 <see cref="Players.Player.IsCombatEnabled"/>로 초기값을 직접 끌어온다.
+        /// </summary>
+        public static event Action<bool> OnCombatZoneChanged;
+
+        /// <summary>
+        /// 히트 콤보(연속 유효타) 수 변경 (현재 히트 수). 적중으로 올라갈 때와 리셋으로 0이 될 때 모두 발행된다.
+        /// HUD가 구독해 "N HITS" 표시를 갱신하며, 0이면 숨긴다.
+        /// </summary>
+        public static event Action<int> OnHitComboChanged;
+
         // Fire 메서드 (Player쪽에서 호출)
 
         /// <summary>
@@ -155,6 +169,21 @@ namespace ProjectS.Events
             => OnCursorModeChanged?.Invoke(isMouseMode);
 
         /// <summary>
+        /// 전투 구역 전환 이벤트 발행. 마을 진입(false)/던전 진입(true) 시 호출한다.
+        /// </summary>
+        /// <param name="combatEnabled">true=전투 허용 구역, false=마을 등 전투 비활성 구역</param>
+        public static void FireCombatZoneChanged(bool combatEnabled)
+            => OnCombatZoneChanged?.Invoke(combatEnabled);
+
+        /// <summary>
+        /// 히트 콤보 수 변경 이벤트 발행. 카운트 증감(리셋 포함)은 PlayerHitCombo가 판단하고,
+        /// 이 메서드는 바뀐 결과값만 전달한다. 리셋 시엔 0으로 호출된다.
+        /// </summary>
+        /// <param name="hitCount">현재 누적 히트 수(0이면 콤보 없음)</param>
+        public static void FireHitComboChanged(int hitCount)
+            => OnHitComboChanged?.Invoke(hitCount);
+
+        /// <summary>
         /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다.
         /// (static 이벤트가 이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지)
         /// </summary>
@@ -172,7 +201,9 @@ namespace ProjectS.Events
             OnCombatStatsChanged = null;
             OnSkillUsed = null;
             OnPlayerDied = null;
-            OnCursorModeChanged = null;   // ★ 새 이벤트는 여기에도 반드시 추가
+            OnCursorModeChanged = null;
+            OnCombatZoneChanged = null;
+            OnHitComboChanged = null;  // ★ 새 이벤트는 여기에도 반드시 추가
         }
     }
 }

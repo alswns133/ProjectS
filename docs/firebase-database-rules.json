@@ -1,0 +1,89 @@
+{
+  "rules": {
+    "Users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "Characters": {
+          "$charId": {
+            ".validate": "newData.hasChildren(['uniqueId','characterType','name','level','currentExp'])",
+            "uniqueId":      { ".validate": "newData.isNumber()" },
+            "characterType": { ".validate": "newData.isNumber() && newData.val() >= 1" },
+            "name":          { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 12" },
+            "level":         { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99" },
+            "currentExp":    { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "gold":          { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "lowMaterial":   { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "highMaterial":  { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "completedQuestIds": { "$i": { ".validate": "newData.isNumber()" } },
+            "activeQuests": {
+              "$i": {
+                "questId": { ".validate": "newData.isNumber()" },
+                "pinned":  { ".validate": "newData.isBoolean()" },
+                "objectiveCounts": { "$j": { ".validate": "newData.isNumber()" } }
+              }
+            },
+            "equipment": {
+              "$i": {
+                "tableId":     { ".validate": "newData.isNumber()" },
+                "enhanceStep": { ".validate": "newData.isNumber()" },
+                "slot":        { ".validate": "newData.isNumber()" },
+                "mainStat":    { ".validate": "newData.isNumber()" },
+                "options": {
+                  "$j": {
+                    "type":  { ".validate": "newData.isNumber()" },
+                    "value": { ".validate": "newData.isNumber()" }
+                  }
+                }
+              }
+            },
+            "stackItems": {
+              "$i": {
+                "tableId": { ".validate": "newData.isNumber()" },
+                "count":   { ".validate": "newData.isNumber()" },
+                "slot":    { ".validate": "newData.isNumber()" }
+              }
+            },
+            "equipped": {
+              "$i": {
+                "equipSlot":   { ".validate": "newData.isNumber()" },
+                "tableId":     { ".validate": "newData.isNumber()" },
+                "enhanceStep": { ".validate": "newData.isNumber()" },
+                "mainStat":    { ".validate": "newData.isNumber()" },
+                "options": {
+                  "$j": {
+                    "type":  { ".validate": "newData.isNumber()" },
+                    "value": { ".validate": "newData.isNumber()" }
+                  }
+                }
+              }
+            },
+            "potionQuickSlots": {
+              "$i": { ".validate": "newData.isNumber()" }
+            },
+            "skillLevels": {
+              "$i": {
+                "skillId": { ".validate": "newData.isNumber()" },
+                "level":   { ".validate": "newData.isNumber() && newData.val() >= 0" }
+              }
+            },
+            "skillLoadout": {
+              "$i": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+            },
+            "unlockedSkills": {
+              "$i": { ".validate": "newData.isNumber()" }
+            },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    },
+    "CharacterNames": {
+      ".read": "auth != null",
+      "$nameKey": {
+        ".write": "auth != null && (!data.exists() || data.val() === auth.uid)",
+        ".validate": "newData.val() === auth.uid"
+      }
+    }
+  }
+}

@@ -97,6 +97,7 @@ namespace ProjectS.Managers
             if (panelStack.Count > 0)
                 panelStack.Peek().Pause();
 
+            // TODO(sound): 패널 전환(메뉴 진입/확정)음 — SoundManager.Instance.PlaySFX(SoundID.SFX_MenuConfirm);
             panelStack.Push(panel);
             panel.Show();
         }
@@ -188,6 +189,7 @@ namespace ProjectS.Managers
             // 패널이 1개 이하면 종료 (마지막 패널은 안 닫음)
             if (panelStack.Count <= 1) return;
 
+            // TODO(sound): 뒤로가기(메뉴 취소/이전)음 — SoundManager.Instance.PlaySFX(<메뉴 취소 SFX>);
             panelStack.Pop().Hide();
             panelStack.Peek().Resume();
         }
@@ -206,6 +208,7 @@ namespace ProjectS.Managers
             }
 
             activePopups.Add(popup);
+            // TODO(sound): 팝업(창) 열기음 — SoundManager.Instance.PlaySFX(SoundID.SFX_MenuOpen);
             popup.Show();
         }
 
@@ -273,6 +276,7 @@ namespace ProjectS.Managers
         {
             if (!activePopups.Contains(popup)) return;
 
+            // TODO(sound): 팝업(창) 닫기음 — SoundManager.Instance.PlaySFX(<닫기 SFX>);
             popup.Hide();
             activePopups.Remove(popup);
         }

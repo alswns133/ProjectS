@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
@@ -13,6 +14,11 @@ namespace ProjectS.Enemies
     /// 던전은 방마다 1회 스폰·리스폰 없음이라 Instantiate로 충분하고, 이탈(씬 언로드) 때 일괄 파괴된다.</summary>
     public class EnemySpawner : MonoBehaviour   // 기존 베이스 재사용 (ProjectileSpawner와 동일)
     {
+        // 스폰 좌표가 NavMesh에서 조금 벗어나 있어도(스폰 포인트 y가 바닥과 안 맞는 등) 이 반경 안에서
+        // 가장 가까운 NavMesh 지점으로 스냅해 소환한다. off-mesh로 생성되면 에이전트가 못 붙어 적이 안 움직인다.
+        // 너무 크게 잡으면 엉뚱한 층/방으로 붙을 수 있으니 방 높이 편차를 덮을 만큼만.
+        [SerializeField, Min(0.1f)] private float spawnNavMeshSampleRadius = 5f;
+
         // RuntimeKey -> 로드 핸들(프리팹 + Release용). 같은 적 중복 로드 방지.
         private readonly Dictionary<object, AsyncOperationHandle<GameObject>> handles = new();
 
@@ -51,6 +57,14 @@ namespace ProjectS.Enemies
                 Debug.LogError($"[EnemySpawner] 프리로드 안 된 적 스폰 시도: {enemyRef?.RuntimeKey}");
                 return null;
             }
+            // NavMesh 밖 좌표로 소환하면 에이전트가 생성 시 붙지 못해("not close enough to the NavMesh") 안 움직인다.
+            // 소환 전에 가까운 NavMesh 지점으로 스냅해, 에이전트가 붙는 자리에서 생성되게 한다.
+            if (NavMesh.SamplePosition(pos, out NavMeshHit hit, spawnNavMeshSampleRadius, NavMesh.AllAreas))
+                pos = hit.position;
+            else
+                Debug.LogWarning($"[EnemySpawner] 스폰 좌표 {pos} 근처({spawnNavMeshSampleRadius}m)에 NavMesh가 없다 → " +
+                                 "에이전트가 안 붙어 적이 움직이지 못한다. 스폰 위치/베이크를 확인하라.", this);
+
             GameObject obj = Instantiate(handle.Result, pos, rot);
 
             // TODO(멀티): NetworkServer.Spawn(go) — 서버가 스폰, 클라에 전파
