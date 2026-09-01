@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEditor;
 #endif
 
@@ -20,6 +20,9 @@ namespace ProjectS.Enemies
         }
 
         [SerializeField] private AssetReferenceGameObject enemyRef;  // 어떤 적( 어드레서블 포인터)
+
+        [SerializeField] private bool isEndBoss = false; //최종 보스인지 확인 여부
+
         [SerializeField] private int count = 1; // 몇 마리 스폰할지
 
         [SerializeField] private Color gizmoColor = new Color(1f, 0.3f, 0.2f, 1f); // 종류
@@ -32,6 +35,11 @@ namespace ProjectS.Enemies
 
         public Vector3 Position => transform.position;
         public Quaternion Rotation => transform.rotation;
+
+        /// <summary>
+        /// 최종보스 포인트는 count=1"
+        /// </summary>
+        public bool IsEndBoss => isEndBoss;
 
         // 오프셋 → 월드 위치. 포인트 회전은 반영하되 스케일은 무시한다(마커라 스케일 영향 없게).
         private Vector3 EffectPos(Vector3 offset) => transform.position + transform.rotation * offset;

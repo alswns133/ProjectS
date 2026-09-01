@@ -141,8 +141,13 @@ namespace ProjectS.Scenes
             foreach (var p in room.Points)
             {
                 p.PlaySpawnEffects();
+                
                 for (int i = 0; i < p.Count; i++)
+                {
                     alive.Add(enemySpawner.SpawnOne(p.EnemyRef, p.Position, p.Rotation));
+                    if (p.IsEndBoss)
+                        room.SetEndBoss(alive[^1]);
+                }    
             }
         }
 
