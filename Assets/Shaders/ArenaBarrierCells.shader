@@ -10,6 +10,16 @@
 //    적용한다. 그 결과 셀이 통째로 켜졌다 꺼지고, 파문이 퍼지면 이웃 셀이 차례로
 //    점등되어 "방벽이 순간적으로 경화되어 막아냈다"로 읽힌다.
 //
+// 접촉 반응은 "밝은 점이 격자를 타고 사방으로 흩어지는 것"으로 표현한다. (2026-09-01 변경)
+//    원래는 격자를 바깥으로 밀어 막이 눌린 것처럼 보이게 했는데, 미는 세기가 접촉점에서
+//    최대인 반면 미는 방향은 바로 그 지점에서 180도 뒤집혀서, 접촉점 정중앙에 격자가
+//    반대로 찢어지는 특이점이 생겼다. 반경을 키우자 화면에 칼자국처럼 드러났고,
+//    세기를 줄이는 것으로는 찢어진 폭만 좁아질 뿐 없어지지 않아 기법 자체를 버렸다.
+//    지금은 파문 링을 "그리는 것"이 아니라 "점을 출발시키는 신호"로 쓴다. 링이 셀에 닿는
+//    순간 그 셀의 변마다 점이 하나 출발해 접촉점 반대쪽으로 달리고, 링이 번지면서
+//    이웃 셀이 차례로 같은 일을 하므로 릴레이처럼 퍼진다. 격자를 변형하지 않으므로
+//    왜곡이 원리적으로 생길 수 없다.
+//
 // 상시 상태는 셀 내부를 채우지 않고 격자 선만 남긴다.
 //    면을 연하게라도 채우면 그만큼 뒤의 도시가 뿌예진다. 선만 있으면 막혀 있다는
 //    인상은 유지하면서 경관은 선 사이로 그대로 보인다.
@@ -58,24 +68,46 @@ Shader "ProjectS/Arena Barrier (Cells)"
         _BaseGlowLevel ("Base Glow Level", Range(0, 2)) = 0.5
         _BaseGlowHeight ("Base Glow Height (V)", Range(0.01, 0.6)) = 0.18
 
+        // ★ 아래 반응 값들은 전부 "셀 한 칸의 월드 크기"를 기준으로 잡아야 한다.
+        //    발광을 셀 중심에서 한 번만 평가하는 구조라, 반경이 셀보다 작으면 마주친 셀조차
+        //    켜지지 않고 지나간다(셀 중심이 반경 밖에 있으면 그 셀은 없는 것과 같다).
+        //    셀 크기 = 면의 둘레 / _HexTiling.x. 원통 반지름 56~75인 아레나에서는 약 8.6유닛이라
+        //    반경·링 두께·파문 이동거리를 모두 그 배수로 잡아 놓았다. _HexTiling을 바꾸면
+        //    여기도 같이 바꿔야 반응이 보인다.
+
         [Header(Cell Response)]
-        // 접촉점에서 이 반경 안의 셀이 점등된다.
-        _GlowRadius ("Glow Radius", Float) = 3.5
+        // 접촉점에서 이 반경 안의 셀이 점등된다. 셀 하나보다 커야 접촉한 셀이 확실히 켜진다.
+        _GlowRadius ("Glow Radius", Float) = 12
         // 점등된 셀의 내부가 얼마나 차오르는가. 이 값이 "순간적으로 불투명해진다"를 만든다.
-        _FillStrength ("Cell Fill Strength", Range(0, 2)) = 1.0
+        _FillStrength ("Cell Fill Strength", Range(0, 2)) = 1.4
         // 셀이 어중간하게 반쯤 켜지지 않도록 문턱을 세운다. 클수록 딱딱 켜진다.
-        _FillSharpness ("Cell Fill Sharpness", Range(1, 8)) = 3
+        // 파문의 수명 감쇠까지 여기서 함께 거듭제곱되므로 과하게 올리면 파문이 순식간에 죽는다.
+        _FillSharpness ("Cell Fill Sharpness", Range(1, 8)) = 2.2
 
         [Header(Ripple)]
-        _RippleSpeed ("Ripple Speed", Float) = 9
-        _RingWidth ("Ring Width", Float) = 1.3
+        // 속도 x 수명이 파문이 퍼지는 총 거리다. 이 거리가 셀 한 칸보다 짧으면
+        // 파문이 이웃 셀에 닿기 전에 죽어서, 부딪힌 자리만 깜빡이고 번지지 않는다.
+        _RippleSpeed ("Ripple Speed", Float) = 32
+        // 링 두께도 셀 한 칸 정도는 되어야 링이 셀 중심을 놓치지 않고 지나간다.
+        _RingWidth ("Ring Width", Float) = 7
         // ArenaBarrier.cs가 이 값을 읽어 파문 수명을 판단한다. 여기가 단일 기준점이다.
-        _RippleLife ("Ripple Life", Float) = 0.8
+        _RippleLife ("Ripple Life", Float) = 1.1
 
-        [Header(Push)]
-        // 접촉점 주변의 격자를 바깥으로 민다. 빛이 아니라 형태로 반응해서
-        // "막이 눌렸다"가 읽힌다. 크게 주면 셀이 헤엄치는 것처럼 보이니 조금만.
-        _PushAmount ("Grid Push", Range(0, 1.5)) = 0.45
+        [Header(Scatter Dots)]
+        // 파문 링이 셀을 지나는 순간, 그 셀의 변마다 밝은 점이 하나 출발해 접촉점 반대쪽으로 달린다.
+        // 링이 바깥으로 번지면서 셀이 차례로 점을 뱉으므로 "부딪힌 자리에서 점이 사방으로 흩어진다"가 된다.
+        //
+        // 예전에 여기 있던 _PushAmount(격자를 밀어 출렁이게 하던 값)는 제거했다.
+        // 미는 세기는 접촉점에서 최대인데 미는 방향은 바로 그 지점에서 180도 뒤집히기 때문에,
+        // 접촉점 정중앙에서 격자가 서로 반대로 찢어지는 특이점이 있었다. 세기를 줄여도
+        // 찢어진 폭만 좁아질 뿐 없어지지 않는다. 반경을 키우자 화면에 칼자국처럼 드러났다.
+
+        // 점이 변 하나를 훑는 데 걸리는 시간(초). 링이 셀 하나를 건너는 시간(셀 크기 / _RippleSpeed)과
+        // 비슷하게 잡아야 이웃 셀로 끊김 없이 이어진다. 길게 주면 여러 겹이 동시에 달린다.
+        _ScatterLife ("Scatter Life", Range(0.05, 1)) = 0.3
+        _ScatterStrength ("Scatter Strength", Range(0, 6)) = 3.0
+        // 링이 지나갈 때 실제로 점을 뱉는 변의 비율. 1이면 여섯 변이 전부 켜져 눈꽃처럼 규칙적으로 보인다.
+        _ScatterDensity ("Scatter Density", Range(0, 1)) = 0.55
 
         [Header(Shape)]
         _TopFadeStart ("Top Fade Start (V)", Range(0, 1)) = 0.6
@@ -159,7 +191,9 @@ Shader "ProjectS/Arena Barrier (Cells)"
                 float _RippleSpeed;
                 float _RingWidth;
                 float _RippleLife;
-                float _PushAmount;
+                float _ScatterLife;
+                float _ScatterStrength;
+                float _ScatterDensity;
                 float _TopFadeStart;
                 float _CapCutoff;
                 float _CameraFadeStart;
@@ -194,7 +228,9 @@ Shader "ProjectS/Arena Barrier (Cells)"
             // 셀 안에서 가장 가까운 변을 찾아, 변 번호(0~5)와 그 변 위에서의 위치(0~1)를 돌려준다.
             // 육각형은 세 개의 대칭축으로 정의되므로, 투영값이 가장 큰 축이 곧 가장 가까운 변이고
             // 그 부호가 여섯 변 중 어느 쪽인지를 가른다. 점이 변을 "따라" 흐르려면 이 두 값이 필요하다.
-            void GetHexEdge(float2 p, out float edgeId, out float alongEdge)
+            // tangent도 함께 돌려준다. 흩어지는 점이 "접촉점 반대쪽"으로 달리려면
+            // 변이 뻗은 방향과 바깥 방향의 부호를 비교해야 하기 때문이다.
+            void GetHexEdge(float2 p, out float edgeId, out float alongEdge, out float2 edgeTangent)
             {
                 float2 n0 = float2(1.0, 0.0);
                 float2 n1 = float2(0.5, 0.8660254);
@@ -219,6 +255,7 @@ Shader "ProjectS/Arena Barrier (Cells)"
                 // 내접원이 0.5인 정육각형에서 변의 반길이는 0.2887(= 0.5 / sqrt(3))이다.
                 float2 tangent = float2(-axis.y, axis.x);
                 alongEdge = saturate(dot(p, tangent) / 0.5773503 + 0.5);
+                edgeTangent = tangent;
             }
 
             float Hash21(float2 p)
@@ -253,7 +290,14 @@ Shader "ProjectS/Arena Barrier (Cells)"
                     float d = distance(p, _RipplePoints[r].xyz);
 
                     float ring = saturate(1.0 - abs(d - age * _RippleSpeed) / max(_RingWidth, 1e-4));
-                    ring *= saturate(1.0 - age / max(_RippleLife, 1e-4));
+
+                    // 수명 감쇠를 선형으로 깎으면 안 된다. 이 값이 나중에 셀 채움에서
+                    // pow(_FillSharpness)로 한 번 더 눌리기 때문에, 선형으로 깎으면 실제로는
+                    // 세제곱으로 사그라들어 파문이 태어나자마자 죽는다(수명의 3분의 1도 못 산다).
+                    // 수명의 대부분은 세기를 유지하고 마지막에만 떨어뜨려, 거듭제곱을 먹어도
+                    // 링이 벽을 가로지르는 동안 살아 있게 한다.
+                    float lifeT = saturate(age / max(_RippleLife, 1e-4));
+                    ring *= 1.0 - smoothstep(0.55, 1.0, lifeT);
                     ring *= step(0.0, age);
 
                     if (ring > strongest) { strongest = ring; strongestPoint = _RipplePoints[r].xyz; }
@@ -261,6 +305,41 @@ Shader "ProjectS/Arena Barrier (Cells)"
                 }
 
                 return glow;
+            }
+
+            // 파문 링이 이 지점을 "이미 지나갔는지"와, 지나간 뒤 얼마나 흘렀는지를 구한다.
+            // 링은 원점에서 _RippleSpeed로 퍼지므로 도달 시각은 원점 거리 / 속도로 바로 나온다.
+            // 링 자체의 밝기(GlowAt)와 달리 이 값은 셀마다 "언제 반응을 시작할지"를 정하는 신호다.
+            // 덕분에 셀이 링이 닿는 순서대로 점을 뱉어, 접촉점에서 바깥으로 번지는 릴레이가 된다.
+            //
+            // 아직 링이 닿지 않았거나 살아있는 파문이 없으면 -1을 돌려준다.
+            float RippleWakeAt(float3 p, out float3 origin, out float energy)
+            {
+                float best = 1e9;
+                origin = p;
+                energy = 0;
+
+                [loop]
+                for (int r = 0; r < _RippleCount; r++)
+                {
+                    float age = _Time.y - _RipplePoints[r].w;
+                    if (age < 0.0 || age > _RippleLife) continue;
+
+                    float d = distance(p, _RipplePoints[r].xyz);
+                    float since = age - d / max(_RippleSpeed, 1e-4);
+                    if (since < 0.0) continue;
+
+                    // 여러 파문이 겹치면 가장 최근에 도달한 쪽을 쓴다. 방금 맞은 쪽이 더 중요하다.
+                    if (since < best)
+                    {
+                        best = since;
+                        origin = _RipplePoints[r].xyz;
+                        // 파문이 늙을수록 뱉는 점도 약해진다. 멀리 갈수록 잦아드는 그림이 된다.
+                        energy = saturate(1.0 - age / max(_RippleLife, 1e-4));
+                    }
+                }
+
+                return best < 1e8 ? best : -1.0;
             }
 
             // 다가감 정도. 0이면 아무도 근처에 없고, 1이면 벽에 바짝 붙었다.
@@ -315,31 +394,17 @@ Shader "ProjectS/Arena Barrier (Cells)"
                 float3 dPdu = (dpdx * duvdy.y - dpdy * duvdx.y) / det * safe;
                 float3 dPdv = (dpdy * duvdx.x - dpdx * duvdy.x) / det * safe;
 
-                // 1단계: 프래그먼트 위치에서 영향력을 재고, 격자를 밀 방향을 얻는다.
-                float3 pushFrom;
-                float pushStrength;
-                float fragGlow = GlowAt(positionWS, pushFrom, pushStrength);
-
+                // 격자는 변형하지 않는다. 프래그먼트 위치에서 영향력을 잴 일도 없어졌으므로
+                // (격자 밀기 제거) 프래그먼트마다 돌던 GlowAt 루프 하나가 통째로 빠졌다.
                 float2 hp = IN.uv * _HexTiling.xy;
 
-                // 2단계: 접촉점 반대 방향으로 격자를 민다. 막이 눌린 것처럼 보인다.
-                if (pushStrength > 0.001)
-                {
-                    float3 away = positionWS - pushFrom;
-                    float2 dir = float2(dot(away, normalize(dPdu)), dot(away, normalize(dPdv)));
-                    if (dot(dir, dir) > 1e-6)
-                    {
-                        hp += normalize(dir) * pushStrength * _PushAmount;
-                    }
-                }
-
-                // 3단계: 셀을 구하고, 그 셀 중심의 월드 좌표를 되찾는다.
+                // 1단계: 셀을 구하고, 그 셀 중심의 월드 좌표를 되찾는다.
                 float4 hex = GetHex(hp);
                 float2 cellUV = (hp - hex.xy) / _HexTiling.xy;
                 float2 duv = cellUV - IN.uv;
                 float3 cellWS = positionWS + duv.x * dPdu + duv.y * dPdv;
 
-                // 4단계: 셀 중심에서 한 번만 평가한다. 그래야 셀 전체가 한 덩어리로 켜진다.
+                // 2단계: 셀 중심에서 한 번만 평가한다. 그래야 셀 전체가 한 덩어리로 켜진다.
                 float3 ignoredPoint;
                 float ignoredStrength;
                 float cellGlow = GlowAt(cellWS, ignoredPoint, ignoredStrength);
@@ -355,7 +420,8 @@ Shader "ProjectS/Arena Barrier (Cells)"
 
                 // 변을 따라 흐르는 점.
                 float edgeId, alongEdge;
-                GetHexEdge(hex.xy, edgeId, alongEdge);
+                float2 edgeTangent;
+                GetHexEdge(hex.xy, edgeId, alongEdge, edgeTangent);
 
                 // 변마다 고유한 씨앗 두 개. 하나는 출발 시점, 하나는 속도와 방향에 쓴다.
                 float seedA = Hash21(hex.zw + edgeId * 37.0);
@@ -381,8 +447,48 @@ Shader "ProjectS/Arena Barrier (Cells)"
 
                 float travelingDot = smoothstep(_DotSize, 0.0, abs(alongEdge - head)) * active * endFade;
 
+                // --- 접촉 반응: 격자를 타고 흩어지는 점 ---
+                // 링이 이 셀에 도달한 뒤 흐른 시간. 아직 안 닿았으면 음수다.
+                float3 wakeOrigin;
+                float wakeEnergy;
+                float wake = RippleWakeAt(cellWS, wakeOrigin, wakeEnergy);
+
+                // 접촉점에서 바깥으로 향하는 방향을 격자 좌표계로 옮긴다.
+                // dPdu/dPdv가 이 자리의 실제 UV 축이므로 원통이든 타원이든 이 변환 하나로 맞는다.
+                //
+                // normalize(dPdu)에 내적하면 안 된다. 그건 "UV 1칸당 몇 유닛인가"를 곱한 값이라
+                // 가로 축(둘레 413유닛)이 세로 축(높이 60유닛)보다 7배 크게 잡히고, 그러면
+                // 방향 판정이 가로로 쏠려 흩어짐이 옆으로만 번지는 것처럼 보인다.
+                // 축 길이의 제곱으로 나눠야 제대로 된 UV 성분이 나온다.
+                float3 awayWS = cellWS - wakeOrigin;
+                float2 awayHp = float2(dot(awayWS, dPdu) / max(dot(dPdu, dPdu), 1e-6),
+                                       dot(awayWS, dPdv) / max(dot(dPdv, dPdv), 1e-6))
+                              * _HexTiling.xy;
+
+                // 변이 뻗은 방향과 바깥 방향의 부호를 맞춘다. 이 한 줄이 "사방으로 흩어진다"를 만든다.
+                // 부호를 안 맞추면 점이 접촉점 쪽으로 되돌아가는 변이 절반쯤 생겨 흐름이 읽히지 않는다.
+                float outward = dot(edgeTangent, awayHp) >= 0.0 ? 1.0 : -1.0;
+
+                // 셀·변마다, 그리고 파문마다 다른 변이 켜지도록 씨앗에 파문 원점을 섞는다.
+                // 안 섞으면 늘 같은 변만 뱉어서 두 번째 충돌이 첫 번째의 복사본처럼 보인다.
+                float scatterPick = Hash21(hex.zw + edgeId * 23.0 + wakeOrigin.xz * 0.31);
+
+                float scatterT = saturate(wake / max(_ScatterLife, 1e-4));
+                // 훑기가 끝나면 끈다. 안 끄면 점이 변 끝에 박힌 채 파문이 죽을 때까지 남는다.
+                float scatterOn = step(scatterPick, _ScatterDensity)
+                                * step(0.0, wake)
+                                * step(wake, _ScatterLife);
+
+                float scatterHead = outward > 0.0 ? scatterT : 1.0 - scatterT;
+                float scatterFade = smoothstep(1.0, 0.7, scatterT);
+                float scatterDot = smoothstep(_DotSize, 0.0, abs(alongEdge - scatterHead))
+                                 * scatterOn * scatterFade * wakeEnergy;
+
                 // 점은 기본 밝기에 얹는다. 곱하지 않으므로 멀리서도 흐름이 보인다.
-                float gridLine = lineShape * (lineLevel + travelingDot * _DotStrength);
+                // 흩어지는 점도 lineShape를 타므로 변 위에만 올라간다 — 격자를 타고 퍼지는 그림이 된다.
+                float gridLine = lineShape * (lineLevel
+                                            + travelingDot * _DotStrength
+                                            + scatterDot * _ScatterStrength);
 
                 // 발생 장치에서 나온 느낌을 주는 아랫변 발광.
                 float baseGlow = (1.0 - smoothstep(0.0, _BaseGlowHeight, IN.uv.y)) * _BaseGlowLevel;
