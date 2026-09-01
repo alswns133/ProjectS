@@ -24,6 +24,28 @@ namespace ProjectS.Networking
     public class ChatManager : NetworkBehaviour
     {
         /// <summary>
+        /// 씬을 넘어 이 채팅 오브젝트를 유지한다(서버 스폰본). 씬 전환은 Mirror가 아니라
+        /// <see cref="ProjectS.Managers.GameSceneManager"/>가 싱글 모드로 처리하는데, 싱글 로드는 이전 씬의
+        /// 오브젝트를 전부 파괴한다. DDOL이 없으면 던전↔마을을 오갈 때 이 오브젝트가 파괴돼
+        /// <see cref="OnStopLocalPlayer"/>로 구독이 끊기고, 호스트가 살아 있어 <see cref="GameNetworkManager.ConnectFromVillage"/>가
+        /// 재스폰을 건너뛰므로 채팅이 영영 죽는다. 채팅은 상시 채널이고 위치 의미가 없어 씬과 무관하게 살아야 한다.
+        /// </summary>
+        public override void OnStartServer()
+        {
+            DontDestroyOnLoad(gameObject);
+        }
+
+        /// <summary>
+        /// 씬을 넘어 이 채팅 오브젝트를 유지한다(클라 복제본). 전용 서버+원격 클라 구성에서도
+        /// 클라 쪽 복제본이 씬 전환에 파괴되지 않게 한다. Host 모드에서는 서버/클라가 같은 오브젝트라
+        /// <see cref="OnStartServer"/>와 함께 불려도 DDOL은 멱등이라 안전하다.
+        /// </summary>
+        public override void OnStartClient()
+        {
+            DontDestroyOnLoad(gameObject);
+        }
+
+        /// <summary>
         /// 로컬 플레이어일 때만 입력 허브에 붙는다. 원격 복제본까지 구독하면
         /// 한 번 보낸 메시지가 여러 Command로 중복 전송된다.
         /// </summary>
