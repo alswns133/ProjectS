@@ -29,15 +29,29 @@ namespace ProjectS.Managers
         /// </summary>
         public static int SelectedDungeonId { get; private set; }
 
-        /// <summary>던전 선택/생성 시점에 진입할 던전 ID를 담는다.</summary>
+        /// <summary>
+        /// 진입한 던전의 표시 이름(<see cref="ProjectS.UI.EpisodeInfo.DisplayName"/>). 결과 화면이 던전명을 찍는 데 쓴다.
+        /// ID와 달리 이름은 입장 화면에서만 알 수 있어(재도전은 ID만 안다) 선택 시점에 실어둔다.
+        /// 비어 있으면(직접 씬 테스트 등) 결과 화면이 "-"로 처리한다.
+        /// </summary>
+        public static string SelectedDungeonName { get; private set; }
+
+        /// <summary>던전 선택/생성 시점에 진입할 던전 ID(및 표시 이름)를 담는다.</summary>
         /// <param name="dungeonId">진입할 던전 ID</param>
-        public static void SetSelectedDungeon(int dungeonId) => SelectedDungeonId = dungeonId;
+        /// <param name="dungeonName">표시 이름. null·빈 문자열이면 기존 이름을 유지한다 —
+        /// 재도전은 ID만 들고 다시 들어오므로, 그때 이름을 덮어써 지우지 않기 위함이다.</param>
+        public static void SetSelectedDungeon(int dungeonId, string dungeonName = null)
+        {
+            SelectedDungeonId = dungeonId;
+            if (!string.IsNullOrEmpty(dungeonName)) SelectedDungeonName = dungeonName;
+        }
 
         /// <summary>로그아웃·캐릭터 선택창 복귀 시 선택을 비운다.</summary>
         public static void Clear()
         {
             SelectedCharacter = null;
             SelectedDungeonId = 0;
+            SelectedDungeonName = null;
         }
 
         // 플레이 모드 리로드 후에도 static 값이 남을 수 있어 초기화한다
@@ -47,6 +61,7 @@ namespace ProjectS.Managers
         {
             SelectedCharacter = null;
             SelectedDungeonId = 0;
+            SelectedDungeonName = null;
         }
     }
 }

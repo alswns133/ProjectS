@@ -475,12 +475,31 @@ namespace ProjectS.Enemies
         /// 사망 진입점. EnemyStats가 HP 0을 확정한 직후 호출한다.
         /// DeadState는 다른 상태로 전환되지 않는 최종 상태다.
         /// </summary>
-        public void OnDied()
+        public virtual void OnDied()
         {
             // 상태가 아니라 '실제로 떠 있는가'로 지상/공중 사망을 가른다.
             DiedAirborne = StateMachine.Current == LaunchState && LaunchState.IsAirborne;
             StateMachine.ChangeState(DeadState);
         }
+
+        /// <summary>
+        /// 소멸(사망 연출이 끝나 오브젝트를 내리는) 진입점. <see cref="State.EnemyDeadState"/>가
+        /// DespawnDelay 경과 후 <c>SetActive(false)</c> 대신 이 메서드를 부른다.
+        /// 소멸 직전 훅(<see cref="OnDespawn"/>)을 먼저 돌리고 오브젝트를 비활성화한다 —
+        /// 잡몹 공유인 DeadState에 보스 전용 분기를 넣지 않고, 파생 클래스가 이 훅만 override하게 하기 위함이다.
+        /// </summary>
+        public void Despawn()
+        {
+            OnDespawn();
+            gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 소멸 직전 훅. 기본은 no-op이며, 파생 클래스가 사라지는 시점에 할 일을 얹는다
+        /// (예: <see cref="Boss"/>가 <c>BossEvents.FireBossDisappeared</c> 발행).
+        /// Unity 매직 메서드가 아니라 일반 메서드라 Boss에서 override해도 상태 머신/구독에 영향이 없다.
+        /// </summary>
+        protected virtual void OnDespawn() { }
 
         /// <summary>
         /// 씬 전환(예: 던전→마을)으로 이 몬스터가 곧 사라지기 직전, AI와 이동을 즉시 멈춘다.

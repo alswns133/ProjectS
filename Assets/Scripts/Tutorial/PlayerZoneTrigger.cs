@@ -76,8 +76,6 @@ namespace ProjectS.Tutorials
             if (!IsPlayer(other) || isPlayerInside) return;
 
             Notify(true);
-            //Boss boss = FindAnyObjectByType<Boss>();
-            //BossEvents.FireBossAppeared(boss);
         }
 
         private void OnTriggerExit(Collider other)
@@ -103,6 +101,8 @@ namespace ProjectS.Tutorials
             else onPlayerExited?.Invoke();
 
             PlayerInsideChanged?.Invoke(value);
+
+            
         }
 
 #if UNITY_EDITOR

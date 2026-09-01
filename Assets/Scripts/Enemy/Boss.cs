@@ -1,5 +1,6 @@
 ﻿using System;
 using ProjectS.Core;
+using ProjectS.Effects;
 using ProjectS.Events;
 using ProjectS.Players;
 using UnityEngine;
@@ -102,6 +103,29 @@ namespace ProjectS.Enemies
         {
             base.Start(); // Enemy.Start(Target 획득 + 상태머신 시작) 먼저
             BossEvents.FireBossAppeared(this);
+        }
+
+        /// <summary>
+        /// 소멸(사망 연출이 끝나 오브젝트가 내려가는) 시점. 등장(<see cref="Start"/>의 FireBossAppeared)과
+        /// 짝을 맞춰 퇴장을 발행한다. 이 신호로 보스 HP 바가 내려가고, 던전/레이드 결과 화면이 열린다.
+        /// B안(사망 연출 종료 후 표시)이라 사망 즉시가 아니라 이 소멸 프레임에서 발행한다.
+        /// </summary>
+        protected override void OnDespawn()
+        {
+            base.OnDespawn();
+            BossEvents.FireBossDisappeared(this);
+        }
+
+        /// <summary>
+        /// 보스 사망 진입점. 잡몹 처리(사망 상태 전환)를 그대로 두고, 보스만 마지막 타격을 강조하는
+        /// 슬로우모션 연출을 얹는다. 사망 "순간"(마지막 타격)이라 소멸(<see cref="OnDespawn"/>)이 아니라 여기서 부른다.
+        /// </summary>
+        public override void OnDied()
+        {
+            base.OnDied();
+
+            // 씬에 슬로우모션 컨트롤러가 없으면 조용히 넘어간다(연출 없이 사망만 진행).
+            SlowMotionController.Instance?.Play();
         }
 
         /// <summary>
