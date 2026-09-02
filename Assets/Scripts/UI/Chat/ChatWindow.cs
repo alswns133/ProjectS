@@ -70,6 +70,12 @@ namespace ProjectS.UI
                 //   (둘은 같은 richText 플래그라 동시 만족 불가). 전송된 메시지의 태그 주입 방지는 AppendLine의
                 //   <noparse>(+ 닫는 태그 변형 제거)가 담당하므로, 이 설정은 순수 입력창 미리보기 취향 문제다.
                 input.textComponent.richText = false;
+
+                // 표시 컴포넌트(textComponent)뿐 아니라 입력 필드 자체의 richText도 끈다. TMP_InputField는
+                // IME '조합 중' 문자열에 밑줄용 <u> 마크업을 붙이는데, 이 삽입 여부가 필드의 richText를 따르는
+                // 경우가 있어(표시 컴포넌트만 꺼도 <u>가 남는 원인) 둘 다 꺼서 조합 마크업 자체를 없애 본다.
+                input.richText = false;
+
                 input.onSubmit.AddListener(_ => SubmitMessage());
             }
 
