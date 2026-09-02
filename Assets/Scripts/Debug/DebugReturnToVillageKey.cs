@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using ProjectS.Managers;
 using ProjectS.Scenes;
+using ProjectS.UI;
 
 namespace ProjectS.Debugging
 {
@@ -33,6 +34,9 @@ namespace ProjectS.Debugging
         {
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null) return;
+
+            // 채팅 등 텍스트 입력 중에는 무시한다 — "victory" 같이 v를 치면 마을로 튕기기 때문(raw 키 읽기라 입력 억제 무관).
+            if (UiTypingGuard.IsTypingInInputField()) return;
 
             if (keyboard.vKey.wasPressedThisFrame) ReturnToVillage();
         }
