@@ -16,7 +16,7 @@ namespace ProjectS.UI
     ///
     /// 배치: 전체화면 루트(이 컴포넌트)에 두 자식 — ①메뉴 박스(menuRect, 커서 위치로 이동. VerticalLayoutGroup+
     /// ContentSizeFitter라 켜진 버튼 수에 맞춰 높이가 줄고 늘어난다) ②전체화면 블로커(바깥 클릭 시 닫힘).
-    /// 루트는 OverlayCanvas 직속 자식으로 두고 Awake에서 자기 숨김. 계층·배선은 ItemContextMenuGenerator가 만든다.
+    /// 루트는 OverlayCanvas 직속 자식으로 두고 Awake에서 자기 숨김. 계층·배선은 에디터에서 직접 만든다.
     /// </summary>
     public class ItemContextMenu : MonoBehaviour
     {

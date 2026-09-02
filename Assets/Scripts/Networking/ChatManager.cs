@@ -24,6 +24,24 @@ namespace ProjectS.Networking
     public class ChatManager : NetworkBehaviour
     {
         /// <summary>
+        /// 서버가 허용하는 채팅 한 줄 최대 길이. 이보다 길면 서버가 잘라낸다.
+        /// 무제한으로 두면 아주 긴 문자열이 Mirror의 최대 패킷 크기를 넘겨 보낸 클라가 통째로
+        /// 연결 해제된다(전송 실패=disconnect). 밸런스가 아니라 네트워크 안전장치라 상수로 둔다.
+        /// </summary>
+        private const int MaxChatLength = 200;
+
+        /// <summary>
+        /// 서버가 보관하는 이 커넥션의 발신자 이름. 접속 직후 <see cref="CmdRegisterName"/>로 1회 등록되고,
+        /// 이후 모든 채팅은 클라가 매번 보내는 이름이 아니라 이 값으로 고정 발행된다(매 메시지 닉네임 위조 차단).
+        /// SyncVar라 서버가 정한 값이 전 클라로 복제된다.
+        ///
+        /// 한계(trust-on-first-use): 등록 값 자체는 아직 클라가 보낸 값이라, 접속 시점의 위조까지는 막지 못한다.
+        /// 완전한 권위는 커넥션↔계정 매핑(로그인이 네트워크와 연결되는 단계)이 붙을 때 서버가 계정에서
+        /// 직접 이름을 조회하도록 바꾸면 완성된다.
+        /// </summary>
+        [SyncVar] private string ownerName = "Player";
+
+        /// <summary>
         /// 씬을 넘어 이 채팅 오브젝트를 유지한다(서버 스폰본). 씬 전환은 Mirror가 아니라
         /// <see cref="ProjectS.Managers.GameSceneManager"/>가 싱글 모드로 처리하는데, 싱글 로드는 이전 씬의
         /// 오브젝트를 전부 파괴한다. DDOL이 없으면 던전↔마을을 오갈 때 이 오브젝트가 파괴돼
@@ -52,6 +70,12 @@ namespace ProjectS.Networking
         public override void OnStartLocalPlayer()
         {
             Debug.Log("[Chat] OnStartLocalPlayer — 로컬 채팅 준비됨(서버 접속·스폰 성공).");
+
+            // 접속 직후 내 이름을 서버에 1회 등록한다. 이후 채팅은 서버 보관 이름(ownerName)으로 나가므로
+            // 클라가 매 메시지에 이름을 실어 보낼 필요가 없다(=매 메시지 위조 경로 제거).
+            CharacterSaveData save = GameSession.SelectedCharacter;
+            CmdRegisterName(save != null ? save.name : "Player");
+
             ChatEvents.OnSendRequested += HandleLocalSend;
         }
 
@@ -60,30 +84,45 @@ namespace ProjectS.Networking
             ChatEvents.OnSendRequested -= HandleLocalSend;
         }
 
-        /// <summary>UI가 발행한 전송 요청을 받아 서버로 올린다(로컬 플레이어 전용).</summary>
+        /// <summary>
+        /// 접속 시 발신자 이름을 서버에 1회 등록한다(trust-on-first-use). 서버가 보관하므로 이후 위조 불가.
+        /// 빈 이름이면 커넥션 id 기반의 안전한 대체 이름을 쓴다(클라가 못 위조하는 서버측 값).
+        /// </summary>
+        [Command]
+        private void CmdRegisterName(string name)
+        {
+            name = name?.Trim();
+            ownerName = string.IsNullOrWhiteSpace(name)
+                ? $"Player {connectionToClient.connectionId}"
+                : name;
+        }
+
+        /// <summary>UI가 발행한 전송 요청을 받아 서버로 올린다(로컬 플레이어 전용). 이름은 서버가 채우므로 보내지 않는다.</summary>
         private void HandleLocalSend(ChatChannel channel, string text)
         {
-            CharacterSaveData save = GameSession.SelectedCharacter;
-            string senderName = save != null ? save.name : "Player";
-            CmdSend(channel, senderName, text);
+            CmdSend(channel, text);
         }
 
         // ── 클라 → 서버 ─────────────────────────────────────────────
 
         /// <summary>
         /// 클라가 보낸 메시지를 서버가 받는다. 서버 권위 지점 —
-        /// 발신자 이름은 클라 입력을 믿지 말고 서버가 아는 커넥션 정보로 채운다.
+        /// 발신자 이름은 클라 입력을 믿지 않고 서버가 보관한 <see cref="ownerName"/>으로 채운다.
         /// </summary>
         [Command]
-        private void CmdSend(ChatChannel channel, string senderName, string text)
+        private void CmdSend(ChatChannel channel, string text)
         {
             Debug.Log($"[Chat] CmdSend(서버 수신) ({channel}): {text}");
-            // TODO: 서버측 검증 — 길이 제한, 공백/빈 문자열 컷, (선택) 스팸 레이트리밋·욕설 필터.
+            // TODO: 서버측 검증 — (선택) 스팸 레이트리밋·욕설 필터. 길이 제한은 아래에서 처리.
             if (string.IsNullOrWhiteSpace(text)) return;
+
+            // 최대 길이 초과분은 서버가 잘라낸다(패킷 크기 초과로 인한 클라 강제 끊김 방지).
+            // 클라 입력을 믿지 않고 서버가 최종 결정하는 지점이라, 잘라낸 값으로 브로드캐스트한다.
+            if (text.Length > MaxChatLength) text = text.Substring(0, MaxChatLength);
 
             ChatMessage message = new ChatMessage
             {
-                sender = string.IsNullOrWhiteSpace(senderName) ? "Player" : senderName,
+                sender = ownerName,   // 클라가 보낸 이름이 아니라 서버 보관 이름을 쓴다(위조 차단).
                 channel = channel,
                 text = text,
             };
