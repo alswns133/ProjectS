@@ -16,6 +16,10 @@ namespace ProjectS.UI
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null) return;
 
+            // 채팅 등 텍스트 입력 중에는 무시한다 — raw 키 읽기라 PlayerInputHandler의 입력 억제가 닿지 않아,
+            // 채팅에 'q'/'e'를 치면 포션이 소모되기 때문(다른 raw 핫키들과 동일한 포커스 기준 게이트).
+            if (UiTypingGuard.IsTypingInInputField()) return;
+
             InventoryManager inv = InventoryManager.Instance;
             if (inv == null) return;
 

@@ -31,6 +31,11 @@ namespace ProjectS.UI
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null) return;
 
+            // 텍스트 입력창(채팅 등)에 포커스가 있으면 핫키를 무시한다 — 타이핑하는 글자가 창을 여닫지 않게 하기 위함.
+            // 특히 채팅은 Enter가 '열기'와 '전송'에 겹치는데, PopupHotkey는 Keyboard를 직접 읽어(SetInputSuspended 무관)
+            // 이 가드가 없으면 전송·닫기와 같은 프레임에 다시 열려 깜빡인다.
+            if (UiTypingGuard.IsTypingInInputField()) return;
+
             if (keyboard[key].wasPressedThisFrame) PopupToggle.Toggle(target);
         }
 
