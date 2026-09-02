@@ -13,6 +13,9 @@ namespace ProjectS.Events
         NpcShop, // 상점 NPC
         NpcEnhance, // 강화 NPC
         NpcQuest, // 퀘스트 NPC
+        // ★ 새 항목은 반드시 맨 끝에 추가한다. Unity는 enum을 정수값으로 직렬화하므로,
+        //   중간에 끼우면 기존 프리팹/씬에 저장된 값이 밀려 다른 종류로 뒤바뀐다.
+        Boss,   // 보스(일반 적과 다른 마커)
     }
 
     /// <summary>
