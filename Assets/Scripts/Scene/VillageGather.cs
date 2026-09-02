@@ -1,8 +1,9 @@
-﻿using UnityEngine;
-using ProjectS.Events;
+﻿using ProjectS.Events;
 using ProjectS.Managers;
+using ProjectS.Networking;
 using ProjectS.Players;
 using ProjectS.UI;
+using UnityEngine;
 
 namespace ProjectS.Scenes
 {
@@ -46,6 +47,13 @@ namespace ProjectS.Scenes
             // 플레이어 활성화 뒤 요청해야 PlayerStats(OnEnable에서 구독)가 받아 PublishAllStats로 HP·SG·EXP·레벨을
             // 다시 쏘고, InventoryManager도 실제 골드를 다시 발행한다.
             PlayerEvents.FireStatsRefreshRequested();
+
+            // 마을 진입 = 서버 접속 경계(A안: 채팅용 네트워크 오브젝트가 여기서 스폰됨).
+            // NetworkManager가 없으면(부트스트랩 미구성) 조용히 건너뛴다 — 마을 진입 자체는 막지 않는다.
+            if (GameNetworkManager.Game != null)
+                GameNetworkManager.Game.ConnectFromVillage();
+            else
+                Debug.LogWarning("[Chat/Net] GameNetworkManager.Game 이 null — 씬/부트스트랩에 GameNetworkManager가 없거나 아직 Awake 전. 채팅 접속을 건너뜀.");
         }
 
         /// <summary>마을 이탈 처리. 전환 동안 지속 플레이어를 잠시 꺼 월드에 방치되지 않게 한다.</summary>

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 namespace ProjectS.UI
@@ -53,7 +53,6 @@ namespace ProjectS.UI
                     if (questTracker != null) questTracker.ToggleWithCursor();
                     else Debug.LogWarning("[HudMenuButton] Quest 대상인데 questTracker가 연결되지 않음", this);
                     break;
-
                 case Target.None: break;   // 미정 슬롯: 무동작
             }
         }

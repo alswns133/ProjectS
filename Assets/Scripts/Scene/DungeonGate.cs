@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using ProjectS.Core;
 using ProjectS.Managers;
 using ProjectS.Players;
 using ProjectS.UI;
@@ -14,6 +16,14 @@ namespace ProjectS.Scenes
     ///
     /// 매 프레임 거리 계산 대신 트리거 콜라이더에 판정을 맡긴다(NpcOutlineTrigger와 같은 방침).
     /// 게이트 오브젝트(또는 전용 자식)에 붙이고 SphereCollider가 자동으로 트리거로 설정된다.
+    ///
+    /// <para>
+    /// 퀘스트 나침반 겸용: 이 입구는 <see cref="QuestWaypointRegistry"/>에 자기 위치를 <see cref="IQuestWaypoint"/>로
+    /// 등록해, 목표가 다른 씬(던전)에 있을 때 나침반이 이 입구를 조준하게 한다(옛 <c>QuestGate</c> 역할 흡수).
+    /// 한 입구가 <see cref="catalog"/>로 여러 던전을 열 수 있어(에피소드 여러 개), <b>여는 던전 번호마다</b>
+    /// 프록시 웨이포인트를 하나씩 등록한다 — 레지스트리는 인스턴스당 Key가 하나라서다. 그래서 어느 던전을 목표로
+    /// 하는 퀘스트든 이 입구를 찾아낸다. 별도 컴포넌트를 더 붙일 필요가 없다.
+    /// </para>
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
     public class DungeonGate : MonoBehaviour
@@ -34,11 +44,21 @@ namespace ProjectS.Scenes
         // 팝업을 이미 열었는지. 진입/이탈이 짝을 이루므로 중복 ShowPopup(활성 목록 중복 등록)을 막는다.
         private bool popupOpen;
 
+        // 이 입구가 여는 던전 번호마다 하나씩 만든 나침반 웨이포인트. OnEnable에서 등록, OnDisable에서 해제한다.
+        private readonly List<GateWaypoint> questWaypoints = new();
+
         private void Awake()
         {
             trigger = GetComponent<SphereCollider>();
             trigger.isTrigger = true;   // 물리 충돌이 아니라 감지 전용
             trigger.radius = radius;
+        }
+
+        // 씬에 나타날 때 나침반 웨이포인트를 등록한다. 씬 언로드/비활성 시 OnDisable이 해제하므로
+        // 레지스트리는 항상 "지금 씬에 실제로 있는 입구"만 안다.
+        private void OnEnable()
+        {
+            RegisterQuestWaypoints();
         }
 
         private void OnTriggerEnter(Collider other)
@@ -53,9 +73,61 @@ namespace ProjectS.Scenes
 
         // 게이트가 비활성화되거나 씬이 정리될 때는 OnTriggerExit이 오지 않는다.
         // 그대로 두면 팝업이 열린 채로 남을 수 있어 여기서 정리한다.
+        // 나침반 웨이포인트도 함께 해제한다 — 빠뜨리면 파괴된 입구를 나침반이 계속 조준한다.
         private void OnDisable()
         {
             CloseGatePopup();
+            UnregisterQuestWaypoints();
+        }
+
+        // ---------- 퀘스트 나침반 등록 ----------
+
+        // 카탈로그의 에피소드마다 그 던전 번호로 웨이포인트를 하나씩 등록한다.
+        // 같은 던전 번호가 여러 에피소드로 겹치면 한 번만 등록한다(중복 조준점 방지).
+        private void RegisterQuestWaypoints()
+        {
+            if (catalog == null) return;   // 카탈로그가 없으면 여는 던전이 없으므로 등록할 것도 없다.
+
+            foreach (EpisodeInfo episode in catalog.Episodes)
+            {
+                int number = episode.DungeonNumber;
+                if (questWaypoints.Exists(w => w.Key == number)) continue;
+
+                var waypoint = new GateWaypoint(this, number);
+                questWaypoints.Add(waypoint);
+                QuestWaypointRegistry.Register(waypoint);
+            }
+        }
+
+        private void UnregisterQuestWaypoints()
+        {
+            foreach (GateWaypoint waypoint in questWaypoints)
+                QuestWaypointRegistry.Unregister(waypoint);
+
+            questWaypoints.Clear();
+        }
+
+        // 게이트 하나가 여러 던전 번호를 여는데 레지스트리는 인스턴스당 Key가 하나뿐이라,
+        // 던전 번호마다 이 가벼운 프록시를 만들어 같은 입구 위치를 가리키게 한다.
+        private sealed class GateWaypoint : IQuestWaypoint
+        {
+            private readonly DungeonGate gate;
+            private readonly int dungeonNumber;
+
+            public GateWaypoint(DungeonGate gate, int dungeonNumber)
+            {
+                this.gate = gate;
+                this.dungeonNumber = dungeonNumber;
+            }
+
+            public QuestWaypointKind Kind => QuestWaypointKind.Gate;
+
+            public int Key => dungeonNumber;
+
+            public Vector3 Position => gate.transform.position;
+
+            // 게이트가 살아 있는 동안만 유효. 해제는 OnDisable이 하지만, 파괴 타이밍 사이의 조회도 걸러낸다.
+            public bool IsActive => gate != null && gate.isActiveAndEnabled;
         }
 
         private void OpenPopup()
