@@ -22381,7 +22381,7 @@ Transform:
   m_GameObject: {fileID: 268638151}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.0000005364418, z: -0, w: 1}
-  m_LocalPosition: {x: 24.16997, y: 3.8012686, z: -22.579014}
+  m_LocalPosition: {x: 25.86, y: 3.8012686, z: -22.579014}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -43736,7 +43736,7 @@ MonoBehaviour:
   detectLayers:
     serializedVersion: 2
     m_Bits: 256
-  detectSize: {x: 3, y: 3, z: 3}
+  detectSize: {x: 3, y: 3, z: 1.25}
   closeOnExit: 1
   closeDelay: 0.4
   startLocked: 0
@@ -43772,8 +43772,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 3, y: 3, z: 3}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 3, y: 3, z: 1.25}
+  m_Center: {x: 0, y: 0, z: -0.5}
 --- !u!1 &505399212
 GameObject:
   m_ObjectHideFlags: 0
@@ -61743,6 +61743,10 @@ PrefabInstance:
       propertyPath: spawnEffects.Array.data[0].prefab
       value: 
       objectReference: {fileID: 7472919723033611258, guid: 2fab666f554c69a4fbcf4d31e35cf1a9, type: 3}
+    - target: {fileID: 507650643455705415, guid: 1bf3509e76fde9543b85b216fff0afd7, type: 3}
+      propertyPath: m_Center.x
+      value: 6.41
+      objectReference: {fileID: 0}
     - target: {fileID: 2218356920659794060, guid: 1bf3509e76fde9543b85b216fff0afd7, type: 3}
       propertyPath: m_LocalScale.y
       value: 6.94
@@ -61818,6 +61822,10 @@ PrefabInstance:
     - target: {fileID: 6269007808835830924, guid: 1bf3509e76fde9543b85b216fff0afd7, type: 3}
       propertyPath: m_Name
       value: EnemyRoomBase
+      objectReference: {fileID: 0}
+    - target: {fileID: 6269007808835830924, guid: 1bf3509e76fde9543b85b216fff0afd7, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -155375,7 +155383,7 @@ MonoBehaviour:
   detectLayers:
     serializedVersion: 2
     m_Bits: 256
-  detectSize: {x: 3, y: 3, z: 3}
+  detectSize: {x: 3, y: 3, z: 1.25}
   closeOnExit: 1
   closeDelay: 0.4
   startLocked: 0
@@ -155411,8 +155419,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 3, y: 3, z: 3}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 3, y: 3, z: 1.25}
+  m_Center: {x: 0, y: 0, z: -0.5}
 --- !u!4 &1737345548 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6343698588287405652, guid: ae6f85d4643f9b4409d29ab5ecfc2294, type: 3}
@@ -157509,6 +157517,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: c34c08b3aa42dba4193892bd85bb4433, type: 2}
+    - target: {fileID: 8381046456635474004, guid: bb0eae495cb978a41b4626213e7803ee, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
