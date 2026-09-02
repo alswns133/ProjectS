@@ -1,4 +1,4 @@
-using ProjectS.Managers;
+﻿using ProjectS.Managers;
 using ProjectS.NPCs;
 using ProjectS.UI.Framework;
 
@@ -66,6 +66,7 @@ namespace ProjectS.UI
             UIManager ui = UIManager.Instance;
             if (ui == null) return;
 
+            // 이미 떠 있으면 닫는다.
             if (ui.IsPopupOpen<T>())
             {
                 ui.ClosePopup<T>();
