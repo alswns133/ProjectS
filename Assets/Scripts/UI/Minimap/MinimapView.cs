@@ -127,7 +127,13 @@ namespace ProjectS.UI
         public void AddMarker(Transform target, MinimapMarkerType type)
         {
             if (target == null || markers.ContainsKey(target)) return;
-            if (!bindingMap.TryGetValue(type, out MarkerBinding binding)) return;
+            if (!bindingMap.TryGetValue(type, out MarkerBinding binding))
+            {
+                // 아이콘을 아직 안 넣은 종류는 표시하지 않는다. 단 Boss는 일반 적(Enemy) 마커로 폴백해,
+                // 보스 아이콘 배선을 깜빡해도 보스가 미니맵에서 조용히 사라지지 않게 한다.
+                if (type != MinimapMarkerType.Boss || !bindingMap.TryGetValue(MinimapMarkerType.Enemy, out binding))
+                    return;
+            }
 
             RectTransform rect = GetFromPool(type, binding.prefab);
             markers.Add(target, new Marker { rect = rect, type = type, rotate = binding.rotateWithEntity });

@@ -1,5 +1,6 @@
 using UnityEngine;
 using ProjectS.Core;
+using ProjectS.Enemies;
 
 namespace ProjectS.Events
 {
@@ -31,7 +32,17 @@ namespace ProjectS.Events
         private IDamageable damageable;
         private bool registered;
 
-        private void Awake() => damageable = GetComponent<IDamageable>();
+        private void Awake()
+        {
+            damageable = GetComponent<IDamageable>();
+
+            // 보스는 일반 적과 다른 마커로 구분한다. Boss 컴포넌트(Boss:Enemy)가 붙어 있으면 인스펙터 type과
+            // 무관하게 Boss 마커로 승격한다 — 보스 프리팹마다 type을 손으로 바꾸지 않아도 되게 하기 위함.
+            // 판정을 동기적으로 확실한 '컴포넌트 유무'로 하는 이유: EnemyStats.IsBoss는 MonsterStatTable을
+            // async로 읽은 뒤에야 채워져, 마커를 등록하는 OnEnable 시점에는 아직 못 믿기 때문이다.
+            if (GetComponent<Boss>() != null)
+                type = MinimapMarkerType.Boss;
+        }
 
         private void OnEnable()
         {

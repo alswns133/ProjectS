@@ -145,9 +145,10 @@ namespace ProjectS.Scenes
                 for (int i = 0; i < p.Count; i++)
                 {
                     alive.Add(enemySpawner.SpawnOne(p.EnemyRef, p.Position, p.Rotation));
+                    room.RegisterSpawned(alive[^1]);    // 방의 클리어 감시(문 여닫이)용 등록. null은 방이 걸러낸다.
                     if (p.IsEndBoss)
                         room.SetEndBoss(alive[^1]);
-                }    
+                }
             }
         }
 
