@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -48,12 +49,27 @@ namespace ProjectS.UI
 
         private int writeIndex = 0; // 현재 쓰고 있는 TMP_Text 인덱스
 
+        // <noparse> 보호를 조기 종료시키는 '닫는 태그'를 모두 지우기 위한 패턴.
+        // TMP 태그는 대소문자를 가리지 않고 여백도 허용하므로("</NOPARSE>", "</noparse >" 등),
+        // 단순 "</noparse>" 문자열 치환은 그 변형들로 우회된다. 이 정규식으로 모든 변형을 제거해야
+        // noparse 안쪽이 항상 글자 그대로만 렌더된다(유저·타 플레이어가 친 <color> 등 태그 주입 차단).
+        private static readonly Regex NoparseCloseTag =
+            new Regex(@"<\s*/\s*noparse\s*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         private void Awake()
         {
             // onSubmit은 UnityEvent<string>. 넘어오는 문자열은 무시하고 SubmitMessage가 input.text를 직접 읽는다.
             if (input != null)
             {
-                input.textComponent.richText = false; // 입력창은 RichText 해석 안 함. <color> 등 태그를 치면 그대로 보이게.
+                // 입력창에서 <color> 등을 쳤을 때 미리보기 글자가 실제로 서식(색 등)으로 바뀌지 않고
+                // 글자 그대로 보이게 하려고 richText를 끈다.
+                // ★ 알려진 부작용: TMP_InputField는 IME '조합 중'인 한글을 <u>...</u> 밑줄 태그로 그리는데,
+                //   richText를 끄면 그 태그가 밑줄이 아니라 "<u>글자</u>" 문자 그대로 노출된다(조합 확정 전 매 글자).
+                //   이건 폰트 문제(□ 두부)와 별개다 — <,u,>는 폰트가 이미 가진 ASCII라, 폰트를 채워도 안 사라진다.
+                //   조합 중 태그 노출이 거슬리면 richText=true로 바꿔야 하고, 그 대신 입력창 미리보기 서식이 살아난다
+                //   (둘은 같은 richText 플래그라 동시 만족 불가). 전송된 메시지의 태그 주입 방지는 AppendLine의
+                //   <noparse>(+ 닫는 태그 변형 제거)가 담당하므로, 이 설정은 순수 입력창 미리보기 취향 문제다.
+                input.textComponent.richText = false;
                 input.onSubmit.AddListener(_ => SubmitMessage());
             }
 
@@ -129,9 +145,12 @@ namespace ProjectS.UI
 
             // 유저가 친 태그(<color> 등)를 서식 명령이 아니라 글자로 보이게 한다.
             // TMP는 <noparse> 안쪽의 <,>를 태그로 해석하지 않는다(=&lt; 치환은 TMP에선 안 통함).
-            // 단 유저가 </noparse>를 끼워 넣으면 보호가 조기 종료되므로, 그 토큰만 먼저 제거해 우회를 막는다.
-            string safeSender = message.sender.Replace("</noparse>", string.Empty);
-            string safeText = message.text.Replace("</noparse>", string.Empty);
+            // 단 유저가 닫는 noparse 태그를 끼워 넣으면 보호가 조기 종료되므로, 그 태그의 모든 변형
+            // (대소문자·여백)을 먼저 제거해 우회를 막는다. ★ 이것이 태그 주입의 실제 방어선이다 —
+            // 입력창의 richText 설정이 아니라(그건 로컬 미리보기일 뿐), 남이 네트워크로 보낸 메시지까지
+            // 여기를 통과하기 때문. null 방어는 네트워크로 온 값이 비어 있을 수 있어 함께 둔다.
+            string safeSender = NoparseCloseTag.Replace(message.sender ?? string.Empty, string.Empty);
+            string safeText = NoparseCloseTag.Replace(message.text ?? string.Empty, string.Empty);
 
             // 풀이 준비돼 있으면(슬롯이 하나라도 있으면) 링 버퍼 슬롯을 재사용해 한 줄 찍는다.
             if (tmps.Count > 0)
