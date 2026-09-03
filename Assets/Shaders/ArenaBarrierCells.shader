@@ -121,6 +121,18 @@ Shader "ProjectS/Arena Barrier (Cells)"
         // 카메라에 가까운 조각을 지워 그 사고를 막는다. 카메라 충돌 처리가 없는 동안의 안전망이다.
         _CameraFadeStart ("Camera Fade Start", Float) = 0.4
         _CameraFadeEnd ("Camera Fade End", Float) = 3.0
+
+        [Header(View Distance)]
+        // 멀리 있는 면을 지운다. "일정 거리 밖에서는 아예 없고, 다가가면 그 부분만 드러난다."
+        //
+        // 프래그먼트마다 카메라까지의 거리를 재기 때문에, 원통 벽에서는 내 앞쪽 구간만 남고
+        // 아레나 반대편 벽은 저절로 사라진다. 벽 오브젝트 단위로 껐다 켜면 벽 하나가 통째로
+        // 나타나 경계가 드러나므로, 반드시 프래그먼트 단위여야 한다.
+        //
+        // _ProximityPoints(플레이어가 벽에 3유닛까지 붙었을 때만 켜지는 값)와는 별개다.
+        // 그쪽은 "붙었을 때 밝아진다"이고, 이쪽은 "멀면 존재하지 않는다"이다.
+        _ViewFadeStart ("View Fade Start", Float) = 18
+        _ViewFadeEnd ("View Fade End", Float) = 32
     }
 
     SubShader
@@ -198,6 +210,8 @@ Shader "ProjectS/Arena Barrier (Cells)"
                 float _CapCutoff;
                 float _CameraFadeStart;
                 float _CameraFadeEnd;
+                float _ViewFadeStart;
+                float _ViewFadeEnd;
             CBUFFER_END
 
             // 배열은 CBUFFER 밖에 둔다. UnityPerMaterial 안에는 배열을 넣을 수 없어
@@ -508,11 +522,16 @@ Shader "ProjectS/Arena Barrier (Cells)"
                 // 벽면은 노말이 수평이고 원통 뚜껑은 수직이다. 뚜껑을 지워 바닥이 밝아지는 것을 막는다.
                 float wallFacing = 1.0 - smoothstep(_CapCutoff, 1.0, abs(normalWS.y));
 
-                // 카메라가 면을 뚫고 들어와도 화면이 발광으로 덮이지 않게 가까운 조각을 지운다.
-                float camFade = smoothstep(_CameraFadeStart, _CameraFadeEnd,
-                                           distance(positionWS, GetCameraPositionWS()));
+                float camDist = distance(positionWS, GetCameraPositionWS());
 
-                float strength = saturate(rest + cellGlow) * topFade * wallFacing * camFade;
+                // 카메라가 면을 뚫고 들어와도 화면이 발광으로 덮이지 않게 가까운 조각을 지운다.
+                float camFade = smoothstep(_CameraFadeStart, _CameraFadeEnd, camDist);
+
+                // 반대로 먼 조각을 지운다. 접촉 발광(cellGlow)까지 함께 죽이므로, 멀리서 벌어진
+                // 파문도 보이지 않는다. "그 거리 밖의 벽은 아예 없다"를 예외 없이 지키기 위함이다.
+                float viewFade = 1.0 - smoothstep(_ViewFadeStart, _ViewFadeEnd, camDist);
+
+                float strength = saturate(rest + cellGlow) * topFade * wallFacing * camFade * viewFade;
 
                 return half4(_BaseColor.rgb, strength * _BaseColor.a);
             }
