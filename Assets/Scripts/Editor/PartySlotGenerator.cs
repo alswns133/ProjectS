@@ -10,10 +10,12 @@ using Object = UnityEngine.Object;
 namespace ProjectS.EditorTools
 {
     /// <summary>
-    /// 던전 입장 창 하단의 파티 슬롯(docs/PARTY_WINDOW_UI.md §2)을 프리팹으로 만들어 주는 에디터 툴.
+    /// 파티 슬롯(docs/PARTY_WINDOW_UI.md §2)을 프리팹으로 만드는 에디터 툴.
     /// 메뉴: Tools ▸ ProjectS ▸ Create Party Slot Bar
     ///
-    /// 칸 하나짜리 <c>PartySlot</c>과, 그것을 두 개 물고 있는 <c>PartySlotBar</c>를 함께 만든다.
+    /// 초상화를 중심으로 한 카드 한 장(<c>PartySlot</c>)과, 그것을 두 개 물고 있는
+    /// <c>PartySlotBar</c>를 함께 만든다. 구역은 여섯이다 —
+    /// ① 레벨 · ② 닉네임 · ③ 클래스 아이콘 · ④ 파티장 아이콘 · ⑤ 초상화 · ⑥ 바이탈 그래프.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -22,11 +24,16 @@ namespace ProjectS.EditorTools
     /// (CLAUDE.md 씬·UI 이름 규칙).
     /// </para>
     /// <para>
-    /// <b>빈 칸과 채워진 칸을 각각 다른 덩어리로 만든다.</b> 하나를 텍스트만 바꿔 쓰면
-    /// "＋ 파티원 초대"와 "하루 / Lv.24"의 정렬·아이콘 유무가 달라 매번 배치를 손봐야 한다.
+    /// <b>③④ 는 초상화 위에 겹쳐 올린다.</b> 따로 줄을 만들면 카드가 세로로 더 길어지는데,
+    /// 아이콘 두 개가 차지하는 자리는 초상화의 위쪽 모서리로 충분하다.
     /// </para>
     /// <para>
-    /// 스프라이트·폰트·직업 아이콘은 넣지 않는다. 아트가 붙는 자리라 툴이 채우면 다시 실행할 때마다 덮어쓴다.
+    /// <b>⑥ 바이탈 그래프에는 <c>HPEcg.mat</c>을 물린다.</b> 연출이라 스크립트가 값을 넣지 않아도
+    /// 셰이더가 스스로 파형을 흘린다. 머티리얼을 못 찾으면 색만 칠하고 넘어간다.
+    /// </para>
+    /// <para>
+    /// 초상화 스프라이트와 클래스·파티장 아이콘 그림은 넣지 않는다. 아트가 붙는 자리라
+    /// 툴이 채우면 다시 실행할 때마다 덮어쓴다.
     /// </para>
     /// (2026-08-31 TH)
     /// </remarks>
@@ -35,19 +42,27 @@ namespace ProjectS.EditorTools
         private const string PrefabFolder = "Assets/Prefabs/UI";
         private const string SlotPath = PrefabFolder + "/PartySlot.prefab";
         private const string BarPath = PrefabFolder + "/PartySlotBar.prefab";
+        private const string EcgMaterialPath = "Assets/Shader/UI/HPEcg.mat";
+        private const string FontPath = "Assets/TextMesh Pro/Resources/Fonts & Materials/Paperlogy-5Medium SDF.asset";
 
-        // 던전 입장 창 하단 한 줄에 들어가는 크기. 카드(40)와 높이를 맞춰 둔다.
-        private const float SlotWidth = 168f;
-        private const float SlotHeight = 40f;
-        private const float BarHeight = 44f;
-        private const float LabelWidth = 44f;
-        private const float SlotGap = 10f;
-        private const float IconSize = 24f;
-        private const float Pad = 10f;
+        // 카드는 세로로 긴 형태. 두 장 + 라벨이 한 열(약 868)에 들어가는 크기다.
+        private const float SlotWidth = 340f;
+        private const float SlotHeight = 400f;
+        private const float TopBarHeight = 52f;
+        private const float VitalHeight = 56f;
+        private const float IconSize = 40f;
+        private const float IconInset = 12f;
+        private const float Pad = 14f;
+
+        private const float LabelWidth = 52f;
+        private const float SlotGap = 12f;
 
         private static readonly Color SlotColor = new Color32(0x1A, 0x21, 0x30, 0xFF);
         private static readonly Color SelfColor = new Color32(0x24, 0x3A, 0x66, 0xFF);
+        private static readonly Color TopBarColor = new Color32(0x12, 0x18, 0x24, 0xFF);
+        private static readonly Color PortraitColor = new Color32(0x21, 0x2A, 0x3C, 0xFF);
         private static readonly Color LeaderColor = new Color32(0xF0, 0xB4, 0x29, 0xFF);
+        private static readonly Color VitalColor = new Color32(0x43, 0xC9, 0x7B, 0xFF);
         private static readonly Color MutedColor = new Color32(0x8D, 0x99, 0xAC, 0xFF);
         private static readonly Color TextColor = new Color32(0xDC, 0xE3, 0xEE, 0xFF);
 
@@ -76,14 +91,15 @@ namespace ProjectS.EditorTools
             EditorGUIUtility.PingObject(barAsset);
 
             Debug.Log($"[PartySlotGenerator] 파티 슬롯을 만들었다.\n· {slotPath}\n· {barPath}\n" +
-                      "직업 아이콘과 스프라이트는 비어 있으니 PartySlot 프리팹에서 채운다.");
+                      "초상화 스프라이트(portraitsByClass)와 클래스·파티장 아이콘 그림은 비어 있으니 " +
+                      "PartySlot 프리팹에서 채운다.");
 
             TryAttachToDungeonEntry(barAsset);
         }
 
         /// <summary>
         /// 씬에 던전 입장 창이 있고 파티 슬롯이 아직 비어 있으면, 바를 넣어 줄지 물어본다.
-        /// 넣더라도 <b>위치는 창 왼쪽 아래에 임시로</b> 둔다 — 하단 줄의 정확한 자리는 창마다 달라
+        /// 넣더라도 <b>위치는 왼쪽 아래에 임시로</b> 둔다 — 어느 자리에 놓을지는 창마다 달라
         /// 툴이 정하면 오히려 손이 더 간다.
         /// </summary>
         private static void TryAttachToDungeonEntry(GameObject barAsset)
@@ -111,8 +127,8 @@ namespace ProjectS.EditorTools
             rt.anchorMin = new Vector2(0f, 0f);
             rt.anchorMax = new Vector2(0f, 0f);
             rt.pivot = new Vector2(0f, 0f);
-            rt.anchoredPosition = new Vector2(24f, 24f);
-            rt.sizeDelta = new Vector2(LabelWidth + (SlotWidth * 2f) + (SlotGap * 3f), BarHeight);
+            rt.anchoredPosition = new Vector2(80f, 80f);
+            rt.sizeDelta = BarSize();
 
             slotProp.objectReferenceValue = instance.GetComponent<PartySlotBar>();
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -121,7 +137,7 @@ namespace ProjectS.EditorTools
             Debug.Log("[PartySlotGenerator] 던전 입장 창에 파티 슬롯 바를 넣고 연결했다. 위치는 직접 옮긴다.", instance);
         }
 
-        // ── 칸 하나 ──────────────────────────────────────────────────────
+        // ── 카드 한 장 ───────────────────────────────────────────────────
 
         private static GameObject BuildSlot()
         {
@@ -142,7 +158,7 @@ namespace ProjectS.EditorTools
             RectTransform emptyRoot = CreateRect(rt, "EmptyRoot");
             Fill(emptyRoot);
 
-            TextMeshProUGUI emptyLabel = CreateText(emptyRoot, "EmptyLabel", "＋ 파티원 초대", 13f);
+            TextMeshProUGUI emptyLabel = CreateText(emptyRoot, "EmptyLabel", "＋ 파티원 초대", 15f);
             emptyLabel.color = MutedColor;
             emptyLabel.alignment = TextAlignmentOptions.Center;
             Fill(emptyLabel.rectTransform);
@@ -151,60 +167,71 @@ namespace ProjectS.EditorTools
             RectTransform filledRoot = CreateRect(rt, "FilledRoot");
             Fill(filledRoot);
 
-            RectTransform iconRoot = CreateRect(filledRoot, "Icon");
-            iconRoot.anchorMin = iconRoot.anchorMax = new Vector2(0f, 0.5f);
-            iconRoot.pivot = new Vector2(0f, 0.5f);
-            iconRoot.anchoredPosition = new Vector2(Pad, 0f);
-            iconRoot.sizeDelta = new Vector2(IconSize, IconSize);
+            // ①② 상단 바 — 레벨과 닉네임
+            RectTransform topBar = CreateRect(filledRoot, "TopBar");
+            StretchTop(topBar, 0f, TopBarHeight, 0f, 0f);
+            CreateImage(topBar, "Background", TopBarColor);
 
-            // 직업마다 오브젝트 하나씩. 배열 인덱스 = characterType.
-            Image classIcon00 = CreateImage(iconRoot, "ClassIcon00", Color.white);
+            TextMeshProUGUI levelText = CreateText(topBar, "LevelText", "Lv.24", 14f);
+            levelText.color = MutedColor;
+            levelText.alignment = TextAlignmentOptions.MidlineLeft;
+            AnchorLeft(levelText.rectTransform, Pad, 58f);
+
+            TextMeshProUGUI nameText = CreateText(topBar, "NameText", "하루", 17f);
+            nameText.color = TextColor;
+            nameText.alignment = TextAlignmentOptions.MidlineLeft;
+            StretchLeft(nameText.rectTransform, Pad + 58f + 8f, Pad);
+
+            // ⑤ 초상화 — 상단 바와 바이탈 그래프 사이를 통째로 차지한다.
+            Image portrait = CreateImage(filledRoot, "Portrait", PortraitColor);
+            StretchMiddle(portrait.rectTransform, TopBarHeight, VitalHeight, 0f, 0f);
+
+            // ③④ 는 초상화 위 모서리에 겹쳐 올린다(따로 줄을 만들면 카드가 더 길어진다).
+            RectTransform classRoot = CreateRect(filledRoot, "ClassIcon");
+            AnchorTopLeft(classRoot, IconInset, TopBarHeight + IconInset, IconSize, IconSize);
+
+            Image classIcon00 = CreateImage(classRoot, "ClassIcon00", Color.white);
             Fill(classIcon00.rectTransform);
 
-            Image classIcon01 = CreateImage(iconRoot, "ClassIcon01", Color.white);
+            Image classIcon01 = CreateImage(classRoot, "ClassIcon01", Color.white);
             Fill(classIcon01.rectTransform);
             classIcon01.gameObject.SetActive(false);
 
-            float textLeft = Pad + IconSize + 8f;
+            Image leaderIcon = CreateImage(filledRoot, "LeaderIcon", LeaderColor);
+            AnchorTopRight((RectTransform)leaderIcon.transform, IconInset, TopBarHeight + IconInset, IconSize, IconSize);
+            leaderIcon.gameObject.SetActive(false);   // 파티장일 때만 켜진다
 
-            TextMeshProUGUI nameText = CreateText(filledRoot, "NameText", "하루", 13f);
-            nameText.color = TextColor;
-            nameText.alignment = TextAlignmentOptions.BottomLeft;
-            StretchLeft(nameText.rectTransform, textLeft, 56f, top: 4f, bottom: 18f);
+            // ⑥ 바이탈 그래프 — 연출. 머티리얼이 스스로 파형을 흘린다.
+            Image vital = CreateImage(filledRoot, "VitalGraph", VitalColor);
+            StretchBottom(vital.rectTransform, 0f, VitalHeight, 0f, 0f);
 
-            TextMeshProUGUI levelText = CreateText(filledRoot, "LevelText", "Lv.24", 11f);
-            levelText.color = MutedColor;
-            levelText.alignment = TextAlignmentOptions.TopLeft;
-            StretchLeft(levelText.rectTransform, textLeft, 56f, top: 20f, bottom: 4f);
-
-            TextMeshProUGUI leaderTag = CreateText(filledRoot, "LeaderTag", "파티장", 10f);
-            leaderTag.color = LeaderColor;
-            leaderTag.alignment = TextAlignmentOptions.MidlineRight;
-            leaderTag.rectTransform.anchorMin = new Vector2(1f, 0.5f);
-            leaderTag.rectTransform.anchorMax = new Vector2(1f, 0.5f);
-            leaderTag.rectTransform.pivot = new Vector2(1f, 0.5f);
-            leaderTag.rectTransform.anchoredPosition = new Vector2(-Pad, 0f);
-            leaderTag.rectTransform.sizeDelta = new Vector2(40f, 16f);
-            leaderTag.gameObject.SetActive(false);
+            Material ecg = AssetDatabase.LoadAssetAtPath<Material>(EcgMaterialPath);
+            if (ecg != null) vital.material = ecg;
+            else Debug.LogWarning($"[PartySlotGenerator] {EcgMaterialPath} 를 찾지 못해 바이탈 그래프가 단색이다.");
 
             filledRoot.gameObject.SetActive(false);   // 기본은 빈 칸
 
-            Wire(root.GetComponent<PartySlotView>(),
+            PartySlotView view = root.GetComponent<PartySlotView>();
+            Wire(view,
                  ("slotButton", button),
                  ("emptyRoot", emptyRoot.gameObject),
                  ("emptyLabel", emptyLabel),
                  ("filledRoot", filledRoot.gameObject),
-                 ("nameText", nameText),
                  ("levelText", levelText),
-                 ("leaderTag", leaderTag.gameObject));
+                 ("nameText", nameText),
+                 ("leaderIcon", leaderIcon.gameObject),
+                 ("portraitImage", portrait),
+                 ("vitalGraph", vital.gameObject));
 
-            WireList(root.GetComponent<PartySlotView>(), "classIcons",
-                     classIcon00.gameObject, classIcon01.gameObject);
+            WireList(view, "classIcons", classIcon00.gameObject, classIcon01.gameObject);
 
             return root;
         }
 
         // ── 두 칸 묶음 ───────────────────────────────────────────────────
+
+        private static Vector2 BarSize()
+            => new(LabelWidth + (SlotWidth * 2f) + (SlotGap * 3f), SlotHeight);
 
         private static GameObject BuildBar(GameObject slotAsset)
         {
@@ -212,11 +239,11 @@ namespace ProjectS.EditorTools
                                   typeof(PartySlotBar), typeof(DummyPartySource));
 
             RectTransform rt = (RectTransform)root.transform;
-            rt.sizeDelta = new Vector2(LabelWidth + (SlotWidth * 2f) + (SlotGap * 3f), BarHeight);
+            rt.sizeDelta = BarSize();
 
-            TextMeshProUGUI label = CreateText(rt, "BarLabel", "파티", 12f);
+            TextMeshProUGUI label = CreateText(rt, "BarLabel", "파티", 14f);
             label.color = MutedColor;
-            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.alignment = TextAlignmentOptions.TopLeft;
             AnchorLeft(label.rectTransform, 0f, LabelWidth);
 
             // 손복사가 아니라 프리팹 인스턴스로 넣는다 — 칸을 고치면 두 칸이 함께 따라온다.
@@ -282,7 +309,8 @@ namespace ProjectS.EditorTools
 
             Image image = go.GetComponent<Image>();
             image.color = color;
-            image.raycastTarget = false;   // 클릭은 슬롯 배경 한 장만 받는다
+            image.raycastTarget = false;   // 클릭은 카드 배경 한 장만 받는다
+            Fill((RectTransform)go.transform);
             return image;
         }
 
@@ -296,11 +324,15 @@ namespace ProjectS.EditorTools
             text.fontSize = size;
             text.raycastTarget = false;
 
-            // 긴 닉네임이 두 줄로 흘러 칸 높이가 깨지는 것을 막는다.
+            // 긴 닉네임이 두 줄로 흘러 카드 높이가 깨지는 것을 막는다.
             text.textWrappingMode = TextWrappingModes.NoWrap;
             text.overflowMode = TextOverflowModes.Ellipsis;
 
-            if (TMP_Settings.defaultFontAsset != null) text.font = TMP_Settings.defaultFontAsset;
+            // TMP 기본값(LiberationSans)에는 한글 글리프가 없어 그대로 두면 전부 □로 나온다.
+            TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
+            if (font != null) text.font = font;
+            else if (TMP_Settings.defaultFontAsset != null) text.font = TMP_Settings.defaultFontAsset;
+
             return text;
         }
 
@@ -322,14 +354,57 @@ namespace ProjectS.EditorTools
             rt.sizeDelta = new Vector2(width, 0f);
         }
 
-        /// <summary>왼쪽에서 떨어진 자리에, 위아래를 물려 놓는다(이름/레벨 두 줄 쌓기).</summary>
-        private static void StretchLeft(RectTransform rt, float left, float right, float top, float bottom)
+        /// <summary>왼쪽에서 떨어진 자리부터 오른쪽 여백까지 늘린다.</summary>
+        private static void StretchLeft(RectTransform rt, float left, float right)
+        {
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = new Vector2(left, 0f);
+            rt.offsetMax = new Vector2(-right, 0f);
+        }
+
+        private static void StretchTop(RectTransform rt, float top, float bottom, float left, float right)
+        {
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.offsetMin = new Vector2(left, -bottom);
+            rt.offsetMax = new Vector2(-right, -top);
+        }
+
+        private static void StretchBottom(RectTransform rt, float bottom, float top, float left, float right)
+        {
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 0f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.offsetMin = new Vector2(left, bottom);
+            rt.offsetMax = new Vector2(-right, top);
+        }
+
+        private static void StretchMiddle(RectTransform rt, float top, float bottom, float left, float right)
         {
             rt.anchorMin = new Vector2(0f, 0f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.offsetMin = new Vector2(left, bottom);
             rt.offsetMax = new Vector2(-right, -top);
+        }
+
+        private static void AnchorTopLeft(RectTransform rt, float left, float top, float width, float height)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(left, -top);
+            rt.sizeDelta = new Vector2(width, height);
+        }
+
+        private static void AnchorTopRight(RectTransform rt, float right, float top, float width, float height)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 1f);
+            rt.anchoredPosition = new Vector2(-right, -top);
+            rt.sizeDelta = new Vector2(width, height);
         }
 
         private static void EnsureFolder()
