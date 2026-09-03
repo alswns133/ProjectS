@@ -25,6 +25,11 @@ namespace ProjectS.Enemies
         [Tooltip("다음 방으로 나가는 문들. 인스펙터에서 각 문 startLocked=true로 두고, 방 몬스터를 다 잡으면 모두 열린다. 비우면 문 처리를 건너뛴다.")]
         [SerializeField] private AutoDoor[] exitDoors;
 
+        [Header("던전 네비게이션")]
+        [Tooltip("방 순번. 나침반이 '이 방 다음(index+1)' 방을 자동으로 찾아 가리킨다(Room1=1, Room2=2 … 연속 정수).\n" +
+                 "이 값만 매기면 방-대-방 유도가 자동으로 이어진다. 순번은 던전 안에서 유일해야 한다.")]
+        [SerializeField] private int roomIndex;
+
         private bool isStart = false;
         private bool triggered;
 
@@ -45,6 +50,62 @@ namespace ProjectS.Enemies
         // 프리로드 수집용: 이 방이 쓰는 몬스터들
         public IEnumerable<AssetReferenceGameObject> EnemyRefs => spawnPoints.Select(p => p.EnemyRef);
 
+        /// <summary>이 방을 클리어(몬스터 전멸 → 문 개방)했는지. 던전 네비게이션이 전투 중엔 안내를 숨기는 게이트로 쓴다.</summary>
+        public bool IsCleared => cleared;
+
+        /// <summary>방 순번. 나침반이 '이 방 다음(RoomIndex+1)' 방을 자동으로 찾는 키다.</summary>
+        public int RoomIndex => roomIndex;
+
+        /// <summary>
+        /// 던전 네비게이션이 이 방을 클리어한 뒤 화살표로 가리킬 '다음 지역' 지점을 정한다. 우선순위는:
+        ///   ① <see cref="roomIndex"/>+1 방(자동 체이닝) → ② 열린 exitDoor 최근접(폴백).
+        ///
+        /// ①이 핵심 — 각 방에 순번만 매기면 "Room1 → Room2 → Room3"이 자동으로 이어진다. 다음 방 오브젝트가
+        /// 씬에 있으므로 그 위치를 그대로 조준점으로 쓴다(문이 아니라 방 자체를 가리켜 "다음 방으로" 유도).
+        /// 전투 중에는 exitDoors가 모두 잠겨(폴백 경로도 막힘) 있고, 최종 방은 다음 방·문이 없어 false가 된다
+        /// (그 경우 위젯은 안내를 숨긴다).
+        /// </summary>
+        /// <param name="from">거리 비교 기준(보통 플레이어 위치).</param>
+        /// <param name="pos">가리킬 지점의 월드 위치(못 찾으면 <see cref="Vector3.zero"/>).</param>
+        /// <param name="targetTransform">가리키는 대상(다음 방·문의 Transform. 못 찾으면 null). 디버그·연출용.</param>
+        /// <returns>안내할 대상이 있으면 true.</returns>
+        public bool TryGetExitTarget(Vector3 from, out Vector3 pos, out Transform targetTransform)
+        {
+            pos = Vector3.zero;
+            targetTransform = null;
+
+            // ① 순번 체이닝: 다음 방(RoomIndex+1)이 씬에 있으면 그 방을 가리킨다(Room1 → Room2 자동 유도).
+            EnemyRoom next = DungeonNav.GetRoom(roomIndex + 1);
+            if (next != null)
+            {
+                targetTransform = next.transform;
+                pos = next.transform.position;
+                return true;
+            }
+
+            // ② 다음 방이 없으면(순번 미설정·최종 방) 열린 exitDoor 중 최근접으로 폴백한다.
+            if (exitDoors == null) return false;
+
+            float bestSqr = float.PositiveInfinity;
+
+            for (int i = 0; i < exitDoors.Length; i++)
+            {
+                AutoDoor candidate = exitDoors[i];
+                if (candidate == null || candidate.IsLocked) continue;   // 아직 잠긴(정리 중) 문은 목표에서 제외
+
+                Vector3 p = candidate.transform.position;
+                float sqr = (p - from).sqrMagnitude;
+                if (sqr < bestSqr)
+                {
+                    bestSqr = sqr;
+                    pos = p;
+                    targetTransform = candidate.transform;
+                }
+            }
+
+            return targetTransform != null;
+        }
+
         private System.Action<EnemyRoom> onPlayerEnter; // 컨트롤러가 주인
 
         // 최종 보스를 넘길 결과 감시자. 씬에 하나 있는 것을 Awake에서 찾아 캐싱한다(없으면 null → SetEndBoss가 경고).
@@ -58,6 +119,12 @@ namespace ProjectS.Enemies
             trigger.isTrigger = true;
         }
 
+        // 순번 레지스트리 등록/해제는 씬 수명과 맞춘다. 등록돼 있어야 이전 방이 GetRoom(index+1)로 이 방을
+        // 다음 목표로 찾을 수 있고, 씬 언로드로 방이 사라지면 함께 빠져 파괴된 방을 가리키지 않는다.
+        private void OnEnable() => DungeonNav.Register(this);
+
+        private void OnDisable() => DungeonNav.Unregister(this);
+
         public void Bind(System.Action<EnemyRoom> callback) => onPlayerEnter = callback;
 
         // 플레이어 입장 감지 => 컨트롤러(권위)에 "이 방 스폰" 요청. 직접 생성하지 않음.
@@ -68,6 +135,11 @@ namespace ProjectS.Enemies
 
             if (triggered || !other.CompareTag("Player")) return;
             triggered = true;
+
+            // 이 방을 던전 네비게이션의 '현재 방'으로 등록한다. 위젯이 이 방의 클리어 상태·나가는 문을 읽어
+            // "다음 지역" 방향을 표시한다. 방을 옮기면 그 방이 다시 등록해 목표가 자동으로 갱신된다.
+            DungeonNav.SetCurrentRoom(this);
+
             // TODO(멀티): 트리거는 클라 감지 → Command로 서버에 요청, 스폰은 서버가.
             onPlayerEnter?.Invoke(this);    // 권위(컨트롤러)에 위임 → 스폰 동기 실행, RegisterSpawned로 목록이 채워진다.
             trigger.enabled = false;

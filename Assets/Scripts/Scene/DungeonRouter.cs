@@ -57,14 +57,10 @@ namespace ProjectS.Scenes
 
             if (mode == EntryMode.Raid)
             {
-                // 레이드 씬 파일(Assets/Scenes/GC/Raid.unity)은 있지만 대응하는 BaseScene 클래스가 아직 없다.
-                // 클래스가 생기면 아래 두 줄의 주석을 풀고 이 경고·return을 지우면 된다.
-                // 레이드도 여러 개가 되면 던전처럼 switch로 넓히고, 그 전까지는 단일 분기로 둔다.
-                // GameSceneManager.Instance.RequestSceneChange<Raid>();
-                // return true;
-
-                Debug.LogWarning("[DungeonRouter] 레이드 씬 클래스가 아직 없어 전환하지 않음");
-                return false;
+                // 레이드는 최종 단일 컨텐츠(ID_NUMBERING §4 = 99)라 지금은 씬 하나로 고정 분기한다.
+                // 레이드가 여러 개가 되면 던전처럼 DungeonNumberOf로 switch를 넓힌다.
+                GameSceneManager.Instance.RequestSceneChange<Raid>();
+                return true;
             }
 
             // ★ 던전이 늘면 여기 case 하나만 추가한다. 난이도는 여기서 보지 않는다.
