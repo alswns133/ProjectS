@@ -28,6 +28,7 @@ namespace ProjectS.Scenes
             GameSceneManager.Instance.RegisterScene<VillageGather>(false);
             GameSceneManager.Instance.RegisterScene<Dungeon1>(false);
             GameSceneManager.Instance.RegisterScene<Dungeon2>(false);
+            GameSceneManager.Instance.RegisterScene<Raid>(false);
         }
 
         // 스테이지별 미니맵 데이터를 조회 등록소에 넣는다. 씬 전환(RequestSceneChange)보다 먼저 호출해야
