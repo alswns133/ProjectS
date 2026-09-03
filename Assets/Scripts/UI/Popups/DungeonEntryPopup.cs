@@ -57,6 +57,10 @@ namespace ProjectS.UI
         [Tooltip("프리팹에 미리 놓인 탭들. 카탈로그 난이도 수보다 많으면 남는 탭은 꺼진다.")]
         [SerializeField] private Toggle[] difficultyTabs;
 
+        [Header("파티")]
+        [Tooltip("하단 파티 슬롯 두 칸. 붙이지 않으면 파티 기능 없이 그대로 동작한다(솔로 전용 화면).")]
+        [SerializeField] private PartySlotBar partySlots;
+
         [Header("하단")]
         [SerializeField] private TMP_Text keyGuideText;           // ⑥ UI_DG_006
         [SerializeField] private Button enterButton;              // ⑦ [SPACE]
@@ -412,7 +416,13 @@ namespace ProjectS.UI
 
         private void RefreshEnterButton()
         {
-            if (enterButton != null) enterButton.interactable = CanEnter();
+            bool ready = CanEnter();
+
+            if (enterButton != null) enterButton.interactable = ready;
+
+            // 던전·난이도가 정해져야 초대할 수 있다 — 어디로 가는지 모르면 상대에게 보여줄 내용이 없다
+            // (docs/PARTY_WINDOW_UI.md §2).
+            if (partySlots != null) partySlots.SetSelectionReady(ready);
         }
 
         // ① 진행률. 클리어 기록을 담는 세이브 항목이 아직 없어 지금은 전체 개수만 보여준다.
