@@ -16308,7 +16308,7 @@ GameObject:
   - component: {fileID: 7493186042639940412}
   - component: {fileID: 3520933153128057244}
   - component: {fileID: 4630818015410214236}
-  - component: {fileID: 8861890471432118340}
+  - component: {fileID: 6054501034262126531}
   m_Layer: 0
   m_Name: Boss_Raid_DualBlades
   m_TagString: Untagged
@@ -16966,7 +16966,7 @@ MonoBehaviour:
     DissipationDistance: 100
     PropagationSpeed: 343
   DefaultVelocity: {x: 0, y: -1, z: 0}
---- !u!114 &8861890471432118340
+--- !u!114 &6054501034262126531
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -16975,26 +16975,17 @@ MonoBehaviour:
   m_GameObject: {fileID: 890781944157325120}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae8f86670be27724ba577143ba90a067, type: 3}
+  m_Script: {fileID: 11500000, guid: 35344932fcb08c444a4cf79f78ad60ed, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyCameraEffects
-  effects:
-  - key: Hard
-    shakeForce: 3
-    shakeDirection: {x: 3, y: 3, z: 3}
-    duration: 0
-    interval: 0
-    directionJitter: 0
-    hitStopDuration: 0
-    hitStopTimeScale: 0
-  - key: Soft
-    shakeForce: 1
-    shakeDirection: {x: 1, y: 1, z: 1}
-    duration: 0
-    interval: 0
-    directionJitter: 0
-    hitStopDuration: 0
-    hitStopTimeScale: 0
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.BossPhaseTransition
+  nextPhasePrefab:
+    m_AssetGUID: 
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
+  thresholdRatio: 0.5
+  nextPhaseIsFinal: 1
 --- !u!1 &920807242309128139
 GameObject:
   m_ObjectHideFlags: 0
