@@ -53,17 +53,30 @@ namespace ProjectS.UI
         private static readonly int FlickerSpeedID = Shader.PropertyToID("_FlickerSpeed");
         private static readonly int ScanlineID = Shader.PropertyToID("_Scanline");
         private static readonly int SoftnessID = Shader.PropertyToID("_Softness");
+        private static readonly int SliceHeightID = Shader.PropertyToID("_SliceHeight");
+        private static readonly int SliceAmountID = Shader.PropertyToID("_SliceAmount");
+        private static readonly int SliceOffsetID = Shader.PropertyToID("_SliceOffset");
+        private static readonly int GhostOffsetID = Shader.PropertyToID("_GhostOffset");
+        private static readonly int GhostJitterID = Shader.PropertyToID("_GhostJitter");
+        private static readonly int GhostIdleID = Shader.PropertyToID("_GhostIdle");
+        private static readonly int GhostColorLID = Shader.PropertyToID("_GhostColorL");
+        private static readonly int GhostColorRID = Shader.PropertyToID("_GhostColorR");
 
         [Header("셰이더")]
         [Tooltip("ProjectS/UI Glitch Text 셰이더. 비워두면 이름으로 찾지만, 빌드에 포함되도록 직접 넣는 것을 권장한다.")]
         [SerializeField] private Shader glitchShader;
 
         [Header("문구")]
-        [Tooltip("연출이 끝나고 남는 최종 문구. 보통 한글.")]
-        [SerializeField] private string finalText = "사망";
+        [Tooltip("연출이 끝나고 남는 최종 문구. 보통 한글. 상자 안에서 Enter로 줄을 나눌 수 있다.")]
+        [SerializeField, TextArea(1, 4)] private string finalText = "사망";
 
-        [Tooltip("최종 문구 직전에 번갈아 스쳐 지나갈 표기들. 위에서부터 순서대로 나타난다.")]
-        [SerializeField] private string[] cycleTexts = { "DEAD", "死亡", "DEAD", "死亡" };
+        [Tooltip("최종 문구 직전에 번갈아 스쳐 지나갈 표기들. 위에서부터 순서대로 나타난다. "
+                 + "finalText가 여러 줄이면 여기 항목도 같은 줄 수로 맞춰야 라벨 높이가 요동치지 않는다.")]
+        [SerializeField, TextArea(1, 4)] private string[] cycleTexts = { "DEAD", "死亡", "DEAD", "死亡" };
+
+        [Tooltip("연출 중 문구를 뒤섞을지. 끄면 finalText가 처음부터 끝까지 그대로 있고 셰이더 글리치만 돈다. "
+                 + "파티창 상태 라벨처럼 항상 읽혀야 하는 문구는 끈다(cycleTexts와 아래 글자 풀도 함께 무시된다).")]
+        [SerializeField] private bool scrambleText = true;
 
         [Tooltip("혼란 구간에 쓰일 글자 풀. 의미를 읽을 수 없는 기호가 섞일수록 어지러워 보인다.")]
         [SerializeField, TextArea]
@@ -88,6 +101,18 @@ namespace ProjectS.UI
         [Tooltip("전체 시간 중 혼란(기호 난장)이 차지하는 비율. 나머지 구간에서 표기가 번갈아 나타난다.")]
         [SerializeField, Range(0f, 1f)] private float chaosRatio = 0.55f;
 
+        [Header("반복")]
+        [Tooltip("연출이 끝난 뒤 일정 간격으로 다시 터진다. 파티창 사망 표시처럼 계속 떠 있는 라벨에 쓴다. "
+                 + "끄면 예전처럼 한 번만 재생하고 정착값에서 멈춘다.")]
+        [SerializeField] private bool loop = false;
+
+        [Tooltip("버스트와 버스트 사이의 대기 시간(초). 이 동안에는 정착값을 유지한다.")]
+        [SerializeField, Min(0f)] private float loopInterval = 3f;
+
+        [Tooltip("대기 시간에 더해지는 무작위 폭(초). 카드가 여러 장일 때 전부 같은 순간에 터지지 않게 한다. "
+                 + "셰이더가 _Time을 공유해서, 이 값이 0이면 같은 설정의 라벨들이 딱 붙어서 함께 떤다.")]
+        [SerializeField, Min(0f)] private float loopIntervalJitter = 0.6f;
+
         [Header("모양 (머티리얼 값)")]
         [Tooltip("파편 한 조각의 크기(px). 작을수록 잘게 부서진다.")]
         [SerializeField, Min(1f)] private float cellSize = 9f;
@@ -109,6 +134,33 @@ namespace ProjectS.UI
 
         [Tooltip("글자 가장자리 부드러움.")]
         [SerializeField, Range(0f, 1f)] private float softness = 0.15f;
+
+        [Header("슬라이스 (가로 띠 어긋남)")]
+        [Tooltip("띠 하나의 높이. 값이 클수록 굵은 줄로 밀린다.")]
+        [SerializeField, Min(1f)] private float sliceHeight = 14f;
+
+        [Tooltip("글리치가 1일 때 좌우로 밀려나는 띠의 비율. 0이면 슬라이스를 쓰지 않는다(=기존 연출).")]
+        [SerializeField, Range(0f, 1f)] private float sliceAmount = 0f;
+
+        [Tooltip("띠가 밀리는 거리. 이것도 결국 폰트 아틀라스를 미는 것이라, 크게 주면 옆 칸의 다른 글자가 묻어 나온다.")]
+        [SerializeField, Range(0f, 16f)] private float sliceOffset = 4f;
+
+        [Header("고스트 (좌 빨강 / 우 시안)")]
+        [Tooltip("글자 사본이 좌우로 밀리는 거리. 0이면 고스트를 그리지 않는다(=기존 연출). "
+                 + "가산 합성이라 어두운 배경에서만 제대로 보인다.")]
+        [SerializeField, Min(0f)] private float ghostOffset = 0f;
+
+        [Tooltip("고스트가 프레임마다 덜컥거리는 폭. 0이면 일정한 거리로 고정된다.")]
+        [SerializeField, Min(0f)] private float ghostJitter = 0f;
+
+        [Tooltip("글리치가 잦아든 뒤에도 남는 고스트 비율. 1이면 연출이 끝나도 계속 갈라진 채로 있는다.")]
+        [SerializeField, Range(0f, 1f)] private float ghostIdle = 0.35f;
+
+        [Tooltip("왼쪽 사본의 색.")]
+        [SerializeField, ColorUsage(true, true)] private Color ghostColorL = new Color(1f, 0.06f, 0.22f, 1f);
+
+        [Tooltip("오른쪽 사본의 색.")]
+        [SerializeField, ColorUsage(true, true)] private Color ghostColorR = new Color(0.1f, 0.92f, 1f, 1f);
 
         [Header("동작")]
         [Tooltip("켜질 때 자동으로 재생한다. 팝업처럼 SetActive로 등장하는 UI에 맞춘 기본값.")]
@@ -215,6 +267,16 @@ namespace ProjectS.UI
             material.SetFloat(FlickerSpeedID, flickerSpeed);
             material.SetFloat(ScanlineID, scanline);
             material.SetFloat(SoftnessID, softness);
+
+            material.SetFloat(SliceHeightID, sliceHeight);
+            material.SetFloat(SliceAmountID, sliceAmount);
+            material.SetFloat(SliceOffsetID, sliceOffset);
+
+            material.SetFloat(GhostOffsetID, ghostOffset);
+            material.SetFloat(GhostJitterID, ghostJitter);
+            material.SetFloat(GhostIdleID, ghostIdle);
+            material.SetColor(GhostColorLID, ghostColorL);
+            material.SetColor(GhostColorRID, ghostColorR);
         }
 
         /// <remarks>
@@ -340,14 +402,44 @@ namespace ProjectS.UI
             if (label != null) label.text = finalText;
         }
 
+        /// <remarks>
+        /// <see cref="loop"/>가 켜져 있으면 [버스트 -> 대기]를 무한 반복한다. 파티창 사망 표시처럼
+        /// 상태가 유지되는 동안 계속 떠 있는 라벨은, 한 번 잡히고 나면 정지 화면이 되어 버려
+        /// 시간이 지날수록 "죽어 있다"는 사실이 눈에 안 들어오기 때문이다.
+        /// 반복을 끄면 예전과 똑같이 한 번만 재생하고 끝난다.
+        /// </remarks>
         private IEnumerator PlayRoutine()
+        {
+            while (true)
+            {
+                yield return Burst();
+
+                if (!loop) break;
+
+                // 대기 중에도 정착값은 그대로 둔다. 완전히 0으로 끄면 버스트 사이가 '멀쩡한 글자'가 되어
+                // 다시 터질 때 뜬금없어 보인다. settledGlitch가 그 사이를 이어 주는 값이다.
+                float wait = loopInterval + Random.Range(0f, loopIntervalJitter);
+                float idle = 0f;
+
+                while (idle < wait)
+                {
+                    idle += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+            }
+
+            routine = null;
+        }
+
+        /// <summary>글리치 1에서 정착값까지 한 번 잦아드는 구간.</summary>
+        private IEnumerator Burst()
         {
             // 사망 연출은 timeScale이 0이거나 낮아진 상태에서 돌 수 있어 unscaled로 센다.
             float elapsed = 0f;
             float nextScramble = 0f;
 
             ApplyGlitch(1f);
-            label.text = BuildScramble(finalText.Length);
+            if (scrambleText) label.text = BuildScramble(finalText);
 
             while (elapsed < settleDuration)
             {
@@ -357,7 +449,7 @@ namespace ProjectS.UI
                 // 곡선은 1 → 0을 그리고, 거기에 정착값을 섞어 최종적으로 settledGlitch에서 멈춘다.
                 ApplyGlitch(Mathf.Lerp(settledGlitch, 1f, Mathf.Clamp01(settleCurve.Evaluate(t))));
 
-                if (elapsed >= nextScramble)
+                if (scrambleText && elapsed >= nextScramble)
                 {
                     nextScramble = elapsed + scrambleInterval;
                     label.text = ResolveText(t);
@@ -368,14 +460,13 @@ namespace ProjectS.UI
 
             ApplyGlitch(settledGlitch);
             label.text = finalText;
-            routine = null;
         }
 
         // 진행도에 따라 무엇을 보여줄지 고른다.
         // 앞구간은 기호 난장, 뒷구간은 cycleTexts를 순서대로 훑고, 끝나면 finalText.
         private string ResolveText(float t)
         {
-            if (t < chaosRatio) return BuildScramble(finalText.Length);
+            if (t < chaosRatio) return BuildScramble(finalText);
 
             if (cycleTexts == null || cycleTexts.Length == 0) return finalText;
 
@@ -388,15 +479,26 @@ namespace ProjectS.UI
             return string.IsNullOrEmpty(candidate) ? finalText : candidate;
         }
 
-        private string BuildScramble(int length)
+        /// <remarks>
+        /// 글자 수만 세는 대신 원본을 그대로 훑는 이유: <b>줄바꿈과 공백을 제자리에 남겨야</b> 하기 때문이다.
+        /// 이것까지 기호로 바꾸면 혼란 구간에서 줄 수와 줄 길이가 통째로 달라져,
+        /// 글자가 부서지는 것이 아니라 라벨이 요동치며 레이아웃을 밀어내는 것으로 보인다.
+        /// (2026-09-02 TH: 두 줄 문구 지원)
+        /// </remarks>
+        private string BuildScramble(string template)
         {
             if (string.IsNullOrEmpty(scrambleCharset)) return finalText;
+            if (string.IsNullOrEmpty(template)) return finalText;
 
-            int count = Mathf.Max(1, length);
-            StringBuilder sb = new StringBuilder(count);
+            StringBuilder sb = new StringBuilder(template.Length);
 
-            for (int i = 0; i < count; i++)
-                sb.Append(scrambleCharset[Random.Range(0, scrambleCharset.Length)]);
+            foreach (char c in template)
+            {
+                if (c == '\n' || c == '\r' || c == ' ')
+                    sb.Append(c);
+                else
+                    sb.Append(scrambleCharset[Random.Range(0, scrambleCharset.Length)]);
+            }
 
             return sb.ToString();
         }
