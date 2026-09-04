@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -310,6 +310,18 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// 등록된 패널을 타입으로 찾아 반환한다(스택 최상단 여부와 무관한 순수 조회).
+        /// 아직 열린 적 없거나 수집되지 않은 패널이면 null이므로, 씬 종료 등 켜져 있다는 보장이 없는
+        /// 시점에서 부를 때는 반환값을 null 조건 접근(<c>?.</c>)으로 다뤄야 한다.
+        /// </summary>
+        /// <typeparam name="T">BasePanel을 상속받은 클래스</typeparam>
+        /// <returns>등록된 패널. 등록돼 있지 않으면 null</returns>
+        public T GetPanel<T>() where T : BasePanel
+        {
+            return panelMap.TryGetValue(typeof(T), out var panel) ? panel as T : null;
+        }
+
+        /// <summary>
         /// 가장 최근에 연(맨 위) 팝업을 닫는다. 뒤로가기가 팝업을 한 번에 하나씩 닫을 때 사용.
         /// </summary>
         private void CloseTopPopup()
@@ -325,7 +337,6 @@ namespace ProjectS.Managers
             Back();
             DevLog.Log("[UIManager] Back");
         }
-
 
         public void ShowLoading()
         => loadingPanel.Show();
