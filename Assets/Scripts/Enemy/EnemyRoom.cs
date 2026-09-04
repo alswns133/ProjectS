@@ -137,12 +137,10 @@ namespace ProjectS.Enemies
         // 소환(앞 트리거) → 문 통과 → 잠금(안쪽 트리거) 순서를 만들기 위해 두 트리거로 나눴다.
         private void OnTriggerEnter(Collider other)
         {
-            ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] OnTriggerEnter other='{other.name}' tag='{other.tag}' isStart={isStart} triggered={triggered}", this);
-
             // 준비되지 않았다면 이벤트 종료
-            if (isStart == false) { ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] Enter 무시 — isStart=false(프리로드 전)", this); return; }
+            if (isStart == false) return;
 
-            if (triggered || !other.CompareTag("Player")) { ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] Enter 무시 — triggered={triggered} isPlayer={other.CompareTag("Player")}", this); return; }
+            if (triggered || !other.CompareTag("Player")) return;
             triggered = true;
 
             // '현재 방' 등록은 여기(소환 트리거=문 앞/통로)서 하지 않는다. 소환 트리거가 통로까지 나와 있어,
@@ -151,8 +149,6 @@ namespace ProjectS.Enemies
 
             // TODO(멀티): 트리거는 클라 감지 → Command로 서버에 요청, 스폰은 서버가.
             onPlayerEnter?.Invoke(this);    // 권위(컨트롤러)에 위임 → 스폰 동기 실행, RegisterSpawned로 목록이 채워진다.
-
-            ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] ① 소환 완료 — 몹 {encounterEnemies.Count}마리. 문은 아직 안 잠금(방 안 RoomLockZone 진입 대기). {DoorStates()}", this);
 
             trigger.enabled = false;    // 소환은 1회면 충분. 잠금은 방 안 RoomLockZone이 담당한다.
 
@@ -169,11 +165,11 @@ namespace ProjectS.Enemies
         /// 이미 잠갔으면(<see cref="encounterStarted"/>) 중복 호출을 막는다.</remarks>
         public void BeginEncounterFromLockZone()
         {
-            if (encounterStarted) { ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] 잠금존 진입 무시 — 이미 잠금 시작됨", this); return; }
+            if (encounterStarted) return;
 
             if (!triggered)
             {
-                ProjectS.Debugging.DevLog.Warning($"[EnemyRoom:{name}] 잠금존 진입했지만 아직 소환 전(triggered=false) — 소환 트리거(문 앞)가 잠금존(방 안)보다 앞에 있는지 배선 확인 필요. 잠금 생략.", this);
+                ProjectS.Debugging.DevLog.Warning($"{name}: 잠금존 진입했지만 아직 소환 전(triggered=false) — 이 잠금존의 room 참조가 엉뚱한 방을 가리키거나, 소환 트리거(문 앞)가 잠금존(방 안)보다 앞에 있는지 배선을 확인하세요. 잠금 생략.", this);
                 return;
             }
 
@@ -184,24 +180,8 @@ namespace ProjectS.Enemies
             // 남아 나침반이 '다음 방'을 계속 가리킨다. 위젯은 CurrentRoom의 클리어 상태·나가는 문으로 방향을 잡는다.
             DungeonNav.SetCurrentRoom(this);
 
-            ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] ③ 방 진입(RoomLockZone) → CurrentRoom={name}, 이제 잠금 시작", this);
-
             // 스폰이 끝나 목록이 확정된 뒤 전투를 시작한다(문 잠금).
             BeginEncounter();
-        }
-
-        // 디버그용: 두 문 배열의 잠금 상태를 한 줄로 찍는다. 잠금이 언제 걸리는지 로그로 추적할 때 쓴다.
-        private string DoorStates()
-        {
-            string Fmt(AutoDoor[] doors, string label)
-            {
-                if (doors == null || doors.Length == 0) return $"{label}=(없음)";
-                var sb = new System.Text.StringBuilder(label).Append('=');
-                for (int i = 0; i < doors.Length; i++)
-                    sb.Append(doors[i] == null ? "null" : (doors[i].IsLocked ? "잠김" : "열림가능")).Append(i < doors.Length - 1 ? "," : "");
-                return sb.ToString();
-            }
-            return $"[{Fmt(entranceDoors, "출입문")} / {Fmt(exitDoors, "나가는문")}]";
         }
 
         // 준비가 됐는지 체크하는 메서드
@@ -236,9 +216,7 @@ namespace ProjectS.Enemies
             SetLocked(entranceDoors, true);
             SetLocked(exitDoors, true);
 
-            ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] ③ 잠금 완료(BeginEncounter). {DoorStates()} 몹 {encounterEnemies.Count}마리, 전멸감시 시작", this);
-
-            if (AllEnemiesDead()) { ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] 진입 즉시 전멸 상태(몹 0 또는 전부 사망) → 바로 개방", this); OnCleared(); }
+            if (AllEnemiesDead()) OnCleared();
         }
 
         // 전투 중일 때만 클리어를 감시한다. 등록된 몬스터를 훑는 가벼운 루프라
@@ -270,8 +248,6 @@ namespace ProjectS.Enemies
 
             SetLocked(exitDoors, false);
             SetLocked(entranceDoors, false);
-
-            ProjectS.Debugging.DevLog.Log($"[EnemyRoom:{name}] ⑤ 전멸 → 개방(OnCleared). {DoorStates()}", this);
         }
 
         // 문 배열을 한꺼번에 잠그거나(닫힘) 풀어(근접 시 열림) 준다.

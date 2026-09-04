@@ -41,7 +41,6 @@ namespace ProjectS.Enemies
                 return;
             }
 
-            ProjectS.Debugging.DevLog.Log($"[RoomLockZone:{name}] 플레이어 방 진입 감지 → {room.name}에 잠금 요청", this);
             room.BeginEncounterFromLockZone();
 
             trigger.enabled = false;    // 잠금은 1회면 충분

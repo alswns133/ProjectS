@@ -36,9 +36,6 @@ namespace ProjectS.UI
         // 방위각 계산용 카메라. 파괴되면 다음 프레임에 다시 잡는다(QuestTrackerHud와 같은 방침).
         private Camera navCamera;
 
-        // 진단용: 숨김/표시 사유가 바뀔 때만 로그를 찍어 매 프레임 스팸을 막는다.
-        private string lastReason;
-
         // 표시 갱신은 LateUpdate에서. 목록 관리가 없어 방 하나만 보면 되므로 가볍다.
         private void LateUpdate()
         {
@@ -46,15 +43,8 @@ namespace ProjectS.UI
 
             // 방 없음(던전 밖·미진입) 또는 전투 중(아직 클리어 전) → 숨김.
             // room이 파괴된 방이어도 Unity의 == 오버로드가 null로 잡아 준다.
-            if (room == null)
+            if (room == null || !room.IsCleared)
             {
-                Report("숨김 — CurrentRoom=null (던전 밖·방 미진입)");
-                SetVisible(false);
-                return;
-            }
-            if (!room.IsCleared)
-            {
-                Report($"숨김 — '{room.name}'(RoomIndex={room.RoomIndex}) 아직 전투 중(미클리어)");
                 SetVisible(false);
                 return;
             }
@@ -63,7 +53,6 @@ namespace ProjectS.UI
             Camera cam = ResolveNavCamera();
             if (playerTransform == null || cam == null)
             {
-                Report($"숨김 — player/cam 못 찾음 (player={(playerTransform != null)}, cam={(cam != null)})");
                 SetVisible(false);
                 return;
             }
@@ -71,14 +60,11 @@ namespace ProjectS.UI
             Vector3 from = playerTransform.position;
 
             // 클리어됐지만 가리킬 대상이 없으면(다음 방·exitDoor 둘 다 없음, 예: 최종 방) 안내하지 않는다.
-            if (!room.TryGetExitTarget(from, out Vector3 target, out Transform targetTransform))
+            if (!room.TryGetExitTarget(from, out Vector3 target, out Transform _))
             {
-                Report($"숨김 — '{room.name}'(RoomIndex={room.RoomIndex}) 클리어됐지만 가리킬 대상 없음: GetRoom({room.RoomIndex + 1})={(DungeonNav.GetRoom(room.RoomIndex + 1) != null ? "있음" : "null")}, 열린 exitDoor 폴백도 실패. → 방{room.RoomIndex + 1}의 RoomIndex 설정/등록 또는 방{room.RoomIndex}의 exitDoors 배선 확인.", room);
                 SetVisible(false);
                 return;
             }
-
-            Report($"표시 — '{room.name}'(RoomIndex={room.RoomIndex}) → 대상 '{(targetTransform != null ? targetTransform.name : "?")}'", room);
 
             Vector3 to = target - from;
             to.y = 0f;   // 방위각·방향은 XZ 평면 기준(높이 차 무시).
@@ -97,14 +83,6 @@ namespace ProjectS.UI
         private void SetVisible(bool value)
         {
             if (root != null && root.activeSelf != value) root.SetActive(value);
-        }
-
-        // 사유가 직전과 다를 때만 로그를 남긴다(LateUpdate라 매 프레임 도는 것을 감안). 원인 추적용.
-        private void Report(string reason, Object context = null)
-        {
-            if (reason == lastReason) return;
-            lastReason = reason;
-            ProjectS.Debugging.DevLog.Log($"[DungeonNavWidget] {reason}", context != null ? context : this);
         }
 
         private Transform ResolvePlayerTransform()

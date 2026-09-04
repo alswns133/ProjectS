@@ -121,7 +121,6 @@ namespace ProjectS.Scenes
         private void Awake()
         {
             locked = startLocked;
-            ProjectS.Debugging.DevLog.Log($"[AutoDoor:{name}] Awake — startLocked={startLocked} (true면 근접해도 안 열림, Unlock 받아야 열림)", this);
 
             trigger = GetComponent<BoxCollider>();
             trigger.isTrigger = true;   // 물리 충돌이 아니라 감지 전용
@@ -156,7 +155,6 @@ namespace ProjectS.Scenes
             occupants.Add(other);
             closeAt = -1f;      // 닫기 예약 취소
 
-            ProjectS.Debugging.DevLog.Log($"[AutoDoor:{name}] 감지 진입 '{other.name}' — locked={locked} → {(locked ? "잠겨서 안 열림" : "열림")}", this);
             if (!locked) SetOpen(true);
         }
 
@@ -198,7 +196,6 @@ namespace ProjectS.Scenes
         /// </summary>
         public void Unlock()
         {
-            ProjectS.Debugging.DevLog.Log($"[AutoDoor:{name}] Unlock() 호출 — 현재 locked={locked}, 범위내플레이어={HasOccupant()}", this);
             if (!locked) return;
 
             locked = false;
@@ -212,7 +209,6 @@ namespace ProjectS.Scenes
         /// <summary>다시 잠근다. 열려 있었다면 닫는다.</summary>
         public void Lock()
         {
-            ProjectS.Debugging.DevLog.Log($"[AutoDoor:{name}] Lock() 호출 — 문 닫고 잠금", this);
             locked = true;
             closeAt = -1f;
             SetOpen(false);
