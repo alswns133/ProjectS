@@ -83,9 +83,28 @@ namespace ProjectS.UI
         [ColorUsage(true, true)]
         [SerializeField] private Color fireColor = new(1f, 0.24f, 0.05f, 1f);
 
-        [Tooltip("코어·불씨 색. HDR이라 Bloom이 집는다.")]
+        [Tooltip("호박색 구간. HDR이라 Bloom이 집는다.")]
         [ColorUsage(true, true)]
-        [SerializeField] private Color hotColor = new(1f, 0.78f, 0.3f, 1f);
+        [SerializeField] private Color hotColor = new(1f, 0.66f, 0.18f, 1f);
+
+        [Tooltip("가장 뜨거운 심지·불씨 색. 화면에 아주 좁게 나와야 뜨거워 보인다.")]
+        [ColorUsage(true, true)]
+        [SerializeField] private Color whiteHotColor = new(1f, 0.95f, 0.82f, 1f);
+
+        [Tooltip("불꽃 사이의 어두운 연기 색. 이 어두운 구간이 있어야 명암이 갈려 이글거림이 보인다 " +
+                 "— 밝기만 다른 주황 한 가지로는 균일한 색면이 된다.")]
+        [SerializeField] private Color smokeColor = new(0.09f, 0.045f, 0.035f, 1f);
+
+        [Header("불똥")]
+        [Tooltip("타는 경계에서 떠오를 잉걸불. 비우면 불똥 없이 걷히기만 한다. " +
+                 "전기 스파크(SparkBurstFx)가 아니라 부력으로 하늘거리며 오르는 쪽이다.")]
+        [SerializeField] private EmberDriftFx embers;
+
+        [Tooltip("걷히는 동안 초당 띄울 불똥 수. 경계가 길어지는 후반에 더 많이 나도록 반지름에 비례시킨다.")]
+        [SerializeField, Min(0f)] private float embersPerSecond = 70f;
+
+        [Tooltip("불똥이 경계선에서 흩어지는 폭(px). 0이면 정확히 원 위에 줄지어 티가 난다.")]
+        [SerializeField, Min(0f)] private float emberScatter = 30f;
 
         private RectTransform self;
         private Material material;
@@ -94,6 +113,13 @@ namespace ProjectS.UI
         // 덮는 순간에 뜬 화면 좌표. 카메라가 움직여도 불의 중심이 미끄러지지 않게 고정해 둔다.
         private Vector2 center = new(0.5f, 0.5f);
 
+        // 불똥 방출의 소수점 나머지. 프레임마다 버리면 초당 개수가 프레임레이트에 끌려 들쭉날쭉해진다.
+        private float emberCarry;
+
+        // 이번 프레임의 렉트 크기·최대 반지름. UpdateGeometry가 채우고 불똥 방출이 그대로 쓴다.
+        private Vector2 rectSize = new(1920f, 1080f);
+        private float maxRadius = 1100f;
+
         private static readonly int CoverID = Shader.PropertyToID("_Cover");
         private static readonly int BurnID = Shader.PropertyToID("_Burn");
         private static readonly int CenterID = Shader.PropertyToID("_Center");
@@ -101,6 +127,8 @@ namespace ProjectS.UI
         private static readonly int MaxRadiusID = Shader.PropertyToID("_MaxRadius");
         private static readonly int FireColorID = Shader.PropertyToID("_FireColor");
         private static readonly int HotColorID = Shader.PropertyToID("_HotColor");
+        private static readonly int WhiteHotID = Shader.PropertyToID("_WhiteHot");
+        private static readonly int SmokeColorID = Shader.PropertyToID("_SmokeColor");
         private static readonly int FxTimeID = Shader.PropertyToID("_FxTime");
 
         /// <summary>지금 화면이 가려져 있거나 가려지는 중인지.</summary>
@@ -180,6 +208,10 @@ namespace ProjectS.UI
         {
             if (routine != null) StopCoroutine(routine);
             routine = null;
+            emberCarry = 0f;
+
+            // 떠 있던 불똥까지 치운다. 남겨 두면 가림막만 사라지고 불똥이 허공에 떠 있다.
+            if (embers != null) embers.Clear();
 
             if (!Prepare()) return;
 
@@ -203,7 +235,9 @@ namespace ProjectS.UI
         {
             if (!Prepare()) yield break;
 
-            routine = StartCoroutine(Drive(BurnID, burnCurve, burnDuration));
+            emberCarry = 0f;
+
+            routine = StartCoroutine(Drive(BurnID, burnCurve, burnDuration, emitEmbers: true));
             yield return routine;
             routine = null;
 
@@ -213,23 +247,59 @@ namespace ProjectS.UI
         }
 
         /// <summary>지정한 셰이더 값을 0에서 <see cref="overshoot"/>만큼 넘긴 지점까지 곡선대로 민다.</summary>
-        private IEnumerator Drive(int propertyID, AnimationCurve curve, float duration)
+        /// <param name="propertyID">밀 셰이더 프로퍼티(<c>_Cover</c> 또는 <c>_Burn</c>)</param>
+        /// <param name="curve">진행 곡선</param>
+        /// <param name="duration">걸리는 시간(초)</param>
+        /// <param name="emitEmbers">진행하는 경계선에서 불똥을 띄울지. 걷힘에서만 켠다.</param>
+        private IEnumerator Drive(int propertyID, AnimationCurve curve, float duration, bool emitEmbers = false)
         {
             float goal = 1f + overshoot;
             float elapsed = 0f;
 
             while (elapsed < duration)
             {
-                elapsed += Time.unscaledDeltaTime;
+                float dt = Time.unscaledDeltaTime;
+                elapsed += dt;
                 UpdateGeometry();
 
                 // 곡선이 잘못 잡혀도 범위를 벗어난 값이 셰이더로 새어 나가지 않게 막는다.
                 float t = Mathf.Clamp01(curve.Evaluate(Mathf.Clamp01(elapsed / duration)));
-                material.SetFloat(propertyID, t * goal);
+                float progress = t * goal;
+                material.SetFloat(propertyID, progress);
+
+                if (emitEmbers) EmitEmbers(progress, dt);
                 yield return null;
             }
 
             material.SetFloat(propertyID, goal);
+        }
+
+        /// <summary>
+        /// 지금 타고 있는 경계선(중심에서 <paramref name="progress"/>만큼 떨어진 원) 위에 불똥을 띄운다.
+        /// </summary>
+        /// <remarks>
+        /// 한 점에서 터뜨리지 않고 <b>원 둘레를 따라</b> 뿌리는 것이 요점이다. 불똥은 타는 자리에서 나므로,
+        /// 경계가 넓어질수록 나오는 자리도 넓어져야 한다. 그래서 개수를 반지름에 비례시킨다 —
+        /// 고정 개수로 두면 처음엔 빽빽하고 나중엔 듬성듬성해져 불이 꺼져 가는 것처럼 보인다.
+        /// </remarks>
+        private void EmitEmbers(float progress, float deltaTime)
+        {
+            if (embers == null || embersPerSecond <= 0f) return;
+
+            float radius = progress * maxRadius;
+
+            // 반지름 0에서는 낼 자리가 없다. 화면 절반쯤 왔을 때가 기준 개수가 되도록 정규화한다.
+            float density = Mathf.Clamp01(radius / Mathf.Max(1f, maxRadius * 0.5f));
+
+            emberCarry += embersPerSecond * density * deltaTime;
+
+            int amount = Mathf.FloorToInt(emberCarry);
+            if (amount <= 0) return;
+
+            emberCarry -= amount;
+
+            Vector2 centerPx = new((center.x - 0.5f) * rectSize.x, (center.y - 0.5f) * rectSize.y);
+            embers.EmitRing(centerPx, radius, amount, emberScatter);
         }
 
         /// <summary>월드 좌표를 뷰포트(0~1)로 옮긴다. 카메라 뒤에 있으면 화면 중앙으로 떨어뜨린다.</summary>
@@ -272,9 +342,12 @@ namespace ProjectS.UI
             float dx = Mathf.Max(center.x, 1f - center.x) * w;
             float dy = Mathf.Max(center.y, 1f - center.y) * h;
 
+            rectSize = new Vector2(w, h);
+            maxRadius = Mathf.Sqrt(dx * dx + dy * dy);
+
             material.SetVector(CenterID, new Vector4(center.x, center.y, 0f, 0f));
             material.SetVector(RectSizeID, new Vector4(w, h, 0f, 0f));
-            material.SetFloat(MaxRadiusID, Mathf.Sqrt(dx * dx + dy * dy));
+            material.SetFloat(MaxRadiusID, maxRadius);
         }
 
         /// <summary>머티리얼 인스턴스를 준비한다. 참조가 빠져 있으면 경고 후 조용히 물러난다.</summary>
@@ -298,8 +371,7 @@ namespace ProjectS.UI
             // 에셋이 아니라 인스턴스를 만든다. 에셋을 직접 만지면 씬 diff가 남고
             // 다음 판이 탄 상태로 시작한다. DontSave로 에디터 재생에서도 남지 않게 한다.
             material = new Material(curtainShader) { hideFlags = HideFlags.DontSave };
-            material.SetColor(FireColorID, fireColor);
-            material.SetColor(HotColorID, hotColor);
+            ApplyColors();
 
             target.material = material;
 
@@ -319,14 +391,26 @@ namespace ProjectS.UI
             routine = null;
         }
 
-#if UNITY_EDITOR
-        private void OnValidate()
+        /// <summary>
+        /// 색 램프 네 구간을 머티리얼에 넣는다.
+        /// </summary>
+        /// <remarks>
+        /// 네 색이 <b>차가운 쪽부터 뜨거운 쪽까지 고르게 벌어져 있어야</b> 이글거림이 보인다.
+        /// 밝기만 다른 주황 넷을 넣으면 셰이더가 아무리 명암을 벌려도 균일한 색면이 된다 —
+        /// 특히 <see cref="smokeColor"/>를 밝게 잡으면 불꽃 사이의 어두운 골이 사라져 밍밍해진다.
+        /// </remarks>
+        private void ApplyColors()
         {
             if (material == null) return;
 
+            material.SetColor(SmokeColorID, smokeColor);
             material.SetColor(FireColorID, fireColor);
             material.SetColor(HotColorID, hotColor);
+            material.SetColor(WhiteHotID, whiteHotColor);
         }
+
+#if UNITY_EDITOR
+        private void OnValidate() => ApplyColors();
 #endif
 
         private IEnumerator Wait(float seconds)
