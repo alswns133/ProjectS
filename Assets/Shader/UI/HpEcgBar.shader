@@ -120,12 +120,31 @@ Shader "ProjectS/UI/HpEcgBar"
                 // ── 2) ECG 파형 ──
                 // 시간에 따라 스크롤. _Alive 로 진폭을 죽여 flatline 으로.
                 float phase = uv.x * _Repeat + _Time.y * _BeatSpeed;
-                float wave  = ecgWave(phase) * _Amplitude * _Alive;
+
+                // ecgWave 의 최대 진폭은 R(=1.0). 기준선이 중앙이라 편차가 0.5를 넘으면 바를 벗어난다.
+                // 그런데 잘라야 하는 건 곡선이 아니라 '선의 바깥쪽'이다 — 선은 곡선에서
+                // _LineWidth 만큼 번지고, 픽셀 경계 보정(smoothstep 의 ±1px)까지 더 나간다.
+                // 그 여유를 빼지 않으면 R 꼭대기가 딱 경계에 걸려 위아래로 삐져나온다.
+                float margin = _LineWidth + fwidth(uv.y) * 1.5;
+                float maxDev = max(0.5 - margin, 0.0);
+
+                // 기본 진폭을 먼저 자르고 그 다음 _Alive 로 줄인다. 순서를 뒤집으면 _Amplitude 가 클 때
+                // 웬만한 체력 구간이 전부 상한에 걸려, 체력이 깎일수록 파형이 약해지는 변화가 죽는다.
+                float amp   = min(_Amplitude, maxDev) * _Alive;
+                float wave  = ecgWave(phase) * amp;
 
                 float centerY = 0.5;
-                float dist = abs(uv.y - (centerY + wave));
-                // 라인: 거리 기반 SDF → 부드러운 두께
-                float lineMask = 1.0 - smoothstep(0.0, _LineWidth, dist);
+
+                // 라인: 기울기로 정규화한 거리. abs(uv.y - y) 를 그대로 쓰면 두께가 항상
+                // '세로'로만 재져서, R 스파이크처럼 경사가 급한 곳에서는 인접 픽셀 열의 선분이
+                // 두께보다 멀리 떨어져 점선처럼 끊긴다. fwidth 로 나눠 픽셀 단위 거리로 바꾸면
+                // 경사와 무관하게 두께가 일정해진다.
+                float f    = uv.y - (centerY + wave);
+                float grad = max(fwidth(f), 1e-5);
+                float dPx  = abs(f) / grad;                          // 선까지의 픽셀 거리
+                float wPx  = _LineWidth / max(fwidth(uv.y), 1e-5);   // 선 두께도 픽셀로
+
+                float lineMask = 1.0 - smoothstep(wPx - 1.0, wPx + 1.0, dPx);
                 lineMask = saturate(lineMask * _EcgGlow);
 
                 col.rgb = lerp(col.rgb, _EcgColor.rgb, lineMask);
