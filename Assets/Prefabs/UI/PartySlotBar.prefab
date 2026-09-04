@@ -35,7 +35,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 44, y: 0}
+  m_SizeDelta: {x: 52, y: 0}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!222 &5703654089385133743
 CanvasRenderer:
@@ -67,8 +67,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\uD30C\uD2F0"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: cdcb117b22626f843998d553312603fe, type: 2}
+  m_sharedMaterial: {fileID: -6923793362663324378, guid: cdcb117b22626f843998d553312603fe, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -92,15 +92,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 12
-  m_fontSizeBase: 12
+  m_fontSize: 14
+  m_fontSizeBase: 14
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
   m_HorizontalAlignment: 1
-  m_VerticalAlignment: 4096
+  m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -169,13 +169,13 @@ RectTransform:
   m_Children:
   - {fileID: 8884439918082039506}
   - {fileID: 3330548855456560017}
-  - {fileID: 628314643410187201}
+  - {fileID: 669027741157280811}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 410, y: 44}
+  m_SizeDelta: {x: 768, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &7845249758569134162
 MonoBehaviour:
@@ -191,7 +191,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.PartySlotBar
   partySourceBehaviour: {fileID: 3304281694229404520}
   selfSlot: {fileID: 2784416877816319198}
-  partnerSlot: {fileID: 10265292750556302}
+  partnerSlot: {fileID: 131903754118476644}
   emptyLabel: "\uFF0B \uD30C\uD2F0\uC6D0 \uCD08\uB300"
   invitingLabel: "\uCD08\uB300 \uC911\u2026"
 --- !u!114 &3304281694229404520
@@ -261,7 +261,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 168
+      value: 340
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_SizeDelta.y
@@ -297,7 +297,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 54
+      value: 64
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -336,7 +336,7 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
   m_PrefabInstance: {fileID: 2117924540209191140}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &4315615551049291956
+--- !u!1001 &4185181626035988318
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -374,7 +374,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 168
+      value: 340
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_SizeDelta.y
@@ -410,7 +410,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 232
+      value: 416
       objectReference: {fileID: 0}
     - target: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -433,10 +433,10 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
---- !u!114 &10265292750556302 stripped
+--- !u!114 &131903754118476644 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4305543774107882554, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
-  m_PrefabInstance: {fileID: 4315615551049291956}
+  m_PrefabInstance: {fileID: 4185181626035988318}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -444,8 +444,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7f8218063bf487046bda72fe5a8a7f09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.PartySlotView
---- !u!224 &628314643410187201 stripped
+--- !u!224 &669027741157280811 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 3700865619786345333, guid: e718bd4bcf593bc4ca52ed2b3f5fa392, type: 3}
-  m_PrefabInstance: {fileID: 4315615551049291956}
+  m_PrefabInstance: {fileID: 4185181626035988318}
   m_PrefabAsset: {fileID: 0}
