@@ -47,6 +47,13 @@ namespace ProjectS.Enemies
         private float groggyMax;
         private string nameKey;
 
+        // 페이즈 전환용 데미지 하한 비율(0~1). 0보다 크면 TakeDamage가 HP를 maxHp*ratio 밑으로 깎지 않아,
+        // 보스가 이 지점에서 죽지 않고 멈춘다(BossPhaseTransition이 프리팹을 갈아끼울 틈을 준다). 0이면 기존 동작 그대로.
+        private float damageFloorRatio;
+
+        // 스폰 시 이어받을 HP(페이즈 인계). 0 이상이면 테이블 로딩이 풀피로 리셋해도 이 값으로 다시 맞춘다. 음수면 미설정.
+        private int spawnHpOverride = -1;
+
         public bool IsDead => currentHp <= 0;
 
         /// <summary>현재 HP. 보스 HP 바가 "현재/최대" 수치와 남은 줄 수 계산에 쓴다.</summary>
@@ -75,6 +82,29 @@ namespace ProjectS.Enemies
 
         /// <summary>월드 HP 바가 뜰 머리 위 높이. 바가 매 프레임 이 값으로 위치를 맞춘다.</summary>
         public float HpBarHeight => hpBarHeight;
+
+        /// <summary>
+        /// 데미지 하한 비율을 건다(0~1). 이후 <see cref="TakeDamage"/>는 HP를 <c>MaxHp*ratio</c> 밑으로 깎지 않는다.
+        /// 보스가 이 지점에서 죽지 않고 멈춰, <see cref="BossPhaseTransition"/>이 다음 페이즈로 프리팹을 갈아끼울 틈이 생긴다.
+        /// 빠지면(또는 0이면) 하한 없이 0까지 깎여 즉사 레이스로 페이즈 전환을 놓친다.
+        /// </summary>
+        /// <param name="ratio">하한 비율(0=하한 없음 · 0.5=절반에서 멈춤).</param>
+        public void SetDamageFloorRatio(float ratio) => damageFloorRatio = Mathf.Clamp01(ratio);
+
+        /// <summary>데미지 하한을 해제한다(0까지 깎이는 기존 동작으로 복귀). 최종 페이즈가 정상 사망하려면 반드시 호출한다.</summary>
+        public void ClearDamageFloor() => damageFloorRatio = 0f;
+
+        /// <summary>
+        /// 스폰 직후 이어받을 현재 HP를 지정한다(페이즈 인계). 즉시 반영하고, <b>테이블 로딩이 풀피로 리셋해도</b>
+        /// (<see cref="ApplyStatTableAsync"/>) 이 값으로 다시 맞춘다 — 페이즈가 바뀌어도 HP가 이어지게 하기 위함이다.
+        /// 두 페이즈가 같은 <c>monsterId</c>(같은 MaxHp)를 쓰면 HP 바가 튀지 않고 연속된다.
+        /// </summary>
+        /// <param name="hp">이어받을 현재 HP(0~MaxHp로 클램프).</param>
+        public void SetSpawnHp(int hp)
+        {
+            spawnHpOverride = Mathf.Max(0, hp);
+            currentHp = Mathf.Clamp(spawnHpOverride, 0, maxHp);
+        }
 
         private void Awake()
         {
@@ -123,6 +153,10 @@ namespace ProjectS.Enemies
             nameKey = row.NameKey;
             currentHp = maxHp;
 
+            // 페이즈 인계로 이어받은 HP가 있으면 방금의 풀피 리셋을 덮는다(스폰 시 SetSpawnHp가 지정).
+            // 이게 없으면 2페이즈가 테이블 로딩 후 풀피가 되어 "남은 HP 이어짐"이 깨진다.
+            if (spawnHpOverride >= 0) currentHp = Mathf.Clamp(spawnHpOverride, 0, maxHp);
+
             // 테이블이 확정된 뒤 그로기 최대치를 주입한다(있을 때만). 호출 순서를 여기서 소유해
             // EnemyGroggy가 자체 async로 값을 읽다 경쟁하는 것을 피한다.
             groggy?.ConfigureMax(groggyMax);
@@ -136,7 +170,10 @@ namespace ProjectS.Enemies
         {
             if (IsDead) return false;                 // 이미 죽었으면 무시(1회 사망 보장)
 
-            currentHp = Mathf.Max(0, currentHp - result.Amount);
+            // 페이즈 하한이 걸려 있으면(damageFloorRatio>0) 그 밑으로는 깎지 않는다 → 보스가 하한에서
+            // 죽지 않고 멈춰 페이즈 전환 틈이 생긴다. 하한이 0(기본)이면 기존대로 0까지 깎인다.
+            int floorHp = damageFloorRatio > 0f ? Mathf.CeilToInt(maxHp * damageFloorRatio) : 0;
+            currentHp = Mathf.Max(floorHp, currentHp - result.Amount);
 
             // 피격 피드백: 하이라이트를 잠깐 번쩍인다(사망 타격 포함, "맞았다"를 항상 보여준다).
             hitHighlight?.Flash();
