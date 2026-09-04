@@ -113853,7 +113853,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 403055931465933676, guid: 1bf3509e76fde9543b85b216fff0afd7, type: 3}
       propertyPath: enemyRef.m_AssetGUID
-      value: 0eae07f582c475f46b87a4821fd4de84
+      value: 2817cbbd419ab7a49baeba9a869471ec
       objectReference: {fileID: 0}
     - target: {fileID: 2218356920659794060, guid: 1bf3509e76fde9543b85b216fff0afd7, type: 3}
       propertyPath: m_LocalPosition.x
@@ -268878,8 +268878,36 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5687241768397509265, guid: 2817cbbd419ab7a49baeba9a869471ec, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2012447640}
   m_SourcePrefab: {fileID: 100100000, guid: 2817cbbd419ab7a49baeba9a869471ec, type: 3}
+--- !u!1 &2012447639 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5687241768397509265, guid: 2817cbbd419ab7a49baeba9a869471ec, type: 3}
+  m_PrefabInstance: {fileID: 2012447638}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2012447640
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2012447639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35344932fcb08c444a4cf79f78ad60ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.BossPhaseTransition
+  nextPhasePrefab:
+    m_AssetGUID: 0eae07f582c475f46b87a4821fd4de84
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
+  thresholdRatio: 0.5
+  nextPhaseIsFinal: 1
 --- !u!1001 &2012701476
 PrefabInstance:
   m_ObjectHideFlags: 0
