@@ -337259,13 +337259,14 @@ GameObject:
   - component: {fileID: 5505765111664774720}
   - component: {fileID: 579016328181636031}
   - component: {fileID: 8030149592569324985}
+  - component: {fileID: 1086985040705840487}
   m_Layer: 6
   m_Name: Boss_Raid_Hammer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &934399763404840066
 Transform:
   m_ObjectHideFlags: 0
@@ -338451,6 +338452,26 @@ MonoBehaviour:
     directionJitter: 0
     hitStopDuration: 0
     hitStopTimeScale: 0
+--- !u!114 &1086985040705840487
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5687241768397509265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35344932fcb08c444a4cf79f78ad60ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.BossPhaseTransition
+  nextPhasePrefab:
+    m_AssetGUID: 0eae07f582c475f46b87a4821fd4de84
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
+  thresholdRatio: 0.5
+  nextPhaseIsFinal: 1
 --- !u!1 &5687600060786113994
 GameObject:
   m_ObjectHideFlags: 0
