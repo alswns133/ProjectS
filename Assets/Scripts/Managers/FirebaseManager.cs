@@ -228,7 +228,8 @@ namespace ProjectS.Managers
         /// </summary>
         /// <param name="characterType">캐릭터 타입(1=검사, 2=거너). PlayerStatTable.CharacterId.</param>
         /// <param name="name">캐릭터 이름(2~12자, 전 서버 유니크).</param>
-        public async Task<CreateCharacterResult> CreateCharacter(int characterType, string name)
+        /// <param name="tutorialState">튜토리얼 진행 상태.</param>
+        public async Task<CreateCharacterResult> CreateCharacter(int characterType, string name, Core.TutorialState tutorialState)
         {
             if (!IsInitialized || CurrentUid == null) return CreateCharacterResult.Failed;
 
@@ -250,7 +251,7 @@ namespace ProjectS.Managers
                 if (await IsNameUsedByOwnCharacter(nameKey)) return CreateCharacterResult.NameTaken;
 
                 long id = DateTime.UtcNow.Ticks;
-                CharacterSaveData data = new CharacterSaveData(id, characterType, name);
+                CharacterSaveData data = new CharacterSaveData(id, characterType, name, tutorialState);
 
                 // 멀티패스 쓰기는 raw JSON을 못 섞으므로 CharacterSaveData를 중첩 Dictionary로 변환한다.
                 // DeserializeObject<Dictionary<string,object>>는 최상위 한 겹만 풀고 중첩 컬렉션
