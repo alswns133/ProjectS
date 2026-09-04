@@ -2,6 +2,7 @@
 using UnityEngine;
 using ProjectS.Managers;
 using ProjectS.UI;
+using ProjectS.Core;
 
 namespace ProjectS.Scenes
 {
@@ -23,12 +24,21 @@ namespace ProjectS.Scenes
         [Header("미니맵")]
         [SerializeField] private StageMinimap[] stageMinimaps;
 
-        private void RequsetScene()
+        private TutorialState tutorialState;
+
+        // 아직 튜토리얼을 실행해야 하는지 여부(미완료/진행중이면 튜토리얼 씬으로 보낸다).
+        private bool isTutorial => tutorialState == TutorialState.Undone
+                                || tutorialState == TutorialState.Ongoing;
+
+
+
+        private void RequsetScene() 
         {
             GameSceneManager.Instance.RegisterScene<VillageGather>(false);
             GameSceneManager.Instance.RegisterScene<Dungeon1>(false);
             GameSceneManager.Instance.RegisterScene<Dungeon2>(false);
             GameSceneManager.Instance.RegisterScene<Raid>(false);
+            GameSceneManager.Instance.RegisterScene<Tutorial>(false);
         }
 
         // 스테이지별 미니맵 데이터를 조회 등록소에 넣는다. 씬 전환(RequestSceneChange)보다 먼저 호출해야
@@ -65,7 +75,18 @@ namespace ProjectS.Scenes
 
             // 3) 모든 준비 완료 → 게임 씬으로 전환
             Debug.Log("[Bootstrap] 초기화 완료, 다음 씬으로 이동");
-            GameSceneManager.Instance.RequestSceneChange<VillageGather>();
+
+            var selected = GameSession.SelectedCharacter;
+            tutorialState = selected != null ? selected.tutorialState
+                                             : TutorialState.Completed; // 로그인 없이 씬 직접 실행 → 마을 폴백
+            if (isTutorial)
+            {
+                GameSceneManager.Instance.RequestSceneChange<Tutorial>();
+            }
+            else
+            {
+                GameSceneManager.Instance.RequestSceneChange<VillageGather>();
+            }
         }
     }
 }

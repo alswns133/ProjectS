@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using ProjectS.Managers;
 
 namespace ProjectS.UI.Framework
