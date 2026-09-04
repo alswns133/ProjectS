@@ -65,6 +65,9 @@ namespace ProjectS.Scenes
             // 전환 동안 지속 플레이어를 잠시 끈다(월드에 방치돼 떨어지지 않게).
             if (PlayerManager.Instance != null) PlayerManager.Instance.Hide();
 
+            // 전투에서 나감으로써 HUD의 콤보·점수·타이머를 숨긴다. (HUDPanel은 씬 전환 중에도 살아 있으므로 여기서 끈다.)
+            if (UIManager.Instance != null) UIManager.Instance.GetPanel<HUDPanel>()?.SetHitComboVisible(false);
+
             enemySpawner?.ClearAndRelease();
             alive.Clear();
         }

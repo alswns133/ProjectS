@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ProjectS.Core;
 
 namespace ProjectS.Data
 {
@@ -74,13 +75,19 @@ namespace ProjectS.Data
         /// </summary>
         public List<int> unlockedSkills = new();
 
+        /// <summary>
+        /// 튜토리얼 진행 상태. Undone=안함, Ongoing=진행중, Completion=완료, Skipped=건너뜀.
+        /// </summary>
+        public TutorialState tutorialState = TutorialState.Undone;
+
         public CharacterSaveData() { }
 
-        public CharacterSaveData(long uniqueId, int characterType, string name)
+        public CharacterSaveData(long uniqueId, int characterType, string name , TutorialState tutorialState)
         {
             this.uniqueId = uniqueId;
             this.characterType = characterType;
             this.name = name;
+            this.tutorialState = tutorialState;
         }
     }
 
