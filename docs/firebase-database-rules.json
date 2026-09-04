@@ -73,6 +73,7 @@
             "unlockedSkills": {
               "$i": { ".validate": "newData.isNumber()" }
             },
+            "tutorialState": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3" },
             "$other": { ".validate": false }
           }
         }

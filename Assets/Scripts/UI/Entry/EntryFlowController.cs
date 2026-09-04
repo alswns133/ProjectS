@@ -251,7 +251,7 @@ namespace ProjectS.UI
             }
 
             createPage.SetHint("생성 중...");
-            CreateCharacterResult result = await FirebaseManager.Instance.CreateCharacter(pendingClassType, name);
+            CreateCharacterResult result = await FirebaseManager.Instance.CreateCharacter(pendingClassType, name,  ProjectS.Core.TutorialState.Undone);
             if (this == null) return;
 
             if (result == CreateCharacterResult.Success)

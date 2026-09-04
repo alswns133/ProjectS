@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.Managers;
+using ProjectS.Core;
 
 namespace ProjectS.UI
 {
@@ -126,7 +127,9 @@ namespace ProjectS.UI
             SetInteractable(false);
             SetMessage("생성 중...");
 
-            CreateCharacterResult result = await FirebaseManager.Instance.CreateCharacter(type, nameField.text);
+            TutorialState tutorialState = TutorialState.Undone;   // 새 캐릭터는 무조건 튜토리얼 미완료
+
+            CreateCharacterResult result = await FirebaseManager.Instance.CreateCharacter(type, nameField.text, tutorialState);
             if (this == null) return;
 
             switch (result)

@@ -174,7 +174,7 @@ namespace ProjectS.UI
 
         public void SetExp(float ratio)
         {
-            expBar.fillAmount = ratio ;
+            expBar.fillAmount = ratio;
         }
 
         /// <summary>
@@ -222,6 +222,11 @@ namespace ProjectS.UI
             {
                 hitCombo.gameObject.SetActive(false);
             }
+        }
+
+        public void SetHitComboVisible(bool visible)
+        {
+            hitCombo.gameObject.SetActive(visible);
         }
     }
 }
