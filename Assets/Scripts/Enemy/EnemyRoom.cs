@@ -31,7 +31,13 @@ namespace ProjectS.Enemies
         [SerializeField] private int roomIndex;
 
         private bool isStart = false;
+
+        // 소환을 한 번만 돌리는 가드(첫 입장 = 소환). 문 앞 트리거에 들어오는 순간 켜진다.
         private bool triggered;
+
+        // 잠금(전투 시작)을 한 번만 돌리는 가드(문 통과 = 잠금). 문 앞 트리거를 벗어나는 순간 켜진다.
+        // 소환(Enter)과 잠금(Exit)을 서로 다른 두 시점으로 나누기 위해 triggered와 별도로 둔다.
+        private bool encounterStarted;
 
         // 이 방에서 스폰된 몬스터들. 컨트롤러(스폰 권위)가 생성 직후 RegisterSpawned로 넘겨준다.
         // 전부 IsDead가 되면 방 클리어로 보고 문을 연다.
@@ -127,7 +133,8 @@ namespace ProjectS.Enemies
 
         public void Bind(System.Action<EnemyRoom> callback) => onPlayerEnter = callback;
 
-        // 플레이어 입장 감지 => 컨트롤러(권위)에 "이 방 스폰" 요청. 직접 생성하지 않음.
+        // 플레이어가 문 앞 트리거에 '입장' => 소환만 한다. 잠금은 방 안쪽 RoomLockZone이 담당한다.
+        // 소환(앞 트리거) → 문 통과 → 잠금(안쪽 트리거) 순서를 만들기 위해 두 트리거로 나눴다.
         private void OnTriggerEnter(Collider other)
         {
             // 준비되지 않았다면 이벤트 종료
@@ -136,15 +143,44 @@ namespace ProjectS.Enemies
             if (triggered || !other.CompareTag("Player")) return;
             triggered = true;
 
-            // 이 방을 던전 네비게이션의 '현재 방'으로 등록한다. 위젯이 이 방의 클리어 상태·나가는 문을 읽어
-            // "다음 지역" 방향을 표시한다. 방을 옮기면 그 방이 다시 등록해 목표가 자동으로 갱신된다.
-            DungeonNav.SetCurrentRoom(this);
+            // '현재 방' 등록은 여기(소환 트리거=문 앞/통로)서 하지 않는다. 소환 트리거가 통로까지 나와 있어,
+            // 여기서 CurrentRoom을 바꾸면 이전 방을 막 클리어하고 통로를 걷는 순간 이미 이 방으로 넘어가
+            // "다음 방으로" 나침반 안내가 뜨자마자 꺼진다. 방에 실제 진입하는 잠금존(BeginEncounterFromLockZone)에서 바꾼다.
 
             // TODO(멀티): 트리거는 클라 감지 → Command로 서버에 요청, 스폰은 서버가.
             onPlayerEnter?.Invoke(this);    // 권위(컨트롤러)에 위임 → 스폰 동기 실행, RegisterSpawned로 목록이 채워진다.
-            trigger.enabled = false;
 
-            // 스폰이 끝나 목록이 확정된 뒤 전투를 시작한다(문 잠금). invoke 뒤에 와야 몹 수를 정확히 안다.
+            trigger.enabled = false;    // 소환은 1회면 충분. 잠금은 방 안 RoomLockZone이 담당한다.
+
+            // 잠금은 여기서 하지 않는다 — 문을 완전히 통과해 방에 들어온 순간(RoomLockZone)에 BeginEncounterFromLockZone으로 건다.
+            // 트리거가 문 앞에서 끝나 문 통과 '전에' 잠기던 문제를 피하려고, 소환(앞)과 잠금(안쪽)을 두 트리거로 나눴다.
+        }
+
+        /// <summary>
+        /// 방 안쪽 잠금 트리거(<see cref="RoomLockZone"/>)가 플레이어 방 진입을 감지했을 때 호출한다.
+        /// 문을 완전히 통과한 뒤에야 잠기도록, 소환(앞 트리거)과 잠금(이 진입점)을 두 지점으로 나눈 것이다.
+        /// </summary>
+        /// <remarks>소환이 아직 안 됐으면(<see cref="triggered"/>=false) 배선 순서가 어긋난 것이라 경고만 남기고 무시한다
+        /// (몹 목록이 빈 채 잠그면 <see cref="AllEnemiesDead"/>가 즉시 참이 되어 방이 곧바로 클리어된다).
+        /// 이미 잠갔으면(<see cref="encounterStarted"/>) 중복 호출을 막는다.</remarks>
+        public void BeginEncounterFromLockZone()
+        {
+            if (encounterStarted) return;
+
+            if (!triggered)
+            {
+                ProjectS.Debugging.DevLog.Warning($"{name}: 잠금존 진입했지만 아직 소환 전(triggered=false) — 이 잠금존의 room 참조가 엉뚱한 방을 가리키거나, 소환 트리거(문 앞)가 잠금존(방 안)보다 앞에 있는지 배선을 확인하세요. 잠금 생략.", this);
+                return;
+            }
+
+            encounterStarted = true;
+
+            // 이 방을 던전 네비게이션의 '현재 방'으로 등록한다. 소환(앞 트리거)이 아니라 방에 실제로 들어온
+            // 이 시점에 바꿔야, 이전 방을 클리어하고 통로를 걷는 동안엔 CurrentRoom이 이전 방(클리어됨)으로
+            // 남아 나침반이 '다음 방'을 계속 가리킨다. 위젯은 CurrentRoom의 클리어 상태·나가는 문으로 방향을 잡는다.
+            DungeonNav.SetCurrentRoom(this);
+
+            // 스폰이 끝나 목록이 확정된 뒤 전투를 시작한다(문 잠금).
             BeginEncounter();
         }
 
