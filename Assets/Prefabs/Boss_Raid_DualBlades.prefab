@@ -16315,7 +16315,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &3511344321289949600
 Transform:
   m_ObjectHideFlags: 0
@@ -16442,6 +16442,12 @@ MonoBehaviour:
   turnSpeed: 720
   moveTurnGateAngle: 45
   agentReturnSampleRadius: 2
+  rootMotionProbeHeight: 1
+  rootMotionProbeRadius: 0.5
+  rootMotionSkin: 0.05
+  rootMotionBlockMask:
+    serializedVersion: 2
+    m_Bits: 16384
   chargeKeepDistance: 4
 --- !u!114 &9185995763708820125
 MonoBehaviour:
@@ -16866,7 +16872,7 @@ MonoBehaviour:
   patrolStuckTimeout: 4
   patrolSpeed: 4
   chaseSpeed: 10
-  detectionRange: 50
+  detectionRange: 20
   useDetectDash: 1
   detectDashSpeedMultiplier: 1.8
   targetNavMeshSampleRadius: 0.5
