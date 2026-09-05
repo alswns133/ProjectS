@@ -176,7 +176,8 @@ namespace ProjectS.UI
             if (source.IsLeader)
             {
                 items.Add(new PartyContextMenu.Entry("내보내기", () => source.RequestKick(),
-                                                     $"{source.Partner.Nickname}을(를) 파티에서 내보낼까요?"));
+                                                     $"{source.Partner.Nickname}을(를) 파티에서 내보낼까요?",
+                                                     destructive: true));
             }
 
             return items;

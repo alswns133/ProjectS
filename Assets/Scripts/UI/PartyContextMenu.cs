@@ -43,15 +43,25 @@ namespace ProjectS.UI
             /// <summary>비우면 즉시 실행. 채우면 그 문구로 <see cref="ConfirmDialog"/>를 한 번 거친다.</summary>
             public readonly string ConfirmMessage;
 
+            /// <summary>남에게 영향을 주는 항목인지. 켜면 라벨이 경고색으로 찍힌다.</summary>
+            /// <remarks>
+            /// <see cref="ConfirmMessage"/>와는 다른 축이다. '파티 나가기'도 확인은 받지만 내 결정이라
+            /// 경고색까지 줄 일은 아니고, '내보내기'는 상대를 쫓아내는 것이라 눈에 띄어야 한다.
+            /// 확인 유무로 색을 유도하면 둘을 구분할 수 없다.
+            /// </remarks>
+            public readonly bool Destructive;
+
             /// <summary>메뉴 항목을 만든다.</summary>
             /// <param name="label">버튼 문구</param>
             /// <param name="action">고르면 실행할 동작</param>
             /// <param name="confirmMessage">되돌릴 수 없는 동작이면 확인 문구를 넣는다</param>
-            public Entry(string label, Action action, string confirmMessage = null)
+            /// <param name="destructive">상대에게 영향을 주는 항목이면 true(경고색)</param>
+            public Entry(string label, Action action, string confirmMessage = null, bool destructive = false)
             {
                 Label = label;
                 Action = action;
                 ConfirmMessage = confirmMessage;
+                Destructive = destructive;
             }
         }
 
@@ -72,6 +82,11 @@ namespace ProjectS.UI
 
         [Tooltip("메뉴 뒤 전체화면 블로커. 바깥을 클릭하면 닫힌다(선택)")]
         [SerializeField] private Button backgroundBlocker;
+
+        [Header("항목 색")]
+        [SerializeField] private Color normalColor = new Color32(0xDC, 0xE3, 0xEE, 0xFF);
+        [Tooltip("Destructive 항목(내보내기 등)에 쓸 경고색.")]
+        [SerializeField] private Color destructiveColor = new Color32(0xE0, 0x5A, 0x5A, 0xFF);
 
         // 만들어 둔 버튼들. 항목이 줄면 남는 것은 꺼 두고 재사용한다.
         private readonly List<Button> entries = new();
@@ -124,7 +139,14 @@ namespace ProjectS.UI
                 if (!used) continue;
 
                 Entry item = items[i];
-                if (entryLabels[i] != null) entryLabels[i].text = item.Label;
+                if (entryLabels[i] != null)
+                {
+                    entryLabels[i].text = item.Label;
+
+                    // 색은 보조 신호다. 무엇을 하는지는 문구가 이미 말하고 있고, 색만으로 구분하게 두면
+                    // 색을 못 가리는 사람에게는 아무 차이가 없다.
+                    entryLabels[i].color = item.Destructive ? destructiveColor : normalColor;
+                }
 
                 // 이전에 걸어 둔 리스너를 지우지 않으면 메뉴를 열 때마다 같은 버튼에 동작이 쌓인다.
                 entries[i].onClick.RemoveAllListeners();
