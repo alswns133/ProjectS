@@ -29514,6 +29514,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.y
       value: -180
       objectReference: {fileID: 0}
+    - target: {fileID: 2650368134262249321, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2729258242624544266, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
       propertyPath: m_text
       value: "\uBC14\uB85C"
@@ -29588,7 +29592,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5616385992520796215, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
       propertyPath: rmsCount
-      value: 22
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 5616385992520796215, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
       propertyPath: alphaCutOff
@@ -29678,12 +29682,15 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 4892174265401448203, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2810130700857454542}
+      insertIndex: 0
+      addedObject: {fileID: 4713219672768688153}
     - targetCorrespondingSourceObject: {fileID: 4892174265401448203, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 4713219672768688153}
-    m_AddedComponents: []
+      addedObject: {fileID: 2810130700857454542}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1868867958712623896, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4334988670656852226}
   m_SourcePrefab: {fileID: 100100000, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
 --- !u!4 &164468630 stripped
 Transform:
@@ -286032,6 +286039,11 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4771257565098114, guid: ae2b22013d504ce42b7f8d4cdbc6b3c0, type: 3}
   m_PrefabInstance: {fileID: 1490221011}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1490222159 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1868867958712623896, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
+  m_PrefabInstance: {fileID: 163615268}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1491356651
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -422773,6 +422785,28 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4892174265401448203, guid: 3dc87273e262d664792ab83426bcbe10, type: 3}
   m_PrefabInstance: {fileID: 163615268}
   m_PrefabAsset: {fileID: 0}
+--- !u!95 &4334988670656852226
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1490222159}
+  m_Enabled: 1
+  m_Avatar: {fileID: 9000000, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
+  m_Controller: {fileID: 9100000, guid: bfed2bc2abe2b4e4582fd28adb4724c8, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &4350832925072051415
 GameObject:
   m_ObjectHideFlags: 0
@@ -433371,6 +433405,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4713219672768688153}
+  - component: {fileID: 8573172093393669979}
   - component: {fileID: 8560400742485082184}
   m_Layer: 10
   m_Name: SM_Chr_Mercenary_Male_01
@@ -433379,6 +433414,28 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
   m_IsActive: 1
+--- !u!95 &8573172093393669979
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8573172093393669978}
+  m_Enabled: 0
+  m_Avatar: {fileID: 9000000, guid: 21e1340f0ec98c849822321ff3df8758, type: 3}
+  m_Controller: {fileID: 9100000, guid: bfed2bc2abe2b4e4582fd28adb4724c8, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 1
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!4 &8578505093580055191
 Transform:
   m_ObjectHideFlags: 0
