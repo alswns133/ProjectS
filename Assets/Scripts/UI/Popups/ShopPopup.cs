@@ -14,7 +14,8 @@ namespace ProjectS.UI
     /// <summary>
     /// 상점 창(순수 View). 구입/판매 탭을 전환하며 카드 그리드를 그린다 — 구입 탭은 ShopManager.CurrentShop의
     /// 판매목록, 판매 탭은 보유 아이템(스택 + 장비)을 <see cref="ShopItemCard"/>로 나열한다. 카드 하나를 선택한 뒤
-    /// 하단 구입/판매 버튼으로 거래를 확정한다(수량은 현재 1개 고정).
+    /// 하단 구입/판매 버튼으로 거래를 확정한다. 수량은 카드의 ItemCounter로 고르며(구입=스택 한도·소지금,
+    /// 판매=보유량이 상한), 확정 시 <see cref="ShopItemCard.Count"/>를 읽어 넘긴다. 장비는 인스턴스 단위라 낱개다.
     ///
     /// 하단 버튼은 <b>탭 겸 확정</b>이다 — 지금 탭이 아니면 그 탭으로 전환하고, 이미 그 탭이면 선택한 카드를 거래한다
     /// (스크린샷처럼 하단에 구입/판매 두 버튼만 있는 구성에 맞춘 것). 별도 탭 버튼을 두고 싶으면 그 버튼에서
@@ -87,7 +88,7 @@ namespace ProjectS.UI
             if (currentTab != Tab.Buy) { SetTab(Tab.Buy); return; }
 
             if (selectedCard?.Payload is ShopItemEntry entry)
-                ShopManager.Instance?.Buy(entry);   // 실패(골드 부족·자리 없음)는 조용히 무시 — 피드백은 TODO
+                ShopManager.Instance?.Buy(entry, selectedCard.Count);   // 실패(골드 부족·자리 없음)는 조용히 무시 — 피드백은 TODO
         }
 
         // 판매 버튼: 판매 탭이 아니면 판매 탭으로 전환, 이미 판매 탭이면 선택한 것을 판다.
@@ -97,7 +98,7 @@ namespace ProjectS.UI
             if (selectedCard == null) return;
 
             if (selectedCard.Payload is ItemStack stack)
-                ShopManager.Instance?.SellStack(stack, 1);
+                ShopManager.Instance?.SellStack(stack, selectedCard.Count);
             else if (selectedCard.Payload is EquipmentInstance eq)
                 ShopManager.Instance?.SellEquipment(eq);
             // 판매 성공 시 InventoryEvents.OnInventoryChanged → Rebuild로 목록이 갱신된다.
@@ -117,12 +118,15 @@ namespace ProjectS.UI
             if (sellTabImage != null) sellTabImage.color = currentTab == Tab.Sell ? tabSelectedColor : tabNormalColor;
         }
 
-        // 현재 탭의 소스를 카드로 그린다. 선택은 초기화한다(재사용된 카드에 옛 선택이 남지 않게).
+        // 현재 탭의 소스를 카드로 그린다. 카드는 풀에서 재사용되고 Bind가 선택·수량을 초기화하므로,
+        // 거래 직후 재빌드에서도 같은 대상을 계속 고르고 있도록 선택을 payload 기준으로 되살린다
+        // (안 하면 5개 사고 나서 5개 더 사려면 카드를 다시 클릭해야 한다).
         private void Rebuild()
         {
             if (!IsVisible) return;
             if (cardRoot == null || cardPrefab == null) return;
 
+            object keep = selectedCard != null ? selectedCard.Payload : null;
             ClearSelection();
 
             int used = currentTab == Tab.Buy ? BuildBuyCards() : BuildSellCards();
@@ -130,6 +134,24 @@ namespace ProjectS.UI
             // 남는 카드는 숨긴다(풀 재사용).
             for (int i = used; i < cards.Count; i++)
                 cards[i].gameObject.SetActive(false);
+
+            RestoreSelection(keep, used);
+        }
+
+        // 재빌드 전에 고르고 있던 대상이 목록에 그대로 있으면 그 카드를 다시 선택한다.
+        // 다 팔아 없어졌으면(스택 소진 등) 선택 없음으로 남는다.
+        private void RestoreSelection(object payload, int used)
+        {
+            if (payload == null) return;
+
+            for (int i = 0; i < used; i++)
+            {
+                if (!ReferenceEquals(cards[i].Payload, payload)) continue;
+
+                selectedCard = cards[i];
+                selectedCard.SetSelected(true);
+                return;
+            }
         }
 
         // 구입 탭: 현재 상점의 판매목록. 정의가 사라진 아이템(ItemData 없음)은 건너뛴다.
@@ -145,10 +167,22 @@ namespace ProjectS.UI
                 ItemData item = json.Get<ItemData>(entry.ItemId);
                 if (item == null) continue;
 
-                GetCard(i).Bind(item, entry.BuyPrice, entry, OnCardClicked);
+                GetCard(i).Bind(item, entry.BuyPrice, entry, OnCardClicked, BuyableCount(item, entry.BuyPrice));
                 i++;
             }
             return i;
+        }
+
+        // 구입 탭에서 한 번에 살 수 있는 최대 개수. 스택 한도와 지금 소지금 중 작은 쪽으로 자른다
+        // (ShopManager.Buy도 골드를 다시 검사하지만, 카운터가 살 수 없는 수량까지 올라가면 UI가 거짓말을 한다).
+        // 살 돈이 아예 없으면 1을 돌려 카운터를 숨긴다 — 구매 자체는 Buy에서 실패로 막힌다.
+        private static int BuyableCount(ItemData item, int price)
+        {
+            int limit = Mathf.Max(1, item.MaxStack);
+            InventoryManager inv = InventoryManager.Instance;
+
+            if (inv == null || price <= 0) return limit;
+            return Mathf.Clamp(inv.Gold / price, 1, limit);
         }
 
         // 판매 탭: 보유 스택(소비품 + 재료) + 보유 장비. 판매가 = ItemData.SellPrice.
@@ -161,13 +195,13 @@ namespace ProjectS.UI
             foreach (ItemStack stack in inv.StackItems)
             {
                 if (stack?.Item == null) continue;
-                GetCard(i).Bind(stack.Item, stack.Item.SellPrice, stack, OnCardClicked);
+                GetCard(i).Bind(stack.Item, stack.Item.SellPrice, stack, OnCardClicked, stack.Count);
                 i++;
             }
             foreach (EquipmentInstance eq in inv.OwnedEquipment)
             {
                 if (eq?.Item == null) continue;
-                GetCard(i).Bind(eq.Item, eq.Item.SellPrice, eq, OnCardClicked);
+                GetCard(i).Bind(eq.Item, eq.Item.SellPrice, eq, OnCardClicked);   // 장비는 인스턴스마다 +N이 달라 낱개 거래(카운터 숨김)
                 i++;
             }
             return i;
