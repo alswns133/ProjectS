@@ -31,6 +31,12 @@ namespace ProjectS.Data
         /// <summary>현재 레벨에서 쌓은 경험치(0 ~ RequiredExp).</summary>
         public int currentExp;
 
+        /// <summary>
+        /// 파티 초대 수신 허용 여부(파티 초대창 ⑥ 드롭다운). 기본 허용. 접속 시 프레즌스 등록값으로 올라가고,
+        /// 드롭다운으로 바꾸면 이 필드에 반영돼 다음 접속에도 유지된다(씬 전환 자동저장에 실림).
+        /// </summary>
+        public bool acceptsPartyInvites = true;
+
         // ── 캐릭터별 인벤토리(재화도 캐릭터마다 따로) ──────────────────────────
         public int gold;
         public int lowMaterial;
