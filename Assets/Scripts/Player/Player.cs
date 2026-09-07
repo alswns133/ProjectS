@@ -335,7 +335,7 @@ namespace ProjectS.Players
             Animation.SetLocomotion(false, false);   // 로코모션 bool을 내려 걷기 Loop로 새지 않게 한다
 
             // 모든 InputAction을 Disable → 이동·점프·공격·스킬·회피·상호작용·커서 토글이 한 번에 막힌다.
-            Input.SetInputSuspended(true);
+            Input.SetInputSuspended(true, this);
 
             // 연결돼 있으면 마우스 시점 조작도 함께 얼린다(회전 누적 방지).
             if (cameraPivot != null) cameraPivot.SetInputLocked(true);
@@ -352,7 +352,7 @@ namespace ProjectS.Players
             inCutscene = false;
             cutsceneTimer = 0f;
 
-            Input.SetInputSuspended(false);
+            Input.SetInputSuspended(false, this);
             if (cameraPivot != null) cameraPivot.SetInputLocked(false);
         }
 
