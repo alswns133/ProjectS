@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -114,6 +114,11 @@ namespace ProjectS.Managers
         /// </summary>
         private async Task InitializeFirebaseAsync()
         {
+            // Firebase 네이티브가 뱉는 로그에 깨진 바이트(비 UTF-8)가 섞이면 PollCallbacks의 LogMessageFromCallback이
+            // 문자열 변환에 실패해 ExecutionEngineException으로 에디터가 크래시한다("Illegal byte sequence").
+            // 로그 콜백 양 자체를 Error 이상으로 줄여 그 메시지를 마샬링하지 않게 해 크래시를 피한다.
+            FirebaseApp.LogLevel = LogLevel.Error;
+
             DependencyStatus dependencyStatus = await FirebaseApp.CheckAndFixDependenciesAsync();
             if (dependencyStatus != DependencyStatus.Available)
             {
@@ -127,6 +132,14 @@ namespace ProjectS.Managers
             FirebaseDatabase database = string.IsNullOrWhiteSpace(databaseUrl)
                 ? FirebaseDatabase.DefaultInstance          // google-services.json의 기본 DB URL 사용
                 : FirebaseDatabase.GetInstance(databaseUrl);
+
+            // 로컬 캐시(오프라인 persistence)를 끈다. 이 캐시는 앱 ID 기준의 %LOCALAPPDATA% 폴더에 저장돼
+            // 에디터와 빌드가 같은 파일을 공유하는데, Firebase 데스크톱 캐시는 다중 프로세스 동시 접근을
+            // 지원하지 않아 두 인스턴스를 함께 켜면(2인 테스트) 나중에 붙는 쪽이 네이티브에서 크래시한다.
+            // 캐시를 끄면 공유할 파일이 없어져 실행 순서와 무관하게 충돌이 사라진다.
+            // ★ 반드시 첫 DB 사용(RootReference 등) 전에, 한 번만 호출해야 한다.
+            database.SetPersistenceEnabled(false);
+
             databaseReference = database.RootReference;
 
             auth.StateChanged += OnAuthStateChanged;
