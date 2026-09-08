@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -65,39 +66,56 @@ namespace ProjectS.Players
         /// </summary>
         public event Action Interacted;
 
+        // 입력 억제를 요청한 주인들. 하나라도 남아 있으면 억제 유지, 모두 빠지면 복구.
+        // bool 하나를 컷신·채팅·결과창이 공유하면 마지막에 끄는 쪽이 남의 잠금을 덮어쓴다(채팅이 컷신 잠금을 푸는 버그).
+        // HashSet이라 같은 주인이 중복 요청해도 한 표만 세어져, false 한 번으로 깨끗이 빠진다(짝 안 맞음 방지).
+        private readonly HashSet<object> suspendOwners = new();
+
         // 구르기는 점프와 같은 '꾹 누르면 연속 발동' 설계라 이벤트가 아닌 RollHeld 폴링으로 처리한다.
         // 이벤트(started) 방식이면 '누른 순간' 1회뿐이라 연속 회피를 만들 수 없다.
 
-        // 컷신(보스 등장 등)으로 게임플레이 입력을 통째로 멈춘 상태.
+        // 게임플레이 입력이 통째로 멈춘 상태(= suspendOwners에 주인이 하나라도 있음의 캐시).
         // true면 모든 InputAction을 Disable한다 → MoveInput=0, 각종 Held=false가 되고
         // 이산 입력 이벤트(Attacked/SkillPressed 등)의 콜백도 발화하지 않아 폴링·이벤트 양쪽이 함께 막힌다.
+        // OnEnable에서 "멈춘 채 재활성되면 멈춘 상태 유지"를 판정하는 데도 쓴다.
         private bool inputSuspended;
 
-        /// <summary>컷신 등으로 게임플레이 입력이 통째로 멈춰 있는지.</summary>
+        /// <summary>컷신·채팅·결과창 등 어떤 주인이든 게임플레이 입력을 멈춰 두고 있는지.</summary>
         public bool InputSuspended => inputSuspended;
 
         /// <summary>
-        /// 게임플레이 입력을 통째로 멈추거나 되살린다. 보스 등장 연출처럼 모든 조작을 막아야 하는 동안
-        /// <see cref="Player.BeginCutscene"/>가 켜고 <see cref="Player.EndCutscene"/>가 끈다.
+        /// 게임플레이 입력을 통째로 멈추거나 되살린다. 컷신(보스 등장)·채팅 타이핑·던전 결과창 등
+        /// 여러 주인이 서로 모른 채 독립적으로 요청하므로, 주인 하나라도 억제를 잡고 있으면 유지되고
+        /// 모두 풀려야 복구된다(<see cref="suspendOwners"/>). bool 하나를 공유하면 마지막에 끄는 쪽이
+        /// 남의 잠금을 덮어써, 채팅을 여닫으면 컷신·결과창이 걸어둔 잠금이 풀리는 버그가 났다.
         /// 멈추면 이동/줌 폴링값이 0이 되고 이산 입력 콜백도 발화하지 않으므로, 개별 게이트를 일일이
         /// 손대지 않아도 이동·점프·공격·스킬·회피·상호작용·커서 토글이 한 번에 차단된다.
+        /// <para>
+        /// ★ 규칙: <paramref name="suspended"/>=true로 잠근 주인은 반드시 나중에 같은 owner로 false를
+        /// 불러 짝을 맞춘다. 잠근 채 false 없이 파괴되면 그 참조가 집합에 남아 입력이 영구 잠긴다.
+        /// </para>
         /// </summary>
-        /// <param name="suspended">true=모든 입력 차단, false=평소대로 복구.</param>
-        public void SetInputSuspended(bool suspended)
+        /// <param name="suspended">true=이 주인이 입력 차단 요청, false=이 주인의 요청 해제.</param>
+        /// <param name="owner">억제를 요청/해제하는 주인. 인스턴스 참조로 구분한다(보통 this).</param>
+        public void SetInputSuspended(bool suspended, object owner)
         {
-            if (inputSuspended == suspended) return;
+            bool was = suspendOwners.Count > 0;
 
-            inputSuspended = suspended;
+            if (suspended) suspendOwners.Add(owner);
+            else suspendOwners.Remove(owner);
 
-            if (suspended)
+            bool now = suspendOwners.Count > 0;
+            if (was == now) return; // 실제 억제 상태가 바뀔 때만 InputAction 토글
+
+            inputSuspended = now;
+
+            if (now)
             {
                 DisableActions();
                 IsRunning = false;   // 멈춘 순간 달리기(더블탭) 상태도 초기화 — 복귀 시 걷기부터 시작
             }
             else
-            {
                 EnableActions();
-            }
         }
 
         // InputAction은 Enable해야 입력을 받기 시작한다(에셋이 아닌 직접 필드 방식).

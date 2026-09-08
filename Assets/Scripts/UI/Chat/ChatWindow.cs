@@ -12,19 +12,26 @@ using ProjectS.Players;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 항상 보이는 채팅 창(로그 + 입력). 팝업 스택(UIManager)에 넣지 않고 상시 활성 오버레이로 둔다 —
-    /// 로그가 늘 보여야 (1) 채팅이 닫혀 있는 사이 온 메시지를 놓치지 않고, (2) ESC가 채팅 때문에 막히지 않는다.
+    /// 채팅 창(로그 + 입력). 팝업 스택(UIManager)에 넣지 않고 상시 활성 오버레이로 둔다.
     /// <para>
-    /// 판정 기준은 "입력창 포커스 여부"다:
+    /// 컴포넌트는 늘 활성으로 두되, <b>시각 표시만 <see cref="CanvasGroup"/>.alpha로 자동 숨김</b>한다.
+    /// 메시지 수신·입력창 포커스 시 <see cref="showDuration"/>초간 나타났다가 이후 다시 숨는다
+    /// (<see cref="BumpVisible"/>/<see cref="UpdateVisibility"/>).
+    /// GameObject 자체를 끄지 않는 이유: 끄면 <see cref="OnDisable"/>에서 수신 구독이 끊겨
+    /// (1) 숨어 있는 사이 온 메시지를 놓치고, (2) 다시 여는 Enter 감지(<see cref="Update"/>)도 죽는다.
+    /// </para>
+    /// <para>
+    /// 게임 입력 억제 판정 기준은 "입력창 포커스 여부"다:
     ///  - 포커스 O → 타이핑 중 → 게임 입력 억제(<see cref="SetGameplayInputSuspended"/>). ESC로 포커스 해제, Enter로 전송+해제.
     ///  - 포커스 X → 게임 조작 정상. Enter로 입력창 포커스(채팅 시작).
     /// raw 키보드를 읽는 다른 핫키들은 <see cref="UiTypingGuard"/>로 타이핑 중 함께 막힌다.
     /// </para>
     /// <para>
     /// 수신은 <see cref="ChatEvents.OnMessageReceived"/>를 직접 구독한다(별도 Presenter 없음).
-    /// 상시 활성이라 언제 메시지가 와도 받아 로그에 찍는다.
+    /// 상시 활성이라 숨어 있어도 언제 메시지가 와도 받아 로그에 찍는다.
     /// </para>
     /// </summary>
+    [RequireComponent(typeof(CanvasGroup))]
     public class ChatWindow : MonoBehaviour
     {
         [Header("View")]
@@ -46,6 +53,16 @@ namespace ProjectS.UI
 
         // 전송으로 포커스를 푼 프레임. 그 '같은 Enter'가 아래 Update의 '열기'로 재활용돼 즉시 재포커스되는 것을 막는다.
         private int submitFrame = -1;
+
+        [Header("자동 숨김")]
+        [Tooltip("메시지 수신·포커스 해제 후 채팅을 보여줄 시간(초). 지나면 숨긴다.")]
+        [SerializeField] private float showDuration = 5f;
+        [Tooltip("페이드 시간(초). 0이면 즉시 전환.")]
+        [SerializeField] private float fadeDuration = 0.25f;
+        private CanvasGroup canvasGroup;
+
+        // 이 시각(Time.unscaledTime) 전까지 표시. 포커스 중엔 이 값과 무관하게 표시.
+        private float hideTime = -1f;
 
         private int writeIndex = 0; // 현재 쓰고 있는 TMP_Text 인덱스
 
@@ -100,6 +117,14 @@ namespace ProjectS.UI
 
                 }
             }
+
+           if(canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
+           if(canvasGroup != null)
+            {
+                canvasGroup.alpha = 0;
+                canvasGroup.interactable = false;
+                canvasGroup.blocksRaycasts = false;
+            }
         }
 
         // 수신 구독은 활성/비활성과 짝을 맞춘다(상시 활성이라 사실상 항상 구독). Presenter를 따로 두지 않고 여기서 직접 받는다.
@@ -118,7 +143,11 @@ namespace ProjectS.UI
             {
                 SetGameplayInputSuspended(focused);
                 wasFocused = focused;
+
+                if (!focused) BumpVisible(); // ← 전송/ESC로 풀려도 바로 안 사라지고 5초 더
             }
+
+            UpdateVisibility(focused);
 
             Keyboard kb = Keyboard.current;
             if (kb == null) return;
@@ -138,7 +167,10 @@ namespace ProjectS.UI
                 // 포커스 아님 + Enter → 입력창 포커스(채팅 시작).
                 // 이 Enter가 곧바로 빈 submit으로 새어도 SubmitMessage가 '유지'로 처리하므로 열자마자 닫히지 않는다.
                 if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
+                {
+                    BumpVisible();
                     input.ActivateInputField();
+                }
             }
         }
 
@@ -168,6 +200,8 @@ namespace ProjectS.UI
                 Canvas.ForceUpdateCanvases();
                 scroll.verticalNormalizedPosition = 0f;
             }
+
+            BumpVisible();
         }
 
         /// <summary>
@@ -199,7 +233,7 @@ namespace ProjectS.UI
         private void SetGameplayInputSuspended(bool suspended)
         {
             Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
-            if (player != null) player.Input.SetInputSuspended(suspended);
+            if (player != null) player.Input.SetInputSuspended(suspended, this);
         }
 
 
@@ -215,6 +249,28 @@ namespace ProjectS.UI
             line.SetText(message);
 
             writeIndex = (writeIndex + 1) % maxLines; // 다음 슬롯으로 순환(넘으면 가장 오래된 줄부터 재사용)
+        }
+
+        /// <summary>메시지 수신·창 열기·포커스 해제 시 호출. 지금부터 showDuration초 동안 표시되게 타이머를 민다.</summary>
+        private void BumpVisible()
+        {
+            hideTime = Time.unscaledTime + showDuration; // timeScale=0에서도 흘러야 하므로 unscaled
+        }
+
+        private void UpdateVisibility(bool focused)
+        {
+            if(canvasGroup == null) return;
+
+            bool shouldShow = focused || Time.unscaledTime < hideTime;
+
+            float target = shouldShow ? 1f : 0f;
+
+            canvasGroup.alpha = fadeDuration > 0f
+                ? Mathf.MoveTowards(canvasGroup.alpha, target, Time.unscaledDeltaTime / fadeDuration)
+                : target;
+
+            canvasGroup.interactable = shouldShow; // 페이드 인 중에도 켜둬 첫 타이핑 지연 방지
+            canvasGroup.blocksRaycasts = focused; // 실제 조작(입력/스크롤) 중에만 클릭 가로채기
         }
     }
 }
