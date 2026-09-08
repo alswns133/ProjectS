@@ -15,8 +15,21 @@ namespace ProjectS.Events
         /// <summary>초대한 사람 표시 이름(팝업 문구용).</summary>
         public string inviterName;
 
-        // TODO(선택): 어느 던전·난이도로의 초대인지 함께 실어 받는 쪽에서 보여줄 수 있다
-        //             (docs/PARTY_WINDOW_UI.md §2 — 어디로 가는지 모르면 보여줄 내용이 없다).
+        /// <summary>
+        /// 초대 만료 시각(서버 <see cref="Mirror.NetworkTime.time"/> 기준). 받는 쪽이 남은 시간을
+        /// <c>expireTime - NetworkTime.time</c>으로 매 프레임 로컬 계산한다(값을 네트워크로 흘리지 않음,
+        /// 출발 카운트다운과 같은 방식). 서버가 발송 시 <c>지금 + InviteTimeoutSeconds</c>로 채운다.
+        /// </summary>
+        public double expireTime;
+
+        /// <summary>초대가 향하는 던전 ID(2자리, docs/ID_NUMBERING.md §4). 실제 입장에 쓴다. 0=미지정.</summary>
+        public int dungeonId;
+
+        /// <summary>표시용 던전 이름(초대자 DungeonEntryPopup 선택에서 그대로 실어 온다).</summary>
+        public string dungeonName;
+
+        /// <summary>표시용 난이도 라벨(예: NORMAL/HARD).</summary>
+        public string difficultyLabel;
     }
 
     /// <summary>

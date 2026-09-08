@@ -37,11 +37,18 @@ namespace ProjectS.Networking
         public static PartyManager Local { get; private set; }
 
         // ── 서버 전용 상태 ──────────────────────────────────────────
-        // 보류 초대: 대상 netId → 초대자 netId. "이 사람은 지금 누구의 초대를 받고 있나"를 서버가 기억한다.
-        // 1인당 1건만 보류(2인 파티라 동시에 여러 초대를 받을 이유가 적다). 스켈레톤이라 static 맵으로 둔다.
-        // TODO(정리): 타임아웃·연결 끊김·초대자/대상 중 하나가 먼저 파티를 맺으면 여기서 지워야 한다
-        //             (OnStopServer / 서버 타이머). 안 지우면 유령 초대가 남는다.
-        private static readonly Dictionary<uint, uint> pendingByTarget = new();
+        // 보류 초대 한 건: 초대자 netId + 향하는 던전(성립 시 파티 상태로 심는다).
+        private struct PendingInvite
+        {
+            public uint inviter;
+            public int dungeonId;
+            public string dungeonName;
+            public string difficultyLabel;
+        }
+
+        // 보류 초대: 대상 netId → 보류 초대. "이 사람은 지금 누구의(어느 던전으로의) 초대를 받고 있나"를 서버가 기억한다.
+        // 1인당 1건만 보류(2인 파티라 동시에 여러 초대를 받을 이유가 적다).
+        private static readonly Dictionary<uint, PendingInvite> pendingByTarget = new();
 
         // 파티 id 발급기. 0은 "무소속" 예약값이라 1부터 센다. 서버에서만 증가한다.
         private static uint nextPartyId = 1;
@@ -49,11 +56,25 @@ namespace ProjectS.Networking
         // 초대 서버측 타임아웃(안전망). 받는 팝업의 클라 타임아웃(기본 20초)보다 살짝 길게 둬,
         // 보통은 클라가 먼저 자동 거절하고 이 타이머는 팝업이 없거나 이상한 상황에서만 발동한다.
         // 밸런스가 아니라 네트워크 안전장치라 상수로 둔다(ChatManager.MaxChatLength와 같은 취지).
-        private const float InviteTimeoutSeconds = 25f;
+        // 받는 쪽 카운트다운의 PhaseDuration(총 시간)으로도 쓰여 public.
+        public const float InviteTimeoutSeconds = 25f;
+
+        /// <summary>
+        /// 출발 카운트다운 길이(초). 밸런스가 아니라 기획 확정값이라 상수(2026-09-07: 30초, 파티원이 확인할 시간).
+        /// 다리가 진행 바 비율(남은 시간/전체)을 내는 데 총 길이가 필요해 공개한다.
+        /// </summary>
+        public const float DepartCountdownSeconds = 30f;
 
         // ── 복제/로컬 상태 ──────────────────────────────────────────
         /// <summary>내가 파티장인지. 서버가 파티 성립 시 설정한다(초대한 쪽=파티장).</summary>
         [SyncVar(hook = nameof(OnLeaderChanged))] private bool isLeader;
+
+        // 출발 카운트다운이 끝나는 서버 시각(NetworkTime.time 기준). 0 = 출발 안 함.
+        // ★ 남은 시간(값)을 매 프레임 쏘지 않는다 — 종료 "시각" 하나만 복제하고, 남은 시간은 각 클라가
+        //   자기 Local에서 (departEndTime - NetworkTime.time)으로 매 프레임 계산한다(IPartySource 주석
+        //   "남은 시간은 이벤트로 알리지 않는다"). 서버 동기 시계라 두 파티원의 카운트다운이 안 어긋난다.
+        //   isLeader와 마찬가지로 인스턴스별 SyncVar라, 서버가 이 파티원 둘의 인스턴스에만 심으면 다른 파티와 안 섞인다.
+        [SyncVar(hook = nameof(OnDepartChanged))] private double departEndTime;
 
         // 초대를 보내고 응답을 기다리는 중인지. 순전히 로컬 UI 대기 플래그라 SyncVar가 아니다
         // (남에게 복제할 필요가 없다). RequestInvite에서 켜고 TargetInviteEnded에서 끈다.
@@ -68,6 +89,12 @@ namespace ProjectS.Networking
 
         /// <summary>초대 응답을 기다리는 중인지(다리가 IsInviting으로 노출, 슬롯 대기 표시).</summary>
         public bool IsInviting => isInviting;
+
+        /// <summary>출발 카운트다운이 도는 중인지(다리가 Phase를 Departing으로 가르는 근거).</summary>
+        public bool IsDeparting => departEndTime > 0d;
+
+        /// <summary>출발 카운트다운이 끝나는 서버 시각(NetworkTime.time 기준). 다리가 남은 시간을 여기서 뺀다.</summary>
+        public double DepartEndTime => departEndTime;
 
         // ── 생명주기 ────────────────────────────────────────────────
 
@@ -92,28 +119,50 @@ namespace ProjectS.Networking
         /// 낙관적으로 대기 상태(<see cref="IsInviting"/>)로 잠그고, 결과는 <see cref="TargetInviteEnded"/>가 푼다.
         /// </summary>
         /// <param name="targetNetId">초대할 상대의 netId(로스터의 PartyMemberInfo.Id를 파싱한 값)</param>
-        public void RequestInvite(uint targetNetId)
+        /// <param name="dungeonId">향하는 던전 ID(2자리, 실제 입장용). 0=미지정</param>
+        /// <param name="dungeonName">표시용 던전 이름</param>
+        /// <param name="difficultyLabel">표시용 난이도 라벨</param>
+        public void RequestInvite(uint targetNetId, int dungeonId, string dungeonName, string difficultyLabel)
         {
+            Debug.Log($"[진단][PartyManager] RequestInvite(클라): target={targetNetId}, dungeon={dungeonId}, isInviting={isInviting}, isLocalPlayer={isLocalPlayer}, Local={(Local == this)}", this);
             if (isInviting) return;
 
             isInviting = true;
             PartyEvents.FireChanged();      // 슬롯을 "초대 중…"으로
-            CmdInvite(targetNetId);
+            CmdInvite(targetNetId, dungeonId, dungeonName, difficultyLabel);
         }
 
         [Command]
-        private void CmdInvite(uint targetNetId)
+        private void CmdInvite(uint targetNetId, int dungeonId, string dungeonName, string difficultyLabel)
         {
+            Debug.Log($"[진단][PartyManager] CmdInvite 수신(서버): 초대자={netId}, 대상={targetNetId}, 던전={dungeonId}");
+
             // 초대 가능 판정은 ServerCanInvite로 모았다(아래 도우미 구역). 실패면 초대자 대기만 풀고 끝낸다.
             // this=초대자 오브젝트라 connectionToClient=초대자 본인 → 이 경로는 그대로 맞다.
             if (!ServerCanInvite(targetNetId, out NetworkConnectionToClient targetConn))
             {
+                // [진단] 어느 조건에서 막혔는지 상태를 덤프한다(원인 파악 후 이 블록 삭제).
+                bool spawned = NetworkServer.spawned.TryGetValue(targetNetId, out NetworkIdentity ti);
+                PlayerPresence tp = spawned && ti != null ? ti.GetComponent<PlayerPresence>() : null;
+                PlayerPresence mp = GetComponent<PlayerPresence>();
+                Debug.LogWarning($"[진단][PartyManager] ServerCanInvite 거부 — self={targetNetId == netId}, spawned={spawned}, " +
+                    $"targetPresence={tp != null}, targetPartyId={(tp != null ? tp.PartyId : 0)}, targetAccepts={tp != null && tp.AcceptsInvites}, " +
+                    $"myPresence={mp != null}, myPartyId={(mp != null ? mp.PartyId : 0)}, pendingHasTarget={pendingByTarget.ContainsKey(targetNetId)}");
+
                 TargetInviteEnded(connectionToClient, false);
                 return;
             }
 
-            // 이 대상에 대한 보류 초대를 기록한다(대상의 수락이 이 초대자와 맞는지 대조할 근거).
-            pendingByTarget[targetNetId] = netId;
+            Debug.Log($"[진단][PartyManager] ServerCanInvite 통과 → TargetInviteReceived 발송(대상 conn={targetConn.connectionId})");
+
+            // 이 대상에 대한 보류 초대를 기록한다(대상의 수락이 이 초대자와 맞는지 대조 + 성립 시 던전을 심을 근거).
+            pendingByTarget[targetNetId] = new PendingInvite
+            {
+                inviter = netId,
+                dungeonId = dungeonId,
+                dungeonName = dungeonName,
+                difficultyLabel = difficultyLabel,
+            };
             serverPendingTarget = targetNetId;
 
             // 서버측 타임아웃 안전망을 (재)예약한다. 이전 초대의 잔여 타이머가 새 초대를 잘못 취소하지 않게
@@ -122,19 +171,26 @@ namespace ProjectS.Networking
             Invoke(nameof(ServerInviteTimeout), InviteTimeoutSeconds);
 
             // 대상에게 "초대 왔음"을 배달한다. 서버가 보관한 내 표시 이름을 쓴다(위조 차단, ChatManager와 같은 취지).
-            TargetInviteReceived(targetConn, netId, ServerDisplayName());
+            // 만료 시각은 서버 시각 + 타임아웃 — 받는 쪽 카운트다운이 이 값으로 남은 시간을 로컬 계산한다.
+            TargetInviteReceived(targetConn, netId, ServerDisplayName(),
+                                 NetworkTime.time + InviteTimeoutSeconds, dungeonId, dungeonName, difficultyLabel);
         }
 
         // ── 받는 쪽 (서버 → 대상 클라) ───────────────────────────────
 
         /// <summary>대상 클라에게만 초대를 배달한다. 프롬프터가 <see cref="PartyEvents.OnInviteReceived"/>로 받아 팝업을 띄운다.</summary>
         [TargetRpc]
-        private void TargetInviteReceived(NetworkConnectionToClient target, uint inviterNetId, string inviterName)
+        private void TargetInviteReceived(NetworkConnectionToClient target, uint inviterNetId, string inviterName,
+                                          double expireTime, int dungeonId, string dungeonName, string difficultyLabel)
         {
             PartyEvents.FireInviteReceived(new PartyInviteOffer
             {
                 inviterNetId = inviterNetId,
                 inviterName = inviterName,
+                expireTime = expireTime,
+                dungeonId = dungeonId,
+                dungeonName = dungeonName,
+                difficultyLabel = difficultyLabel,
             });
         }
 
@@ -147,7 +203,8 @@ namespace ProjectS.Networking
         private void CmdAnswerInvite(uint inviterNetId, bool accept)
         {
             // 이 답이 실제 보류 초대와 맞는지 대조한다(엉뚱한/지난 초대에 대한 답 차단).
-            bool matches = pendingByTarget.TryGetValue(netId, out uint recorded) && recorded == inviterNetId;
+            // recorded는 struct 복사본이라 아래 Remove 후에도 던전 정보가 남아 성립 시 그대로 쓴다.
+            bool matches = pendingByTarget.TryGetValue(netId, out PendingInvite recorded) && recorded.inviter == inviterNetId;
             if (matches) pendingByTarget.Remove(netId);
 
             // 초대자 오브젝트/커넥션/매니저를 찾는다. 그 사이 초대자가 나갔으면 성립할 수 없다.
@@ -180,20 +237,24 @@ namespace ProjectS.Networking
                 return;
             }
 
-            ServerFormParty(inviterIdentity, inviterConn, inviterParty, targetIdentity: netIdentity);
+            ServerFormParty(inviterIdentity, inviterConn, inviterParty, targetIdentity: netIdentity, dungeon: recorded);
         }
 
         // ── 성립 (서버) ─────────────────────────────────────────────
 
-        // 양쪽을 한 파티로 묶는다. 소속(partyId)은 PlayerPresence에 심고, 파티장 여부는 각자 PartyManager에 심는다.
+        // 양쪽을 한 파티로 묶는다. 소속(partyId)·파티 던전은 PlayerPresence에 심고, 파티장 여부는 각자 PartyManager에 심는다.
         [Server]
         private void ServerFormParty(NetworkIdentity inviterIdentity, NetworkConnectionToClient inviterConn,
-                                     PartyManager inviterParty, NetworkIdentity targetIdentity)
+                                     PartyManager inviterParty, NetworkIdentity targetIdentity, PendingInvite dungeon)
         {
             uint pid = nextPartyId++;
 
             SetPresenceParty(inviterIdentity, pid);
             SetPresenceParty(targetIdentity, pid);
+
+            // 초대에 실려 온 던전을 파티 상태로 양쪽에 심는다(결성창이 표시, 나중에 입장에도 사용).
+            SetPresenceDungeon(inviterIdentity, dungeon);
+            SetPresenceDungeon(targetIdentity, dungeon);
 
             // 초대한 쪽이 파티장. (파티장 위임은 넣지 않기로 결정 — PartySlotBar 주석 2026-08-31.)
             inviterParty.isLeader = true;
@@ -209,6 +270,13 @@ namespace ProjectS.Networking
         {
             if (identity != null && identity.TryGetComponent(out PlayerPresence presence))
                 presence.ServerSetPartyId(partyId);
+        }
+
+        [Server]
+        private static void SetPresenceDungeon(NetworkIdentity identity, PendingInvite dungeon)
+        {
+            if (identity != null && identity.TryGetComponent(out PlayerPresence presence))
+                presence.ServerSetPartyDungeon(dungeon.dungeonId, dungeon.dungeonName, dungeon.difficultyLabel);
         }
 
         // ── 성립/종료 통지 (서버 → 초대자 클라) ───────────────────────
@@ -266,7 +334,97 @@ namespace ProjectS.Networking
                 if (identity == null || !identity.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
 
                 p.ServerSetPartyId(0);
-                if (identity.TryGetComponent(out PartyManager party)) party.isLeader = false;
+                if (identity.TryGetComponent(out PartyManager party))
+                {
+                    party.departEndTime = 0d;   // ← 추가: 출발 중 해체돼도 Departing에 안 갇히게
+                    party.isLeader = false;
+                }
+            }
+        }
+
+        // ── 출발 (파티장 클라 → 서버 → 파티원 둘) ─────────────────────
+
+        /// <summary>출발을 걸어 카운트다운을 시작한다(다리의 RequestDepart). 파티장만 의미가 있다.</summary>
+        public void RequestDepart() => CmdDepart();
+
+        /// <summary>도는 카운트다운을 멈춘다(다리의 CancelDepart). 파티는 유지된다.</summary>
+        public void CancelDepart() => CmdCancelDepart();
+
+        /// <summary>파티원이 출발을 확인해 즉시 입장한다(다리의 ConfirmDepart).</summary>
+        public void ConfirmDepart() => CmdConfirmDepart();
+
+        [Command]
+        private void CmdDepart()
+        {
+            // 1. 파티장만 출발을 건다(파티장 위임 없음 — 초대한 쪽이 계속 파티장).
+            if (!isLeader) return;
+            // 2. 무소속이 아닌가.
+            if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0) return;
+            // 3. 이미 출발 중이면 무시(중복 시작 방지).
+            if (departEndTime > 0d) return;
+
+            // 종료 시각을 파티원 둘에게 심고(서버 동기 시계), 만료 타이머를 (재)예약한다.
+            // 이전 잔여 타이머부터 취소한다(타이머는 이 인스턴스=파티장에서 돈다).
+            ServerSetDepartForMyParty(NetworkTime.time + DepartCountdownSeconds);
+            CancelInvoke(nameof(ServerDepartTimeout));
+            Invoke(nameof(ServerDepartTimeout), DepartCountdownSeconds);
+        }
+
+        [Command]
+        private void CmdCancelDepart()
+        {
+            // 1. 파티장만 취소한다.
+            if (!isLeader) return;
+            // 2. 출발 중이 아니면 할 일 없음.
+            if (departEndTime == 0d) return;
+
+            // 카운트다운만 끄고 파티는 유지한다(파티원 둘의 departEndTime=0).
+            // 타이머는 CancelInvoke 하지 않아도 된다 — ServerDepartTimeout이 departEndTime==0을 보고
+            // 스스로 아무 일도 안 한다(ServerInviteTimeout과 같은 자기-무력화).
+            ServerSetDepartForMyParty(0d);
+        }
+
+        [Command]
+        private void CmdConfirmDepart()
+        {
+            // 1. 출발 중인가.
+            if (departEndTime == 0d) return;
+            // 2. 무소속이 아닌가.
+            if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0) return;
+
+            // 3. 파티장이 아니라 멤버인가(확인은 멤버만).
+            if (isLeader) return;
+            // ★ 여기서 실제 던전 입장을 처리한다(파티원 둘 씬 로드 등) — 입장 흐름이 아직 미정이라 TODO.
+            //    TODO(백엔드): ServerEnterDungeonForMyParty();
+
+            // 입장 처리 후(지금은 임시로 바로) 카운트다운을 정리한다.
+            ServerSetDepartForMyParty(0d);
+        }
+
+        // 카운트다운 만료(서버 안전망). CmdDepart가 Invoke로 예약해 파티장 인스턴스에서 돈다.
+        // 그 사이 취소·확인으로 departEndTime이 0이 됐으면 아래 조건이 거짓이라 아무 일도 안 한다
+        // (별도 CancelInvoke 불필요 — ServerInviteTimeout과 같은 자기-무력화).
+        // 만료 동작: 30초가 지나도 파티는 유지되고 출발만 취소된다(2026-09-07 확정, DummyPartySource와 동일).
+        [Server]
+        private void ServerDepartTimeout()
+        {
+            if (departEndTime == 0d) return;   // 그 사이 취소·확인됐으면 무시
+            ServerSetDepartForMyParty(0d);     // 출발만 취소, 파티는 유지
+        }
+
+        // 내가 속한 파티(같은 partyId) 모두의 departEndTime을 심는다. end=0이면 출발 해제.
+        // ★ 서버 권위 코드라 클라 목록이 아니라 NetworkServer.spawned를 훑는다(host·전용서버 양쪽 동작).
+        //   ServerDisbandMyParty의 순회와 판박이 — 소속 판정은 언제나 partyId로 스코프해 다른 파티에 안 샌다.
+        [Server]
+        private void ServerSetDepartForMyParty(double end)
+        {
+            if (!TryGetComponent(out PlayerPresence myPresence) || myPresence.PartyId == 0) return;
+
+            uint pid = myPresence.PartyId;
+            foreach (NetworkIdentity identity in NetworkServer.spawned.Values)
+            {
+                if (identity == null || !identity.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
+                if (identity.TryGetComponent(out PartyManager party)) party.departEndTime = end;
             }
         }
 
@@ -281,7 +439,7 @@ namespace ProjectS.Networking
             targetConn = null;
 
             // 1. 자기 자신 초대 방지
-             if (targetNetId == netId) return false;
+            if (targetNetId == netId) return false;
 
             // 2. 대상이 스폰돼 있는가
             if (!NetworkServer.spawned.TryGetValue(targetNetId, out NetworkIdentity targetIdentity))
@@ -295,16 +453,16 @@ namespace ProjectS.Networking
                 return false;
 
             // 4. 내가 무소속인가 (★ 초대자 본인 상태 — 빼먹기 쉽다)
-             if (!TryGetComponent(out PlayerPresence myPresence) || myPresence.PartyId != 0) return false;
+            if (!TryGetComponent(out PlayerPresence myPresence) || myPresence.PartyId != 0) return false;
 
             // 5. 대상이 무소속인가
-             if (targetPresence.PartyId != 0) return false;
+            if (targetPresence.PartyId != 0) return false;
 
             // 6. 대상이 초대 수신 허용인가
-             if (!targetPresence.AcceptsInvites) return false;
+            if (!targetPresence.AcceptsInvites) return false;
 
             // 7. (권장) 대상이 이미 다른 보류 초대 중인가 — "먼저 온 것 우선"이면 거부
-             if (pendingByTarget.ContainsKey(targetNetId)) return false;
+            if (pendingByTarget.ContainsKey(targetNetId)) return false;
 
             return true;
         }
@@ -316,17 +474,17 @@ namespace ProjectS.Networking
         {
             // 1. goneNetId가 '대상'인 항목(키 == goneNetId).
             //    이 경우 초대자는 아직 "초대 중…"이라, 지우기만 하면 그쪽이 대기에 갇힌다 → 대기도 풀어 준다.
-            if (pendingByTarget.TryGetValue(goneNetId, out uint inviterNetId))
+            if (pendingByTarget.TryGetValue(goneNetId, out PendingInvite p))
             {
                 pendingByTarget.Remove(goneNetId);
-                NotifyInviteEnded(inviterNetId, accepted: false);   // 초대자 대기 해제
+                NotifyInviteEnded(p.inviter, accepted: false);   // 초대자 대기 해제
             }
 
-            // 2. goneNetId가 '초대자'인 항목들(값 == goneNetId). 대상 잠금만 풀면 되므로 제거만 하면 된다.
+            // 2. goneNetId가 '초대자'인 항목들(값.inviter == goneNetId). 대상 잠금만 풀면 되므로 제거만 하면 된다.
             //    값으로 찾는 검색이라 순회 중 삭제가 안전하지 않다 → 지울 키를 먼저 모은 뒤 지운다.
             List<uint> staleTargets = new();
             foreach (var pair in pendingByTarget)
-                if (pair.Value == goneNetId) staleTargets.Add(pair.Key);
+                if (pair.Value.inviter == goneNetId) staleTargets.Add(pair.Key);
             foreach (uint t in staleTargets) pendingByTarget.Remove(t);
         }
 
@@ -337,7 +495,7 @@ namespace ProjectS.Networking
         private void ServerInviteTimeout()
         {
             // 아직 내 초대가 그대로 걸려 있으면 → 취소하고 내 대기를 푼다.
-            if (pendingByTarget.TryGetValue(serverPendingTarget, out uint inviter) && inviter == netId)
+            if (pendingByTarget.TryGetValue(serverPendingTarget, out PendingInvite p) && p.inviter == netId)
             {
                 pendingByTarget.Remove(serverPendingTarget);
                 TargetInviteEnded(connectionToClient, false);
@@ -365,6 +523,9 @@ namespace ProjectS.Networking
         }
 
         private void OnLeaderChanged(bool _, bool __) => PartyEvents.FireChanged();
+
+        // 출발 상태(departEndTime)가 복제돼 바뀌면 결성창을 다시 그린다(Formed↔Departing 전환·카운트다운 표시).
+        private void OnDepartChanged(double _, double __) => PartyEvents.FireChanged();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
