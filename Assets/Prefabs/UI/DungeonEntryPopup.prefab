@@ -110,7 +110,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 12}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &8625711014694850732
 MonoBehaviour:
@@ -781,10 +781,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 26852877564942600}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 60}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 112.095, y: -30}
+  m_SizeDelta: {x: 224.19, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3509543682782388706
 CanvasRenderer:
@@ -1221,10 +1221,10 @@ RectTransform:
   - {fileID: 3267736940223183426}
   m_Father: {fileID: 6908372128097304561}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 1}
-  m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: 92}
-  m_SizeDelta: {x: 890, y: 650}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 37}
+  m_SizeDelta: {x: 0, y: 74}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &9132291488375468925
 CanvasRenderer:
@@ -3117,10 +3117,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 26852877564942600}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 60}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 398.985, y: 0}
+  m_SizeDelta: {x: 309.59, y: 60}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &2382104578682479077
 CanvasRenderer:
@@ -3781,7 +3781,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 347, y: -64}
-  m_SizeDelta: {x: 0, y: 60}
+  m_SizeDelta: {x: 553.78, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2673015914397396319
 MonoBehaviour:
@@ -3986,7 +3986,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &702795151787950997
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4117,8 +4117,8 @@ MonoBehaviour:
   keyGuideText: {fileID: 0}
   enterButton: {fileID: 3786767263612498557}
   cancelButton: {fileID: 9163320287081227558}
-  leftTopBg: {fileID: 0}
-  leftBottomBg: {fileID: 0}
+  leftTopBg: {fileID: 2187146122908860313}
+  leftBottomBg: {fileID: 4699943806045239900}
 --- !u!1 &9147745938781616572
 GameObject:
   m_ObjectHideFlags: 0
@@ -4344,6 +4344,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4811197304141733987, guid: a533623242c5d224bb043114cee9847a, type: 3}
+      propertyPath: m_RaycastTarget
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6229339040251402550, guid: a533623242c5d224bb043114cee9847a, type: 3}
       propertyPath: m_Name
       value: PartySlotBar
@@ -4351,19 +4355,40 @@ PrefabInstance:
     - target: {fileID: 7845249758569134162, guid: a533623242c5d224bb043114cee9847a, type: 3}
       propertyPath: partySourceBehaviour
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 3384525101475958309}
     m_RemovedComponents:
     - {fileID: 3304281694229404520, guid: a533623242c5d224bb043114cee9847a, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6229339040251402550, guid: a533623242c5d224bb043114cee9847a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3384525101475958309}
   m_SourcePrefab: {fileID: 100100000, guid: a533623242c5d224bb043114cee9847a, type: 3}
+--- !u!1 &2165889589081557990 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6229339040251402550, guid: a533623242c5d224bb043114cee9847a, type: 3}
+  m_PrefabInstance: {fileID: 5223550776110224080}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &3384525101475958309
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2165889589081557990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 967f0cc176dc2454ba44df70281c0ca6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Networking.NetworkPartySource
+  inviteTimeoutSeconds: 20
 --- !u!114 &2639719437552282242 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7845249758569134162, guid: a533623242c5d224bb043114cee9847a, type: 3}
   m_PrefabInstance: {fileID: 5223550776110224080}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 2165889589081557990}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a30e9e58f4e1de49a97292a8f2fdda0, type: 3}

@@ -2161,7 +2161,7 @@ GameObject:
   - component: {fileID: 6980420772320234979}
   - component: {fileID: 1204077942733503863}
   - component: {fileID: 8194885929646184020}
-  - component: {fileID: 1591085778439312229}
+  - component: {fileID: 4646530495333865792}
   m_Layer: 0
   m_Name: PartyInvitePopup
   m_TagString: Untagged
@@ -2284,7 +2284,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.PartyInvitePopup
   closeButton: {fileID: 6537440412848453602}
-  memberSourceBehaviour: {fileID: 1591085778439312229}
+  memberSourceBehaviour: {fileID: 4646530495333865792}
   onlineTab: {fileID: 6104750648439315419}
   recentTab: {fileID: 5273838841155475796}
   searchInput: {fileID: 1696811541318345014}
@@ -2303,7 +2303,7 @@ MonoBehaviour:
   acceptDropdown: {fileID: 564406851123982512}
   inviteButton: {fileID: 2123734487522209044}
   inviteButtonLabel: {fileID: 6701458960367345137}
---- !u!114 &1591085778439312229
+--- !u!114 &4646530495333865792
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2312,61 +2312,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 4086453318070972631}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9e0c96a07bec1d2418ace90fcd79f727, type: 3}
+  m_Script: {fileID: 11500000, guid: 185e5b1ff7ff8224098df1c0477f7f71, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.DummyPartyMemberSource
-  onlineEntries:
-  - nickname: 235235
-    level: 1
-    characterType: 0
-    isOnline: 1
-    inviteState: 0
-  - nickname: 23455
-    level: 6
-    characterType: 0
-    isOnline: 1
-    inviteState: 0
-  - nickname: 6345
-    level: 4
-    characterType: 0
-    isOnline: 1
-    inviteState: 1
-  - nickname: 4634
-    level: 21
-    characterType: 1
-    isOnline: 0
-    inviteState: 0
-  - nickname: 155
-    level: 13
-    characterType: 1
-    isOnline: 0
-    inviteState: 2
-  - nickname: 456
-    level: 0
-    characterType: 1
-    isOnline: 0
-    inviteState: 0
-  - nickname: 65
-    level: 0
-    characterType: 1
-    isOnline: 1
-    inviteState: 2
-  - nickname: 743
-    level: 0
-    characterType: 1
-    isOnline: 1
-    inviteState: 0
-  recentEntries:
-  - nickname: 6
-    level: 0
-    characterType: 0
-    isOnline: 1
-    inviteState: 2
-  - nickname: 7
-    level: 0
-    characterType: 0
-    isOnline: 0
-    inviteState: 0
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Networking.NetworkPartyMemberSource
 --- !u!1 &4149289227880607279
 GameObject:
   m_ObjectHideFlags: 0
