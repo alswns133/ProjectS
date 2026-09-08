@@ -33,6 +33,9 @@ namespace ProjectS.UI
         [SerializeField] private Color normalColor = new Color32(0x4F, 0xD8, 0xE8, 0xFF);
         [SerializeField] private Color hurryColor = new Color32(0xF0, 0xB4, 0x29, 0xFF);
 
+        [Tooltip("아직 시작되지 않았을 때의 색. 활성 색과 한눈에 갈리는 회색을 둔다.")]
+        [SerializeField] private Color inactiveColor = new Color32(0x6B, 0x70, 0x76, 0xFF);
+
         /// <summary>위에 찍을 문구를 바꾼다("응답 제한", "파티원 대기 중" 등).</summary>
         /// <param name="title">표시할 문구</param>
         public void SetTitle(string title)
@@ -67,6 +70,31 @@ namespace ProjectS.UI
             Color color = remaining <= hurryThreshold ? hurryColor : normalColor;
             if (numberText != null) numberText.color = color;
             if (fillImage != null) fillImage.color = color;
+        }
+
+        /// <summary>
+        /// 아직 시작되지 않은 상태로 그린다. 숫자와 진행 바를 숨기지 않고 회색으로 죽여 둔다 —
+        /// 창에서 사라지면 "이 창에 카운트다운이 있다"는 것 자체를 모르고, 출발을 걸었을 때
+        /// 없던 요소가 튀어나와 배치가 흔들린다.
+        /// </summary>
+        /// <param name="duration">시작되면 돌게 될 전체 시간(초). 표시 전용이다</param>
+        /// <remarks>
+        /// <b>진행 바를 비우지 않고 가득 채운다.</b> 빈 바는 "이미 다 지났다"로 읽히지만,
+        /// 여기서 말하려는 것은 "아직 한 칸도 안 줄었다"이기 때문이다. 색만으로 활성/비활성을 가른다.
+        /// </remarks>
+        public void SetInactive(float duration)
+        {
+            if (numberText != null)
+            {
+                numberText.text = Format(Mathf.Max(0f, duration));
+                numberText.color = inactiveColor;
+            }
+
+            if (fillImage != null)
+            {
+                fillImage.fillAmount = 1f;
+                fillImage.color = inactiveColor;
+            }
         }
 
         // 30초든 20초든 한 자리로 줄지 않게 mm:ss로 고정한다. 자릿수가 변하면 숫자가 좌우로 흔들린다.

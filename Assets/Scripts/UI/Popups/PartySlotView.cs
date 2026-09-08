@@ -15,7 +15,7 @@ namespace ProjectS.UI
     /// <remarks>
     /// <para>
     /// <b>파티장은 ④ 아이콘 하나로만 나타낸다.</b> 텍스트 태그나 테두리 색을 같이 쓰지 않는다 —
-    /// 같은 사실을 두 곳에서 말하면 계승이 일어났을 때 한쪽만 갱신되는 어긋남이 생긴다.
+    /// 같은 사실을 두 곳에서 말하면 파티가 다시 맺어질 때 한쪽만 갱신되는 어긋남이 생긴다.
     /// </para>
     /// <para>
     /// <b>⑥ 바이탈 그래프는 연출이다.</b> 실제 HP를 그리지 않는다(던전 입장 전이라 볼 HP가 없다).
@@ -58,7 +58,7 @@ namespace ProjectS.UI
         [SerializeField] private GameObject[] classIcons;
 
         [Header("④ 파티장 아이콘")]
-        [Tooltip("파티장임을 나타내는 유일한 표식. 계승이 일어나면 이 표시가 옮겨간다.")]
+        [Tooltip("파티장임을 나타내는 유일한 표식. 초대한 쪽이 파티장이며, 파티가 유지되는 동안 바뀌지 않는다.")]
         [SerializeField] private GameObject leaderIcon;
 
         [Header("⑤ 초상화")]
