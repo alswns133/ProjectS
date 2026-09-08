@@ -119,9 +119,13 @@ namespace ProjectS.UI
         // ── 초대 ────────────────────────────────────────────────
 
         /// <inheritdoc/>
-        public void RequestInvite(PartyMemberInfo target)
+        public void RequestInvite(PartyMemberInfo target, int dungeonId, string dungeonName, string difficultyLabel)
         {
             if (target == null || IsInviting || Partner != null) return;
+
+            // 더미도 실제와 같게 초대에 실려 온 던전을 들고 있어, 성립 후 결성창에 표시된다.
+            this.dungeonName = dungeonName;
+            this.difficultyLabel = difficultyLabel;
 
             IsInviting = true;
             OnChanged?.Invoke();

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -75,6 +75,12 @@ namespace ProjectS.Managers
         /// <summary>현재 로그인된 유저의 UID. 로그인 상태가 아니면 null.</summary>
         public string CurrentUid => auth != null && auth.CurrentUser != null ? auth.CurrentUser.UserId : null;
 
+        /// <summary>
+        /// 마지막 캐릭터 생성 실패의 '사람이 읽을' 이유. 빌드에서는 콘솔을 볼 수 없어 UI 힌트로 띄우기 위한 값이다.
+        /// 생성 시도마다 초기화되고 실패 경로에서만 채워진다 — <see cref="CreateCharacterResult.Failed"/>일 때만 의미가 있다.
+        /// </summary>
+        public string LastCreateError { get; private set; }
+
         /// <summary>이미 로그인된 세션이 있는지(자동 로그인 스킵 판정용). Firebase가 이전 세션을 유지·복원한다.</summary>
         public bool IsLoggedIn => CurrentUid != null;
 
@@ -108,6 +114,11 @@ namespace ProjectS.Managers
         /// </summary>
         private async Task InitializeFirebaseAsync()
         {
+            // Firebase 네이티브가 뱉는 로그에 깨진 바이트(비 UTF-8)가 섞이면 PollCallbacks의 LogMessageFromCallback이
+            // 문자열 변환에 실패해 ExecutionEngineException으로 에디터가 크래시한다("Illegal byte sequence").
+            // 로그 콜백 양 자체를 Error 이상으로 줄여 그 메시지를 마샬링하지 않게 해 크래시를 피한다.
+            FirebaseApp.LogLevel = LogLevel.Error;
+
             DependencyStatus dependencyStatus = await FirebaseApp.CheckAndFixDependenciesAsync();
             if (dependencyStatus != DependencyStatus.Available)
             {
@@ -121,6 +132,14 @@ namespace ProjectS.Managers
             FirebaseDatabase database = string.IsNullOrWhiteSpace(databaseUrl)
                 ? FirebaseDatabase.DefaultInstance          // google-services.json의 기본 DB URL 사용
                 : FirebaseDatabase.GetInstance(databaseUrl);
+
+            // 로컬 캐시(오프라인 persistence)를 끈다. 이 캐시는 앱 ID 기준의 %LOCALAPPDATA% 폴더에 저장돼
+            // 에디터와 빌드가 같은 파일을 공유하는데, Firebase 데스크톱 캐시는 다중 프로세스 동시 접근을
+            // 지원하지 않아 두 인스턴스를 함께 켜면(2인 테스트) 나중에 붙는 쪽이 네이티브에서 크래시한다.
+            // 캐시를 끄면 공유할 파일이 없어져 실행 순서와 무관하게 충돌이 사라진다.
+            // ★ 반드시 첫 DB 사용(RootReference 등) 전에, 한 번만 호출해야 한다.
+            database.SetPersistenceEnabled(false);
+
             databaseReference = database.RootReference;
 
             auth.StateChanged += OnAuthStateChanged;
@@ -231,7 +250,13 @@ namespace ProjectS.Managers
         /// <param name="tutorialState">튜토리얼 진행 상태.</param>
         public async Task<CreateCharacterResult> CreateCharacter(int characterType, string name, Core.TutorialState tutorialState)
         {
-            if (!IsInitialized || CurrentUid == null) return CreateCharacterResult.Failed;
+            LastCreateError = null;
+
+            if (!IsInitialized || CurrentUid == null)
+            {
+                LastCreateError = !IsInitialized ? "서버 연결이 준비되지 않았습니다(초기화 실패)." : "로그인 세션이 없습니다.";
+                return CreateCharacterResult.Failed;
+            }
 
             name = name != null ? name.Trim() : string.Empty;
             if (!IsValidName(name)) return CreateCharacterResult.InvalidName;
@@ -273,6 +298,7 @@ namespace ProjectS.Managers
             {
                 // 권한 거부(경합으로 이름이 방금 선점됨 등). 사전 체크를 통과했어도 규칙이 최종 방어한다.
                 Debug.LogError($"[Firebase] 캐릭터 생성 예외: {ex}");
+                LastCreateError = ex.Message;
                 return CreateCharacterResult.Failed;
             }
         }

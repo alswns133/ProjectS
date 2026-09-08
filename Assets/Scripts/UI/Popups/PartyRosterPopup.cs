@@ -76,12 +76,18 @@ namespace ProjectS.UI
         protected override void OnInit()
         {
             source = partySourceBehaviour as IPartySource;
+
+            // 슬롯을 비워 두면 등록된 파티 소스를 자동으로 받아온다(창마다 크로스 오브젝트로 끌어다 꽂지 않게).
+            if (source == null && partySourceBehaviour == null) source = PartySourceProvider.Current;
+
             if (source == null)
             {
                 Debug.LogError(partySourceBehaviour == null
-                    ? "[PartyRosterPopup] partySourceBehaviour가 비어 있다 — 창이 영영 '파티 없음'으로 남는다."
+                    ? "[PartyRosterPopup] partySourceBehaviour가 비어 있고 등록된 파티 소스도 없다 — 창이 영영 '파티 없음'으로 남는다."
                     : $"[PartyRosterPopup] {partySourceBehaviour.GetType().Name}은 IPartySource를 구현하지 않는다.", this);
             }
+
+            Debug.Log($"[진단][PartyRosterPopup] partySource={(source as MonoBehaviour != null ? $"{((MonoBehaviour)source).name}#{((MonoBehaviour)source).GetInstanceID()}" : "null")} (NetworkPartySource OnEnable의 #ID와 같아야 함)", this);
 
             if (closeButton != null) closeButton.onClick.AddListener(CloseSelf);
             if (leaveButton != null) leaveButton.onClick.AddListener(OnLeaveClicked);

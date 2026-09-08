@@ -54,6 +54,15 @@ namespace ProjectS.UI
                 fillImage.fillAmount = duration > 0f ? Mathf.Clamp01(remaining / duration) : 1f;
             }
 
+            // [진단] 게이지 원인 파악용(안정화 후 삭제). 0.5초마다: 들어온 값·fillImage 연결·Image Type·현재 fill.
+            // ★ Image Type이 Filled가 아니면 fillAmount가 시각적으로 안 먹는다.
+            if (Time.frameCount % 30 == 0)
+            {
+                Debug.Log($"[진단][CountdownView] Set r={remaining:0.0} d={duration:0.0} " +
+                          $"fillImage={(fillImage != null)} type={(fillImage != null ? fillImage.type.ToString() : "null")} " +
+                          $"fill={(fillImage != null ? fillImage.fillAmount : -1f):0.00}", this);
+            }
+
             // 색은 숫자와 바에 함께 준다. 한쪽만 바뀌면 강조가 아니라 오류처럼 보인다.
             Color color = remaining <= hurryThreshold ? hurryColor : normalColor;
             if (numberText != null) numberText.color = color;

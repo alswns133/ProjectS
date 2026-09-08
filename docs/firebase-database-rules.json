@@ -12,6 +12,7 @@
             "name":          { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 12" },
             "level":         { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99" },
             "currentExp":    { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "acceptsPartyInvites": { ".validate": "newData.isBoolean()" },
             "gold":          { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "lowMaterial":   { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "highMaterial":  { ".validate": "newData.isNumber() && newData.val() >= 0" },

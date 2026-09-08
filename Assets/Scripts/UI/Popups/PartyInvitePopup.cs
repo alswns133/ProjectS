@@ -132,12 +132,22 @@ namespace ProjectS.UI
         protected override void OnInit()
         {
             source = memberSourceBehaviour as IPartyMemberSource;
+
+            // 슬롯을 비워 두면 같은 오브젝트에서 찾는다. 소스(NetworkPartyMemberSource)가 이 팝업 스크립트와
+            // 한 오브젝트에 붙어 있어, 인스펙터에서 MonoBehaviour 슬롯에 특정 컴포넌트를 끌어 넣기 번거로운
+            // 문제를 없앤다(PartyWindowOpener가 IPartySource를 GetComponent로 찾는 것과 같은 방식).
+            if (source == null && memberSourceBehaviour == null)
+                source = GetComponent<IPartyMemberSource>();
+
             if (source == null)
             {
                 Debug.LogError(memberSourceBehaviour == null
-                    ? "[PartyInvitePopup] memberSourceBehaviour가 비어 있다 — 목록이 영영 비어 있게 된다."
+                    ? "[PartyInvitePopup] memberSourceBehaviour가 비어 있고 같은 오브젝트에서도 IPartyMemberSource를 찾지 못했다 — 목록이 영영 비어 있게 된다."
                     : $"[PartyInvitePopup] {memberSourceBehaviour.GetType().Name}은 IPartyMemberSource를 구현하지 않는다.", this);
             }
+
+            Debug.Log($"[진단][PartyInvitePopup] memberSource 해결: slot={(memberSourceBehaviour != null ? memberSourceBehaviour.GetType().Name : "비어있음")}, " +
+                      $"source={(source as MonoBehaviour != null ? $"{((MonoBehaviour)source).GetType().Name}#{((MonoBehaviour)source).GetInstanceID()}" : "null")}", this);
 
             if (onlineTab != null) onlineTab.onValueChanged.AddListener(OnOnlineTabChanged);
             if (recentTab != null) recentTab.onValueChanged.AddListener(OnRecentTabChanged);
