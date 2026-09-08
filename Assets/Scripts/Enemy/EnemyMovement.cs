@@ -44,6 +44,16 @@
         // 루트모션이 mesh 밖으로 조금 벗어나도 다시 붙게 하기 위함. 너무 크게 잡으면 엉뚱한 곳으로 순간이동할 수 있다.
         [SerializeField, Min(0.1f)] private float agentReturnSampleRadius = 2f;
 
+        [Header("루트모션 벽 충돌")]
+        // 프로브 시작 높이(발밑 기준). 바닥/문턱을 안 긁게 몸통 높이쯤으로 올려 쏜다.
+        [SerializeField, Min(0f)] private float rootMotionProbeHeight = 1f;
+        // 보스 몸통 굵기(구 반경). CapsuleCollider radius에 맞춘다.
+        [SerializeField, Min(0f)] private float rootMotionProbeRadius = 0.5f;
+        // 벽과 남길 여유 틈(스킨). 0이면 벽에 밀착돼 떨림/끼임.
+        [SerializeField, Min(0f)] private float rootMotionSkin = 0.05f;
+        // 이동을 막을 레이어(벽/장애물만. 바닥·NavMesh·플레이어·트리거 제외 → 인스펙터에서 지정).
+        [SerializeField] private LayerMask rootMotionBlockMask;
+
         private NavMeshAgent agent;
         private NavMeshPath path;
 
@@ -429,7 +439,8 @@
         {
             if (useRootMotion)
             {
-                Vector3 delta = animator.deltaPosition;
+                //Vector3 delta = animator.deltaPosition;
+                Vector3 delta = CollideDelta(animator.deltaPosition);
 
                 if (chargeKeepTarget != null && chargeKeepDistance > 0f)
                 {
@@ -448,6 +459,27 @@
                 transform.position += delta;
                 return;
             }
+        }
+
+        // delta를 장애물에 막히지 않는 만큼으로 깎아 돌려준다.막을 게 없으면 delta 그대로.
+        private Vector3 CollideDelta(Vector3 delta)
+        {
+            Vector3 horiz = new Vector3(delta.x, 0f, delta.z);  // 수평 성분만 벽 판정(수직 낙하/상승은 통과 
+            float dist = horiz.magnitude;
+            if (dist < 0.00001f) return delta;
+
+            Vector3 dir = horiz / dist;
+            Vector3 origin = transform.position + Vector3.up * rootMotionProbeHeight;
+
+            if (Physics.SphereCast(origin, rootMotionProbeRadius, dir, out RaycastHit hit, dist + rootMotionSkin,
+                rootMotionBlockMask, QueryTriggerInteraction.Ignore))
+            {
+                float allowed = Mathf.Max(0f, hit.distance - rootMotionSkin);
+                Vector3 clampedHoriz = dir * allowed;
+                return new Vector3(clampedHoriz.x, delta.y, clampedHoriz.z);  // 수직(delta.y)은 그대로 유지
+            }
+
+            return delta;
         }
 
         /// <summary>에이전트를 완전히 끈다. 사망 시 1회 호출하며 되돌리지 않는다.</summary>

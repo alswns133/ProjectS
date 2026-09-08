@@ -300,8 +300,50 @@ namespace ProjectS.Enemies
 
         private void Update()
         {
+            // 등장 연출 등으로 AI를 재운 동안엔 상태 머신을 돌리지 않는다 → 추격/공격/상태 전환이 멈추고
+            // Timeline이 보스를 온전히 몬다. HaltForSceneExit(enabled=false, 되돌리지 않음)와 달리
+            // 재개(ResumeAI)가 있어야 해서 enabled 대신 플래그로 이 Update만 건너뛴다(구독은 유지).
+            if (aiSuspended) return;
+
             StateMachine.Update();
             //Debug.Log(StateMachine.Current);
+        }
+
+        // 등장 연출 동안 AI를 재우는 게이트. SuspendAI에서 켜고 ResumeAI에서 끈다.
+        private bool aiSuspended;
+
+        /// <summary>
+        /// 등장 연출(보스 Timeline 등) 동안 AI를 멈춰 연출이 몬스터를 온전히 제어하게 한다.
+        /// 상태 머신 Update를 게이트로 끊고, NavMeshAgent를 꺼 위치 소유권을 연출/루트모션에 넘긴다
+        /// (에이전트를 켜 두면 매 프레임 위치를 플레이어 쪽으로 덮어써 "연출대로 안 움직이고 추격"이 된다).
+        /// 루트모션 연출을 살리려 <see cref="EnemyMovement.BeginRootMotion"/>로 켠다 —
+        /// OnAnimatorMove가 클립 이동량을 위치에 더하게 해야 제자리 재생이 되지 않는다.
+        /// <see cref="BossIntroDirector"/>가 Timeline Play 직전에 호출한다.
+        /// </summary>
+        public void SuspendAI()
+        {
+            aiSuspended = true;
+            Movement.BeginRootMotion();
+        }
+
+        /// <summary>
+        /// 등장 연출이 끝나면 AI를 재개한다. 에이전트를 연출로 옮겨진 최종 위치의 가까운 NavMesh 지점으로
+        /// 복귀시키고(<see cref="EnemyMovement.EndRootMotionAndLand"/>), 곧바로 교전 흐름으로 진입한다
+        /// (연출 자체가 "발견"이므로 레이드=Engage, 그 외=Chase. 사거리 밖이면 대기/순찰로 안전하게 떨어진다).
+        /// <see cref="BossIntroDirector"/>가 <see cref="UnityEngine.Playables.PlayableDirector.stopped"/>에서 호출한다.
+        /// </summary>
+        public void ResumeAI()
+        {
+            aiSuspended = false;
+            Movement.EndRootMotionAndLand();
+
+            IState next;
+            if (CanDetectTarget())
+                next = AggroState;
+            else
+                next = HasPatrol ? (IState)PatrolState : IdleState;
+
+            StateMachine.ChangeState(next);
         }
 
         /// <summary>

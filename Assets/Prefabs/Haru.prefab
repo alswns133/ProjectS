@@ -364303,6 +364303,7 @@ GameObject:
   - component: {fileID: 6919157614276577212}
   - component: {fileID: 6953480705040815348}
   - component: {fileID: 7039649755411129012}
+  - component: {fileID: 3315054833671819890}
   m_Layer: 8
   m_Name: Haru
   m_TagString: Player
@@ -364636,7 +364637,7 @@ MonoBehaviour:
   dungeonMoveSpeed: 3
   dungeonRunSpeed: 6
   rotationDamping: 10
-  jumpHeight: 10
+  jumpHeight: 5
   gravity: 9.8
   airControl: 8
   airBrake: 30
@@ -364804,7 +364805,7 @@ MonoBehaviour:
   maxStamina: 100
   staminaRegenPerSecond: 5
   damageTextHeight: 1.8
-  strongHitHpRatio: 0.25
+  strongHitHpRatio: 0.1
   hitStaggerDuration: 0.4
   strongHitStaggerDuration: 0.8
   postRollInvincibleDuration: 1
@@ -365817,6 +365818,20 @@ MonoBehaviour:
   enemyBodyRadius: 0.5
   enemyBodyHeight: 1.8
   player: {fileID: 0}
+--- !u!114 &3315054833671819890
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6444419969119536879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffff902da1f4836488264e27ece115c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Players.PlayerHitCombo
+  comboResetDelay: 5
+  maxHitCount: 999
 --- !u!1 &6468475852384579778
 GameObject:
   m_ObjectHideFlags: 0

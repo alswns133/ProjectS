@@ -58,15 +58,26 @@ namespace ProjectS.UI
         // 던전·난이도가 골라졌는지. 던전 입장 창이 알려 준다.
         private bool selectionReady;
 
+        // 지금 선택된 던전(초대에 실어 보낸다). 던전 입장 창이 SetDungeon으로 갱신한다.
+        private int selectedDungeonId;
+        private string selectedDungeonName = string.Empty;
+        private string selectedDifficultyLabel = string.Empty;
+
         private void Awake()
         {
             source = partySourceBehaviour as IPartySource;
+
+            // 슬롯을 비워 두면 등록된 파티 소스를 자동으로 받아온다(창마다 크로스 오브젝트로 끌어다 꽂지 않게).
+            if (source == null && partySourceBehaviour == null) source = PartySourceProvider.Current;
+
             if (source == null)
             {
                 Debug.LogError(partySourceBehaviour == null
-                    ? "[PartySlotBar] partySourceBehaviour가 비어 있다 — 슬롯이 영영 비어 있게 된다."
+                    ? "[PartySlotBar] partySourceBehaviour가 비어 있고 등록된 파티 소스도 없다 — 슬롯이 영영 비어 있게 된다."
                     : $"[PartySlotBar] {partySourceBehaviour.GetType().Name}은 IPartySource를 구현하지 않는다.", this);
             }
+
+            Debug.Log($"[진단][PartySlotBar] partySource={(source as MonoBehaviour != null ? $"{((MonoBehaviour)source).name}#{((MonoBehaviour)source).GetInstanceID()}" : "null")} (NetworkPartySource OnEnable의 #ID와 같아야 함)", this);
         }
 
         private void OnEnable()
@@ -98,6 +109,20 @@ namespace ProjectS.UI
 
             selectionReady = ready;
             Redraw();
+        }
+
+        /// <summary>
+        /// 지금 선택된 던전을 알려 준다(초대에 실려 상대의 수락 팝업·결성창에 표시된다).
+        /// 던전 입장 창이 에피소드/난이도 선택을 바꿀 때마다 <see cref="SetSelectionReady"/>와 함께 부른다.
+        /// </summary>
+        /// <param name="dungeonId">2자리 던전 ID(실제 입장용)</param>
+        /// <param name="dungeonName">표시용 던전 이름(에피소드 DisplayName)</param>
+        /// <param name="difficultyLabel">표시용 난이도 라벨</param>
+        public void SetDungeon(int dungeonId, string dungeonName, string difficultyLabel)
+        {
+            selectedDungeonId = dungeonId;
+            selectedDungeonName = dungeonName ?? string.Empty;
+            selectedDifficultyLabel = difficultyLabel ?? string.Empty;
         }
 
         private void Redraw()
@@ -176,7 +201,8 @@ namespace ProjectS.UI
             if (source.IsLeader)
             {
                 items.Add(new PartyContextMenu.Entry("내보내기", () => source.RequestKick(),
-                                                     $"{source.Partner.Nickname}을(를) 파티에서 내보낼까요?"));
+                                                     $"{source.Partner.Nickname}을(를) 파티에서 내보낼까요?",
+                                                     destructive: true));
             }
 
             return items;
@@ -212,7 +238,7 @@ namespace ProjectS.UI
 
         private void OnInviteRequested(PartyMemberInfo target)
         {
-            source?.RequestInvite(target);
+            source?.RequestInvite(target, selectedDungeonId, selectedDungeonName, selectedDifficultyLabel);
 
             // 목록은 닫는다. 초대를 보낸 뒤에도 목록이 떠 있으면 이미 부른 사람을 또 고르게 된다.
             if (UIManager.Instance != null) UIManager.Instance.ClosePopup<PartyInvitePopup>();

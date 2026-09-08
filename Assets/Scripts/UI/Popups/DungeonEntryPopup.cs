@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -66,6 +66,10 @@ namespace ProjectS.UI
         [SerializeField] private Button enterButton;              // ⑦ [SPACE]
         [SerializeField] private Button cancelButton;             // ⑧ [ESC]
 
+        [SerializeField] private RectTransform leftTopBg;
+
+        [SerializeField] private RectTransform leftBottomBg;
+
         // 게이트가 넘긴 값. 열기 전에 채워진다.
         private EntryMode mode = EntryMode.Dungeon;
         private DungeonCatalog catalog;
@@ -79,6 +83,9 @@ namespace ProjectS.UI
         // 난이도 탭 콜백이 초기화 중에도 불려 선택을 덮어쓰지 않게 하는 빗장.
         private bool suppressTabCallback;
 
+        // 레이드 던전일때 파티창이 나와야하므로 던전 선택창을 크기를 줄이는 값
+        private const int LeftTopBgBottomSize = 304;
+
         /// <summary>
         /// 유저가 퀘스트 트래커를 접어 둔 상태인가. <b>쓰는 곳은 접기/펼치기 버튼 하나뿐이다.</b>
         /// 에피소드 선택은 이 값을 읽기만 한다 — 선택이 이 값을 건드리면 유저가 접어둔 게 멋대로 펴진다.
@@ -88,6 +95,9 @@ namespace ProjectS.UI
         /// 팝업 인스턴스가 씬을 넘어 살아남으므로, 게이트를 나갔다 다시 들어와도 마지막 선택이 유지된다.
         /// </summary>
         private bool trackerUserClosed = true;
+
+        // 이 팝업이 입력 억제를 요청할 때 쓰는 고유 owner 키. Player(컷신 owner)와 겹치지 않게 전용으로 둔다.
+        private static readonly object InputSuspendKey = new object();
 
         /// <summary>
         /// 어느 콘텐츠의 입장 화면으로 열지 정한다. <b><c>ShowPopup</c> 전에</b> 호출해야 한다.
@@ -99,11 +109,31 @@ namespace ProjectS.UI
             mode = entryMode;
             catalog = entryCatalog;
 
+            
+
+
             if (catalog != null && catalog.Mode != entryMode)
                 Debug.LogWarning($"[DungeonEntryPopup] 게이트 모드({entryMode})와 카탈로그 모드({catalog.Mode})가 다름: {catalog.name}");
 
             // 이미 떠 있는 상태에서 바꿔치기해도 화면이 따라오게 한다(게이트가 겹쳐 있는 경우).
             if (IsVisible) Rebuild();
+
+            if (leftTopBg == null || leftBottomBg == null) return;
+
+            Vector2 offSetSize = leftTopBg.offsetMin;
+
+            if (entryMode == EntryMode.Raid)
+            {
+                offSetSize.y = LeftTopBgBottomSize;
+                leftBottomBg.gameObject.SetActive(true);
+            }
+            else
+            {
+                offSetSize.y = 0;
+                leftBottomBg.gameObject.SetActive(false);
+            }
+
+            leftTopBg.offsetMin = offSetSize;
         }
 
         // 버튼 연결은 최초 1회만. BasePopup이 OnInit을 한 번만 호출해 주므로 중복 구독이 쌓이지 않는다.
@@ -421,8 +451,19 @@ namespace ProjectS.UI
             if (enterButton != null) enterButton.interactable = ready;
 
             // 던전·난이도가 정해져야 초대할 수 있다 — 어디로 가는지 모르면 상대에게 보여줄 내용이 없다
-            // (docs/PARTY_WINDOW_UI.md §2).
-            if (partySlots != null) partySlots.SetSelectionReady(ready);
+            // (docs/PARTY_WINDOW_UI.md §2). 준비됐으면 선택된 던전을 슬롯바에 넘겨 초대에 실리게 한다.
+            if (partySlots != null)
+            {
+                partySlots.SetSelectionReady(ready);
+
+                if (ready)
+                {
+                    EpisodeInfo episode = catalog.Episodes[selectedEpisode];
+                    DifficultyInfo difficulty = catalog.Difficulties[selectedDifficulty];
+                    int dungeonId = DungeonCatalog.MakeDungeonId(episode.DungeonNumber, difficulty.Value);
+                    partySlots.SetDungeon(dungeonId, episode.DisplayName, difficulty.Label);
+                }
+            }
         }
 
         // ① 진행률. 클리어 기록을 담는 세이브 항목이 아직 없어 지금은 전체 개수만 보여준다.
@@ -438,15 +479,19 @@ namespace ProjectS.UI
         // 세션이 비어 있으면(로그인 없이 직접 씬 테스트) 잠금을 걸지 않는다 — 배치 확인이 막히지 않게.
         private static int PlayerLevel => GameSession.SelectedCharacter?.level ?? int.MaxValue;
 
-        // 입력 핸들러를 통째로 껐다 켠다. OnEnable/OnDisable이 InputAction Enable/Disable과 짝이라
-        // 이 한 줄로 이동·공격 입력이 함께 멎는다. Player.LockMovement는 전투용이라 쓰지 않는다
-        // (안전장치 타이머가 스스로 잠금을 풀어 버려 UI가 떠 있는 동안 유지되지 않는다).
+        // 게임플레이 입력을 소유자 기반으로 잠근다(컷신·채팅·결과창과 같은 SetInputSuspended 창구).
+        // 이 한 줄로 이동·공격 등 InputAction이 한 번에 멎고, UI가 떠 있는 동안 다른 주인(채팅 등)이
+        // 여닫혀도 이 팝업 몫의 잠금은 유지된다. 옛날처럼 Input.enabled를 직접 끄면 채팅의
+        // SetInputSuspended(false)가 액션만 되살려 팝업 뒤에서 플레이어가 움직이는 버그가 났다.
+        // owner는 InputSuspendKey(이 팝업 전용) — Player를 넘기면 컷신 owner(=Player)와 겹쳐
+        // 한쪽 해제가 다른 쪽 잠금까지 지운다. Player.LockMovement는 전투용이라 안 쓴다
+        // (안전 타이머가 UI 떠 있는 도중 스스로 잠금을 풀어 버린다).
         private static void SetPlayerInputEnabled(bool value)
         {
             Player player = PlayerManager.Instance?.Player;
             if (player == null || player.Input == null) return;
 
-            player.Input.enabled = value;
+            player.Input.SetInputSuspended(!value, InputSuspendKey);
         }
 
         private static void SetCursorFree(bool free)
