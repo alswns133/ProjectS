@@ -109,7 +109,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 1054.1755}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &8625711014694850732
@@ -127,10 +127,10 @@ MonoBehaviour:
   m_Padding:
     m_Left: 0
     m_Right: 0
-    m_Top: 0
+    m_Top: 12
     m_Bottom: 0
   m_ChildAlignment: 0
-  m_Spacing: 8
+  m_Spacing: -4
   m_ChildForceExpandWidth: 1
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 1
@@ -4117,6 +4117,8 @@ MonoBehaviour:
   keyGuideText: {fileID: 0}
   enterButton: {fileID: 3786767263612498557}
   cancelButton: {fileID: 9163320287081227558}
+  leftTopBg: {fileID: 0}
+  leftBottomBg: {fileID: 0}
 --- !u!1 &9147745938781616572
 GameObject:
   m_ObjectHideFlags: 0
@@ -4349,14 +4351,37 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6229339040251402550, guid: a533623242c5d224bb043114cee9847a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7061637988108032657}
   m_SourcePrefab: {fileID: 100100000, guid: a533623242c5d224bb043114cee9847a, type: 3}
+--- !u!1 &2165889589081557990 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6229339040251402550, guid: a533623242c5d224bb043114cee9847a, type: 3}
+  m_PrefabInstance: {fileID: 5223550776110224080}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &7061637988108032657
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2165889589081557990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 431bc5fde997d5f47835377519a73028, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.PartyWindowOpener
+  partySourceBehaviour: {fileID: 7324802913318635960}
+  toggleKey: 3
+  villageOnly: 1
 --- !u!114 &2639719437552282242 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7845249758569134162, guid: a533623242c5d224bb043114cee9847a, type: 3}
   m_PrefabInstance: {fileID: 5223550776110224080}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 2165889589081557990}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a30e9e58f4e1de49a97292a8f2fdda0, type: 3}
@@ -4367,3 +4392,14 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 628696074270548544, guid: a533623242c5d224bb043114cee9847a, type: 3}
   m_PrefabInstance: {fileID: 5223550776110224080}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &7324802913318635960 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3304281694229404520, guid: a533623242c5d224bb043114cee9847a, type: 3}
+  m_PrefabInstance: {fileID: 5223550776110224080}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2165889589081557990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0ee709e7ffcd8149973a005d26165d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.DummyPartySource
