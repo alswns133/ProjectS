@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Mirror;
 using ProjectS.Managers;
@@ -28,6 +28,8 @@ namespace ProjectS.Networking
         /// <inheritdoc/>
         public event Action OnChanged;
 
+        private PartyInvitePopup popup;   // 캐시. GetComponent로 잡거나 [SerializeField]로 꽂는다.
+
         // 팝업에 그대로 넘길 목록. 프레즌스가 바뀔 때마다 다시 만든다(재사용해 할당을 줄인다).
         private readonly List<PartyMemberInfo> onlineCache = new();
         private readonly List<PartyMemberInfo> recentCache = new();
@@ -39,6 +41,11 @@ namespace ProjectS.Networking
         /// (IsReady의 존재 이유 — IPartyMemberSource 주석). 프레즌스가 하나라도 잡히면 true로 좁히는 방법이 있다.
         /// </remarks>
         public bool IsReady => NetworkClient.isConnected && NetworkClient.ready;
+
+        private void Awake()
+        {
+            popup = GetComponent<PartyInvitePopup>();
+        }
 
         private void OnEnable()
         {
@@ -58,34 +65,32 @@ namespace ProjectS.Networking
         // UI(팝업)는 미러를 모르고, 이 다리가 PlayerPresence.Local로 넘긴다(초대 목록과 같은 분리).
         // 팝업과 같은 GO라 GetComponent로 잡히고, 팝업이 켜질 때 이 소스도 함께 OnEnable 된다.
 
-        // private PartyInvitePopup popup;   // 캐시. GetComponent로 잡거나 [SerializeField]로 꽂는다.
-
         private void BindAcceptToggle()
         {
-            // popup = GetComponent<PartyInvitePopup>();
-            // if (popup == null) return;
-            //
-            // // 열릴 때 드롭다운을 현재 값으로 맞춘다(내 프레즌스가 진실, 접속 전이면 세이브 폴백).
-            // // SetAcceptInvites는 SetValueWithoutNotify라 이 초기화가 OnAcceptInvitesChanged를 다시 쏘지 않는다.
-            // bool accepting = PlayerPresence.Local != null
-            //     ? PlayerPresence.Local.AcceptsInvites
-            //     : (GameSession.SelectedCharacter?.acceptsPartyInvites ?? true);
-            // popup.SetAcceptInvites(accepting);
-            //
-            // popup.OnAcceptInvitesChanged += OnAcceptInvitesChanged;
+            popup = GetComponent<PartyInvitePopup>();
+            if (popup == null) return;
+
+            // 열릴 때 드롭다운을 현재 값으로 맞춘다(내 프레즌스가 진실, 접속 전이면 세이브 폴백).
+            // SetAcceptInvites는 SetValueWithoutNotify라 이 초기화가 OnAcceptInvitesChanged를 다시 쏘지 않는다.
+            bool accepting = PlayerPresence.Local != null
+                ? PlayerPresence.Local.AcceptsInvites
+                : (GameSession.SelectedCharacter?.acceptsPartyInvites ?? true);
+            popup.SetAcceptInvites(accepting);
+
+            popup.OnAcceptInvitesChanged += OnAcceptInvitesChanged;
         }
 
         private void UnbindAcceptToggle()
         {
-            // if (popup != null) popup.OnAcceptInvitesChanged -= OnAcceptInvitesChanged;
+             if (popup != null) popup.OnAcceptInvitesChanged -= OnAcceptInvitesChanged;
         }
 
         // 드롭다운이 바뀌면: 서버 프레즌스에 반영(전 클라에서 내 카드가 회색 처리됨) + 세이브에 저장(다음 접속 유지).
         private void OnAcceptInvitesChanged(bool accepting)
         {
-            // PlayerPresence.Local?.CmdSetAcceptsInvites(accepting);
-            // if (GameSession.SelectedCharacter != null)
-            //     GameSession.SelectedCharacter.acceptsPartyInvites = accepting;
+             PlayerPresence.Local?.CmdSetAcceptsInvites(accepting);
+             if (GameSession.SelectedCharacter != null)
+                 GameSession.SelectedCharacter.acceptsPartyInvites = accepting;
         }
 
         private void HandlePresenceChanged()

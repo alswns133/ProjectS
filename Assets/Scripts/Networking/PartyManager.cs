@@ -51,9 +51,22 @@ namespace ProjectS.Networking
         // 밸런스가 아니라 네트워크 안전장치라 상수로 둔다(ChatManager.MaxChatLength와 같은 취지).
         private const float InviteTimeoutSeconds = 25f;
 
+        /// <summary>
+        /// 출발 카운트다운 길이(초). 밸런스가 아니라 기획 확정값이라 상수(2026-09-07: 30초, 파티원이 확인할 시간).
+        /// 다리가 진행 바 비율(남은 시간/전체)을 내는 데 총 길이가 필요해 공개한다.
+        /// </summary>
+        public const float DepartCountdownSeconds = 30f;
+
         // ── 복제/로컬 상태 ──────────────────────────────────────────
         /// <summary>내가 파티장인지. 서버가 파티 성립 시 설정한다(초대한 쪽=파티장).</summary>
         [SyncVar(hook = nameof(OnLeaderChanged))] private bool isLeader;
+
+        // 출발 카운트다운이 끝나는 서버 시각(NetworkTime.time 기준). 0 = 출발 안 함.
+        // ★ 남은 시간(값)을 매 프레임 쏘지 않는다 — 종료 "시각" 하나만 복제하고, 남은 시간은 각 클라가
+        //   자기 Local에서 (departEndTime - NetworkTime.time)으로 매 프레임 계산한다(IPartySource 주석
+        //   "남은 시간은 이벤트로 알리지 않는다"). 서버 동기 시계라 두 파티원의 카운트다운이 안 어긋난다.
+        //   isLeader와 마찬가지로 인스턴스별 SyncVar라, 서버가 이 파티원 둘의 인스턴스에만 심으면 다른 파티와 안 섞인다.
+        [SyncVar(hook = nameof(OnDepartChanged))] private double departEndTime;
 
         // 초대를 보내고 응답을 기다리는 중인지. 순전히 로컬 UI 대기 플래그라 SyncVar가 아니다
         // (남에게 복제할 필요가 없다). RequestInvite에서 켜고 TargetInviteEnded에서 끈다.
@@ -68,6 +81,12 @@ namespace ProjectS.Networking
 
         /// <summary>초대 응답을 기다리는 중인지(다리가 IsInviting으로 노출, 슬롯 대기 표시).</summary>
         public bool IsInviting => isInviting;
+
+        /// <summary>출발 카운트다운이 도는 중인지(다리가 Phase를 Departing으로 가르는 근거).</summary>
+        public bool IsDeparting => departEndTime > 0d;
+
+        /// <summary>출발 카운트다운이 끝나는 서버 시각(NetworkTime.time 기준). 다리가 남은 시간을 여기서 뺀다.</summary>
+        public double DepartEndTime => departEndTime;
 
         // ── 생명주기 ────────────────────────────────────────────────
 
@@ -266,7 +285,97 @@ namespace ProjectS.Networking
                 if (identity == null || !identity.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
 
                 p.ServerSetPartyId(0);
-                if (identity.TryGetComponent(out PartyManager party)) party.isLeader = false;
+                if (identity.TryGetComponent(out PartyManager party))
+                {
+                    party.departEndTime = 0d;   // ← 추가: 출발 중 해체돼도 Departing에 안 갇히게
+                    party.isLeader = false;
+                }
+            }
+        }
+
+        // ── 출발 (파티장 클라 → 서버 → 파티원 둘) ─────────────────────
+
+        /// <summary>출발을 걸어 카운트다운을 시작한다(다리의 RequestDepart). 파티장만 의미가 있다.</summary>
+        public void RequestDepart() => CmdDepart();
+
+        /// <summary>도는 카운트다운을 멈춘다(다리의 CancelDepart). 파티는 유지된다.</summary>
+        public void CancelDepart() => CmdCancelDepart();
+
+        /// <summary>파티원이 출발을 확인해 즉시 입장한다(다리의 ConfirmDepart).</summary>
+        public void ConfirmDepart() => CmdConfirmDepart();
+
+        [Command]
+        private void CmdDepart()
+        {
+            // 1. 파티장만 출발을 건다(파티장 위임 없음 — 초대한 쪽이 계속 파티장).
+            if (!isLeader) return;
+            // 2. 무소속이 아닌가.
+            if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0) return;
+            // 3. 이미 출발 중이면 무시(중복 시작 방지).
+            if (departEndTime > 0d) return;
+
+            // 종료 시각을 파티원 둘에게 심고(서버 동기 시계), 만료 타이머를 (재)예약한다.
+            // 이전 잔여 타이머부터 취소한다(타이머는 이 인스턴스=파티장에서 돈다).
+            ServerSetDepartForMyParty(NetworkTime.time + DepartCountdownSeconds);
+            CancelInvoke(nameof(ServerDepartTimeout));
+            Invoke(nameof(ServerDepartTimeout), DepartCountdownSeconds);
+        }
+
+        [Command]
+        private void CmdCancelDepart()
+        {
+            // 1. 파티장만 취소한다.
+            if (!isLeader) return;
+            // 2. 출발 중이 아니면 할 일 없음.
+            if (departEndTime == 0d) return;
+
+            // 카운트다운만 끄고 파티는 유지한다(파티원 둘의 departEndTime=0).
+            // 타이머는 CancelInvoke 하지 않아도 된다 — ServerDepartTimeout이 departEndTime==0을 보고
+            // 스스로 아무 일도 안 한다(ServerInviteTimeout과 같은 자기-무력화).
+            ServerSetDepartForMyParty(0d);
+        }
+
+        [Command]
+        private void CmdConfirmDepart()
+        {
+            // 1. 출발 중인가.
+            if (departEndTime == 0d) return;
+            // 2. 무소속이 아닌가.
+            if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0) return;
+
+            // 3. 파티장이 아니라 멤버인가(확인은 멤버만).
+            if (isLeader) return;
+            // ★ 여기서 실제 던전 입장을 처리한다(파티원 둘 씬 로드 등) — 입장 흐름이 아직 미정이라 TODO.
+            //    TODO(백엔드): ServerEnterDungeonForMyParty();
+
+            // 입장 처리 후(지금은 임시로 바로) 카운트다운을 정리한다.
+            ServerSetDepartForMyParty(0d);
+        }
+
+        // 카운트다운 만료(서버 안전망). CmdDepart가 Invoke로 예약해 파티장 인스턴스에서 돈다.
+        // 그 사이 취소·확인으로 departEndTime이 0이 됐으면 아래 조건이 거짓이라 아무 일도 안 한다
+        // (별도 CancelInvoke 불필요 — ServerInviteTimeout과 같은 자기-무력화).
+        // 만료 동작: 30초가 지나도 파티는 유지되고 출발만 취소된다(2026-09-07 확정, DummyPartySource와 동일).
+        [Server]
+        private void ServerDepartTimeout()
+        {
+            if (departEndTime == 0d) return;   // 그 사이 취소·확인됐으면 무시
+            ServerSetDepartForMyParty(0d);     // 출발만 취소, 파티는 유지
+        }
+
+        // 내가 속한 파티(같은 partyId) 모두의 departEndTime을 심는다. end=0이면 출발 해제.
+        // ★ 서버 권위 코드라 클라 목록이 아니라 NetworkServer.spawned를 훑는다(host·전용서버 양쪽 동작).
+        //   ServerDisbandMyParty의 순회와 판박이 — 소속 판정은 언제나 partyId로 스코프해 다른 파티에 안 샌다.
+        [Server]
+        private void ServerSetDepartForMyParty(double end)
+        {
+            if (!TryGetComponent(out PlayerPresence myPresence) || myPresence.PartyId == 0) return;
+
+            uint pid = myPresence.PartyId;
+            foreach (NetworkIdentity identity in NetworkServer.spawned.Values)
+            {
+                if (identity == null || !identity.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
+                if (identity.TryGetComponent(out PartyManager party)) party.departEndTime = end;
             }
         }
 
@@ -281,7 +390,7 @@ namespace ProjectS.Networking
             targetConn = null;
 
             // 1. 자기 자신 초대 방지
-             if (targetNetId == netId) return false;
+            if (targetNetId == netId) return false;
 
             // 2. 대상이 스폰돼 있는가
             if (!NetworkServer.spawned.TryGetValue(targetNetId, out NetworkIdentity targetIdentity))
@@ -295,16 +404,16 @@ namespace ProjectS.Networking
                 return false;
 
             // 4. 내가 무소속인가 (★ 초대자 본인 상태 — 빼먹기 쉽다)
-             if (!TryGetComponent(out PlayerPresence myPresence) || myPresence.PartyId != 0) return false;
+            if (!TryGetComponent(out PlayerPresence myPresence) || myPresence.PartyId != 0) return false;
 
             // 5. 대상이 무소속인가
-             if (targetPresence.PartyId != 0) return false;
+            if (targetPresence.PartyId != 0) return false;
 
             // 6. 대상이 초대 수신 허용인가
-             if (!targetPresence.AcceptsInvites) return false;
+            if (!targetPresence.AcceptsInvites) return false;
 
             // 7. (권장) 대상이 이미 다른 보류 초대 중인가 — "먼저 온 것 우선"이면 거부
-             if (pendingByTarget.ContainsKey(targetNetId)) return false;
+            if (pendingByTarget.ContainsKey(targetNetId)) return false;
 
             return true;
         }
@@ -365,6 +474,9 @@ namespace ProjectS.Networking
         }
 
         private void OnLeaderChanged(bool _, bool __) => PartyEvents.FireChanged();
+
+        // 출발 상태(departEndTime)가 복제돼 바뀌면 결성창을 다시 그린다(Formed↔Departing 전환·카운트다운 표시).
+        private void OnDepartChanged(double _, double __) => PartyEvents.FireChanged();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()

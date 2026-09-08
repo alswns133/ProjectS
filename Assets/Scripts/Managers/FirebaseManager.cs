@@ -75,6 +75,12 @@ namespace ProjectS.Managers
         /// <summary>현재 로그인된 유저의 UID. 로그인 상태가 아니면 null.</summary>
         public string CurrentUid => auth != null && auth.CurrentUser != null ? auth.CurrentUser.UserId : null;
 
+        /// <summary>
+        /// 마지막 캐릭터 생성 실패의 '사람이 읽을' 이유. 빌드에서는 콘솔을 볼 수 없어 UI 힌트로 띄우기 위한 값이다.
+        /// 생성 시도마다 초기화되고 실패 경로에서만 채워진다 — <see cref="CreateCharacterResult.Failed"/>일 때만 의미가 있다.
+        /// </summary>
+        public string LastCreateError { get; private set; }
+
         /// <summary>이미 로그인된 세션이 있는지(자동 로그인 스킵 판정용). Firebase가 이전 세션을 유지·복원한다.</summary>
         public bool IsLoggedIn => CurrentUid != null;
 
@@ -231,7 +237,13 @@ namespace ProjectS.Managers
         /// <param name="tutorialState">튜토리얼 진행 상태.</param>
         public async Task<CreateCharacterResult> CreateCharacter(int characterType, string name, Core.TutorialState tutorialState)
         {
-            if (!IsInitialized || CurrentUid == null) return CreateCharacterResult.Failed;
+            LastCreateError = null;
+
+            if (!IsInitialized || CurrentUid == null)
+            {
+                LastCreateError = !IsInitialized ? "서버 연결이 준비되지 않았습니다(초기화 실패)." : "로그인 세션이 없습니다.";
+                return CreateCharacterResult.Failed;
+            }
 
             name = name != null ? name.Trim() : string.Empty;
             if (!IsValidName(name)) return CreateCharacterResult.InvalidName;
@@ -273,6 +285,7 @@ namespace ProjectS.Managers
             {
                 // 권한 거부(경합으로 이름이 방금 선점됨 등). 사전 체크를 통과했어도 규칙이 최종 방어한다.
                 Debug.LogError($"[Firebase] 캐릭터 생성 예외: {ex}");
+                LastCreateError = ex.Message;
                 return CreateCharacterResult.Failed;
             }
         }

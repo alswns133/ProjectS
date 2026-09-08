@@ -58,6 +58,11 @@ namespace ProjectS.UI
 
         private IPartySource source;
 
+        // 이미 답했는지(수락/거절). 답 없이 닫힐 때만 거절로 치기 위해, 그리고 한 번만 답하기 위해 둔다.
+        // ★ 수락 클릭 → CloseSelf 시점엔 아직 서버 왕복 전이라 Phase가 Invited다. 이 가드가 없으면
+        //   OnHide가 "아직 Invited인데 답 안 함"으로 오인해 수락 직후 거절을 덧쏜다.
+        private bool answered;
+
         protected override void OnInit()
         {
             source = partySourceBehaviour as IPartySource;
@@ -74,6 +79,8 @@ namespace ProjectS.UI
 
         protected override void OnShow()
         {
+            answered = false;
+
             if (source != null) source.OnChanged += OnSourceChanged;
             if (countdown != null) countdown.SetTitle(countdownTitle);
 
@@ -83,6 +90,15 @@ namespace ProjectS.UI
         protected override void OnHide()
         {
             if (source != null) source.OnChanged -= OnSourceChanged;
+
+            // 답 없이 닫혔고(ESC·back) 초대가 아직 살아 있으면 거절로 친다 — 안 그러면 초대자가 서버
+            // 타임아웃까지 "초대 중…"에 갇힌다. Phase가 Invited가 아니면 이미 결판난 초대(성립·취소·만료)라
+            // 답을 보내면 안 된다(수락 직후 닫힘도 이 검사와 answered 가드로 걸러진다).
+            if (!answered && source != null && source.Phase == PartyPhase.Invited)
+            {
+                answered = true;
+                source.DeclineInvite();
+            }
         }
 
         private void OnDestroy()
@@ -143,12 +159,14 @@ namespace ProjectS.UI
 
         private void OnAcceptClicked()
         {
+            answered = true;
             source?.AcceptInvite();
             CloseSelf();
         }
 
         private void OnDeclineClicked()
         {
+            answered = true;
             source?.DeclineInvite();
             CloseSelf();
         }

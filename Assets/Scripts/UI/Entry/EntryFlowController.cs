@@ -274,7 +274,12 @@ namespace ProjectS.UI
                 case CreateCharacterResult.NameTaken: return "이미 사용 중인 이름입니다.";
                 case CreateCharacterResult.InvalidName:
                     return $"이름은 {CharacterCreatePageView.MinNameLength}~{CharacterCreatePageView.MaxNameLength}자여야 합니다 ( . # $ [ ] / 불가 ).";
-                default: return "생성에 실패했습니다. 잠시 후 다시 시도하세요.";
+                default:
+                    // 빌드에선 콘솔을 못 보므로 실제 실패 사유(미로그인·권한 거부·변환 예외 등)를 힌트에 직접 띄운다.
+                    string detail = FirebaseManager.Instance != null ? FirebaseManager.Instance.LastCreateError : null;
+                    return string.IsNullOrEmpty(detail)
+                        ? "생성에 실패했습니다. 잠시 후 다시 시도하세요."
+                        : $"생성 실패: {detail}";
             }
         }
 

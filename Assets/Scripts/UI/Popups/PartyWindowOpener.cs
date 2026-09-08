@@ -91,7 +91,11 @@ namespace ProjectS.UI
 
         private void OnPartyChanged()
         {
-            if (source == null || UIManager.Instance == null) return;
+            if (source == null || UIManager.Instance == null)
+            {
+                Debug.LogWarning($"[진단][PartyWindowOpener] OnChanged 왔지만 무시 — source={(source == null ? "null" : "ok")}, UIManager={(UIManager.Instance == null ? "null" : "ok")}", this);
+                return;
+            }
 
             if (source.Phase != PartyPhase.Invited)
             {
@@ -102,6 +106,7 @@ namespace ProjectS.UI
 
             if (invitePopupShown) return;
 
+            Debug.Log("[진단][PartyWindowOpener] Phase=Invited 감지 → ShowPopup<PartyInviteAcceptPopup>", this);
             invitePopupShown = true;
             UIManager.Instance.ShowPopup<PartyInviteAcceptPopup>();
         }
