@@ -39,30 +39,55 @@ namespace ProjectS.UI
         [Tooltip("끄면 던전 안에서도 단축키가 먹는다. 기본은 마을 전용.")]
         [SerializeField] private bool villageOnly = true;
 
+        // 지금 구독 중인 소스(슬롯/같은 오브젝트 우선, 없으면 provider에서 온 것).
         private IPartySource source;
+
+        // 인스펙터 슬롯 또는 같은 오브젝트에서 잡은 소스(Awake에서 1회 결정). provider보다 우선한다.
+        private IPartySource explicitSource;
 
         // 같은 초대에 팝업을 두 번 띄우지 않기 위한 기억. 국면이 한 번 벗어나야 다시 열린다.
         private bool invitePopupShown;
 
         private void Awake()
         {
-            source = partySourceBehaviour as IPartySource;
-            if (source == null) source = GetComponent<IPartySource>();
-
-            if (source == null)
-            {
-                Debug.LogError("[PartyWindowOpener] IPartySource를 찾지 못했다 — 초대가 와도 팝업이 뜨지 않는다.", this);
-            }
+            // 슬롯이 있으면 그것, 없으면 같은 오브젝트에서. 여기서 못 찾아도 에러가 아니다 —
+            // 실 소스(NetworkPartySource)의 provider 등록이 이 Awake보다 늦을 수 있어, OnEnable에서
+            // provider를 통해 뒤늦게 붙는다(그래서 같은 오브젝트가 아니어도 동작한다).
+            explicitSource = (partySourceBehaviour as IPartySource) ?? GetComponent<IPartySource>();
         }
 
         private void OnEnable()
         {
-            if (source != null) source.OnChanged += OnPartyChanged;
+            // 소스가 나중에 등록/교체돼도 따라 붙게 provider 변경을 듣는다.
+            PartySourceProvider.Changed += Rebind;
+            Rebind();
         }
 
         private void OnDisable()
         {
+            PartySourceProvider.Changed -= Rebind;
+            BindTo(null);
+        }
+
+        // 지금 유효한 소스로 다시 붙는다. 슬롯/같은 오브젝트가 우선, 없으면 등록된 provider.
+        private void Rebind()
+        {
+            IPartySource effective = explicitSource ?? PartySourceProvider.Current;
+            if (ReferenceEquals(effective, source)) return;
+
+            BindTo(effective);
+            Debug.Log($"[진단][PartyWindowOpener] bind → partySource={(source as MonoBehaviour != null ? $"{((MonoBehaviour)source).name}#{((MonoBehaviour)source).GetInstanceID()}" : "null")}", this);
+
+            // 붙는 순간 이미 초대가 와 있을 수 있으니(등록이 초대보다 늦었다면) 즉시 한 번 평가한다.
+            if (source != null) OnPartyChanged();
+        }
+
+        // 구독 대상을 갈아 끼운다(옛 소스 해제 → 새 소스 구독). 짝을 맞춰 중복 구독을 막는다.
+        private void BindTo(IPartySource next)
+        {
             if (source != null) source.OnChanged -= OnPartyChanged;
+            source = next;
+            if (source != null) source.OnChanged += OnPartyChanged;
         }
 
         private void Update()

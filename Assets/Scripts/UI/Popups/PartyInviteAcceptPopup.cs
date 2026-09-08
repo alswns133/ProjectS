@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Managers;
@@ -63,15 +63,27 @@ namespace ProjectS.UI
         //   OnHide가 "아직 Invited인데 답 안 함"으로 오인해 수락 직후 거절을 덧쏜다.
         private bool answered;
 
+        // 받는 창의 응답 타이머는 로컬로 센다 — 받는 사람 혼자 보는 값이라 서버 동기가 필요 없고(출발
+        // 카운트다운과 달리 두 사람이 같은 값을 볼 이유가 없다), 게이지가 매 프레임 매끄럽게 흐른다.
+        // 시작값은 네트워크가 준 남은 시간(RemainingSeconds), 없으면 전체 창(PhaseDuration)에서 시작한다.
+        private float timerRemaining;
+        private float timerTotal;
+
         protected override void OnInit()
         {
             source = partySourceBehaviour as IPartySource;
+
+            // 슬롯을 비워 두면 등록된 파티 소스를 자동으로 받아온다(창마다 크로스 오브젝트로 끌어다 꽂지 않게).
+            if (source == null && partySourceBehaviour == null) source = PartySourceProvider.Current;
+
             if (source == null)
             {
                 Debug.LogError(partySourceBehaviour == null
-                    ? "[PartyInviteAcceptPopup] partySourceBehaviour가 비어 있다 — 초대를 받을 수 없다."
+                    ? "[PartyInviteAcceptPopup] partySourceBehaviour가 비어 있고 등록된 파티 소스도 없다 — 초대를 받을 수 없다."
                     : $"[PartyInviteAcceptPopup] {partySourceBehaviour.GetType().Name}은 IPartySource를 구현하지 않는다.", this);
             }
+
+            Debug.Log($"[진단][PartyInviteAcceptPopup] partySource={(source as MonoBehaviour != null ? $"{((MonoBehaviour)source).name}#{((MonoBehaviour)source).GetInstanceID()}" : "null")} (NetworkPartySource OnEnable의 #ID와 같아야 함)", this);
 
             if (acceptButton != null) acceptButton.onClick.AddListener(OnAcceptClicked);
             if (declineButton != null) declineButton.onClick.AddListener(OnDeclineClicked);
@@ -83,6 +95,15 @@ namespace ProjectS.UI
 
             if (source != null) source.OnChanged += OnSourceChanged;
             if (countdown != null) countdown.SetTitle(countdownTitle);
+
+            // 로컬 타이머 초기화. 네트워크가 준 남은 시간을 우선 쓰되, 없으면(0) 전체 창부터 센다.
+            timerTotal = source != null ? source.PhaseDuration : 0f;
+            timerRemaining = source != null ? source.RemainingSeconds : 0f;
+            if (timerRemaining <= 0.01f) timerRemaining = timerTotal;
+            if (timerTotal <= 0.01f) timerTotal = timerRemaining;
+
+            Debug.Log($"[진단][AcceptPopup] OnShow: source={(source != null)}, phase={source?.Phase}, " +
+                      $"countdown연결={(countdown != null)}, remaining0={timerRemaining:0.0}, total0={timerTotal:0.0}", this);
 
             Redraw();
         }
@@ -111,7 +132,18 @@ namespace ProjectS.UI
         {
             if (source == null || source.Phase != PartyPhase.Invited) return;
 
-            countdown?.Set(source.RemainingSeconds, source.PhaseDuration);
+            // 로컬 타이머를 매 프레임 줄여 게이지에 밀어 넣는다(unscaled — UI 대기라 timeScale 영향 안 받게).
+            timerRemaining -= Time.unscaledDeltaTime;
+            countdown?.Set(timerRemaining, timerTotal);
+
+            // 정확히 0이 되면 자동 거절하고 창을 닫는다. 서버 타임아웃은 초대자에게만 통지하고 받는 창의
+            // Phase는 계속 Invited라, 여기서 0을 보고 스스로 닫지 않으면 게이지가 0에 붙은 채 남는다.
+            if (timerRemaining <= 0f)
+            {
+                answered = true;          // 만료 처리 — OnHide의 중복 거절을 막는다.
+                source.DeclineInvite();   // 서버 통지(이미 만료면 no-op) + 로컬 초대 정리 → Phase None
+                CloseSelf();
+            }
         }
 
         private void OnSourceChanged()

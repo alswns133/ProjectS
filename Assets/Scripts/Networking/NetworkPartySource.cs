@@ -38,6 +38,12 @@ namespace ProjectS.Networking
         // (다시 그리기는 멱등이라 중복 신호는 무해).
         private void OnEnable()
         {
+            Debug.Log($"[진단][NetworkPartySource] OnEnable #{GetInstanceID()} (GO='{name}') — 파티 상태 소스 활성. " +
+                      $"소비자(AcceptPopup·RosterPopup·SlotBar·WindowOpener)가 이 #ID를 물어야 한다.", this);
+
+            // 창들이 슬롯 배선 없이 받아가게 스스로 등록한다(PartySourceProvider). 소스는 하나여야 한다.
+            PartySourceProvider.Set(this);
+
             PlayerPresence.OnAnyChanged += OnPresenceChanged;
             PartyEvents.OnChanged += Raise;
             PartyEvents.OnInviteReceived += OnInviteReceived;
@@ -45,6 +51,8 @@ namespace ProjectS.Networking
 
         private void OnDisable()
         {
+            PartySourceProvider.Clear(this);
+
             PlayerPresence.OnAnyChanged -= OnPresenceChanged;
             PartyEvents.OnChanged -= Raise;
             PartyEvents.OnInviteReceived -= OnInviteReceived;
@@ -149,14 +157,32 @@ namespace ProjectS.Networking
             }
         }
 
-        // 던전/난이도는 아직 초대 offer에 실려 오지 않아 표시할 값이 없다. 창은 열리되 이 칸만 빈다.
-        // TODO(백엔드): PartyInviteOffer에 던전/난이도를 실어 보내면 여기로 잇는다.
+        // 던전/난이도 출처가 국면마다 다르다. 초대 대기(Invited)엔 아직 파티가 없어 offer에 실려 온 값을,
+        // 파티가 맺어진 뒤(Formed/Departing)엔 서버가 프레즌스에 심은 파티 던전을 읽는다.
 
         /// <inheritdoc/>
-        public string DungeonName => string.Empty;
+        public string DungeonName
+        {
+            get
+            {
+                if (Phase == PartyPhase.Invited && incomingInvite.HasValue)
+                    return incomingInvite.Value.dungeonName ?? string.Empty;
+
+                return PlayerPresence.Local != null ? PlayerPresence.Local.PartyDungeonName : string.Empty;
+            }
+        }
 
         /// <inheritdoc/>
-        public string DifficultyLabel => string.Empty;
+        public string DifficultyLabel
+        {
+            get
+            {
+                if (Phase == PartyPhase.Invited && incomingInvite.HasValue)
+                    return incomingInvite.Value.difficultyLabel ?? string.Empty;
+
+                return PlayerPresence.Local != null ? PlayerPresence.Local.PartyDifficultyLabel : string.Empty;
+            }
+        }
 
         /// <inheritdoc/>
         /// <remarks>
@@ -168,24 +194,35 @@ namespace ProjectS.Networking
         {
             get
             {
-                PartyManager local = PartyManager.Local;
-                if (local == null || !local.IsDeparting) return 0f;
+                // 초대 대기: 초대 만료 시각(offer.expireTime)까지 남은 시간을 서버시각 기준으로 계산.
+                if (Phase == PartyPhase.Invited && incomingInvite.HasValue)
+                    return Mathf.Max(0f, (float)(incomingInvite.Value.expireTime - NetworkTime.time));
 
-                return Mathf.Max(0f, (float)(local.DepartEndTime - NetworkTime.time));
+                // 출발: 출발 종료 시각까지.
+                PartyManager local = PartyManager.Local;
+                if (local != null && local.IsDeparting)
+                    return Mathf.Max(0f, (float)(local.DepartEndTime - NetworkTime.time));
+
+                return 0f;
             }
         }
 
         /// <inheritdoc/>
-        public float PhaseDuration => Phase == PartyPhase.Departing ? PartyManager.DepartCountdownSeconds : 0f;
+        public float PhaseDuration => Phase switch
+        {
+            PartyPhase.Invited   => PartyManager.InviteTimeoutSeconds,
+            PartyPhase.Departing => PartyManager.DepartCountdownSeconds,
+            _                    => 0f,
+        };
 
         /// <inheritdoc/>
-        public void RequestInvite(PartyMemberInfo target)
+        public void RequestInvite(PartyMemberInfo target, int dungeonId, string dungeonName, string difficultyLabel)
         {
             if (target == null || PartyManager.Local == null) return;
 
-            // 로스터가 넣어 준 Id는 netId 문자열이다(NetworkPartyMemberSource 참조). 파싱해 서버로 넘긴다.
+            // 로스터가 넣어 준 Id는 netId 문자열이다(NetworkPartyMemberSource 참조). 파싱해 던전과 함께 서버로 넘긴다.
             if (uint.TryParse(target.Id, out uint targetNetId))
-                PartyManager.Local.RequestInvite(targetNetId);
+                PartyManager.Local.RequestInvite(targetNetId, dungeonId, dungeonName, difficultyLabel);
             else
                 Debug.LogWarning($"[NetworkPartySource] target.Id를 netId로 파싱하지 못했다: '{target.Id}'", this);
         }

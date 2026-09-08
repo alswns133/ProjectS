@@ -49,6 +49,9 @@ namespace ProjectS.Networking
 
         private void OnEnable()
         {
+            Debug.Log($"[진단][NetworkPartyMemberSource] OnEnable #{GetInstanceID()} (GO='{name}') — 목록 소스 활성. " +
+                      $"PlayerPresence.All={PlayerPresence.All.Count}, Local={(PlayerPresence.Local != null)}", this);
+
             PlayerPresence.OnAnyChanged += HandlePresenceChanged;
             BindAcceptToggle();
             Rebuild();

@@ -451,8 +451,19 @@ namespace ProjectS.UI
             if (enterButton != null) enterButton.interactable = ready;
 
             // 던전·난이도가 정해져야 초대할 수 있다 — 어디로 가는지 모르면 상대에게 보여줄 내용이 없다
-            // (docs/PARTY_WINDOW_UI.md §2).
-            if (partySlots != null) partySlots.SetSelectionReady(ready);
+            // (docs/PARTY_WINDOW_UI.md §2). 준비됐으면 선택된 던전을 슬롯바에 넘겨 초대에 실리게 한다.
+            if (partySlots != null)
+            {
+                partySlots.SetSelectionReady(ready);
+
+                if (ready)
+                {
+                    EpisodeInfo episode = catalog.Episodes[selectedEpisode];
+                    DifficultyInfo difficulty = catalog.Difficulties[selectedDifficulty];
+                    int dungeonId = DungeonCatalog.MakeDungeonId(episode.DungeonNumber, difficulty.Value);
+                    partySlots.SetDungeon(dungeonId, episode.DisplayName, difficulty.Label);
+                }
+            }
         }
 
         // ① 진행률. 클리어 기록을 담는 세이브 항목이 아직 없어 지금은 전체 개수만 보여준다.
