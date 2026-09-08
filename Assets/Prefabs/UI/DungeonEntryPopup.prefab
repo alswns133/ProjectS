@@ -4348,40 +4348,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: PartySlotBar
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 7845249758569134162, guid: a533623242c5d224bb043114cee9847a, type: 3}
+      propertyPath: partySourceBehaviour
+      value: 
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 3304281694229404520, guid: a533623242c5d224bb043114cee9847a, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6229339040251402550, guid: a533623242c5d224bb043114cee9847a, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 7061637988108032657}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a533623242c5d224bb043114cee9847a, type: 3}
---- !u!1 &2165889589081557990 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6229339040251402550, guid: a533623242c5d224bb043114cee9847a, type: 3}
-  m_PrefabInstance: {fileID: 5223550776110224080}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &7061637988108032657
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2165889589081557990}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 431bc5fde997d5f47835377519a73028, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.PartyWindowOpener
-  partySourceBehaviour: {fileID: 7324802913318635960}
-  toggleKey: 3
-  villageOnly: 1
 --- !u!114 &2639719437552282242 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7845249758569134162, guid: a533623242c5d224bb043114cee9847a, type: 3}
   m_PrefabInstance: {fileID: 5223550776110224080}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2165889589081557990}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a30e9e58f4e1de49a97292a8f2fdda0, type: 3}
@@ -4392,14 +4374,3 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 628696074270548544, guid: a533623242c5d224bb043114cee9847a, type: 3}
   m_PrefabInstance: {fileID: 5223550776110224080}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &7324802913318635960 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3304281694229404520, guid: a533623242c5d224bb043114cee9847a, type: 3}
-  m_PrefabInstance: {fileID: 5223550776110224080}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2165889589081557990}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c0ee709e7ffcd8149973a005d26165d6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.DummyPartySource
