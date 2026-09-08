@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Players; // AnimationEventKey (슬롯 키 정규화). 히트박스·투사체·플레이어 이펙트와 같은 규약을 공유한다.
+using XftWeapon; // XWeaponTrail (무기 트레일 컴포넌트) Play/Stop.
 
 namespace ProjectS.Enemies
 {
@@ -52,6 +53,9 @@ namespace ProjectS.Enemies
         }
 
         [SerializeField] private EffectSlot[] effects;
+
+        [Tooltip("공격 모션에 붙은 XWeaponTrail 컴포넌트. Animation Event에서 Play/Stop한다.")]
+        [SerializeField] private XWeaponTrail[] xWeaponTrails;
 
         // 매 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
         private readonly Dictionary<string, EffectSlot> effectMap = new Dictionary<string, EffectSlot>();
@@ -164,6 +168,36 @@ namespace ProjectS.Enemies
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// 공격 모션 클립의 Animation Event가 호출한다. 이펙트(슬롯 키 방식)와 달리 키를 쓰지 않고,
+        /// 공격 모션에 붙여 인스펙터에 등록한 무기 트레일 컴포넌트를 한꺼번에 켠다.
+        /// Animation Event가 목록에서 찾을 수 있도록 public으로 둔다(OnEffect와 동일한 규약).
+        /// </summary>
+        public void PlayWeaponTrail()
+        {
+            if (xWeaponTrails == null) return;
+
+            foreach (var trail in xWeaponTrails)
+            {
+                if (trail != null) trail.Activate();
+            }
+        }
+
+        /// <summary>
+        /// 공격 모션 클립의 Animation Event가 호출한다. <see cref="PlayWeaponTrail"/>로 켠
+        /// 무기 트레일 컴포넌트를 한꺼번에 끈다.
+        /// Animation Event가 목록에서 찾을 수 있도록 public으로 둔다(OffEffect와 동일한 규약).
+        /// </summary>
+        public void StopWeaponTrail()
+        {
+            if (xWeaponTrails == null) return;
+
+            foreach (var trail in xWeaponTrails)
+            {
+                if (trail != null) trail.Deactivate();
+            }
         }
     }
 }
