@@ -145,7 +145,7 @@ namespace ProjectS.UI
             Cursor.visible = active;
 
             Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
-            player?.Input?.SetInputSuspended(active);
+            player?.Input?.SetInputSuspended(active, this);
         }
 
         private void Update()
