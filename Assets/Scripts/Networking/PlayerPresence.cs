@@ -70,6 +70,12 @@ namespace ProjectS.Networking
         /// </summary>
         [SyncVar(hook = nameof(OnPartyIdChanged))] private uint partyId;
 
+        // 파티가 향하는 던전(표시·입장용). 소속이 생길 때 서버가 채우고 해체 시 비운다. 파티는 2인이라
+        // 양쪽 프레즌스에 같은 값을 심는다(소속처럼 파티 상태를 멤버마다 복제해 두는 방식).
+        [SyncVar(hook = nameof(OnPartyDungeonIdChanged))] private int partyDungeonId;
+        [SyncVar(hook = nameof(OnPartyDungeonTextChanged))] private string partyDungeonName = string.Empty;
+        [SyncVar(hook = nameof(OnPartyDungeonTextChanged))] private string partyDifficultyLabel = string.Empty;
+
         /// <summary>목록에 그릴 닉네임.</summary>
         public string DisplayName => displayName;
 
@@ -87,6 +93,15 @@ namespace ProjectS.Networking
 
         /// <summary>소속 파티 id(0=무소속). PartyManager가 대상 파티를 찾을 때 쓴다.</summary>
         public uint PartyId => partyId;
+
+        /// <summary>파티가 향하는 던전 ID(2자리). 무소속이면 0. 실제 입장에 쓴다.</summary>
+        public int PartyDungeonId => partyDungeonId;
+
+        /// <summary>파티가 향하는 던전 표시 이름. 결성창이 그린다.</summary>
+        public string PartyDungeonName => partyDungeonName;
+
+        /// <summary>파티가 향하는 난이도 라벨.</summary>
+        public string PartyDifficultyLabel => partyDifficultyLabel;
 
         // ── 생명주기: 목록 등록/해제 ──────────────────────────────────
 
@@ -164,6 +179,25 @@ namespace ProjectS.Networking
         public void ServerSetPartyId(uint newPartyId)
         {
             partyId = newPartyId;
+
+            // 무소속으로 돌아가면 파티 던전도 비운다(해체·추방·나가기). 안 비우면 다음 창에 옛 던전이 남는다.
+            if (newPartyId == 0)
+            {
+                partyDungeonId = 0;
+                partyDungeonName = string.Empty;
+                partyDifficultyLabel = string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 파티가 향하는 던전을 서버에서 갱신한다(PartyManager 전용). 파티 성립 시 초대에 실려 온 값을 심는다.
+        /// </summary>
+        [Server]
+        public void ServerSetPartyDungeon(int id, string dungeonName, string difficultyLabel)
+        {
+            partyDungeonId = id;
+            partyDungeonName = dungeonName ?? string.Empty;
+            partyDifficultyLabel = difficultyLabel ?? string.Empty;
         }
 
         // ── 훅 ───────────────────────────────────────────────────────
@@ -175,6 +209,8 @@ namespace ProjectS.Networking
         private void OnTypeChanged(int _, int __)          => OnAnyChanged?.Invoke();
         private void OnAcceptsChanged(bool _, bool __)     => OnAnyChanged?.Invoke();
         private void OnPartyIdChanged(uint _, uint __)     => OnAnyChanged?.Invoke();
+        private void OnPartyDungeonIdChanged(int _, int __)        => OnAnyChanged?.Invoke();   // partyDungeonId
+        private void OnPartyDungeonTextChanged(string _, string __) => OnAnyChanged?.Invoke();  // partyDungeonName·partyDifficultyLabel 공용(같은 시그니처라 오버로드 아님)
 
         // 플레이 모드 리로드(도메인 리로드 off) 후에도 static이 남아 죽은 구독/항목이 끼는 것을 막는다.
         // static 이벤트·목록 초기화 규칙(CLAUDE.md 이벤트 시스템).

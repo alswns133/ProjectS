@@ -101,5 +101,12 @@ crashlytics-build.properties
 /[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.so
 /[Aa]ssets/[Ff]irebase/[Pp]lugins/x86_64/*.so.meta
 
+# ===== Firebase CLI (standalone binary + logs) — 절대 커밋 금지 =====
+# firebase.tools 단독 실행 파일(~240MB, Node 없이 규칙 배포용). firebase.json(배포 설정)은 커밋해도 됨.
+/firebase.exe
+firebase-tools-instant-win.exe
+firebase-debug.log
+.firebase/
+
 # Unity scene recovery backups (crash recovery temp folder)
 /[Aa]ssets/_Recovery/

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace ProjectS.UI
 {
@@ -84,7 +84,10 @@ namespace ProjectS.UI
 
         /// <summary>상대에게 초대를 보내 달라고 요청한다. 실제 발송·검증은 서버가 한다.</summary>
         /// <param name="target">초대할 상대</param>
-        void RequestInvite(PartyMemberInfo target);
+        /// <param name="dungeonId">향하는 던전 ID(2자리, 실제 입장용). 미지정이면 0</param>
+        /// <param name="dungeonName">표시용 던전 이름</param>
+        /// <param name="difficultyLabel">표시용 난이도 라벨</param>
+        void RequestInvite(PartyMemberInfo target, int dungeonId, string dungeonName, string difficultyLabel);
 
         /// <summary>받은 초대를 수락한다.</summary>
         void AcceptInvite();
