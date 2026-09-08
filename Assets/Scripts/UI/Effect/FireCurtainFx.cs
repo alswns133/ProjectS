@@ -54,6 +54,10 @@ namespace ProjectS.UI
         [Tooltip("폭발의 월드 좌표를 화면 좌표로 옮길 카메라. 비우면 Camera.main을 쓴다.")]
         [SerializeField] private Camera worldCamera;
 
+        [Tooltip("Signal Receiver로 PlayCover()를 부를 때 쓸 폭발 지점. 비우면 화면 중앙에서 자란다. " +
+                 "코루틴·Timeline 클립으로 중심을 직접 넘기는 경우엔 쓰이지 않는다.")]
+        [SerializeField] private Transform centerTarget;
+
         [Header("덮임")]
         [Tooltip("폭발이 퍼져 화면을 다 덮는 데 걸리는 시간(초). 길면 번지는 것으로 보인다 — 폭발은 짧아야 한다.")]
         [SerializeField, Min(0.02f)] private float coverDuration = 0.28f;
@@ -115,6 +119,9 @@ namespace ProjectS.UI
 
         // 불똥 방출의 소수점 나머지. 프레임마다 버리면 초당 개수가 프레임레이트에 끌려 들쭉날쭉해진다.
         private float emberCarry;
+
+        // 지난 프레임의 걷힘 진행. Timeline이 되감을 때 불똥을 내지 않으려고 방향을 본다.
+        private float lastBurn;
 
         // 이번 프레임의 렉트 크기·최대 반지름. UpdateGeometry가 채우고 불똥 방출이 그대로 쓴다.
         private Vector2 rectSize = new(1920f, 1080f);
@@ -209,6 +216,7 @@ namespace ProjectS.UI
             if (routine != null) StopCoroutine(routine);
             routine = null;
             emberCarry = 0f;
+            lastBurn = 0f;
 
             // 떠 있던 불똥까지 치운다. 남겨 두면 가림막만 사라지고 불똥이 허공에 떠 있다.
             if (embers != null) embers.Clear();
@@ -217,6 +225,73 @@ namespace ProjectS.UI
 
             material.SetFloat(CoverID, 0f);
             material.SetFloat(BurnID, 0f);
+        }
+
+        // ── Timeline·Signal 연동 ────────────────────────────────────────────
+
+        /// <summary>
+        /// 진행값을 <b>바깥에서 직접</b> 지정한다. Timeline 클립(<c>FireCurtainClip</c>)이 매 프레임 부른다.
+        /// </summary>
+        /// <param name="cover">덮임 진행. 0이면 투명, 1.3이면 화면을 완전히 덮는다.</param>
+        /// <param name="burn">걷힘 진행. 0이면 그대로, 1.3이면 다 타서 사라진다.</param>
+        /// <remarks>
+        /// <para>
+        /// 코루틴(<see cref="Cover(Vector3)"/>·<see cref="Burn()"/>)과 <b>둘 중 하나만</b> 쓴다.
+        /// 코루틴은 제 시간으로 값을 밀고 이쪽은 호출부가 값을 쥐므로, 같이 굴리면 매 프레임 서로 덮어쓴다.
+        /// Timeline이 연출을 소유하면 이 메서드만 쓴다 — 그래야 타임라인을 스크럽할 때 화면이 따라온다
+        /// (코루틴은 제 시간으로 흘러가므로 스크럽·되감기와 어긋난다).
+        /// </para>
+        /// <para>
+        /// 불똥도 여기서 낸다. 걷히는 중이면 경계 원 둘레에 계속 띄우고, 되감겨 <paramref name="burn"/>이
+        /// 줄어들면 내지 않는다(되감을 때도 불똥이 나면 시간이 거꾸로 가는데 불만 늘어난다).
+        /// </para>
+        /// </remarks>
+        public void SetProgress(float cover, float burn)
+        {
+            if (!Prepare()) return;
+
+            UpdateGeometry();
+            material.SetFloat(CoverID, cover);
+            material.SetFloat(BurnID, burn);
+
+            // 에디터에서 타임라인을 스크럽할 때는 Update가 돌지 않아 불이 멎은 그림으로 보인다.
+            // 그때만 실제 시각으로 굴려, 미리보기에서도 이글거리는 상태로 타이밍을 맞출 수 있게 한다.
+            if (!Application.isPlaying) material.SetFloat(FxTimeID, Time.realtimeSinceStartup);
+
+            float dt = Time.unscaledDeltaTime;
+            if (burn > lastBurn + 0.00001f) EmitEmbers(burn, dt);
+            lastBurn = burn;
+        }
+
+        /// <summary>불이 자라날 중심을 월드 좌표로 지정한다. Timeline 클립이 시작할 때 한 번 부른다.</summary>
+        /// <param name="worldCenter">폭발이 터진 월드 좌표</param>
+        public void SetWorldCenter(Vector3 worldCenter) => SetCenter(ToViewport(worldCenter));
+
+        /// <summary>
+        /// 덮임을 코루틴으로 재생한다. Timeline <b>Signal Receiver</b>에서 부를 수 있는 void 진입점이다.
+        /// </summary>
+        /// <remarks>
+        /// UnityEvent는 <c>IEnumerator</c> 반환 메서드를 목록에 띄우지 못한다. 그래서 Signal로 몰 때는
+        /// 반드시 이 래퍼를 쓴다. 중심은 인스펙터의 <see cref="centerTarget"/>을 따르고, 비어 있으면 화면 중앙이다.
+        /// </remarks>
+        public void PlayCover()
+        {
+            if (!isActiveAndEnabled) return;
+
+            if (centerTarget != null) SetWorldCenter(centerTarget.position);
+            else SetCenter(new Vector2(0.5f, 0.5f));
+
+            if (routine != null) StopCoroutine(routine);
+            StartCoroutine(CoverInternal());
+        }
+
+        /// <summary>걷힘을 코루틴으로 재생한다. Signal Receiver용 void 진입점이다.</summary>
+        public void PlayBurn()
+        {
+            if (!isActiveAndEnabled) return;
+
+            if (routine != null) StopCoroutine(routine);
+            StartCoroutine(BurnInternal());
         }
 
         private IEnumerator CoverInternal()
