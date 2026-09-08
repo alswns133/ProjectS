@@ -122,6 +122,8 @@ namespace ProjectS.UI
         /// </summary>
         public bool ManageFreeze { get; set; } = true;
 
+        private static readonly object DialogueSuspendKey = new object();
+
         private void Awake()
         {
             if (Instance != null)
@@ -153,7 +155,7 @@ namespace ProjectS.UI
             if (IsPlaying && ManageFreeze)
             {
                 if (cameraPivot != null) cameraPivot.enabled = true;
-                if (playerInput != null) playerInput.enabled = true;
+                if (playerInput != null) playerInput.SetInputSuspended(false, DialogueSuspendKey);
                 Cursor.lockState = savedLockState;
                 Cursor.visible = savedCursorVisible;
             }
@@ -554,7 +556,7 @@ namespace ProjectS.UI
             if (!ManageFreeze) return;   // 컨트롤러가 상호작용 전체를 얼리는 경우 대화는 관여 안 함
 
             if (playerInput == null) playerInput = FindAnyObjectByType<PlayerInputHandler>();
-            if (playerInput != null) playerInput.enabled = false;
+            if (playerInput != null) playerInput.SetInputSuspended(true, DialogueSuspendKey);
 
             if (cameraPivot == null) cameraPivot = FindAnyObjectByType<CameraPivotController>();
             if (cameraPivot != null) cameraPivot.enabled = false;
@@ -592,7 +594,7 @@ namespace ProjectS.UI
 
             // 그 사이 새 대화가 시작됐으면 복구하지 않는다.
             if (!IsPlaying && playerInput != null)
-                playerInput.enabled = true;
+                playerInput.SetInputSuspended(false, DialogueSuspendKey);
         }
 
         // ---------- 대화 입력 ----------

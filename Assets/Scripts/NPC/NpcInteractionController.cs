@@ -119,6 +119,8 @@ namespace ProjectS.NPCs
         /// <summary>허브 본문에 띄울 인사말 한 줄(상호작용/처음으로마다 새로 뽑힘).</summary>
         public string GreetingText { get; private set; } = string.Empty;
 
+        private readonly object NpcSuspendKey = new();
+
         /// <summary>이 NPC가 해당 허브 기능을 제공하는지(허브 뷰가 버튼을 켤지 판단).</summary>
         /// <param name="feature">확인할 기능</param>
         /// <returns>제공하면 true</returns>
@@ -416,7 +418,7 @@ namespace ProjectS.NPCs
         private void FreezeForInteraction()
         {
             if (input == null) input = FindAnyObjectByType<PlayerInputHandler>();
-            if (input != null) input.enabled = false;
+            if (input != null) input.SetInputSuspended(true, NpcSuspendKey);
 
             if (cameraPivot == null) cameraPivot = FindAnyObjectByType<CameraPivotController>();
             if (cameraPivot != null) cameraPivot.enabled = false;
@@ -454,7 +456,7 @@ namespace ProjectS.NPCs
 
             // 그 사이 새 상호작용이 시작됐으면 건드리지 않는다(그 상호작용이 얼리기를 소유).
             if (!interacting && input != null)
-                input.enabled = true;
+                input.SetInputSuspended(false, NpcSuspendKey);
         }
     }
 }
