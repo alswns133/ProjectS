@@ -16309,6 +16309,7 @@ GameObject:
   - component: {fileID: 3520933153128057244}
   - component: {fileID: 4630818015410214236}
   - component: {fileID: 6054501034262126531}
+  - component: {fileID: 2120424188002723583}
   m_Layer: 0
   m_Name: Boss_Raid_DualBlades
   m_TagString: Untagged
@@ -16995,6 +16996,34 @@ MonoBehaviour:
     m_EditorAssetChanged: 0
   thresholdRatio: 0.5
   nextPhaseIsFinal: 1
+--- !u!114 &2120424188002723583
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890781944157325120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a75d8af8ee950a74aad5bc5599ec5b82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyHitHighlight
+  onHighlightChanged:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 8654342612224952360, guid: 3f6dc9a05b4f3ff49bdfa03736ccbbb5, type: 3}
+        m_TargetAssemblyTypeName: HighlightPlus.HighlightEffect, HighlightPlus.Runtime
+        m_MethodName: SetHighlighted
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  highlightDuration: 0.3
 --- !u!1 &920807242309128139
 GameObject:
   m_ObjectHideFlags: 0
