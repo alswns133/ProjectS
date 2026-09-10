@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Players; // AnimationEventKey (슬롯 키 정규화). 히트박스·투사체·플레이어 이펙트와 같은 규약을 공유한다.
-using XftWeapon; // XWeaponTrail (무기 트레일 컴포넌트) Play/Stop.
 
 namespace ProjectS.Enemies
 {
