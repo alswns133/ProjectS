@@ -109,9 +109,6 @@ namespace ProjectS.UI
             mode = entryMode;
             catalog = entryCatalog;
 
-            
-
-
             if (catalog != null && catalog.Mode != entryMode)
                 Debug.LogWarning($"[DungeonEntryPopup] 게이트 모드({entryMode})와 카탈로그 모드({catalog.Mode})가 다름: {catalog.name}");
 
@@ -432,7 +429,7 @@ namespace ProjectS.UI
             // (PartyWindowOpener), 멤버가 확인하면 서버가 파티 인스턴스로 함께 입장시킨다.
             // 파티가 없으면(솔로) 기존대로 라우터가 로컬 전환한다.
             IPartySource party = PartySourceProvider.Current;
-            if (party != null && party.Partner != null)
+            if (mode == EntryMode.Raid && party != null && party.Partner != null)
             {
                 RequestClose();
 

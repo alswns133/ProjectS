@@ -1,8 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using Mirror;
+﻿using Mirror;
 using ProjectS.Events;
+using ProjectS.Players;
 using ProjectS.Scenes;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -48,6 +49,8 @@ namespace ProjectS.Networking
             public string dungeonName;
             public string difficultyLabel;
         }
+
+        [SerializeField] private CharacterRoster roster;
 
         // 보류 초대: 대상 netId → 보류 초대. "이 사람은 지금 누구의(어느 던전으로의) 초대를 받고 있나"를 서버가 기억한다.
         // 1인당 1건만 보류(2인 파티라 동시에 여러 초대를 받을 이유가 적다).
@@ -482,19 +485,59 @@ namespace ProjectS.Networking
             //   foreach 파티원 conn: conn.Send(new SceneMessage { sceneName = sceneName, sceneOperation = SceneOperation.LoadAdditive });
             //   그 뒤 클라의 로컬 캐릭터/DungeonContext 세팅(PartyDungeonId SyncVar 이용) + GameSceneManager 통합(Stage 5).
 
-           foreach(NetworkIdentity id in NetworkServer.spawned.Values)
+            foreach (NetworkIdentity id in NetworkServer.spawned.Values)
             {
                 if (id == null || !id.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
 
                 NetworkConnectionToClient conn = id.connectionToClient;
-           
+
                 if (conn == null) continue;
 
                 if (conn == NetworkServer.localConnection) continue;  // 호스트는 서버 씬을 공유 → 다시 로드 금지
 
-                conn.Send(new SceneMessage { sceneName = sceneName, 
-                                             sceneOperation = SceneOperation.LoadAdditive, 
-                                             customHandling = true });  // ← 미러 자동로드 끔, 클라가 직접 로드
+                conn.Send(new SceneMessage
+                {
+                    sceneName = sceneName,
+                    sceneOperation = SceneOperation.LoadAdditive,
+                    customHandling = true
+                });  // ← 미러 자동로드 끔, 클라가 직접 로드
+            }
+
+            // 인스턴스 씬 안의 PlayerSpawnPoint를 찾는다(FindAnyObjectByType는 다른 인스턴스 걸 잡을 수 있어 X).
+            Vector3 basePos = Vector3.zero;
+            Quaternion baseRot = Quaternion.identity;
+            foreach (GameObject root in instance.GetRootGameObjects())
+            {
+                PlayerSpawnPoint sp = root.GetComponentInChildren<PlayerSpawnPoint>();
+                if (sp != null)
+                {
+                    basePos = sp.transform.position;
+                    baseRot = sp.transform.rotation; break;
+                }
+            }
+
+            List<PlayerPresence> members = new();
+            foreach(var id in NetworkServer.spawned.Values)
+            {
+                if (id == null || !id.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
+                members.Add(p);
+            }
+
+
+            int i = 0;
+            foreach (var p in members)
+            {
+                NetworkConnectionToClient conn = p.connectionToClient;
+                if (conn == null) continue;
+
+                Vector3 spawnPos = basePos + new Vector3(i * 1.5f, 0, 0);
+                Player prefabs = roster.GetByType(p.CharacterType);
+                if (prefabs == null) continue;
+
+                GameObject avatar = Instantiate(prefabs.gameObject, spawnPos, baseRot);
+                SceneManager.MoveGameObjectToScene(avatar, instance);
+                NetworkServer.Spawn(avatar, conn);
+                i++;
             }
         }
 

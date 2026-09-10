@@ -27,7 +27,7 @@ namespace ProjectS.Managers
         // 직업 타입별 프리팹(검사/거너 …). 코드는 공용 1벌이고, 모델·히트박스·이펙트·투사체 스포너는
         // 각 프리팹 자식으로 둔다(프리팹 내부 참조라 스폰·씬전환에도 안 깨짐). 새 직업 = 이 배열에 프리팹 추가.
         // 어드레서블이 아니라 직접 참조 — CLAUDE.md: 항상 상주하는 플레이어 시스템 프리팹은 어드레서블 제외.
-        [SerializeField] private Player[] characterPrefabs;
+        [SerializeField] private CharacterRoster roster;
 
         // TODO(예정): GameSession의 선택 타입(검사/거너)으로 대체한다. 지금은 캐릭터 선택창/세션 전이라
         // 이 인덱스로 임시 선택해 부트스트랩만으로도 굴러가게 한다(직접 씬 테스트·데모 편의).
@@ -41,8 +41,8 @@ namespace ProjectS.Managers
         /// 스폰 전이거나 플레이어가 없으면 선택 세션(GameSession) 값으로 폴백한다.
         /// HUD 직업 심볼·장비창 심볼처럼 "지금 이 캐릭터가 누구냐"가 필요한 UI의 단일 출처.
         /// </summary>
-        public int CurrentCharacterId => Player != null && Player.Stats != null 
-            ? Player.Stats.CharacterId 
+        public int CurrentCharacterId => Player != null && Player.Stats != null
+            ? Player.Stats.CharacterId
             : GameSession.SelectedCharacterType;
 
         private void Awake()
@@ -90,7 +90,7 @@ namespace ProjectS.Managers
         // 하드코딩 없이 각 프리팹의 PlayerStats.CharacterId로 찾는다(새 직업 = 프리팹만 추가하면 됨).
         private Player ResolveSelectedPrefab()
         {
-            if (characterPrefabs == null || characterPrefabs.Length == 0)
+            if (roster == null /*|| roster.Length == 0*/)
             {
                 Debug.LogError("[PlayerManager] characterPrefabs가 비어 있어 플레이어를 생성할 수 없습니다.", this);
                 return null;
@@ -100,20 +100,16 @@ namespace ProjectS.Managers
             int selectedType = GameSession.SelectedCharacterType;
             if (selectedType > 0)
             {
-                foreach (Player candidate in characterPrefabs)
-                {
-                    if (candidate == null) continue;
-                    PlayerStats stats = candidate.GetComponent<PlayerStats>();
-                    if (stats != null && stats.CharacterId == selectedType) return candidate;
-                }
-                Debug.LogWarning($"[PlayerManager] 선택 타입 {selectedType}에 맞는 프리팹이 없어 폴백 인덱스를 사용합니다.", this);
+                Player p = roster.GetByType(selectedType);
+                if (p != null) return p;
+
             }
 
             // 세션 없음(직접 씬 테스트) 또는 매칭 실패 → placeholderCharacterIndex 폴백.
-            int index = Mathf.Clamp(placeholderCharacterIndex, 0, characterPrefabs.Length - 1);
-            Player prefab = characterPrefabs[index];
+            int index = Mathf.Clamp(placeholderCharacterIndex, 0, roster.Count - 1);
+            Player prefab = roster.GetByIndex(index);
             if (prefab == null)
-                Debug.LogError($"[PlayerManager] characterPrefabs[{index}]가 비어 있습니다.", this);
+                Debug.LogError($"[PlayerManager] roster[{index}]가 비어 있습니다.", this);
 
             return prefab;
         }

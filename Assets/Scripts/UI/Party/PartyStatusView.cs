@@ -44,6 +44,8 @@ namespace ProjectS.UI
         {
             if (root == null) root = gameObject;
 
+            slots[0] = GetComponentInChildren<PartyMemberSlot>(true);
+
             // 씬에 켠 채로 저장돼 있어도 파티가 생기기 전에는 보이지 않게 한다.
             ClearParty();
         }
