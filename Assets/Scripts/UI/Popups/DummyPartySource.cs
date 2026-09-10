@@ -41,6 +41,12 @@ namespace ProjectS.UI
         [SerializeField] private string dungeonName = "폐기된 연구시설 1-1";
         [SerializeField] private string difficultyLabel = "노말";
 
+        [Header("파티원 상태 흉내(0~1)")]
+        [Tooltip("파티원 HP 비율. 실제 네트워크가 붙기 전 게이지·% 표기를 확인하려고 인스펙터에서 민다.")]
+        [SerializeField, Range(0f, 1f)] private float partnerHpRatio = 1f;
+        [Tooltip("파티원 SG 비율. 기본값을 HP와 달리 둬 두 바가 구별되는지 눈으로 확인한다.")]
+        [SerializeField, Range(0f, 1f)] private float partnerSgRatio = 0.6f;
+
         [Header("초대 흉내")]
         [Tooltip("초대를 보낸 뒤 응답이 오기까지 걸리는 시간(초). 0이면 즉시 응답한다.")]
         [SerializeField, Min(0f)] private float responseDelay = 1.5f;
@@ -63,6 +69,12 @@ namespace ProjectS.UI
 
         /// <inheritdoc/>
         public PartyMemberInfo Partner { get; private set; }
+
+        /// <inheritdoc/>
+        public float PartnerHpRatio => Partner != null ? partnerHpRatio : 0f;
+
+        /// <inheritdoc/>
+        public float PartnerSgRatio => Partner != null ? partnerSgRatio : 0f;
 
         /// <inheritdoc/>
         public PartyMemberInfo Inviter { get; private set; }

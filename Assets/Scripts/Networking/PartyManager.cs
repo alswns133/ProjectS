@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using Mirror;
 using ProjectS.Events;
+using ProjectS.Scenes;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace ProjectS.Networking
 {
@@ -105,11 +108,20 @@ namespace ProjectS.Networking
             if (Local == this) Local = null;
         }
 
-        // 이 커넥션의 오브젝트가 서버에서 사라질 때(=접속 끊김/언스폰) 이 사람이 낀 보류 초대를 청소한다.
-        // 안 하면 가드 7(pendingByTarget.ContainsKey)이 영영 참이 돼 상대가 초대 불가로 잠긴다.
+        // 이 커넥션의 오브젝트가 서버에서 사라질 때(=접속 끊김/강제종료/언스폰) 뒤처리.
         public override void OnStopServer()
         {
+            // 1. 이 사람이 낀 보류 초대 청소. 안 하면 가드 7(pendingByTarget.ContainsKey)이 영영 참이 돼
+            //    상대가 초대 불가로 잠긴다.
             ServerCleanupPendingFor(netId);
+
+            // 2. ★ 파티에 속해 있었다면 파티를 해체한다(2인이라 한 명이 빠지면 곧 해체).
+            //    안 하면 남은 파티원의 partyId가 그대로 남아, 파티원 프레즌스는 파괴됐는데도
+            //    "파티는 있는데 파티원이 안 보이는" 상태가 되고, 남은 사람이 나갈 수도 없다(강제종료 버그).
+            //    ServerDisbandMyParty는 같은 partyId를 가진 모두를 NetworkServer.spawned에서 찾아 0으로 되돌린다
+            //    — 파괴 직전이라도 이 오브젝트의 PlayerPresence.PartyId는 아직 읽히고, 남은 파티원 인스턴스는
+            //    살아 있어 정상 해체된다.
+            ServerDisbandMyParty();
         }
 
         // ── 초대 보내기 (초대자 클라 → 서버) ──────────────────────────
@@ -387,18 +399,103 @@ namespace ProjectS.Networking
         [Command]
         private void CmdConfirmDepart()
         {
+            // [진단] 도착 여부와 가드 상태를 남긴다(어디서 멈추는지 보이게). 원인 파악 후 삭제.
+            Debug.Log($"[진단][PartyManager] CmdConfirmDepart 수신(서버): departEndTime={departEndTime}, isLeader={isLeader}, netId={netId}");
+
             // 1. 출발 중인가.
-            if (departEndTime == 0d) return;
+            if (departEndTime == 0d)
+            {
+                Debug.Log("[진단][PartyManager] ConfirmDepart 무시 — 출발 중 아님(departEndTime=0). 파티장이 먼저 '출발'을 걸어야 한다.");
+                return;
+            }
             // 2. 무소속이 아닌가.
-            if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0) return;
+            if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0)
+            {
+                Debug.Log("[진단][PartyManager] ConfirmDepart 무시 — 무소속(PartyId=0).");
+                return;
+            }
 
             // 3. 파티장이 아니라 멤버인가(확인은 멤버만).
-            if (isLeader) return;
-            // ★ 여기서 실제 던전 입장을 처리한다(파티원 둘 씬 로드 등) — 입장 흐름이 아직 미정이라 TODO.
-            //    TODO(백엔드): ServerEnterDungeonForMyParty();
+            if (isLeader)
+            {
+                Debug.Log("[진단][PartyManager] ConfirmDepart 무시 — 파티장은 확인 대상이 아니다(멤버만 입장 확인).");
+                return;
+            }
 
-            // 입장 처리 후(지금은 임시로 바로) 카운트다운을 정리한다.
+            // ★ 실제 던전 입장(additive Stage 1: 서버가 파티 전용 던전 인스턴스를 열고 파티 오브젝트를 옮긴다).
+            ServerEnterDungeonForMyParty();
+
+            // 입장 처리를 건 뒤 카운트다운을 정리한다.
             ServerSetDepartForMyParty(0d);
+        }
+
+        // ── 파티 동시입장 (additive Stage 1 — 서버) ──────────────────────
+        // 목표: "파티마다 자기 던전 사본". ServerChangeScene(전원 이동)이 아니라 additive로 새 인스턴스를 열고
+        // 그 파티(partyId) 오브젝트만 그 씬으로 옮긴다. 지금은 서버 측 로드·이동까지만 — 클라 로드(Stage 2)·
+        // 관심관리(Stage 3)·씬별 물리(Stage 4)·GameSceneManager 통합(Stage 5)·언로드(Stage 6)는 뒤에 붙인다.
+
+        /// <summary>이 파티를 파티 전용 던전 인스턴스로 입장시킨다(서버 권위). 멤버의 ConfirmDepart가 부른다.</summary>
+        [Server]
+        private void ServerEnterDungeonForMyParty()
+        {
+            if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0) return;
+
+            string sceneName = DungeonRouter.SceneNameOf(me.PartyDungeonId);
+            if (string.IsNullOrEmpty(sceneName))
+            {
+                Debug.LogWarning($"[PartyManager] 파티 던전 {me.PartyDungeonId}에 연결된 씬이 없어 입장 못 함.", this);
+                return;
+            }
+
+            StartCoroutine(ServerLoadInstanceAndMove(me.PartyId, sceneName));
+        }
+
+        // 던전 씬을 additive로 한 벌 더 로드하고, 같은 partyId 오브젝트를 그 인스턴스로 옮긴다.
+        [Server]
+        private IEnumerator ServerLoadInstanceAndMove(uint pid, string sceneName)
+        {
+            // additive 로드: 마을(기존 씬)은 그대로 두고 던전 사본을 새로 연다(전원 이동이 아니다).
+            AsyncOperation op = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            yield return op;
+
+            // 방금 로드된 인스턴스를 잡는다.
+            // ★ TODO(Stage 1 함정 — 인스턴스 식별): 파티가 둘 이상 동시에 같은 던전에 들어가면 이름이 같아
+            //   "마지막에 로드된 씬"으로 잡는 이 방식은 레이스에 취약하다. 로드 요청과 완료된 Scene 핸들을
+            //   1:1로 매칭해 partyId→Scene 맵으로 들고 있어야 한다. 지금은 단일 파티 검증용 스톱갭.
+            Scene instance = SceneManager.GetSceneAt(SceneManager.sceneCount - 1);
+
+            // 같은 파티(partyId)의 네트워크 오브젝트를 이 인스턴스로 옮긴다.
+            // ★ TODO(무엇을 옮기나): 지금 네트워크 오브젝트는 경량 프레즌스/채팅뿐이다(A안 — 보이는 캐릭터는
+            //   로컬 PlayerManager.Player라 네트워크 밖). 던전 협동에서 서로의 캐릭터를 보려면 캐릭터를
+            //   네트워크로 올리는 결정이 먼저다. 그게 정해지면 그 캐릭터 오브젝트도 여기서 함께 옮긴다.
+            foreach (NetworkIdentity id in NetworkServer.spawned.Values)
+            {
+                if (id == null || !id.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
+
+                SceneManager.MoveGameObjectToScene(id.gameObject, instance);
+            }
+
+            Debug.Log($"[PartyManager] (Stage1) 파티 {pid} → '{sceneName}' 인스턴스 로드+이동 완료. " +
+                      $"다음: Stage2(그 파티 2명 커넥션에만 SceneMessage(LoadAdditive) 전송).", this);
+
+            // TODO(Stage 2): 이 파티 두 커넥션에만 클라 additive 로드를 지시한다.
+            //   foreach 파티원 conn: conn.Send(new SceneMessage { sceneName = sceneName, sceneOperation = SceneOperation.LoadAdditive });
+            //   그 뒤 클라의 로컬 캐릭터/DungeonContext 세팅(PartyDungeonId SyncVar 이용) + GameSceneManager 통합(Stage 5).
+
+           foreach(NetworkIdentity id in NetworkServer.spawned.Values)
+            {
+                if (id == null || !id.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
+
+                NetworkConnectionToClient conn = id.connectionToClient;
+           
+                if (conn == null) continue;
+
+                if (conn == NetworkServer.localConnection) continue;  // 호스트는 서버 씬을 공유 → 다시 로드 금지
+
+                conn.Send(new SceneMessage { sceneName = sceneName, 
+                                             sceneOperation = SceneOperation.LoadAdditive, 
+                                             customHandling = true });  // ← 미러 자동로드 끔, 클라가 직접 로드
+            }
         }
 
         // 카운트다운 만료(서버 안전망). CmdDepart가 Invoke로 예약해 파티장 인스턴스에서 돈다.

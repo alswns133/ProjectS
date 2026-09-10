@@ -426,6 +426,21 @@ namespace ProjectS.UI
             EpisodeInfo episode = catalog.Episodes[selectedEpisode];
             int dungeonId = DungeonCatalog.MakeDungeonId(episode.DungeonNumber, catalog.Difficulties[selectedDifficulty].Value);
 
+            // ── 파티 중이면 혼자 들어가지 않고 파티 동시입장(출발)으로 넘긴다 ──
+            // 파티가 향하는 던전은 초대 시점에 이미 확정돼 있다(PartyDungeonId). 그래서 여기서는 목적지를
+            // 다시 넘기지 않고 출발만 건다. 파티장이 출발을 걸면 멤버에게 확인창이 자동으로 뜨고
+            // (PartyWindowOpener), 멤버가 확인하면 서버가 파티 인스턴스로 함께 입장시킨다.
+            // 파티가 없으면(솔로) 기존대로 라우터가 로컬 전환한다.
+            IPartySource party = PartySourceProvider.Current;
+            if (party != null && party.Partner != null)
+            {
+                RequestClose();
+
+                if (party.IsLeader) party.RequestDepart();   // 파티장: 출발 걸기(멤버 자동 확인창 유도)
+                else party.ConfirmDepart();                  // 멤버: 이미 출발 중이면 즉시 확인, 아니면 무시
+                return;
+            }
+
             // 먼저 팝업을 닫아 커서·입력을 원복(OnHide)하고, 그 다음 전환을 요청한다.
             RequestClose();
 
