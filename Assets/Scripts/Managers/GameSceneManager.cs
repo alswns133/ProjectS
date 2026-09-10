@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using ProjectS.Scenes;
 using ProjectS.UI;
 
@@ -32,6 +32,11 @@ namespace ProjectS.Managers
         /// 어플리케이션이 종료될 때 호출될 이벤트 메서드가 있다면 등록해서 사용하면 됩니다.
         /// </summary>
         public static event Action OnExited;
+
+        /// <summary>
+        /// 인자 = 진입 완료한 씬 이름
+        /// </summary>
+        public static event System.Action<string> SceneEntered;   
 
         private void Awake()
         {
@@ -193,6 +198,8 @@ namespace ProjectS.Managers
 
             UIManager.Instance.HideLoading();        // 활성화 후 로딩 닫기(한 프레임 깜빡임 방지)
             loading = false;
+
+            SceneEntered?.Invoke(current);
         }
 
         private IEnumerator SceneChangeDelayRoutine<T>(float delayTime) where T : BaseScene

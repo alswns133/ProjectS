@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Mirror;
 using ProjectS.Data;
+using ProjectS.Events;
 using ProjectS.Managers;
 using UnityEngine;
 
@@ -76,6 +77,24 @@ namespace ProjectS.Networking
         [SyncVar(hook = nameof(OnPartyDungeonTextChanged))] private string partyDungeonName = string.Empty;
         [SyncVar(hook = nameof(OnPartyDungeonTextChanged))] private string partyDifficultyLabel = string.Empty;
 
+        // ── 파티원 상태 HUD용 생명/자원 비율 ─────────────────────────
+        // 파티원 상태 HUD(PartyStatusView)가 그릴 "원격 플레이어의 HP/SG"다. 비율(0~1)만 복제한다 —
+        // 슬롯은 게이지와 % 표기만 그려 cur/max 원본이 필요 없고, 비율이면 트래픽도 최소다.
+        // ★ 훅을 달지 않는다. HP/SG는 전투 중 매우 자주 바뀌는데, 훅에서 OnAnyChanged를 쏘면
+        //   로스터·결성창이 갱신마다 통째로 다시 그려진다(IPartySource가 "남은 시간은 이벤트로
+        //   알리지 않는다"고 경계한 것과 같은 이유). 파티원 슬롯 드라이버가 자기 Update에서 값만
+        //   읽어 가므로, 복제만 되면 충분하고 훅은 필요 없다.
+        [SyncVar] private float hpRatio = 1f;
+        [SyncVar] private float sgRatio = 1f;
+
+        // 로컬에서 마지막으로 계산한 내 비율. PlayerEvents는 cur/max로 오므로 여기서 비율로 접어 둔다.
+        private float localHpRatio = 1f;
+        private float localSgRatio = 1f;
+
+        // 마지막으로 서버에 올린 값. 전송 문턱(SendThreshold)의 기준점.
+        private float lastSentHpRatio = -1f;
+        private float lastSentSgRatio = -1f;
+
         /// <summary>목록에 그릴 닉네임.</summary>
         public string DisplayName => displayName;
 
@@ -103,6 +122,12 @@ namespace ProjectS.Networking
         /// <summary>파티가 향하는 난이도 라벨.</summary>
         public string PartyDifficultyLabel => partyDifficultyLabel;
 
+        /// <summary>남은 HP 비율(0~1). 파티원 상태 HUD가 원격 파티원 게이지를 그릴 때 읽는다.</summary>
+        public float HpRatio => hpRatio;
+
+        /// <summary>SG(자원) 비율(0~1). <see cref="HpRatio"/>와 같은 취지.</summary>
+        public float SgRatio => sgRatio;
+
         // ── 생명주기: 목록 등록/해제 ──────────────────────────────────
 
         /// <summary>클라(복제본 포함)에 등장할 때 전역 목록에 넣고 로스터를 다시 그리게 한다.</summary>
@@ -116,7 +141,14 @@ namespace ProjectS.Networking
         public override void OnStopClient()
         {
             all.Remove(this);
-            if (Local == this) Local = null;
+            if (Local == this)
+            {
+                Local = null;
+
+                // 로컬에서만 걸었던 HP/SG 구독을 짝 맞춰 푼다. 안 풀면 파괴된 프레즌스가 static 이벤트에 남는다.
+                PlayerEvents.OnHpChanged -= OnLocalHpChanged;
+                PlayerEvents.OnSGChanged -= OnLocalSgChanged;
+            }
             OnAnyChanged?.Invoke();
         }
 
@@ -136,6 +168,15 @@ namespace ProjectS.Networking
                 save != null ? save.level : 1,
                 save != null ? save.characterType : 0,
                 accepts: save == null || save.acceptsPartyInvites);
+
+            // 내 HP/SG 변화를 파티원에게 흘리려 로컬 플레이어에서만 구독한다(원격 복제본은 구독하지 않는다 —
+            // 남의 프레즌스가 내 화면 이벤트를 주우면 안 된다). 짝은 OnStopClient에서 푼다.
+            // PlayerEvents는 static이라 마을↔던전 씬 전환에도 구독이 유지된다.
+            PlayerEvents.OnHpChanged += OnLocalHpChanged;
+            PlayerEvents.OnSGChanged += OnLocalSgChanged;
+
+            // 구독 직전에 이미 발행됐을 현재 스탯을 다시 받아 첫 값을 밀어 올린다(HudPresenter와 같은 통로).
+            PlayerEvents.FireStatsRefreshRequested();
         }
 
         // ── 클라 → 서버: 등록/변경 ────────────────────────────────────
@@ -167,6 +208,57 @@ namespace ProjectS.Networking
         {
             acceptsInvites = accepts;
         }
+
+        // ── 로컬 → 서버: 내 HP/SG 밀어 올리기 ──────────────────────────
+        // 로컬 플레이어일 때만 PlayerEvents를 구독해(OnStartLocalPlayer) 내 HP/SG 변화를 서버로 올린다.
+        // 서버가 SyncVar에 담아 파티원 클라로 복제하면 그쪽 PartyStatusView가 내 게이지를 그린다.
+
+        // TODO(전송 게이트 튜닝): 값이 이만큼 바뀌어야 올린다. 전투 중 잦은 미세 변화를 다 올리면 Command가
+        // 폭주하므로 문턱을 둔다. 밸런스가 아니라 시스템 나사라 인스펙터로 빼지 않고 상수로 둔다(수치 조정 대상).
+        private const float SendThreshold = 0.01f;
+
+        // PlayerEvents는 cur/max로 온다. 비율로 접어 두고 문턱을 넘으면 서버로 올린다.
+        private void OnLocalHpChanged(float cur, float max)
+        {
+            localHpRatio = Ratio(cur, max);
+            PushVitals();
+        }
+
+        private void OnLocalSgChanged(float cur, float max)
+        {
+            localSgRatio = Ratio(cur, max);
+            PushVitals();
+        }
+
+        // 문턱을 넘게 바뀌었을 때만 올린다.
+        // TODO(경계값): 죽음(0)·풀피(1)처럼 놓치면 안 되는 경계는 문턱과 별개로 항상 통과시키는 편이
+        //   안전하다. 지금은 문턱만 두었으니, 사망 표시가 한 박자 늦으면 여기에 경계 조건을 더한다.
+        private void PushVitals()
+        {
+            if (Mathf.Abs(localHpRatio - lastSentHpRatio) < SendThreshold &&
+                Mathf.Abs(localSgRatio - lastSentSgRatio) < SendThreshold)
+                return;
+
+            lastSentHpRatio = localHpRatio;
+            lastSentSgRatio = localSgRatio;
+            CmdSetVitals(localHpRatio, localSgRatio);
+        }
+
+        /// <summary>
+        /// 내 HP/SG 비율을 서버에 반영한다(→ 파티원 클라로 복제). 등록 Command와 같은 trust-on-first-use라,
+        /// 값의 권위는 나중에 서버가 스탯을 직접 들고 판정하도록 바꿀 때 생긴다.
+        /// </summary>
+        /// <param name="hp">HP 비율(0~1)</param>
+        /// <param name="sg">SG 비율(0~1)</param>
+        [Command]
+        private void CmdSetVitals(float hp, float sg)
+        {
+            hpRatio = Mathf.Clamp01(hp);
+            sgRatio = Mathf.Clamp01(sg);
+        }
+
+        // cur/max를 0~1로. max가 0이면(스폰 직전 등) 0으로 눕혀 0 나눗셈을 피한다.
+        private static float Ratio(float cur, float max) => max > 0f ? Mathf.Clamp01(cur / max) : 0f;
 
         // ── 서버 전용: 파티 매니저가 쓰는 소속 갱신 ─────────────────────
 

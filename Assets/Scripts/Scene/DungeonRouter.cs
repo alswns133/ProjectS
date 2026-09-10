@@ -81,6 +81,32 @@ namespace ProjectS.Scenes
             }
         }
 
+        /// <summary>
+        /// 던전 ID(2자리)를 씬 이름 문자열로 옮긴다. 미러의 additive 로드·<c>ServerChangeScene</c>은
+        /// 타입이 아니라 <b>씬 이름</b>을 받으므로, 파티 동시입장(서버) 경로가 이걸 쓴다.
+        /// </summary>
+        /// <remarks>
+        /// 위 <see cref="Enter"/>의 <c>RequestSceneChange&lt;T&gt;</c>와 <b>같은 문자열</b>을 내도록
+        /// <c>nameof</c>로 씬 타입 이름을 쓴다(씬 클래스 이름 = 씬 파일 이름 규약). 그래서 던전이 늘면
+        /// 여기 한 줄과 <see cref="Enter"/> 한 줄이 짝으로 늘고, 오타는 컴파일러가 잡는다.
+        /// </remarks>
+        /// <param name="dungeonId">2자리 던전 ID</param>
+        /// <param name="mode">던전인지 레이드인지</param>
+        /// <returns>씬 이름. 연결된 씬이 없으면 null</returns>
+        public static string SceneNameOf(int dungeonId, EntryMode mode = EntryMode.Dungeon)
+        {
+            // 레이드는 ID 9x(§4=99)로 인코딩된다. 파티 서버 경로는 던전 id만 알고 mode를 모르므로,
+            // 던전 번호가 9면 레이드로 본다(mode를 명시로 넘겨도 레이드로 잡힌다).
+            if (mode == EntryMode.Raid || DungeonNumberOf(dungeonId) == 9) return nameof(Raid);
+
+            return DungeonNumberOf(dungeonId) switch
+            {
+                1 => nameof(Dungeon1),
+                2 => nameof(Dungeon2),
+                _ => null,
+            };
+        }
+
         /// <summary>던전 ID에서 던전 번호(앞자리)를 뽑는다.</summary>
         /// <param name="dungeonId">2자리 던전 ID</param>
         /// <returns>던전 번호</returns>

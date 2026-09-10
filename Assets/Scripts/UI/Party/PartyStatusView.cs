@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.UI
 {
@@ -71,6 +71,11 @@ namespace ProjectS.UI
         /// <param name="index">슬롯 번호</param>
         /// <param name="ratio">0~1</param>
         public void SetHp(int index, float ratio) => GetSlot(index)?.SetHp(ratio);
+
+        /// <summary>파티원 SG(자원)를 갱신한다.</summary>
+        /// <param name="index">슬롯 번호</param>
+        /// <param name="ratio">0~1</param>
+        public void SetSg(int index, float ratio) => GetSlot(index)?.SetSg(ratio);
 
         /// <summary>파티원 사망/부활 표시를 갱신한다(③ UI_MP_013).</summary>
         /// <param name="index">슬롯 번호</param>

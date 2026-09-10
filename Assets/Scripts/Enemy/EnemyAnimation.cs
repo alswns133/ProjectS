@@ -31,6 +31,8 @@ namespace ProjectS.Enemies
         private const float Damp = 0.1f;
 
         private bool hasMove;
+        private bool hasIdleVariant;
+        private bool hasDetect;
 
         private Animator animator;
 
@@ -38,6 +40,12 @@ namespace ProjectS.Enemies
         {
             animator = GetComponent<Animator>();
             hasMove = HasParameter(MoveX);
+
+            // 대기 변주(IdleVariant)·발견 트리거(doDetect)는 컨트롤러마다 없을 수 있다(보스는 자체 등장
+            // 연출을 쓰고 대기 변주가 없기도 하다). SetMove와 같은 방식으로 존재 여부를 캐싱해, 없으면
+            // Set을 건너뛴다 — 없는 파라미터에 Set 하면 Animator가 매번 에러를 뱉는다(CLAUDE.md).
+            hasIdleVariant = HasParameter(IdleVariant);
+            hasDetect = HasParameter(DoDetect);
         }
 
         /// <summary>현재 이동 속력. 이동/걷기 애니메이션 블렌드 값으로 쓴다.</summary>
@@ -68,10 +76,18 @@ namespace ProjectS.Enemies
         /// 대기 애니메이션 2종 중 어떤 것을 재생할지 전달한다.
         /// IdleState가 진입 시 0/1 중 하나를 고르고, Animator는 IdleVariant 값으로 대기 클립을 분기한다.
         /// </summary>
-        public void SetIdleVariant(int index) => animator.SetFloat(IdleVariant, index);
+        public void SetIdleVariant(int index)
+        {
+            if (!hasIdleVariant) return;   // 대기 변주 파라미터가 없는 컨트롤러(보스 등)에선 무시
+            animator.SetFloat(IdleVariant, index);
+        }
 
         /// <summary>플레이어 발견 연출 트리거. DetectState 진입 시 1회 호출한다.</summary>
-        public void PlayDetect() => animator.SetTrigger(DoDetect);
+        public void PlayDetect()
+        {
+            if (!hasDetect) return;   // 발견 트리거가 없는 컨트롤러(자체 등장 연출을 쓰는 보스 등)에선 무시
+            animator.SetTrigger(DoDetect);
+        }
 
         /// <summary>
         /// 공격 트리거. AttackIndex로 공격 1/2/3을 고른 뒤 doAttack을 켠다.
