@@ -258,6 +258,12 @@ MonoBehaviour:
   turnSpeed: 720
   moveTurnGateAngle: 45
   agentReturnSampleRadius: 2
+  rootMotionProbeHeight: 1
+  rootMotionProbeRadius: 0.5
+  rootMotionSkin: 0.05
+  rootMotionBlockMask:
+    serializedVersion: 2
+    m_Bits: 0
   chargeKeepDistance: 0
 --- !u!114 &7362677270953172903
 MonoBehaviour:
@@ -293,7 +299,34 @@ MonoBehaviour:
     coef: 1
     weight: 1
     trackTarget: 0
+    multiPhase: 0
     hitBox: {fileID: 5168688492775167932}
+    useRootMotionCharge: 1
+    chargeDuration: 0.6
+    chargeSpeedCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 12
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
     projectilePrefab: {fileID: 0}
     muzzle: {fileID: 0}
     rotationOffset: {x: 0, y: 0, z: 0}
@@ -309,7 +342,34 @@ MonoBehaviour:
     coef: 1
     weight: 1
     trackTarget: 1
+    multiPhase: 0
     hitBox: {fileID: 4446814984604500979}
+    useRootMotionCharge: 1
+    chargeDuration: 0.6
+    chargeSpeedCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 12
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
     projectilePrefab: {fileID: 0}
     muzzle: {fileID: 0}
     rotationOffset: {x: 0, y: 0, z: 0}
