@@ -38,8 +38,12 @@ namespace ProjectS.Networking
         // (다시 그리기는 멱등이라 중복 신호는 무해).
         private void OnEnable()
         {
-            Debug.Log($"[진단][NetworkPartySource] OnEnable #{GetInstanceID()} (GO='{name}') — 파티 상태 소스 활성. " +
-                      $"소비자(AcceptPopup·RosterPopup·SlotBar·WindowOpener)가 이 #ID를 물어야 한다.", this);
+            // [진단] 중복 소스 추적용. GO 이름만으론 같은 이름('PartySource' 둘)을 구분 못 하므로
+            // 루트부터의 전체 계층 경로와, 어느 씬(또는 DontDestroyOnLoad)에 사는지를 함께 남긴다.
+            // 원인(중복 배치) 파악 후 이 진단은 삭제.
+            Debug.Log($"[진단][NetworkPartySource] OnEnable #{GetInstanceID()} — 파티 상태 소스 활성. " +
+                      $"경로='{HierarchyPath(transform)}', 씬='{gameObject.scene.name}'. " +
+                      $"이 소스는 게임에 하나여야 한다(둘 이상이면 여기 경로/씬으로 중복 오브젝트를 찾는다).", this);
 
             // 창들이 슬롯 배선 없이 받아가게 스스로 등록한다(PartySourceProvider). 소스는 하나여야 한다.
             PartySourceProvider.Set(this);
@@ -95,14 +99,31 @@ namespace ProjectS.Networking
         {
             get
             {
+                PlayerPresence partner = PartnerPresence;
+                return partner != null ? ToInfo(partner) : null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public float PartnerHpRatio => PartnerPresence != null ? PartnerPresence.HpRatio : 0f;
+
+        /// <inheritdoc/>
+        public float PartnerSgRatio => PartnerPresence != null ? PartnerPresence.SgRatio : 0f;
+
+        // 나와 같은 파티 id를 가진, 내가 아닌 프레즌스가 파티원(2인 파티). 소속의 진실은
+        // PlayerPresence.PartyId 한 곳에만 두므로, 이름/레벨(ToInfo)과 HP/SG(비율 프로퍼티)를
+        // 모두 이 하나에서 읽는다 — 파티원을 찾는 규칙이 두 벌로 갈리지 않게 한다.
+        private PlayerPresence PartnerPresence
+        {
+            get
+            {
                 PlayerPresence me = PlayerPresence.Local;
                 if (me == null || !me.InParty) return null;
 
-                // 나와 같은 파티 id를 가진, 내가 아닌 프레즌스가 파티원(2인 파티).
                 foreach (PlayerPresence p in PlayerPresence.All)
                 {
                     if (p == null || p.isLocalPlayer) continue;
-                    if (p.PartyId == me.PartyId) return ToInfo(p);
+                    if (p.PartyId == me.PartyId) return p;
                 }
 
                 return null;
@@ -232,6 +253,16 @@ namespace ProjectS.Networking
 
         /// <inheritdoc/>
         public void RequestLeave() => PartyManager.Local?.RequestLeave();
+
+        // [진단] 루트부터 이 오브젝트까지의 계층 경로("Root/Child/.../This")를 만든다. 같은 이름의 중복
+        // 오브젝트가 각각 어디 붙어 있는지 로그로 가려내기 위함이다. 원인 파악 후 이 헬퍼도 로그와 함께 삭제.
+        private static string HierarchyPath(Transform t)
+        {
+            string path = t.name;
+            for (Transform p = t.parent; p != null; p = p.parent)
+                path = p.name + "/" + path;
+            return path;
+        }
 
         // 프레즌스 한 줄을 슬롯이 그릴 PartyMemberInfo로 옮긴다. 슬롯에 그리는 사람은 접속 중이고,
         // 초대 가능 여부는 슬롯에서 의미가 없어 Invitable로 둔다(색은 접속 여부만으로 갈린다).

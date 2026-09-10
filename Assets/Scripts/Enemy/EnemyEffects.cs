@@ -54,8 +54,9 @@ namespace ProjectS.Enemies
 
         [SerializeField] private EffectSlot[] effects;
 
-        [Tooltip("공격 모션에 붙은 XWeaponTrail 컴포넌트. Animation Event에서 Play/Stop한다.")]
-        [SerializeField] private XWeaponTrail[] xWeaponTrails;
+        [Tooltip("공격 모션에 붙은 무기 트레일 컴포넌트(XftWeapon.XWeaponTrail). Animation Event에서 Play/Stop한다. " +
+         "XftWeapon이 ExternalAssets(git 제외)라 CI 컴파일에서 타입을 참조할 수 없어, 타입 대신 MonoBehaviour로 들고 SendMessage로 호출한다.")]
+        [SerializeField] MonoBehaviour[] xWeaponTrails;
 
         // 매 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
         private readonly Dictionary<string, EffectSlot> effectMap = new Dictionary<string, EffectSlot>();
@@ -181,7 +182,7 @@ namespace ProjectS.Enemies
 
             foreach (var trail in xWeaponTrails)
             {
-                if (trail != null) trail.Activate();
+                if (trail != null) trail.SendMessage("Activate", SendMessageOptions.DontRequireReceiver);
             }
         }
 
@@ -196,7 +197,7 @@ namespace ProjectS.Enemies
 
             foreach (var trail in xWeaponTrails)
             {
-                if (trail != null) trail.Deactivate();
+                if (trail != null) trail.SendMessage("Deactivate", SendMessageOptions.DontRequireReceiver);
             }
         }
     }

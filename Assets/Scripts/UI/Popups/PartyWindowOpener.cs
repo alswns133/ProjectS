@@ -48,6 +48,10 @@ namespace ProjectS.UI
         // 같은 초대에 팝업을 두 번 띄우지 않기 위한 기억. 국면이 한 번 벗어나야 다시 열린다.
         private bool invitePopupShown;
 
+        // 같은 출발에 결성창을 두 번 자동으로 띄우지 않기 위한 기억(초대의 invitePopupShown과 같은 취지).
+        // Departing을 벗어나면 지워, 다음 출발에 다시 뜨게 한다.
+        private bool departPromptShown;
+
         private void Awake()
         {
             // 슬롯이 있으면 그것, 없으면 같은 오브젝트에서. 여기서 못 찾아도 에러가 아니다 —
@@ -122,6 +126,27 @@ namespace ProjectS.UI
                 return;
             }
 
+            // ── 출발 자동 프롬프트 ──────────────────────────────────
+            // 파티장이 출발을 걸면(Phase==Departing) 멤버에게 결성창을 자동으로 띄워 "던전 입장(확인)"을
+            // 받게 한다(초대 자동 팝업과 같은 취지 — 멤버가 Tab을 몰라도 확인할 수 있게).
+            // 파티장은 이미 결성창에서 출발을 걸었으므로 대상이 아니다(!IsLeader). 이미 열려 있으면 다시 열지 않는다.
+            if (source.Phase == PartyPhase.Departing)
+            {
+                if (!departPromptShown && !source.IsLeader
+                    && !UIManager.Instance.IsPopupOpen<PartyRosterPopup>())
+                {
+                    Debug.Log("[진단][PartyWindowOpener] Phase=Departing 감지(멤버) → 결성창 자동 오픈", this);
+                    departPromptShown = true;
+                    UIManager.Instance.ShowPopup<PartyRosterPopup>();
+                }
+            }
+            else
+            {
+                // 출발 국면을 벗어나면 기억을 지운다. 다음 출발에 다시 띄운다.
+                departPromptShown = false;
+            }
+
+            // ── 초대 자동 팝업 ──────────────────────────────────────
             if (source.Phase != PartyPhase.Invited)
             {
                 // 국면을 벗어나면 기억을 지운다. 다음 초대는 다시 띄워야 한다.

@@ -1,5 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Mirror;
+using UnityEngine.SceneManagement;
+using ProjectS.Managers;
+using ProjectS.Scenes;
 
 namespace ProjectS.Networking
 {
@@ -25,6 +28,11 @@ namespace ProjectS.Networking
         /// <summary>이 프로젝트 타입으로 접근하기 위한 캐스팅 도우미(base의 singleton 재사용).</summary>
         public static GameNetworkManager Game => singleton as GameNetworkManager;
 
+        // 필드 — 클라가 방금 additive로 들어간 던전 씬 이름(로드 후 마을을 가려낼 때 쓴다). 비면 던전 진입 아님.
+        private string enteringDungeonScene;
+
+        private bool awaitingNetworkSceneLoad;
+
         public override void Awake()
         {
             base.Awake();
@@ -46,6 +54,46 @@ namespace ProjectS.Networking
                 // TODO(운영): 전용 서버는 부팅 시 마을 씬을 로드한 상태로 대기해야 한다
                 //             (ServerChangeScene(마을) 또는 서버 부팅 씬 자체를 마을로).
             }
+        }
+
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            GameSceneManager.SceneEntered += OnSceneEnteredForNetwork;
+        }
+
+        public override void OnStopClient()
+        {
+            base.OnStopClient();
+            GameSceneManager.SceneEntered -= OnSceneEnteredForNetwork;
+        }
+
+        // 로드 "전" — 어디로 들어가는지 기억만 해둔다(마을 언로드는 로드가 끝난 뒤에 해야 하므로).
+        public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
+        {
+            base.OnClientChangeScene(newSceneName, sceneOperation, customHandling);
+
+            if (sceneOperation == SceneOperation.LoadAdditive && customHandling)
+            {
+                enteringDungeonScene = newSceneName;
+                awaitingNetworkSceneLoad = true;              // ← SceneEntered를 기다리는 중이라 표시
+                if (newSceneName == nameof(Raid))
+                    GameSceneManager.Instance.RequestSceneChange<Raid>();
+            }
+
+        }
+
+        // OnEnable 등에서: GameSceneManager.SceneEntered += OnSceneEnteredForNetwork;  (OnDisable에서 해제)
+        private void OnSceneEnteredForNetwork(string sceneName)
+        {
+
+            // ★ SceneEntered는 "모든" 씬 진입에 발행된다(마을 복귀 등 로컬 전환 포함).
+            //    그래서 "내가 네트워크로 몰아서 로드한 그 던전"일 때만 미러에 통지해야 한다.
+            if (!awaitingNetworkSceneLoad || sceneName != enteringDungeonScene) return;
+
+            awaitingNetworkSceneLoad = false;
+
+            // 미러에 클라 로드 완료 통지 (★ 정확한 호출은 미러 소스 확인)
         }
 
         /// <summary>커맨드라인/배치모드로 전용 서버 여부를 판정한다.</summary>

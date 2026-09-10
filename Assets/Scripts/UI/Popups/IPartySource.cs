@@ -60,6 +60,20 @@ namespace ProjectS.UI
         /// <summary>파티원. 파티가 없으면 null.</summary>
         PartyMemberInfo Partner { get; }
 
+        /// <summary>
+        /// 파티원의 남은 HP 비율(0~1). 파티가 없으면 0. 파티원 상태 HUD가 매 프레임 읽어 게이지를 그린다.
+        /// </summary>
+        /// <remarks>
+        /// <b>비율만 흘린다.</b> 파티원 슬롯은 게이지와 % 표기만 그려 cur/max 원본이 필요 없다.
+        /// 파티원은 원격 플레이어라 로컬 <c>PlayerStats</c>가 없어, 이 계약을 통하지 않으면 값을 구할 길이 없다.
+        /// <b>변화를 <see cref="OnChanged"/>로 알리지 않는다</b> — HP/SG는 전투 중 계속 바뀌어 그때마다
+        /// 로스터·결성창을 다시 그리면 낭비다(남은 시간과 같은 취지). 그리는 쪽이 자기 Update에서 읽어 간다.
+        /// </remarks>
+        float PartnerHpRatio { get; }
+
+        /// <summary>파티원의 SG 비율(0~1). 파티가 없으면 0. <see cref="PartnerHpRatio"/>와 같은 취지.</summary>
+        float PartnerSgRatio { get; }
+
         /// <summary><see cref="PartyPhase.Invited"/>일 때 나를 부른 사람. 그 외에는 null.</summary>
         PartyMemberInfo Inviter { get; }
 
