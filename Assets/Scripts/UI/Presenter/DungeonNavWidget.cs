@@ -17,6 +17,10 @@ namespace ProjectS.UI
     /// <see cref="LateUpdate"/>가 멈춰 다시 못 켠다. 마을 등 던전 밖에서는 CurrentRoom이 null이라 자동으로 숨는다.
     ///
     /// 목표 방향 계산은 퀘스트 나침반과 같은 판정(<see cref="QuestNavResolver.BearingRelativeToCamera"/>, XZ 평면)을 쓴다.
+    ///
+    /// 화살표에 잔상(<see cref="ArrowTrailFx"/>)을 붙였다면 그쪽 followSourceRotation을 켜야 한다.
+    /// 여기서 도는 것은 <see cref="arrowRect"/> 하나뿐이고 잔상은 그 바깥(ArrowRoot)에 매달리므로,
+    /// 끄고 두면 잔상만 화면 고정 방향으로 흘러 화살표와 따로 논다.
     /// </summary>
     public class DungeonNavWidget : MonoBehaviour
     {

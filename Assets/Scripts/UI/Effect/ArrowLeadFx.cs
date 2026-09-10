@@ -20,6 +20,10 @@ namespace ProjectS.UI
     /// 잔상은 본체 rect 바깥까지 나가므로, 이 오브젝트가 RectMask2D·Mask 안에 있으면 잔상이 잘린다.
     /// 전진형은 나가는 쪽이 잘리면 연출이 통째로 안 보이므로 특히 주의한다.
     /// 대화 중 timeScale이 0이 될 수 있어 unscaled 시간을 쓴다.
+    ///
+    /// 본체가 매 프레임 회전하는 사용처(던전 나침반처럼 이 오브젝트와 본체 사이의 피벗만 도는 구조)라면
+    /// <see cref="followSourceRotation"/>을 켠다. 끄면 <see cref="direction"/>이 이 오브젝트 로컬 기준으로
+    /// 고정돼, 화살표가 어디를 가리키든 잔상은 늘 같은 화면 방향으로 뻗는다.
     /// </summary>
     [RequireComponent(typeof(RectTransform))]
     public class ArrowLeadFx : MonoBehaviour
@@ -29,8 +33,13 @@ namespace ProjectS.UI
         [SerializeField] private Graphic source;
 
         [Header("잔상")]
-        [Tooltip("화살표가 가리키는 방향(로컬 기준). 잔상은 본체에서 출발해 이쪽으로 나아간다.")]
+        [Tooltip("화살표가 가리키는 방향. 잔상은 본체에서 출발해 이쪽으로 나아간다.\n" +
+                 "followSourceRotation이 꺼져 있으면 이 오브젝트 로컬, 켜져 있으면 본체 로컬 기준이다.")]
         [SerializeField] private Vector2 direction = Vector2.right;
+
+        [Tooltip("본체와 잔상 사이에 회전 피벗이 끼어 있고 그 피벗만 매 프레임 도는 구조(던전 나침반)에서 켠다.\n" +
+                 "켜면 direction과 잔상의 기울기를 본체의 현재 회전에 맞춘다. 화면 고정 방향으로 흘리려면 끈다.")]
+        [SerializeField] private bool followSourceRotation;
 
         [Tooltip("본체에서 잔상이 사라지는 지점까지의 거리(px).")]
         [SerializeField, Min(0f)] private float distance = 60f;
@@ -156,8 +165,25 @@ namespace ProjectS.UI
             //
             // ★ ArrowTrailFx와 다른 유일한 지점: 본체가 끝점이 아니라 '출발점'이다.
             //   그쪽은 (본체 - 방향*거리) → 본체, 이쪽은 본체 → (본체 + 방향*거리).
-            Vector2 startPosition = sourceRect.anchoredPosition;
-            Vector2 endPosition = startPosition + direction.normalized * distance;
+            //
+            // 회전 추종 모드는 본체와 잔상의 좌표계가 다르다. 잔상은 이 오브젝트의 자식인데 본체는 그 아래
+            // 회전 피벗의 자식이라, anchoredPosition을 그대로 옮기면 피벗이 돌아간 만큼 어긋난다.
+            // 월드를 한 번 거쳐 환산하면 본체가 몇 단계 아래에 있든 성립한다.
+            Vector2 startPosition;
+            Vector2 flow;
+
+            if (followSourceRotation)
+            {
+                startPosition = (Vector2)transform.InverseTransformPoint(sourceRect.position);
+                flow = (Vector2)(Quaternion.Inverse(transform.rotation) * (sourceRect.rotation * (Vector3)direction.normalized));
+            }
+            else
+            {
+                startPosition = sourceRect.anchoredPosition;
+                flow = direction.normalized;
+            }
+
+            Vector2 endPosition = startPosition + flow * distance;
             float cycle = Cycle;
 
             for (int i = 0; i < ghostRects.Length; i++)
@@ -171,7 +197,20 @@ namespace ProjectS.UI
                 if (ghostGraphics[i].enabled != visible) ghostGraphics[i].enabled = visible;
                 if (!visible) continue;
 
-                ghostRects[i].anchoredPosition = Vector2.Lerp(startPosition, endPosition, phase);
+                Vector2 position = Vector2.Lerp(startPosition, endPosition, phase);
+
+                if (followSourceRotation)
+                {
+                    // 환산한 좌표는 anchoredPosition이 아니라 localPosition 기준이라 그대로 대입한다.
+                    // 기울기도 월드 회전으로 맞춰야 피벗이 몇 겹이든 본체와 같은 각이 된다.
+                    ghostRects[i].localPosition = position;
+                    ghostRects[i].rotation = sourceRect.rotation;
+                }
+                else
+                {
+                    ghostRects[i].anchoredPosition = position;
+                }
+
                 ghostRects[i].localScale = baseScale * scaleOverPhase.Evaluate(phase);
 
                 Color c = baseColor;
