@@ -1,0 +1,33 @@
+name: Acquire activation file
+
+# UNITY_LICENSE(.ulf) 재발급용 임시 워크플로.
+# .ulf 개인 라이선스는 활성화에 쓴 에디터 버전에 묶여 있어, CI 에디터 버전을 바꾸면
+# "TimeStamp validation failed"(400)로 활성화가 깨진다. 그때 이 워크플로를 수동 실행해
+# CI가 실제로 쓰는 버전으로 .alf를 새로 받아 라이선스를 재발급한다.
+#
+# 사용법:
+#   1) Actions 탭에서 이 워크플로를 Run workflow(수동 실행) → 아티팩트로 .alf 다운로드
+#   2) https://license.unity3d.com/manual 에 .alf 업로드 → .ulf 다운로드
+#   3) .ulf 전체 내용을 Settings ▸ Secrets ▸ UNITY_LICENSE 에 덮어쓰기
+#   4) 재발급이 끝나면 이 파일은 지워도 된다(상시 둘 필요 없음)
+#
+# ★ unityVersion은 ci.yml의 customImage와 반드시 같은 버전이어야 한다. 다르면 또 안 맞는다.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  activation:
+    name: Request manual activation file
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request activation file
+        uses: game-ci/unity-request-activation-file@v2
+        with:
+          unityVersion: 6000.3.24f1
+
+      - name: Upload activation file
+        uses: actions/upload-artifact@v4
+        with:
+          name: Manual Activation File
+          path: ./*.alf

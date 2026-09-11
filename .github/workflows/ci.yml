@@ -50,7 +50,13 @@ jobs:
       # 풀 빌드(BuildPlayer) 대신 EditMode 테스트 러너로 "스크립트가 컴파일되는가"만 검증한다.
       # 씬을 빌드하지 않으므로 ExternalAssets(깃 제외) 미참조로 인한 Missing Prefab 에러가 나지 않고,
       # 플레이어 빌드·셰이더 컴파일 단계가 없어 훨씬 빠르다. 테스트가 0개여도 컴파일 실패 시 잡아낸다.
-      # unityVersion 기본값(auto)은 ProjectVersion.txt를 읽으므로 에디터 업그레이드 시 수정 불필요.
+      #
+      # unityVersion은 원래 auto(ProjectVersion.txt=6000.3.8f1)였으나, game-ci가 그 초기 패치
+      # 이미지를 굽지 않아 "Unable to find image ...6000.3.8f1..."로 CI가 죽었다(2026-09-10).
+      # 로컬 에디터는 6000.3.8f1 그대로 두고, CI만 game-ci 이미지가 존재하는 같은 6.3 스트림의
+      # 6000.3.24f1로 고정한다(패치 차이라 스크립트 컴파일 검증엔 영향 없음). base 이미지는
+      # EditMode 컴파일만 하므로 il2cpp보다 가볍다. 로컬 에디터를 6.3 스트림 내에서 올릴 땐
+      # 이미지가 존재하는 버전으로 이 두 값도 함께 갱신한다(UNITY_LICENSE 재발급도 필요).
       - name: EditMode 컴파일 검사
         uses: game-ci/unity-test-runner@v4
         timeout-minutes: 40   # 무한 대기 방지 안전장치(빌드 행 사고 재발 시 빠르게 실패)
@@ -60,3 +66,5 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           testMode: EditMode
+          unityVersion: 6000.3.24f1
+          customImage: unityci/editor:ubuntu-6000.3.24f1-base-3
