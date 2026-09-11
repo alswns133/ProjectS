@@ -3,6 +3,7 @@ using Mirror;
 using UnityEngine.SceneManagement;
 using ProjectS.Managers;
 using ProjectS.Scenes;
+using ProjectS.Players;
 
 namespace ProjectS.Networking
 {
@@ -25,6 +26,8 @@ namespace ProjectS.Networking
                  "전용 서버가 없으면 클라 접속은 실패하므로, 채팅을 혼자 확인하려면 이걸 켠다. 빌드/전용서버엔 영향 없음.")]
         [SerializeField] private bool hostInEditor = true;
 
+        [SerializeField] private CharacterRoster roster;
+
         /// <summary>이 프로젝트 타입으로 접근하기 위한 캐스팅 도우미(base의 singleton 재사용).</summary>
         public static GameNetworkManager Game => singleton as GameNetworkManager;
 
@@ -40,6 +43,18 @@ namespace ProjectS.Networking
             // 접속 순간 자동 씬 전환 방지(위 주석 참조). 인스펙터에서 비워도 되지만 코드로도 못박는다.
             onlineScene = string.Empty;
             offlineScene = string.Empty;
+
+            if (roster == null) return;
+
+            Player[] list = roster.GetByList();
+            if (list == null) return;                 // ① GetByList null 방어
+
+            foreach (var p in list)
+            {
+                if (p == null) continue;              // ② 빈 슬롯 방어
+                spawnPrefabs.Add(p.gameObject);
+            }
+
         }
 
         public override void Start()
@@ -94,6 +109,7 @@ namespace ProjectS.Networking
             awaitingNetworkSceneLoad = false;
 
             // 미러에 클라 로드 완료 통지 (★ 정확한 호출은 미러 소스 확인)
+            FinishLoadScene();
         }
 
         /// <summary>커맨드라인/배치모드로 전용 서버 여부를 판정한다.</summary>
@@ -123,8 +139,23 @@ namespace ProjectS.Networking
             // 혼자 테스트: 전용 서버가 없으니 Host(서버+클라)로 켠다. 그래야 ChatNetworkPlayer가 스폰돼 채팅이 굴러간다.
             if (hostInEditor)
             {
-                Debug.Log("[Chat/Net] 에디터 Host 모드로 시작(hostInEditor).");
-                StartHost();
+                // 두 에디터 인스턴스(ParrelSync 클론 / MPPM 가상 플레이어)를 도구 무관하게 안전히 가른다.
+                // 클론/가상 판별법이 도구마다 제각각(ParrelSync는 Assets 심볼릭 링크라 dataPath도 못 믿음)이라,
+                // "포트를 먼저 잡은 쪽이 호스트, 이미 물려 있으면(SocketException) 클라"로 자동 판별한다.
+                try
+                {
+                    Debug.Log("[Chat/Net] 에디터 Host 시도(hostInEditor).");
+                    StartHost();
+                }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    // 포트가 이미 물려 있음 = 다른 에디터가 먼저 호스트. 부분 시작 정리 후 클라로 붙는다.
+                    if (NetworkServer.active || NetworkClient.active) StopHost();
+
+                    networkAddress = "localhost";
+                    Debug.Log("[Chat/Net] 포트 사용 중 → 다른 인스턴스가 호스트. StartClient(localhost)로 전환.");
+                    StartClient();
+                }
                 return;
             }
 #endif
