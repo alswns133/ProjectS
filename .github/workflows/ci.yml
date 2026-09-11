@@ -42,21 +42,47 @@ jobs:
           $unity = "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe"
           if (-not (Test-Path $unity)) { throw "Unity 에디터를 찾지 못함: $unity (러너 PC의 설치 경로/버전 확인)" }
 
-          # 취소된 이전 실행이 이 워크스페이스를 붙잡은 채 남긴 Unity 좀비가 있으면 먼저 정리한다.
-          # (남아 있으면 새 실행이 "another Unity instance ... same project"로 곧장 실패한다.)
-          # 워크스페이스 경로로만 거르므로 개발자가 열어둔 다른 프로젝트의 에디터는 건드리지 않는다.
-          Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
-            Where-Object { $_.CommandLine -like "*$env:GITHUB_WORKSPACE*" } |
-            ForEach-Object { Write-Host "기존 Unity 좀비 종료: PID $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-
           $log = Join-Path $env:RUNNER_TEMP "unity_editmode.log"
           $res = Join-Path $env:RUNNER_TEMP "results.xml"
 
-          # ★ Unity.exe는 Windows GUI 서브시스템 앱이라 `&`(또는 Invoke)로 부르면 기다리지 않고 즉시
-          #   리턴하고 $LASTEXITCODE도 안 채운다 → CI가 컴파일 결과를 못 보고 헛되이 실패/성공한다.
-          #   반드시 Start-Process -Wait -PassThru 로 종료까지 대기하고 .ExitCode 를 읽어야 한다.
+          # 이 워크스페이스를 붙잡은 Unity 프로세스·스테일 잠금을 정리한다. 취소된 이전 실행이 남긴 것이
+          # 있으면 새 실행이 "another Unity instance ... same project"로 곧장 실패하기 때문.
+          # 워크스페이스 경로로만 거르므로 개발자가 열어둔 다른 프로젝트의 에디터는 건드리지 않는다.
+          function Clear-WorkspaceUnity {
+            Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
+              Where-Object { $_.CommandLine -like "*$env:GITHUB_WORKSPACE*" } |
+              ForEach-Object { Write-Host "Unity 좀비 종료: PID $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            $lock = Join-Path $env:GITHUB_WORKSPACE "Temp\UnityLockfile"
+            if (Test-Path $lock) { Write-Host "스테일 UnityLockfile 제거"; Remove-Item $lock -Force -ErrorAction SilentlyContinue }
+          }
+
+          # ★ Unity.exe는 Windows GUI 서브시스템 앱이라 `&`로 부르면 기다리지 않고 즉시 리턴하고
+          #   $LASTEXITCODE도 안 채운다 → 반드시 Start-Process -Wait -PassThru 로 종료까지 대기.
+          # cancel-in-progress로 실행이 겹치면 정리 후에도 "another instance"가 잠깐 날 수 있어,
+          # 그 경우에만 정리·대기 후 재시도한다(진짜 컴파일 에러는 재시도하지 않고 즉시 실패).
           $a = @('-batchmode','-nographics','-projectPath',"$env:GITHUB_WORKSPACE",
                  '-runTests','-testPlatform','EditMode','-testResults',$res,'-logFile',$log)
-          $p = Start-Process -FilePath $unity -ArgumentList $a -Wait -PassThru -NoNewWindow
+          $max = 3
+          for ($i = 1; $i -le $max; $i++) {
+            Clear-WorkspaceUnity
+            Start-Sleep -Seconds 5   # 프로세스 종료·핸들 반환이 OS에 반영될 여유
+            if (Test-Path $log) { Remove-Item $log -Force -ErrorAction SilentlyContinue }
+            $p = Start-Process -FilePath $unity -ArgumentList $a -Wait -PassThru -NoNewWindow
+            if ($p.ExitCode -eq 0) { break }
+            $another = (Test-Path $log) -and (Select-String -Path $log -Pattern 'another Unity instance' -Quiet)
+            if ($another -and $i -lt $max) { Write-Host "another instance 감지 — 정리 후 재시도 ($i/$max)"; continue }
+            break
+          }
           if (Test-Path $log) { Write-Host "----- Unity 로그(마지막 200줄) -----"; Get-Content $log -Tail 200 }
           if ($p.ExitCode -ne 0) { throw "Unity 종료 코드 $($p.ExitCode) — 컴파일 또는 테스트 실패" }
+
+      # 실행이 취소(cancel-in-progress)돼 위 스텝이 중간에 죽어도, 이 스텝은 always()로 실행돼
+      # 이 워크스페이스를 물고 있는 Unity를 반드시 정리한다. 그래야 뒤이은 실행이 "another instance"로
+      # 연쇄 실패하지 않는다. (개발자의 다른 프로젝트 에디터는 경로로 걸러 건드리지 않는다.)
+      - name: Unity 정리 (항상)
+        if: always()
+        shell: powershell
+        run: |
+          Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
+            Where-Object { $_.CommandLine -like "*$env:GITHUB_WORKSPACE*" } |
+            ForEach-Object { Write-Host "정리: Unity PID $($_.ProcessId) 종료"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
