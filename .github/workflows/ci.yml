@@ -41,11 +41,22 @@ jobs:
         run: |
           $unity = "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe"
           if (-not (Test-Path $unity)) { throw "Unity 에디터를 찾지 못함: $unity (러너 PC의 설치 경로/버전 확인)" }
+
+          # 취소된 이전 실행이 이 워크스페이스를 붙잡은 채 남긴 Unity 좀비가 있으면 먼저 정리한다.
+          # (남아 있으면 새 실행이 "another Unity instance ... same project"로 곧장 실패한다.)
+          # 워크스페이스 경로로만 거르므로 개발자가 열어둔 다른 프로젝트의 에디터는 건드리지 않는다.
+          Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
+            Where-Object { $_.CommandLine -like "*$env:GITHUB_WORKSPACE*" } |
+            ForEach-Object { Write-Host "기존 Unity 좀비 종료: PID $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
           $log = Join-Path $env:RUNNER_TEMP "unity_editmode.log"
-          & $unity -batchmode -nographics -projectPath "$env:GITHUB_WORKSPACE" `
-              -runTests -testPlatform EditMode `
-              -testResults (Join-Path $env:RUNNER_TEMP "results.xml") `
-              -logFile $log
-          $code = $LASTEXITCODE
+          $res = Join-Path $env:RUNNER_TEMP "results.xml"
+
+          # ★ Unity.exe는 Windows GUI 서브시스템 앱이라 `&`(또는 Invoke)로 부르면 기다리지 않고 즉시
+          #   리턴하고 $LASTEXITCODE도 안 채운다 → CI가 컴파일 결과를 못 보고 헛되이 실패/성공한다.
+          #   반드시 Start-Process -Wait -PassThru 로 종료까지 대기하고 .ExitCode 를 읽어야 한다.
+          $a = @('-batchmode','-nographics','-projectPath',"$env:GITHUB_WORKSPACE",
+                 '-runTests','-testPlatform','EditMode','-testResults',$res,'-logFile',$log)
+          $p = Start-Process -FilePath $unity -ArgumentList $a -Wait -PassThru -NoNewWindow
           if (Test-Path $log) { Write-Host "----- Unity 로그(마지막 200줄) -----"; Get-Content $log -Tail 200 }
-          if ($code -ne 0) { throw "Unity 종료 코드 $code — 컴파일 또는 테스트 실패" }
+          if ($p.ExitCode -ne 0) { throw "Unity 종료 코드 $($p.ExitCode) — 컴파일 또는 테스트 실패" }
