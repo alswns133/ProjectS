@@ -1,4 +1,4 @@
-namespace ProjectS.Core
+﻿namespace ProjectS.Core
 {
     /// <summary>
     /// 채팅 채널. 일반은 접속 전원 broadcast, 파티는 파티원만 수신한다.
@@ -8,6 +8,7 @@ namespace ProjectS.Core
     {
         General = 0,
         Party = 1,
+        System = 2, // 로컬 전용 시스템 알림(아이템/골드/경험치 획득 등). 네트워크로 안 나감.
     }
 
     /// <summary>

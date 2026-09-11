@@ -127,6 +127,8 @@ namespace ProjectS.Players
         // 구르기·피격·사망 중 뒤늦게 도착한 검기 발사 이벤트를 무시하기 위해 상태를 조회할 중앙 컨텍스트.
         private Player player;
 
+        private NetworkComboRelay comboRelay;
+
         // 콤보 창이 열리기 전에 들어온 공격 입력을 기억해 다음 타로 넘긴다.
         private bool attackBuffered;
         private float[] skillReadyTime;
@@ -229,6 +231,7 @@ namespace ProjectS.Players
             anim = GetComponent<PlayerAnimation>();
             input = GetComponent<PlayerInputHandler>();
             player = GetComponent<Player>();
+            comboRelay = GetComponent<NetworkComboRelay>();
             skillReadyTime = new float[MaxSkillNumber + 1];
             relayProjectileHit = gain => TargetHit?.Invoke(gain);
 
@@ -713,6 +716,7 @@ namespace ProjectS.Players
             // 애니메이션이 실제로 해당 타수에 진입한 시점에 콤보 단계를 확정한다.
             currentAction = CombatAction.Combo;
             comboStep = step;
+            comboRelay?.BroadcastAttackStep(step); // 레이드 오너면 관찰자 전파, 싱글/관찰자면 isOwned=false로 no-op
 
             // 각성기 캔슬 창에서 평타로 이어 나온 것이면, 각성기는 끝난 것 → 무적 해제.
             SetSkillInvincibility(false);

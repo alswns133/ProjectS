@@ -364308,6 +364308,7 @@ GameObject:
   - component: {fileID: 902756205714936246}
   - component: {fileID: 2028114915561580055}
   - component: {fileID: 4034826363400321269}
+  - component: {fileID: 5943933106391189185}
   m_Layer: 8
   m_Name: Haru
   m_TagString: Player
@@ -364673,6 +364674,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimation
   villageController: {fileID: 22100000, guid: 3277b98a91f5488499e6ec42636c1f60, type: 2}
   dungeonController: {fileID: 22100000, guid: e05e963c3909518418730954a6ea4a96, type: 2}
+  attackStateNames:
+  - Attack1
+  - Attack2
+  - Attack3
+  attackCrossFade: 0.05
 --- !u!114 &1729168832162773676
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -365902,7 +365908,7 @@ MonoBehaviour:
   syncDirection: 1
   syncMode: 0
   syncInterval: 0
-  clientAuthority: 0
+  clientAuthority: 1
   animator: {fileID: 1680978592270901259}
 --- !u!114 &4034826363400321269
 MonoBehaviour:
@@ -365919,7 +365925,21 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
-  ownerOnly: []
+--- !u!114 &5943933106391189185
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6444419969119536879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ee5aa3e3da7b444d93ea1ae6714d55d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Players.NetworkComboRelay
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
 --- !u!1 &6468475852384579778
 GameObject:
   m_ObjectHideFlags: 0
