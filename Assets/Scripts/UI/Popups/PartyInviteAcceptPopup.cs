@@ -83,8 +83,6 @@ namespace ProjectS.UI
                     : $"[PartyInviteAcceptPopup] {partySourceBehaviour.GetType().Name}은 IPartySource를 구현하지 않는다.", this);
             }
 
-            Debug.Log($"[진단][PartyInviteAcceptPopup] partySource={(source as MonoBehaviour != null ? $"{((MonoBehaviour)source).name}#{((MonoBehaviour)source).GetInstanceID()}" : "null")} (NetworkPartySource OnEnable의 #ID와 같아야 함)", this);
-
             if (acceptButton != null) acceptButton.onClick.AddListener(OnAcceptClicked);
             if (declineButton != null) declineButton.onClick.AddListener(OnDeclineClicked);
         }
@@ -101,9 +99,6 @@ namespace ProjectS.UI
             timerRemaining = source != null ? source.RemainingSeconds : 0f;
             if (timerRemaining <= 0.01f) timerRemaining = timerTotal;
             if (timerTotal <= 0.01f) timerTotal = timerRemaining;
-
-            Debug.Log($"[진단][AcceptPopup] OnShow: source={(source != null)}, phase={source?.Phase}, " +
-                      $"countdown연결={(countdown != null)}, remaining0={timerRemaining:0.0}, total0={timerTotal:0.0}", this);
 
             Redraw();
         }

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.UI
 {
@@ -115,10 +115,6 @@ namespace ProjectS.UI
 
             PartyMemberInfo partner = source.Partner;
             hasPartner = partner != null;
-
-            // [진단] 파티원을 찾았는지·값이 어떤지 남긴다. 원인 파악 후 이 로그 삭제.
-            Debug.Log($"[진단][PartyStatusPresenter] Redraw → partner={(partner != null ? $"{partner.Nickname}(Lv.{partner.Level})" : "null(파티 아님/미성립)")}, " +
-                      $"hp={source.PartnerHpRatio:0.00}, sg={source.PartnerSgRatio:0.00}", this);
 
             if (!hasPartner)
             {
