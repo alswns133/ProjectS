@@ -4,6 +4,7 @@ using ProjectS.Data;
 using ProjectS.Events;
 using ProjectS.Managers;
 using ProjectS.Players;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ProjectS.Networking
@@ -40,7 +41,6 @@ namespace ProjectS.Networking
         /// 직접 이름을 조회하도록 바꾸면 완성된다.
         /// </summary>
         [SyncVar] private string ownerName = "Player";
-
         /// <summary>
         /// 씬을 넘어 이 채팅 오브젝트를 유지한다(서버 스폰본). 씬 전환은 Mirror가 아니라
         /// <see cref="ProjectS.Managers.GameSceneManager"/>가 싱글 모드로 처리하는데, 싱글 로드는 이전 씬의

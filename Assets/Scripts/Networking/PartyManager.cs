@@ -139,7 +139,6 @@ namespace ProjectS.Networking
         /// <param name="difficultyLabel">표시용 난이도 라벨</param>
         public void RequestInvite(uint targetNetId, int dungeonId, string dungeonName, string difficultyLabel)
         {
-            Debug.Log($"[진단][PartyManager] RequestInvite(클라): target={targetNetId}, dungeon={dungeonId}, isInviting={isInviting}, isLocalPlayer={isLocalPlayer}, Local={(Local == this)}", this);
             if (isInviting) return;
 
             isInviting = true;
@@ -150,25 +149,14 @@ namespace ProjectS.Networking
         [Command]
         private void CmdInvite(uint targetNetId, int dungeonId, string dungeonName, string difficultyLabel)
         {
-            Debug.Log($"[진단][PartyManager] CmdInvite 수신(서버): 초대자={netId}, 대상={targetNetId}, 던전={dungeonId}");
 
             // 초대 가능 판정은 ServerCanInvite로 모았다(아래 도우미 구역). 실패면 초대자 대기만 풀고 끝낸다.
             // this=초대자 오브젝트라 connectionToClient=초대자 본인 → 이 경로는 그대로 맞다.
             if (!ServerCanInvite(targetNetId, out NetworkConnectionToClient targetConn))
             {
-                // [진단] 어느 조건에서 막혔는지 상태를 덤프한다(원인 파악 후 이 블록 삭제).
-                bool spawned = NetworkServer.spawned.TryGetValue(targetNetId, out NetworkIdentity ti);
-                PlayerPresence tp = spawned && ti != null ? ti.GetComponent<PlayerPresence>() : null;
-                PlayerPresence mp = GetComponent<PlayerPresence>();
-                Debug.LogWarning($"[진단][PartyManager] ServerCanInvite 거부 — self={targetNetId == netId}, spawned={spawned}, " +
-                    $"targetPresence={tp != null}, targetPartyId={(tp != null ? tp.PartyId : 0)}, targetAccepts={tp != null && tp.AcceptsInvites}, " +
-                    $"myPresence={mp != null}, myPartyId={(mp != null ? mp.PartyId : 0)}, pendingHasTarget={pendingByTarget.ContainsKey(targetNetId)}");
-
                 TargetInviteEnded(connectionToClient, false);
                 return;
             }
-
-            Debug.Log($"[진단][PartyManager] ServerCanInvite 통과 → TargetInviteReceived 발송(대상 conn={targetConn.connectionId})");
 
             // 이 대상에 대한 보류 초대를 기록한다(대상의 수락이 이 초대자와 맞는지 대조 + 성립 시 던전을 심을 근거).
             pendingByTarget[targetNetId] = new PendingInvite
@@ -402,26 +390,21 @@ namespace ProjectS.Networking
         [Command]
         private void CmdConfirmDepart()
         {
-            // [진단] 도착 여부와 가드 상태를 남긴다(어디서 멈추는지 보이게). 원인 파악 후 삭제.
-            Debug.Log($"[진단][PartyManager] CmdConfirmDepart 수신(서버): departEndTime={departEndTime}, isLeader={isLeader}, netId={netId}");
 
             // 1. 출발 중인가.
             if (departEndTime == 0d)
             {
-                Debug.Log("[진단][PartyManager] ConfirmDepart 무시 — 출발 중 아님(departEndTime=0). 파티장이 먼저 '출발'을 걸어야 한다.");
                 return;
             }
             // 2. 무소속이 아닌가.
             if (!TryGetComponent(out PlayerPresence me) || me.PartyId == 0)
             {
-                Debug.Log("[진단][PartyManager] ConfirmDepart 무시 — 무소속(PartyId=0).");
                 return;
             }
 
             // 3. 파티장이 아니라 멤버인가(확인은 멤버만).
             if (isLeader)
             {
-                Debug.Log("[진단][PartyManager] ConfirmDepart 무시 — 파티장은 확인 대상이 아니다(멤버만 입장 확인).");
                 return;
             }
 
