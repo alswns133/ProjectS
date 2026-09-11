@@ -34,8 +34,10 @@ jobs:
       # -runTests EditMode는 실행 전 전체 스크립트를 컴파일하므로, 테스트가 0개여도 컴파일이
       # 깨지면 Unity가 비정상 종료 코드로 끝나 CI가 실패한다. 로그 tail로 원인도 남긴다.
       # 러너 작업 폴더는 개발자의 로컬 클론과 별개 경로라, 에디터를 열어둔 채여도 프로젝트 잠금 충돌이 없다.
+      # Windows 셀프 호스티드엔 Windows PowerShell(powershell)만 있고 pwsh(Core)는 없을 수 있어
+      # powershell을 명시한다. 아래 스크립트는 Windows PowerShell 5.1 문법과 호환된다.
       - name: EditMode 컴파일 검사 (로컬 Unity)
-        shell: pwsh
+        shell: powershell
         run: |
           $unity = "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe"
           if (-not (Test-Path $unity)) { throw "Unity 에디터를 찾지 못함: $unity (러너 PC의 설치 경로/버전 확인)" }
