@@ -59,7 +59,13 @@ namespace ProjectS.Logging
             mainThreadId = Thread.CurrentThread.ManagedThreadId;
             DontDestroyOnLoad(gameObject);
 
-            settings = Resources.Load<LogSettings>("Logging/LogSettings");
+            // Developers can keep endpoint credentials in a Git-ignored local override.
+            settings = Resources.Load<LogSettings>("Logging/LogSettings.local");
+            if (settings == null)
+            {
+                settings = Resources.Load<LogSettings>("Logging/LogSettings");
+            }
+
             if (settings == null) settings = ScriptableObject.CreateInstance<LogSettings>();
 
             InitializeSinks();

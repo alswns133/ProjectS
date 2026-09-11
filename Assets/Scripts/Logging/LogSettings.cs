@@ -3,12 +3,14 @@ using UnityEngine;
 namespace ProjectS.Logging
 {
     /// <summary>
-    /// 원격 버그 로그의 빌드별 설정이다. Resources/Logging/LogSettings.asset으로 로드된다.
+    /// 원격 버그 로그의 빌드별 설정이다. 로컬 오버라이드가 있으면 우선 로드된다.
     /// URL과 시크릿은 빌드를 보호하는 인증 정보가 아니므로 민감한 개인정보를 넣으면 안 된다.
     /// </summary>
     [CreateAssetMenu(fileName = "LogSettings", menuName = "ProjectS/Logging/Log Settings")]
     public class LogSettings : ScriptableObject
     {
+        // LogSettings.asset is the shared, credential-free template.
+        // LogSettings.local.asset is an optional Git-ignored local override.
         [Header("Client identity")]
         [SerializeField] private string buildId = "";
         [SerializeField] private string testerId = "";
@@ -56,5 +58,24 @@ namespace ProjectS.Logging
             !string.IsNullOrWhiteSpace(AppsScriptUrl) && !string.IsNullOrWhiteSpace(SharedSecret);
 
         public bool ShouldSendRemotely(LogSeverity severity) => severity >= RemoteMinimumSeverity;
+
+        public void ResetToTemplateDefaults()
+        {
+            buildId = "";
+            testerId = "";
+            maxCapturedLogsPerFrame = 100;
+            overlayCapacity = 300;
+            overlayStartsVisible = false;
+            writeLocalFile = true;
+            localFlushIntervalSeconds = 1f;
+            appsScriptUrl = "";
+            sharedSecret = "";
+            remoteMinimumSeverity = LogSeverity.Error;
+            remoteBatchSize = 20;
+            remoteBatchIntervalSeconds = 5f;
+            remoteMaximumPendingEntries = 500;
+            remoteRetryCount = 2;
+            remoteRetryDelaySeconds = 1f;
+        }
     }
 }
