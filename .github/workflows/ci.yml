@@ -14,50 +14,36 @@ concurrency:
 jobs:
   compile:
     name: Unity 컴파일 검사
-    runs-on: ubuntu-latest
+    # 셀프 호스티드 러너(개발 PC)에서 돈다. 무료 Personal 라이선스는 Unity 정책상 클라우드
+    # 컨테이너에서 활성화가 막혀(오프라인 .ulf=엔터프라이즈 전용, Unity 6=named-user 라이선싱)
+    # game-ci 도커 방식을 못 쓴다(2026-09-10 확인). 대신 이미 로그인된 로컬 Unity를 직접 부른다.
+    # → 라이선스 시크릿·도커 이미지 불필요, 프로젝트와 완전히 같은 에디터 버전으로 검사.
+    # ★ 러너는 Unity Hub에 로그인한 그 Windows 계정으로(서비스/SYSTEM 아님, run.cmd 대화형) 띄워야
+    #   라이선스가 잡힌다. 러너 등록 시 라벨 'unity'를 붙인다.
+    runs-on: [self-hosted, windows, unity]
+    timeout-minutes: 40   # 무한 대기 방지 안전장치(배치모드 행 사고 재발 시 빠르게 실패)
     steps:
-      # Unity 에디터 도커 이미지가 커서 러너 기본 여유 공간으로는 부족할 수 있어 미리 확보한다
-      - name: Free disk space
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-
+      # 컴파일만 검사하므로 LFS 바이너리(텍스처·모델 등)는 받지 않는다.
+      # 스크립트 컴파일에는 불필요하고, LFS 대역폭도 아낀다(에셋 Missing은 컴파일과 무관).
       - name: Checkout
         uses: actions/checkout@v4
-
-      # LFS 무료 대역폭(월 1GB)을 아끼기 위해 LFS 파일은 캐시에서 재사용하고 변경분만 받는다
-      - name: Create LFS file list
-        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
-
-      - name: Cache LFS objects
-        uses: actions/cache@v4
         with:
-          path: .git/lfs
-          key: lfs-${{ hashFiles('.lfs-assets-id') }}
-          restore-keys: lfs-
+          lfs: false
 
-      - name: Pull LFS files
+      # 풀 빌드(BuildPlayer) 대신 EditMode 테스트 러너로 "스크립트가 컴파일되는가"만 검증한다.
+      # -runTests EditMode는 실행 전 전체 스크립트를 컴파일하므로, 테스트가 0개여도 컴파일이
+      # 깨지면 Unity가 비정상 종료 코드로 끝나 CI가 실패한다. 로그 tail로 원인도 남긴다.
+      # 러너 작업 폴더는 개발자의 로컬 클론과 별개 경로라, 에디터를 열어둔 채여도 프로젝트 잠금 충돌이 없다.
+      - name: EditMode 컴파일 검사 (로컬 Unity)
+        shell: pwsh
         run: |
-          git lfs pull
-          git checkout .
-
-      # 에셋 임포트 결과(Library)를 캐싱해 두 번째 실행부터 크게 빨라진다
-      - name: Cache Library
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**/*.cs', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: Library-
-
-      # game-ci가 6000.3.8f1 이미지를 굽지 않아 auto(ProjectVersion.txt)로는 CI가 죽었다(2026-09-10).
-      # 로컬 에디터는 6000.3.8f1 그대로, CI만 이미지가 존재하는 6000.3.24f1로 고정한다.
-      # 로컬 에디터를 올릴 땐 이미지가 존재하는 버전으로 아래 두 값도 함께 갱신(+UNITY_LICENSE 재발급).
-      - name: EditMode 컴파일 검사
-        uses: game-ci/unity-test-runner@v4
-        timeout-minutes: 40   # 무한 대기 방지 안전장치(빌드 행 사고 재발 시 빠르게 실패)
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          testMode: EditMode
-          unityVersion: 6000.3.24f1
-          customImage: unityci/editor:ubuntu-6000.3.24f1-base-3
+          $unity = "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe"
+          if (-not (Test-Path $unity)) { throw "Unity 에디터를 찾지 못함: $unity (러너 PC의 설치 경로/버전 확인)" }
+          $log = Join-Path $env:RUNNER_TEMP "unity_editmode.log"
+          & $unity -batchmode -nographics -projectPath "$env:GITHUB_WORKSPACE" `
+              -runTests -testPlatform EditMode `
+              -testResults (Join-Path $env:RUNNER_TEMP "results.xml") `
+              -logFile $log
+          $code = $LASTEXITCODE
+          if (Test-Path $log) { Write-Host "----- Unity 로그(마지막 200줄) -----"; Get-Content $log -Tail 200 }
+          if ($code -ne 0) { throw "Unity 종료 코드 $code — 컴파일 또는 테스트 실패" }
