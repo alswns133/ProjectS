@@ -6,10 +6,15 @@ on:
   push:
     branches: [main]
 
-# 같은 PR에 연속으로 푸쉬하면 이전 검사는 취소하고 최신 것만 돌린다
+# 같은 ref에 연속 푸쉬 시 대기 중인 실행은 최신 것으로 합쳐지되(같은 group),
+# ★ 돌고 있는 실행은 절대 취소하지 않는다(cancel-in-progress: false).
+# 이유: 단일 셀프 호스티드 러너 + Unity는 한 프로젝트에 인스턴스 1개만 허용이라,
+# 실행 중 Unity를 강제 취소하면 자식 프로세스가 워크스페이스를 문 채 orphan으로 남아
+# 다음 실행이 "another Unity instance"로 연쇄 실패한다(2026-09-11 실제 발생).
+# 취소 대신 큐잉하면 러너가 하나씩 순서대로 돌아 orphan 자체가 안 생긴다.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   compile:
@@ -36,8 +41,11 @@ jobs:
       # 러너 작업 폴더는 개발자의 로컬 클론과 별개 경로라, 에디터를 열어둔 채여도 프로젝트 잠금 충돌이 없다.
       # Windows 셀프 호스티드엔 Windows PowerShell(powershell)만 있고 pwsh(Core)는 없을 수 있어
       # powershell을 명시한다. 아래 스크립트는 Windows PowerShell 5.1 문법과 호환된다.
+      # 러너 PC의 PowerShell 실행정책이 Restricted면 GitHub이 만든 .ps1이 "running scripts is
+      # disabled"(UnauthorizedAccess)로 실행 거부돼 스텝이 0.7초 만에 죽는다(2026-09-11 실제 원인).
+      # 호스트 보안설정을 바꾸는 대신, 이 스텝에서만 -ExecutionPolicy Bypass 로 우회한다.
       - name: EditMode 컴파일 검사 (로컬 Unity)
-        shell: powershell
+        shell: "powershell -ExecutionPolicy Bypass -Command \". '{0}'\""
         run: |
           $unity = "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe"
           if (-not (Test-Path $unity)) { throw "Unity 에디터를 찾지 못함: $unity (러너 PC의 설치 경로/버전 확인)" }
@@ -81,7 +89,7 @@ jobs:
       # 연쇄 실패하지 않는다. (개발자의 다른 프로젝트 에디터는 경로로 걸러 건드리지 않는다.)
       - name: Unity 정리 (항상)
         if: always()
-        shell: powershell
+        shell: "powershell -ExecutionPolicy Bypass -Command \". '{0}'\""
         run: |
           Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
             Where-Object { $_.CommandLine -like "*$env:GITHUB_WORKSPACE*" } |
