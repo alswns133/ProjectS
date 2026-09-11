@@ -1,14 +1,15 @@
-﻿using UnityEngine;
-using ProjectS.Scenes;
+﻿using ProjectS.Scenes;
 using ProjectS.UI;
+using UnityEngine;
 
 namespace ProjectS.Managers
 {
-    using System.Collections.Generic; // Dictinary를 사용
-    using System.Collections; // IEnumerator를 사용
-    using UnityEngine.SceneManagement; //유니티 엔진의 신매니저를 사용하기 위해 추가
-    using System.Threading.Tasks;
+    using ProjectS.Cameras;
     using System;
+    using System.Collections; // IEnumerator를 사용
+    using System.Collections.Generic; // Dictinary를 사용
+    using System.Threading.Tasks;
+    using UnityEngine.SceneManagement; //유니티 엔진의 신매니저를 사용하기 위해 추가
 
     /// <summary>
     /// 씬 등록/전환을 관리하는 싱글톤
@@ -193,7 +194,19 @@ namespace ProjectS.Managers
 
             // TODO(sound): 씬 BGM 시작 — 씬마다 다르므로 각 BaseScene.Enter()에서 SoundManager.Instance.PlayBgm(<그 씬 BGM ID>) 호출이 자연스럽다.
             //   (타이틀=SoundID.BGM_MainTitle, 숲=BGM_ForestLoop, 사막=BGM_DesertLoop 등. 씬 SFX 프리로드는 위 preloadTasks의 PreloadSceneSounds 자리.)
-            if (sceneDic.ContainsKey(next)) sceneDic[next].Enter();  // 새 씬의 Enter 호출
+
+            // 새 씬의 Enter 호출
+            if (sceneDic.ContainsKey(next)) 
+            {
+                BaseScene entered = sceneDic[next];
+                entered.Enter();
+
+                // 카메라 줌아웃 한계를 씬에 맞춰 조정(레이드=넓게, 그 외=원래대로).
+                // CameraRig는 플레이어 리그와 함께 상주하므로 있으면 갱신, 초기 씬(로그인 등)엔 없어 null 가드.
+                CameraRig rig = FindFirstObjectByType<CameraRig>();
+                if (rig != null) rig.SetZoomOutDistance(entered);
+            }
+
             current = next;
 
             UIManager.Instance.HideLoading();        // 활성화 후 로딩 닫기(한 프레임 깜빡임 방지)
