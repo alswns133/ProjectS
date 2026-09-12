@@ -6,58 +6,91 @@ on:
   push:
     branches: [main]
 
-# 같은 PR에 연속으로 푸쉬하면 이전 검사는 취소하고 최신 것만 돌린다
+# 같은 ref에 연속 푸쉬 시 대기 중인 실행은 최신 것으로 합쳐지되(같은 group),
+# ★ 돌고 있는 실행은 절대 취소하지 않는다(cancel-in-progress: false).
+# 이유: 단일 셀프 호스티드 러너 + Unity는 한 프로젝트에 인스턴스 1개만 허용이라,
+# 실행 중 Unity를 강제 취소하면 자식 프로세스가 워크스페이스를 문 채 orphan으로 남아
+# 다음 실행이 "another Unity instance"로 연쇄 실패한다(2026-09-11 실제 발생).
+# 취소 대신 큐잉하면 러너가 하나씩 순서대로 돌아 orphan 자체가 안 생긴다.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   compile:
     name: Unity 컴파일 검사
-    runs-on: ubuntu-latest
+    # 셀프 호스티드 러너(개발 PC)에서 돈다. 무료 Personal 라이선스는 Unity 정책상 클라우드
+    # 컨테이너에서 활성화가 막혀(오프라인 .ulf=엔터프라이즈 전용, Unity 6=named-user 라이선싱)
+    # game-ci 도커 방식을 못 쓴다(2026-09-10 확인). 대신 이미 로그인된 로컬 Unity를 직접 부른다.
+    # → 라이선스 시크릿·도커 이미지 불필요, 프로젝트와 완전히 같은 에디터 버전으로 검사.
+    # ★ 러너는 Unity Hub에 로그인한 그 Windows 계정으로(서비스/SYSTEM 아님, run.cmd 대화형) 띄워야
+    #   라이선스가 잡힌다. 러너 등록 시 라벨 'unity'를 붙인다.
+    runs-on: [self-hosted, windows, unity]
+    timeout-minutes: 40   # 무한 대기 방지 안전장치(배치모드 행 사고 재발 시 빠르게 실패)
     steps:
-      # Unity 에디터 도커 이미지가 커서 러너 기본 여유 공간으로는 부족할 수 있어 미리 확보한다
-      - name: Free disk space
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-
+      # 컴파일만 검사하므로 LFS 바이너리(텍스처·모델 등)는 받지 않는다.
+      # 스크립트 컴파일에는 불필요하고, LFS 대역폭도 아낀다(에셋 Missing은 컴파일과 무관).
       - name: Checkout
         uses: actions/checkout@v4
-
-      # LFS 무료 대역폭(월 1GB)을 아끼기 위해 LFS 파일은 캐시에서 재사용하고 변경분만 받는다
-      - name: Create LFS file list
-        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
-
-      - name: Cache LFS objects
-        uses: actions/cache@v4
         with:
-          path: .git/lfs
-          key: lfs-${{ hashFiles('.lfs-assets-id') }}
-          restore-keys: lfs-
+          lfs: false
 
-      - name: Pull LFS files
+      # 풀 빌드(BuildPlayer) 대신 EditMode 테스트 러너로 "스크립트가 컴파일되는가"만 검증한다.
+      # -runTests EditMode는 실행 전 전체 스크립트를 컴파일하므로, 테스트가 0개여도 컴파일이
+      # 깨지면 Unity가 비정상 종료 코드로 끝나 CI가 실패한다. 로그 tail로 원인도 남긴다.
+      # 러너 작업 폴더는 개발자의 로컬 클론과 별개 경로라, 에디터를 열어둔 채여도 프로젝트 잠금 충돌이 없다.
+      # Windows 셀프 호스티드엔 Windows PowerShell(powershell)만 있고 pwsh(Core)는 없을 수 있어
+      # powershell을 명시한다. 아래 스크립트는 Windows PowerShell 5.1 문법과 호환된다.
+      # 러너 PC의 PowerShell 실행정책이 Restricted면 GitHub이 만든 .ps1이 "running scripts is
+      # disabled"(UnauthorizedAccess)로 실행 거부돼 스텝이 0.7초 만에 죽는다(2026-09-11 실제 원인).
+      # 호스트 보안설정을 바꾸는 대신, 이 스텝에서만 -ExecutionPolicy Bypass 로 우회한다.
+      - name: EditMode 컴파일 검사 (로컬 Unity)
+        shell: "powershell -ExecutionPolicy Bypass -Command \". '{0}'\""
         run: |
-          git lfs pull
-          git checkout .
+          $unity = "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe"
+          if (-not (Test-Path $unity)) { throw "Unity 에디터를 찾지 못함: $unity (러너 PC의 설치 경로/버전 확인)" }
 
-      # 에셋 임포트 결과(Library)를 캐싱해 두 번째 실행부터 크게 빨라진다
-      - name: Cache Library
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**/*.cs', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: Library-
+          $log = Join-Path $env:RUNNER_TEMP "unity_editmode.log"
+          $res = Join-Path $env:RUNNER_TEMP "results.xml"
 
-      # game-ci가 6000.3.8f1 이미지를 굽지 않아 auto(ProjectVersion.txt)로는 CI가 죽었다(2026-09-10).
-      # 로컬 에디터는 6000.3.8f1 그대로, CI만 이미지가 존재하는 6000.3.24f1로 고정한다.
-      # 로컬 에디터를 올릴 땐 이미지가 존재하는 버전으로 아래 두 값도 함께 갱신(+UNITY_LICENSE 재발급).
-      - name: EditMode 컴파일 검사
-        uses: game-ci/unity-test-runner@v4
-        timeout-minutes: 40   # 무한 대기 방지 안전장치(빌드 행 사고 재발 시 빠르게 실패)
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          testMode: EditMode
-          unityVersion: 6000.3.24f1
-          customImage: unityci/editor:ubuntu-6000.3.24f1-base-3
+          # 이 워크스페이스를 붙잡은 Unity 프로세스·스테일 잠금을 정리한다. 취소된 이전 실행이 남긴 것이
+          # 있으면 새 실행이 "another Unity instance ... same project"로 곧장 실패하기 때문.
+          # 워크스페이스 경로로만 거르므로 개발자가 열어둔 다른 프로젝트의 에디터는 건드리지 않는다.
+          function Clear-WorkspaceUnity {
+            Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
+              Where-Object { $_.CommandLine -like "*$env:GITHUB_WORKSPACE*" } |
+              ForEach-Object { Write-Host "Unity 좀비 종료: PID $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            $lock = Join-Path $env:GITHUB_WORKSPACE "Temp\UnityLockfile"
+            if (Test-Path $lock) { Write-Host "스테일 UnityLockfile 제거"; Remove-Item $lock -Force -ErrorAction SilentlyContinue }
+          }
+
+          # ★ Unity.exe는 Windows GUI 서브시스템 앱이라 `&`로 부르면 기다리지 않고 즉시 리턴하고
+          #   $LASTEXITCODE도 안 채운다 → 반드시 Start-Process -Wait -PassThru 로 종료까지 대기.
+          # cancel-in-progress로 실행이 겹치면 정리 후에도 "another instance"가 잠깐 날 수 있어,
+          # 그 경우에만 정리·대기 후 재시도한다(진짜 컴파일 에러는 재시도하지 않고 즉시 실패).
+          $a = @('-batchmode','-nographics','-projectPath',"$env:GITHUB_WORKSPACE",
+                 '-runTests','-testPlatform','EditMode','-testResults',$res,'-logFile',$log)
+          $max = 3
+          for ($i = 1; $i -le $max; $i++) {
+            Clear-WorkspaceUnity
+            Start-Sleep -Seconds 5   # 프로세스 종료·핸들 반환이 OS에 반영될 여유
+            if (Test-Path $log) { Remove-Item $log -Force -ErrorAction SilentlyContinue }
+            $p = Start-Process -FilePath $unity -ArgumentList $a -Wait -PassThru -NoNewWindow
+            if ($p.ExitCode -eq 0) { break }
+            $another = (Test-Path $log) -and (Select-String -Path $log -Pattern 'another Unity instance' -Quiet)
+            if ($another -and $i -lt $max) { Write-Host "another instance 감지 — 정리 후 재시도 ($i/$max)"; continue }
+            break
+          }
+          if (Test-Path $log) { Write-Host "----- Unity 로그(마지막 200줄) -----"; Get-Content $log -Tail 200 }
+          if ($p.ExitCode -ne 0) { throw "Unity 종료 코드 $($p.ExitCode) — 컴파일 또는 테스트 실패" }
+
+      # 실행이 취소(cancel-in-progress)돼 위 스텝이 중간에 죽어도, 이 스텝은 always()로 실행돼
+      # 이 워크스페이스를 물고 있는 Unity를 반드시 정리한다. 그래야 뒤이은 실행이 "another instance"로
+      # 연쇄 실패하지 않는다. (개발자의 다른 프로젝트 에디터는 경로로 걸러 건드리지 않는다.)
+      - name: Unity 정리 (항상)
+        if: always()
+        shell: "powershell -ExecutionPolicy Bypass -Command \". '{0}'\""
+        run: |
+          Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
+            Where-Object { $_.CommandLine -like "*$env:GITHUB_WORKSPACE*" } |
+            ForEach-Object { Write-Host "정리: Unity PID $($_.ProcessId) 종료"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

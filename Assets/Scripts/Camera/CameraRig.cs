@@ -1,6 +1,7 @@
-using Unity.Cinemachine;
+﻿using Unity.Cinemachine;
 using UnityEngine;
 using ProjectS.Players;
+using ProjectS.Scenes;
 
 namespace ProjectS.Cameras
 {
@@ -20,6 +21,10 @@ namespace ProjectS.Cameras
         [SerializeField] private float zoomSpeed = 50f;
         [SerializeField] private float minDistance = 2f;   // 줌인 한계(너무 붙지 않게)
         [SerializeField] private float maxDistance = 10f;  // 줌아웃 한계(너무 멀어지지 않게)
+
+        [SerializeField] private float raidMaxDistance = 20; // 레이드 던전 줌아웃 한계
+
+        private float originMaxDistance;   // 원래 줌아웃 한계 보관
 
         // 실제로 거리를 들고 있는 Cinemachine Body 컴포넌트. 변하지 않으므로 1회 캐싱.
         private CinemachineThirdPersonFollow follow;
@@ -84,6 +89,8 @@ namespace ProjectS.Cameras
                 distance = follow.CameraDistance;
 
             if (cmCamera != null) realFollowTarget = cmCamera.Follow;
+
+            originMaxDistance = maxDistance;
         }
 
         private void Update()
@@ -102,6 +109,18 @@ namespace ProjectS.Cameras
             // 해제된 뒤에도 currentOffset이 0으로 줄어들 때까지는 계속 돌려야 한다.
             // (hasOffset만 보면 해제 순간 갱신이 끊겨 오프셋이 걸린 채로 굳는다.)
             if (!isFrozen && HasFollowOffset) UpdateOffsetAnchor();
+        }
+
+        /// <summary>
+        /// 던전이 레이드 일 경우 카메라 줌아웃 한계를 늘림 (레이드 몹 같은 경우 크기가 일반 몹보다 크기 때문에)
+        /// </summary>
+        /// <param name="baseScene">현재 씬</param>
+        public void SetZoomOutDistance(BaseScene baseScene)
+        {
+            if (baseScene == null) return;                    // 현재 없는 null 가드
+
+            maxDistance = baseScene is Raid ? raidMaxDistance : originMaxDistance;  // 'float' 빼고 필드에 대입
+            distance = Mathf.Min(distance, maxDistance);   // 한계가 줄면 현재 줌도 눌러줌
         }
 
         /// <summary>
