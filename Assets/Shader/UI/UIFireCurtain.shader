@@ -36,14 +36,15 @@ Shader "ProjectS/UI Fire Curtain"
         // Image/RawImage가 _MainTex를 제 스프라이트(흰색)로 덮어쓰므로, 0이 아니면 화면이 하얗게 뜬다.
         _BaseStrength ("Base Strength", Range(0,1)) = 0
 
-        // ── 연출의 두 손잡이 (코드가 민다) ───────────────────────────────
-        _Cover ("Cover", Range(0,1.3)) = 0        // 0 아무것도 없음 → 1 화면을 다 덮음
-        _Burn ("Burn", Range(0,1.3)) = 0          // 0 그대로 → 1 다 타서 걷힘
-
-        // ── 폭발 중심 (코드가 채운다) ────────────────────────────────────
-        _Center ("Center (viewport 0~1)", Vector) = (0.5, 0.5, 0, 0)
-        _RectSize ("Rect Size (px)", Vector) = (1920, 1080, 0, 0)
-        _MaxRadius ("Max Radius (px)", Float) = 1100   // 중심에서 가장 먼 모서리까지. 이걸로 반지름을 정규화한다
+        // ── 코드가 매 프레임 채우는 값 ────────────────────────────────────
+        // ★ 인스펙터에서 숨긴다. FireCurtainFx가 머티리얼 에셋 값을 복사한 뒤 이 값들을 다시 덮어쓰므로,
+        //   보이게 두면 슬라이더를 움직여도 곧바로 되돌아가 "값이 고정돼 조절이 안 된다"로 보인다.
+        //   덮임·걷힘은 FireCurtainFx의 Preview Cover / Preview Burn으로 조절한다.
+        [HideInInspector] _Cover ("Cover", Range(0,1.3)) = 0        // 0 아무것도 없음 → 1 화면을 다 덮음
+        [HideInInspector] _Burn ("Burn", Range(0,1.3)) = 0          // 0 그대로 → 1 다 타서 걷힘
+        [HideInInspector] _Center ("Center (viewport 0~1)", Vector) = (0.5, 0.5, 0, 0)
+        [HideInInspector] _RectSize ("Rect Size (px)", Vector) = (1920, 1080, 0, 0)
+        [HideInInspector] _MaxRadius ("Max Radius (px)", Float) = 1100   // 중심에서 가장 먼 모서리까지
 
         // ── 색 램프: 차가운 쪽부터 뜨거운 쪽까지 ─────────────────────────
         _SmokeColor ("Smoke (coldest)", Color) = (0.09, 0.045, 0.035, 1)  // 불꽃 사이의 어두운 연기
@@ -74,7 +75,7 @@ Shader "ProjectS/UI Fire Curtain"
         _SootWidth ("Soot Width", Range(0,0.4)) = 0.07    // 불씨 바깥의 그을음 띠 두께
         _BurnSeed ("Burn Seed", Float) = 17.3           // 걷힘 경계를 덮임과 어긋나게 하는 오프셋
 
-        _FxTime ("Fx Time (unscaled)", Float) = 0
+        [HideInInspector] _FxTime ("Fx Time (unscaled)", Float) = 0
 
         // UI 공통(마스크/스텐실).
         _StencilComp ("Stencil Comparison", Float) = 8

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using ProjectS.Debugging;
+using Mirror;
 
 namespace ProjectS.Players
 {
@@ -58,6 +59,13 @@ namespace ProjectS.Players
         private const float Damp = 0.1f;   // SetFloat 감쇠 시간. 값이 즉시 안 튀고 부드럽게 따라감
         private Animator animator;
 
+        [Header("네트워크 콤보 재생")]
+        [Tooltip("콤보 타수별 Animator State 이름. 인덱스0=1타. Player_Dungeon의 실제 State명과 일치(언더바!).")]
+        [SerializeField] private string[] attackStateNames = { "Attack_1", "Attack_2", "Attack_3" };
+        [SerializeField] private float attackCrossFade = 0.05f;
+
+        private int[] attackStateHashes;
+
         // 로코모션 규약이 컨트롤러마다 다르다. Player.controller는 Z 블렌드 트리(정지/걷기/달리기 혼합),
         // Haru.controller는 isMoving/isRunning bool로 도는 3단 State 머신(Idle→Start→Loop→Stop)이다.
         // 없는 파라미터에 SetBool을 하면 Unity가 매 프레임 경고를 뱉으므로 Awake에서 한 번만 확인해 둔다.
@@ -75,12 +83,36 @@ namespace ProjectS.Players
         private bool hasRollHeld;
         private bool hasGrabbed;
 
+        private NetworkAnimator networkAnimator;
+
         private void Awake()
         {
             animator = GetComponent<Animator>();
+            networkAnimator = GetComponent<NetworkAnimator>();
             villageController = animator.runtimeAnimatorController;
+            attackStateHashes = new int[attackStateNames.Length];
+
+            // 이름들을 1회 해싱. (Attack 트리거 해시가 아니라 State 이름 해시)
+            for (int i = 0; i < attackStateNames.Length; i++)
+                attackStateHashes[i] = Animator.StringToHash(attackStateNames[i]);
 
             RefreshParameterCache();
+        }
+
+        // 트리거 라우팅 단일 통로.
+        private void SetTrigger(int hash)
+        {
+            // netAnim.isOwned가 핵심 가드: 레이드에서 네트워크 스폰돼 이 클라가 소유할 때만 네트워크로 쏜다.
+            // 싱글플레이 로컬 플레이어도 같은 Haru 프리팹이라 NetworkAnimator가 붙어 있지만,
+            // 네트워크 스폰이 아니라 isOwned=false → 로컬 animator 경로로 빠져 기존 동작 그대로.
+            if (networkAnimator != null && networkAnimator.isOwned) networkAnimator.SetTrigger(hash);
+            else animator.SetTrigger(hash);
+        }
+
+        private void ResetTrigger(int hash)
+        {
+            if (networkAnimator != null && networkAnimator.isOwned) networkAnimator.ResetTrigger(hash);
+            else animator.ResetTrigger(hash);
         }
 
         // 컨트롤러가 노출하는 파라미터 존재 여부를 다시 계산한다.
@@ -230,23 +262,23 @@ namespace ProjectS.Players
         /// </summary>
         public void PlayJump()
         {
-            if (hasJump) animator.SetTrigger(DoJump);
+            if (hasJump) SetTrigger(DoJump);
         }
 
         public void ResetJumpTrigger()
         {
-            if (hasJump) animator.ResetTrigger(DoJump);
+            if (hasJump) ResetTrigger(DoJump);
         }
 
         /// <summary>공중 대시(점프 대시) 트리거. PlayerJumpDashState 진입 시 호출한다.</summary>
         public void PlayJumpDash()
         {
-            if (hasJumpDash) animator.SetTrigger(DoJumpDash);
+            if (hasJumpDash) SetTrigger(DoJumpDash);
         }
 
         public void ResetJumpDashTrigger()
         {
-            if (hasJumpDash) animator.ResetTrigger(DoJumpDash);
+            if (hasJumpDash) ResetTrigger(DoJumpDash);
         }
 
         /// <summary>
@@ -254,28 +286,25 @@ namespace ProjectS.Players
         /// 방향 파라미터가 없는 이유: 캐릭터가 구를 방향을 먼저 바라보고(FaceInstantly)
         /// 앞구르기 클립 하나만 재생하는 설계라, 애니메이터는 방향을 몰라도 된다.
         /// </summary>
-        public void PlayRoll() => animator.SetTrigger(DoRoll);
+        public void PlayRoll() => SetTrigger(DoRoll);
 
         /// <summary>
         /// 구르기 트리거 해제. 구르기 상태 Exit에서 호출된다.
         /// 연속 회피 중 애니메이터가 트리거를 소비하지 못한 채(블렌드 중 등) 상태가 끝나면
         /// 래치된 트리거가 남아 나중에 유령 구르기가 재생되는 것을 막는다.
         /// </summary>
-        public void ResetRollTrigger() => animator.ResetTrigger(DoRoll);
+        public void ResetRollTrigger() => ResetTrigger(DoRoll);
 
         /// <summary>n번 스킬 트리거. 범위를 벗어난 n은 조용히 무시(예외 대신 안전).</summary>
         public void PlaySkill(int n)
         {
             if (n >= 1 && n < Skill.Length)
-                animator.SetTrigger(Skill[n]);
+                SetTrigger(Skill[n]);
             DevLog.Log(Skill[n].ToString());
             
         }
 
-        public void PlayAttackTrigger()
-        {
-            animator.SetTrigger(Attack);
-        }
+        public void PlayAttackTrigger() => animator.SetTrigger(Attack);
 
         public void ResetAttackTrigger() => animator.ResetTrigger(Attack);
 
@@ -283,26 +312,26 @@ namespace ProjectS.Players
         /// 래치된 강공격·달리기 공격 트리거를 지운다. 일반 공격(Attack)만 ClearAttackBuffer가 지우므로,
         /// 피격·구르기로 캔슬될 때 이 둘이 남아 나중에 유령 발동하는 것을 CancelAction에서 함께 막는다.
         /// </summary>
-        public void ResetStrongAttackTrigger() => animator.ResetTrigger(StrongAttack);
+        public void ResetStrongAttackTrigger() => ResetTrigger(StrongAttack);
 
-        public void ResetRunAttackTrigger() => animator.ResetTrigger(RunAttack);
+        public void ResetRunAttackTrigger() => ResetTrigger(RunAttack);
 
-        public void ResetJumpAttackTrigger() => animator.ResetTrigger(JumpAttack);
+        public void ResetJumpAttackTrigger() => ResetTrigger(JumpAttack);
 
         /// <summary>우클릭 강공격 트리거. PlayerCombat.UseStrongAttack이 발동에 성공했을 때만 호출한다.</summary>
-        public void PlayStrongAttack() => animator.SetTrigger(StrongAttack);
+        public void PlayStrongAttack() => SetTrigger(StrongAttack);
 
         /// <summary>달리기 공격(단타) 트리거. 달리는 중 클릭 시 Player가 라우팅한다.</summary>
-        public void PlayRunAttack() => animator.SetTrigger(RunAttack);
+        public void PlayRunAttack() => SetTrigger(RunAttack);
 
         /// <summary>점프 공격(단타) 트리거. 공중 클릭 시 Player가 라우팅한다.</summary>
-        public void PlayJumpAttack() => animator.SetTrigger(JumpAttack);
+        public void PlayJumpAttack() => SetTrigger(JumpAttack);
 
         /// <summary>
         /// 피격 트리거. HitState 진입 시 1회 호출한다.
         /// 강한 피격(isLarge)은 별도 모션(doHitLarge)으로 분기한다.
         /// </summary>
-        public void PlayHit(bool isLarge) => animator.SetTrigger(isLarge ? DoHitLarge : DoHit);
+        public void PlayHit(bool isLarge) => SetTrigger(isLarge ? DoHitLarge : DoHit);
 
         /// <summary>
         /// 피격 트리거 해제. HitState Exit에서 호출한다.
@@ -311,8 +340,8 @@ namespace ProjectS.Players
         /// </summary>
         public void ResetHitTriggers()
         {
-            animator.ResetTrigger(DoHit);
-            animator.ResetTrigger(DoHitLarge);
+            ResetTrigger(DoHit);
+            ResetTrigger(DoHitLarge);
         }
 
         /// <summary>
@@ -321,7 +350,7 @@ namespace ProjectS.Players
         /// </summary>
         public void PlayGrabbed()
         {
-            if (hasGrabbed) animator.SetTrigger(DoGrabbed);
+            if (hasGrabbed) SetTrigger(DoGrabbed);
         }
 
         /// <summary>
@@ -330,7 +359,7 @@ namespace ProjectS.Players
         /// </summary>
         public void ResetGrabbedTrigger()
         {
-            if (hasGrabbed) animator.ResetTrigger(DoGrabbed);
+            if (hasGrabbed) ResetTrigger(DoGrabbed);
         }
 
         /// <summary>
@@ -343,12 +372,12 @@ namespace ProjectS.Players
         {
             if (byLargeHit ? hasDieLarge : hasDie)
             {
-                animator.SetTrigger(byLargeHit ? DoDieLarge : DoDie);
+                SetTrigger(byLargeHit ? DoDieLarge : DoDie);
                 return;
             }
 
-            if (hasDie) animator.SetTrigger(DoDie);
-            else if (hasDieLarge) animator.SetTrigger(DoDieLarge);
+            if (hasDie) SetTrigger(DoDie);
+            else if (hasDieLarge) SetTrigger(DoDieLarge);
         }
 
         /// <summary>
@@ -362,8 +391,8 @@ namespace ProjectS.Players
         {
             if (animator == null) animator = GetComponent<Animator>();
 
-            animator.ResetTrigger(DoDie);
-            animator.ResetTrigger(DoDieLarge);
+            ResetTrigger(DoDie);
+            ResetTrigger(DoDieLarge);
             animator.Rebind();
             animator.Update(0f);
         }
@@ -372,6 +401,18 @@ namespace ProjectS.Players
         {
             if (!hasRollHeld) return;
             animator.SetBool(RollHeld, held);
+        }
+
+        public void PlayAttackStepNetworked(int step)
+        {
+            int i = step - 1;
+            if (attackStateHashes == null || i < 0 || i >= attackStateHashes.Length)
+            {
+                Debug.Log($"[진단][Combo] PlayAttackStepNetworked step={step} → 범위밖(무시). len={attackStateHashes?.Length}");
+                return;
+            }
+            Debug.Log($"[진단][Combo] PlayAttackStepNetworked step={step} → CrossFade '{attackStateNames[i]}'");
+            animator.CrossFadeInFixedTime(attackStateHashes[i], attackCrossFade);
         }
     }
 }
