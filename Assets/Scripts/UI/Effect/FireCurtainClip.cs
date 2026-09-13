@@ -159,6 +159,20 @@ namespace ProjectS.UI
             bound = null;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// 그래프가 통째로 사라질 때(Timeline 창의 미리보기를 끄거나 디렉터를 다른 오브젝트로 바꿀 때)도 지운다.
+        /// 이 경로에서 Pause가 불린다는 보장이 없고, 안 지우면 가림막이 "타임라인이 값을 쥔 상태"로 남아
+        /// 에디터 미리보기로 돌아가지 못한다.
+        /// </remarks>
+        public override void OnPlayableDestroy(Playable playable)
+        {
+            if (bound == null) return;
+
+            bound.Clear();
+            bound = null;
+        }
+
         /// <summary>곡선이 비어 있어도 선형으로 동작하게 한다. 인스펙터에서 곡선을 지우면 null이 온다.</summary>
         private static float Evaluate(AnimationCurve curve, float t)
         {
