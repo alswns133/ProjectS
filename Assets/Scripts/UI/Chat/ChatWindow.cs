@@ -59,6 +59,12 @@ namespace ProjectS.UI
         [SerializeField] private float showDuration = 5f;
         [Tooltip("페이드 시간(초). 0이면 즉시 전환.")]
         [SerializeField] private float fadeDuration = 0.25f;
+
+        [Header("진단 로그 → 시스템 알림 (디버그, 체크 끄면 빠짐)")]
+        [SerializeField] private bool showDiagnosticsInChat = true;
+        [SerializeField] private string diagnosticPrefix = "[진단]";
+
+        private readonly Queue<string> pendingDiagnostics = new();
         private CanvasGroup canvasGroup;
 
         // 이 시각(Time.unscaledTime) 전까지 표시. 포커스 중엔 이 값과 무관하게 표시.
@@ -118,8 +124,8 @@ namespace ProjectS.UI
                 }
             }
 
-           if(canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
-           if(canvasGroup != null)
+            if (canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
             {
                 canvasGroup.alpha = 0;
                 canvasGroup.interactable = false;
@@ -127,13 +133,32 @@ namespace ProjectS.UI
             }
         }
 
+        // logMessageReceived는 씬 로드 중/다른 스레드에서도 올 수 있어, 여기선 큐에만 담고 UI는 Update에서 그린다.
+        private void OnDiagnosticLog(string condition, string stackTrace, LogType type)
+        {
+            if (string.IsNullOrEmpty(condition) || !condition.StartsWith(diagnosticPrefix)) return;
+            pendingDiagnostics.Enqueue(condition);
+        }
+
         // 수신 구독은 활성/비활성과 짝을 맞춘다(상시 활성이라 사실상 항상 구독). Presenter를 따로 두지 않고 여기서 직접 받는다.
-        private void OnEnable() => ChatEvents.OnMessageReceived += AppendLine;
-        private void OnDisable() => ChatEvents.OnMessageReceived -= AppendLine;
+        private void OnEnable()
+        {
+            ChatEvents.OnMessageReceived += AppendLine;
+            if (showDiagnosticsInChat)
+                Application.logMessageReceived += OnDiagnosticLog;
+        }
+        private void OnDisable()
+        { 
+            ChatEvents.OnMessageReceived -= AppendLine;
+            Application.logMessageReceived -= OnDiagnosticLog;   // 구독 안 했어도 해제는 안전
+        }
 
         private void Update()
         {
             if (input == null) return;
+
+            while (pendingDiagnostics.Count > 0)
+                ChatEvents.FireSystemNotice($"[{System.DateTime.Now:HH:mm:ss.fff}] {pendingDiagnostics.Dequeue()}");
 
             bool focused = input.isFocused;
 
@@ -192,7 +217,20 @@ namespace ProjectS.UI
 
             // 풀이 준비돼 있으면(슬롯이 하나라도 있으면) 링 버퍼 슬롯을 재사용해 한 줄 찍는다.
             if (tmps.Count > 0)
-                ReuseLine($"<color=blue><noparse>{safeSender}</noparse></color>: <noparse>{safeText}</noparse>");
+            {
+                if (message.channel == ChatChannel.System)
+                {
+                    // 색은 우리가 코드로 지정한 로컬 값이라 <noparse> '바깥'에 둬야 실제 색으로 렌더된다.
+                    // 본문(safeText)만 noparse로 보호. sender(색 hex)는 네트워크가 아니라 우리 코드가 넣은 값이라 안전.
+                    string color = string.IsNullOrEmpty(message.sender) ? "#FFEB3B" : message.sender;
+                    ReuseLine($"<color={color}><noparse>{safeText}</noparse></color>");
+                }
+                else
+                {
+                    ReuseLine($"<color=blue><noparse>{safeSender}</noparse></color>: <noparse>{safeText}</noparse>");
+                }
+
+            }
 
             // 바닥에서 보고 있었을 때만 최신 줄을 따라 내려간다. 레이아웃 갱신 뒤 위치를 잡아야 정확하다.
             if (scroll != null && wasAtBottom)
@@ -259,7 +297,7 @@ namespace ProjectS.UI
 
         private void UpdateVisibility(bool focused)
         {
-            if(canvasGroup == null) return;
+            if (canvasGroup == null) return;
 
             bool shouldShow = focused || Time.unscaledTime < hideTime;
 

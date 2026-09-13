@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using ProjectS.Core;
 
@@ -30,6 +30,16 @@ namespace ProjectS.Events
         /// <summary>로컬 전송 요청을 발행한다(입력창에서 호출).</summary>
         public static void FireSendRequested(ChatChannel channel, string text)
             => OnSendRequested?.Invoke(channel, text);
+
+        /// <summary>
+        /// 로컬 시스템 알림을 채팅에 띄운다(아이템/골드/경험치 획득, 안내 등). 네트워크로 보내지 않고 이 클라 채팅에만 찍는다.
+        /// System 채널에서는 sender 필드를 '색(hex)'으로 재활용한다 — 색은 우리 코드가 정하는 로컬 값이라
+        /// struct에 필드를 새로 넣어(네트워크 직렬화 비용) 만들 필요가 없다.
+        /// </summary>
+        /// <param name="text">알림 문구</param>
+        /// <param name="colorHex">글자색. 기본 노랑. 예: 골드 "#FFD54F", 경험치 "#81C784"</param>
+        public static void FireSystemNotice(string text, string colorHex = "#FFEB3B")
+            => FireMessageReceived(new ChatMessage { channel = ChatChannel.System, sender = colorHex, text = text });
 
         /// <summary>
         /// 도메인 리로드를 꺼도 플레이 시작 시 죽은 구독자가 남지 않게 초기화한다.
