@@ -135,7 +135,6 @@ namespace ProjectS.UI
                 if (!departPromptShown && !source.IsLeader
                     && !UIManager.Instance.IsPopupOpen<PartyRosterPopup>())
                 {
-                    Debug.Log("[진단][PartyWindowOpener] Phase=Departing 감지(멤버) → 결성창 자동 오픈", this);
                     departPromptShown = true;
                     UIManager.Instance.ShowPopup<PartyRosterPopup>();
                 }
@@ -156,7 +155,6 @@ namespace ProjectS.UI
 
             if (invitePopupShown) return;
 
-            Debug.Log("[진단][PartyWindowOpener] Phase=Invited 감지 → ShowPopup<PartyInviteAcceptPopup>", this);
             invitePopupShown = true;
             UIManager.Instance.ShowPopup<PartyInviteAcceptPopup>();
         }

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ProjectS.Players
 {
@@ -11,7 +11,7 @@ namespace ProjectS.Players
     /// (JumpAttackLoopBehaviour와 같은 패턴).
     ///
     /// 필요한 Animator 파라미터 2개:
-    ///   doIdleSpecial (Trigger) — 특수 대기로 전이시키는 방아쇠
+    ///   doIdleSpecial (SetTrigger) — 특수 대기로 전이시키는 방아쇠
     ///   idleVariant   (Int)     — 어떤 특수 대기인지. 0 .. (variationCount-1)
     ///
     /// 전이 구성: Idle → Idle_Special_N  (조건: doIdleSpecial + idleVariant == N)
