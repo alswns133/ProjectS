@@ -220,9 +220,6 @@ namespace ProjectS.UI
         {
             if (source == null) return;
 
-            // [진단] 버튼이 어느 분기로 가는지(파티장 출발/취소 vs 멤버 입장확인) 남긴다. 원인 파악 후 삭제.
-            Debug.Log($"[진단][PartyRosterPopup] 출발 버튼 클릭 — isLeader={source.IsLeader}, phase={source.Phase}", this);
-
             if (source.IsLeader)
             {
                 if (source.Phase == PartyPhase.Departing) source.CancelDepart();

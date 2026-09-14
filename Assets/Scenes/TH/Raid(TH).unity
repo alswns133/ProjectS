@@ -1309,6 +1309,31 @@ MonoBehaviour:
   target: {fileID: 12755048}
   curtainMaterial: {fileID: 2100000, guid: 293f8eb29241bcd4b852d0c2f2f173fc, type: 2}
   curtainShader: {fileID: 4800000, guid: b5f430938f9d1cb449c0a1f83f7a499b, type: 3}
+  look:
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    baseStrength: 0
+    smokeColor: {r: 0.08999997, g: 0.04499995, b: 0.035, a: 1}
+    fireColor: {r: 0.6377357, g: 0.12649302, b: 0, a: 1}
+    hotColor: {r: 1, g: 0.66, b: 0.18, a: 1}
+    whiteHot: {r: 1, g: 0.95, b: 0.82, a: 1}
+    sootColor: {r: 0.5320754, g: 0, b: 0, a: 1}
+    noiseScale: 3.2
+    ridge: 0.585
+    boil: 0.9
+    riseSpeed: 2.45
+    radialStretch: 0
+    swirlSpeed: 0.16
+    contrast: 2.5
+    gamma: 2.11
+    coreBoost: 0.37
+    flicker: 0.777
+    edgeNoise: 0.508
+    edgeTongue: 15.56
+    edgeSoftness: 0.094
+    emberWidth: 0.166
+    sootWidth: 0.089
+    burnSeed: 17.3
+  lookImported: 1
   worldCamera: {fileID: 0}
   centerTarget: {fileID: 1477853223}
   coverDuration: 0.28
@@ -1361,7 +1386,8 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  overshoot: 0.3
+  burnFromCurtainCenter: 1
+  overshoot: 0.305
   embers: {fileID: 400790538}
   embersPerSecond: 70
   emberScatter: 30
@@ -27178,6 +27204,26 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1338115652844649849, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
+      propertyPath: m_fontMaterial
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 1338115652844649849, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
+      propertyPath: m_sharedMaterial
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 3250326477071842056, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
+      propertyPath: m_text
+      value: "\uAE61\uAE61\uC774"
+      objectReference: {fileID: 0}
+    - target: {fileID: 3250326477071842056, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
+      propertyPath: m_fontMaterial
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 3250326477071842056, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
+      propertyPath: m_sharedMaterial
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 3305678779737820840, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -27261,6 +27307,10 @@ PrefabInstance:
     - target: {fileID: 3577386939653781730, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
       propertyPath: m_Name
       value: BossIntro
+      objectReference: {fileID: 0}
+    - target: {fileID: 3577386939653781730, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -68865,6 +68915,26 @@ PlayableDirector:
     value: {fileID: 62205665}
   - key: {fileID: 2967204941801187288, guid: 4f916172c992316409bd352e5c222587, type: 2}
     value: {fileID: 12755047}
+  - key: {fileID: 1817187852404483299, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -6161802666651944167, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -3540159558573506165, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -1751932158279706919, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -607146478611208038, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -5677919199166707408, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -992923471110121659, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: 6510523896905302744, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -8623198063135592672, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -3798074100994637700, guid: 4f916172c992316409bd352e5c222587, type: 2}
+    value: {fileID: 1200528170}
   m_ExposedReferences:
     m_References:
     - 482659dc7db658e4b886836c0f146388: {fileID: 1318310823}
@@ -68905,7 +68975,7 @@ PlayableDirector:
     - 33aa19a66c6fc2b43bec27cc83d4c97d: {fileID: 0}
     - 90802b2304269334ca3a3d40963385f7: {fileID: 1988010336}
     - 1f438e07a4f63b843833686067a4728d: {fileID: 0}
-    - ead4fc3735894460b2118ed228a89056: {fileID: 1477853223}
+    - ead4fc3735894460b2118ed228a89056: {fileID: 657829365}
     - daeadfb88e35a78488c01d7021cbaae3: {fileID: 1315396020}
     - e4dda08db08af8641ad6afe526ed2f54: {fileID: 0}
     - 317ad1981ff4f014d9d10f1c66cd8db9: {fileID: 991787747}
@@ -68994,34 +69064,7 @@ MonoBehaviour:
   director: {fileID: 268638153}
   lockPlayerInput: 1
   cutsceneSafetyMargin: 3
-  trackBindings:
-  - trackName: Boss_Riad_Light
-    part: 0
-    childPath: 
-  - trackName: Boss_Raid_Animation
-    part: 0
-    childPath: 
-  - trackName: GrabIntro
-    part: 2
-    childPath: GrabIntro
-  - trackName: SM_Wep_Hammer_01
-    part: 2
-    childPath: SM_Wep_Hammer_01
-  - trackName: Steam1
-    part: 2
-    childPath: Steam1
-  - trackName: Steam2
-    part: 2
-    childPath: Steam2
-  - trackName: Steam3
-    part: 2
-    childPath: Steam3
-  - trackName: Red_Steam
-    part: 2
-    childPath: Red_Steam
-  - trackName: BossPoint
-    part: 1
-    childPath: 
+  trackBindings: []
   hideUIDuringIntro: 1
 --- !u!1001 &268652922
 PrefabInstance:
@@ -86899,8 +86942,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 343343578}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.27059782, y: 0.6532818, z: -0.27059802, w: 0.6532813}
-  m_LocalPosition: {x: 10.11, y: 29.16, z: -78.63}
+  m_LocalRotation: {x: -0.033782545, y: 0.95766234, z: 0.25660437, w: 0.12607887}
+  m_LocalPosition: {x: 24.49, y: 1.99, z: -71.59}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -279212,6 +279255,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 3305678779737820840, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
   m_PrefabInstance: {fileID: 156143355}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1200528170 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8109335375167553976, guid: 56a026975d12ec74a8fcc0f104ba87d3, type: 3}
+  m_PrefabInstance: {fileID: 156143355}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9577731ff64b27942ad9159f726dbe32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.BossIntroFx
 --- !u!1001 &1200548389
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -279583,6 +279637,10 @@ PrefabInstance:
     - target: {fileID: 890781944157325120, guid: 0eae07f582c475f46b87a4821fd4de84, type: 3}
       propertyPath: m_Name
       value: Boss_Raid_DualBlades
+      objectReference: {fileID: 0}
+    - target: {fileID: 890781944157325120, guid: 0eae07f582c475f46b87a4821fd4de84, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 984265650800868767, guid: 0eae07f582c475f46b87a4821fd4de84, type: 3}
       propertyPath: m_LocalRotation.w
