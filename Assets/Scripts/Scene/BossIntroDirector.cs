@@ -127,15 +127,6 @@ namespace ProjectS.Scenes
         private void OnBossAppeared(Boss boss)
         {
             if (played || boss == null || director == null || director.playableAsset == null) return;
-
-            // 등장한 보스가 이 연출의 주인공인지 먼저 가린다. 아니면 재생하지 않고(구독도 유지한 채) 다음 보스를 기다린다.
-            if (!IsIntroBoss(boss, out string missingPart))
-            {
-                Debug.LogWarning($"[BossIntroDirector] '{boss.name}'에 연출이 요구하는 '{missingPart}'가 없어 " +
-                                 $"이 보스는 등장 연출의 주인공이 아니라고 보고 건너뜁니다(다음 보스를 계속 기다립니다).", this);
-                return;
-            }
-
             played = true;
 
             // 한 번 재생했으면 다시는 트리거되지 않게 즉시 구독을 끊는다(다른 보스 등장·중복 발행에도 재생 안 됨).
@@ -162,50 +153,6 @@ namespace ProjectS.Scenes
             director.stopped += OnDirectorStopped;
 
             director.Play();
-        }
-
-        /// <summary>
-        /// 등장한 보스가 <b>이 연출이 그려 둔 그 보스</b>인지 가린다.
-        /// </summary>
-        /// <param name="boss">등장 신호를 보낸 보스.</param>
-        /// <param name="missingPart">주인공이 아니라고 본 근거(연출이 요구하는데 보스 안에 없는 자식 이름). 주인공이면 null.</param>
-        /// <returns>이 연출을 이 보스로 재생해도 되면 true.</returns>
-        /// <remarks>
-        /// <para>
-        /// 판정은 <see cref="trackBindings"/>가 이름으로 지목한 자식들이 그 보스 안에 <b>전부 있는가</b>로 한다.
-        /// 연출이 "망치(SM_Wep_Hammer_01)"·"증기(Steam1…)"를 켰다 껐다 하도록 짜여 있다면 그 부분이 없는 보스는
-        /// 애초에 이 연출의 주인공이 아니다 — 트랙 구성 자체가 주인공의 증거라, 보스에 따로 이름표를 달지 않는다.
-        /// </para>
-        /// <para>
-        /// <b>왜 필요한가</b>: 레이드 씬에는 1페이즈(망치)와 2페이즈(쌍검) 보스가 같은 자리에 함께 놓여 있고,
-        /// 등장 신호는 각자의 <c>Start</c>에서 발행된다. 먼저 부르는 쪽이 이기는 구조라 실행할 때마다 2페이즈가
-        /// 연출을 가로채, 망치·증기 트랙이 빈 채로 엉뚱한 보스에게 연출이 도는 일이 있었다
-        /// (콘솔에 "대상 자식을 못 찾았습니다" 경고가 줄줄이 남던 증상).
-        /// </para>
-        /// <para>
-        /// 자식 지정이 없는 규칙(보스 루트에 꽂는 Animator·Transform 트랙)은 어느 보스든 맞으므로 판정에서 뺀다.
-        /// 규칙이 하나도 없으면 가릴 근거가 없다는 뜻이라, 예전처럼 가장 먼저 등장한 보스를 그대로 쓴다.
-        /// </para>
-        /// </remarks>
-        public bool IsIntroBoss(Boss boss, out string missingPart)
-        {
-            missingPart = null;
-            if (boss == null) return false;
-            if (trackBindings == null) return true;
-
-            for (int i = 0; i < trackBindings.Length; i++)
-            {
-                string childPath = trackBindings[i].childPath;
-                if (string.IsNullOrEmpty(childPath)) continue;                        // 루트에 꽂는 트랙 — 어느 보스든 맞는다
-
-                // 후보를 훑는 단계라 중복 이름 경고는 끈다(주인공이 아닌 보스까지 경고를 뿌리지 않게).
-                if (FindChild(boss.transform, childPath, warn: false) != null) continue;
-
-                missingPart = childPath;
-                return false;
-            }
-
-            return true;
         }
 
         /// <summary>
@@ -285,7 +232,7 @@ namespace ProjectS.Scenes
         /// 같은 이름이 여러 개면 어느 것을 잡을지 보장되지 않으므로 경고를 남기고 처음 만난 것을 쓴다.
         /// 비활성 자식(등장 전 꺼둔 이펙트 등)도 찾도록 <c>includeInactive</c>로 훑는다.
         /// </remarks>
-        private static Transform FindChild(Transform root, string query, bool warn = true)
+        private static Transform FindChild(Transform root, string query)
         {
             // 슬래시가 있으면 정확한 경로로 간다(같은 이름이 여럿일 때 딱 집고 싶을 때의 탈출구).
             if (query.IndexOf('/') >= 0)
@@ -299,7 +246,7 @@ namespace ProjectS.Scenes
 
                 if (match != null)
                 {
-                    if (warn) Debug.LogWarning($"[BossIntroDirector] 이름 '{query}'가 보스 안에 여러 개 있습니다. 처음 찾은 것을 씁니다 — 정확히 집으려면 경로(부모/자식)로 지정하세요.", root);
+                    Debug.LogWarning($"[BossIntroDirector] 이름 '{query}'가 보스 안에 여러 개 있습니다. 처음 찾은 것을 씁니다 — 정확히 집으려면 경로(부모/자식)로 지정하세요.", root);
                     break;   // 첫 매치 유지
                 }
                 match = all[i];

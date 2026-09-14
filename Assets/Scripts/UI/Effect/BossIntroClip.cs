@@ -33,6 +33,10 @@ namespace ProjectS.UI
                  "보스 오브젝트에서 읽지 않고 여기 적는다 — 연출이 보스 스폰과 무관하게 돌게 하기 위함.")]
         public string bossName;
 
+        [Tooltip("메인 플레어 전에 주위에서 터뜨릴 빛 개수 — 보스의 강함을 별 등급처럼 보여 준다. " +
+                 "-1이면 BossIntroFx의 Spark Flares 배열 전부. 개수가 늘면 뒤 연출 전체가 그만큼 늦게 시작하므로 클립 길이도 확인한다.")]
+        [Min(-1)] public int sparkCount = -1;
+
         /// <summary>블렌딩·확장을 쓰지 않는다. 두 클립이 겹쳐 같은 UI를 서로 덮어쓰면 값이 튄다.</summary>
         public ClipCaps clipCaps => ClipCaps.None;
 
@@ -44,6 +48,7 @@ namespace ProjectS.UI
         {
             ScriptPlayable<BossIntroBehaviour> playable = ScriptPlayable<BossIntroBehaviour>.Create(graph);
             playable.GetBehaviour().BossName = bossName;
+            playable.GetBehaviour().SparkCount = sparkCount;
             return playable;
         }
     }
@@ -59,6 +64,9 @@ namespace ProjectS.UI
     {
         /// <summary>BOSS 아래에 표시할 이름. 비우면 이름 줄을 숨긴다.</summary>
         public string BossName;
+
+        /// <summary>메인 플레어 전에 터뜨릴 주위 빛 개수. -1이면 배열 전부.</summary>
+        public int SparkCount = -1;
 
         // 클립이 끝나거나 잘렸을 때 화면을 되돌리려면 대상이 필요한데,
         // OnBehaviourPause에는 playerData가 오지 않는다. ProcessFrame에서 붙잡아 둔다.
@@ -76,6 +84,7 @@ namespace ProjectS.UI
                 if (bound != null) bound.EndSampling();
                 bound = fx;
                 fx.SetBossName(BossName);
+                fx.SetSparkCount(SparkCount);   // 길이 검사보다 먼저 — 개수가 연출 전체 길이를 바꾼다
                 WarnIfClipTooShort(playable, fx);
             }
 
