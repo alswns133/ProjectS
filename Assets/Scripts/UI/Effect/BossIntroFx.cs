@@ -3,6 +3,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.Timeline;
 using UnityEngine.UI;
 
 namespace ProjectS.UI
@@ -27,7 +28,20 @@ namespace ProjectS.UI
     /// 아트가 붙기 전에도 타이밍을 검증할 수 있게 했다(<c>DeathPopup</c>·<c>LevelUpNotice</c>와 같은 방침).
     /// </para>
     /// <para>
-    /// 시간은 unscaled로 센다. 보스 등장은 히트스톱·컷신으로 timeScale이 낮아진 순간에 겹치기 쉽다.
+    /// <b>재생 경로는 둘이고, 화면은 하나의 함수가 그린다.</b> 레이드 등장 컷신에서는 Timeline의
+    /// <see cref="BossIntroTrack"/>에 꽂아 클립 시간으로 구동하고(불 가림막과 같은 방식),
+    /// 테스트·단독 호출은 <see cref="Play"/>가 코루틴으로 구동한다. 두 경로 모두 "시각 t의 화면"을
+    /// <see cref="Sample"/>로 그리므로 타이밍이 어긋나지 않는다. 보스 오브젝트를 참조하지 않는다 —
+    /// 이름은 클립(또는 호출부)이 넘기므로 보스 스폰·등장 신호와 무관하게 돈다.
+    /// </para>
+    /// <para>
+    /// <b>왜 코루틴이 아니라 시각 샘플링인가.</b> 코루틴은 제 시간으로 흘러가 타임라인을 스크럽·되감아도
+    /// 화면이 따라오지 않는다. 등장 컷신은 카메라·보스 모션과 프레임 단위로 맞춰야 해서, 헤드를 끌면
+    /// 연출이 같이 움직여야 한다(<see cref="FireCurtainClip"/>과 같은 이유).
+    /// </para>
+    /// <para>
+    /// 코루틴 경로의 시간은 unscaled로 센다. 보스 등장은 히트스톱·컷신으로 timeScale이 낮아진 순간에 겹치기 쉽다.
+    /// 타임라인 경로는 디렉터의 시계를 따른다.
     /// </para>
     /// </remarks>
     [RequireComponent(typeof(CanvasGroup))]
@@ -144,8 +158,63 @@ namespace ProjectS.UI
         private Vector2[] bandHome;
         private Vector2 bossHome;
 
-        /// <summary>지금 재생 중인지.</summary>
+        // ── 샘플링 세션(코루틴 재생 1회 또는 타임라인 클립 1회) ──
+        // 세션 시작 시점의 상태를 쥐고 있다가 끝날 때 그대로 되돌린다. 하드코딩한 "기본 상태"로 돌리면
+        // 에디터 미리보기가 씬에 저장된 값을 바꿔 놓아 씬이 더러워진다.
+        private bool sampling;
+        private float lastSampleTime;
+        private bool ashTouched;
+        private RestState rest;
+
+        // 찍힌 뒤 흔들림을 뽑는 박자(Hz). 원래 매 프레임 난수였던 떨림을 시각에서 결정적으로 뽑아,
+        // 스크럽해도 같은 모양이 나오게 한다.
+        private const float ShakeRate = 60f;
+
+        /// <summary>세션 시작 시점의 표시 상태. <see cref="EndSampling"/>이 이 값으로 되돌린다.</summary>
+        private struct RestState
+        {
+            public bool RootActive;
+            public float Alpha;
+            public bool WarningActive;
+            public bool IconActive;
+            public Color IconColor;
+            public Vector3 IconScale;
+            public bool BossActive;
+            public Vector3 BossScale;
+        }
+
+        /// <summary>연출 안의 각 단계가 시작·끝나는 시각(초). 인스펙터 값에서 매번 계산한다.</summary>
+        private struct Timings
+        {
+            public float FadeIn;
+            public float BlinkStart;
+            public float HoldStart;
+            public float CurtainStart;
+            public float CurtainEnd;
+            public float SlamStart;
+            public float Land;
+            public float ShakeStart;
+            public float ShakeEnd;
+            public float OutStart;
+            public float OutDuration;
+            public float End;
+        }
+
+        /// <summary>지금 코루틴으로 재생 중인지. 타임라인 구동은 포함하지 않는다.</summary>
         public bool IsPlaying => routine != null;
+
+        /// <summary>
+        /// 연출 전체 길이(초). 경고 등장부터 BOSS가 다 타 사라질 때까지다.
+        /// 타임라인 클립은 이 길이 이상이어야 끝까지 재생된다.
+        /// </summary>
+        public float Duration
+        {
+            get
+            {
+                ResolveOptionalRefs();
+                return BuildTimings().End;
+            }
+        }
 
         private void Awake()
         {
@@ -167,16 +236,20 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 보스 등장 연출을 처음부터 재생한다. 이미 재생 중이면 중단하고 다시 시작한다.
+        /// 보스 등장 연출을 처음부터 재생한다(코루틴 경로). 이미 재생 중이면 중단하고 다시 시작한다.
+        /// 레이드 컷신은 이 메서드가 아니라 <see cref="BossIntroTrack"/>으로 재생한다.
         /// </summary>
         /// <param name="bossName">BOSS 아래에 표시할 보스 이름. 비우면 이름 줄을 숨긴다.</param>
         public void Play(string bossName)
         {
-            if (bossNameText != null)
-            {
-                bossNameText.text = bossName;
-                bossNameText.gameObject.SetActive(!string.IsNullOrWhiteSpace(bossName));
-            }
+            if (routine != null) StopCoroutine(routine);
+            routine = null;
+
+            // 끊긴 지난 재생의 흔적을 먼저 되돌린다. 오브젝트를 켠 뒤에 되돌리면, 지난 세션이 꺼진 상태에서
+            // 시작했을 때 여기서 다시 꺼져 방금 시작한 코루틴이 죽는다.
+            EndSampling();
+
+            SetBossName(bossName);
 
             if (!gameObject.activeSelf) gameObject.SetActive(true);
 
@@ -186,85 +259,313 @@ namespace ProjectS.UI
                 return;
             }
 
-            if (group == null) group = GetComponent<CanvasGroup>();
-            if (iconGlitch == null && warningIcon != null) iconGlitch = warningIcon.GetComponent<GlitchImageFx>();
-            if (sparkBurst == null) sparkBurst = GetComponentInChildren<SparkBurstFx>(true);
-            if (ashDissolve == null) ashDissolve = GetComponentInChildren<AshDissolveFx>(true);
-
             // TODO(sound): 보스 등장 연출음 — 등장 스팅/전용 BGM 전환. SoundManager.Instance.PlaySFX(<보스 등장 SFX>) 또는 PlayBgm(<보스 BGM>);
-            //   커튼 슬램(slamTriggerRatio) 타이밍에 맞춰 임팩트음을 PlayRoutine 안에서 따로 낼 수도 있다.
-            if (routine != null) StopCoroutine(routine);
+            //   커튼 슬램(slamTriggerRatio) 타이밍에 맞춰 임팩트음을 Sample의 착지 교차 지점에서 따로 낼 수도 있다.
             routine = StartCoroutine(PlayRoutine());
         }
 
         /// <summary>재생 중인 연출을 즉시 끝낸다. 씬 전환·보스 즉사처럼 화면이 통째로 바뀔 때 호출한다.</summary>
         public void Dismiss()
         {
-            // 커튼이 본 흐름과 나란히 도는 별도 코루틴이라 routine 하나만 멈추면 계속 띠를 밀어낸다.
-            // 이 오브젝트에서 도는 코루틴은 전부 이 연출의 것이므로 통째로 멈춰도 안전하다.
             StopAllCoroutines();
             routine = null;
 
+            EndSampling();
             if (group != null) group.alpha = 0f;
             gameObject.SetActive(false);
         }
 
-        private IEnumerator PlayRoutine()
+        /// <summary>
+        /// BOSS 아래 이름 줄을 채운다. 비우면 줄을 숨긴다. 타임라인 클립은 재생 시작에 한 번 부른다.
+        /// </summary>
+        /// <param name="bossName">표시할 이름.</param>
+        public void SetBossName(string bossName)
         {
-            SetWarningActive(true);
+            if (bossNameText == null) return;
+
+            string text = bossName ?? string.Empty;
+            if (bossNameText.text != text) bossNameText.text = text;
+            SetActive(bossNameText.gameObject, !string.IsNullOrWhiteSpace(text));
+        }
+
+        /// <summary>
+        /// 연출 시작으로부터 <paramref name="time"/>초 지점의 화면을 그린다. 앞뒤 어느 시각이든 바로 그 모습이 된다.
+        /// </summary>
+        /// <param name="time">연출 시작 기준 시각(초). 0 미만이나 <see cref="Duration"/> 이상이면 숨긴다.</param>
+        /// <remarks>
+        /// 첫 호출이 샘플링 세션을 열고 그 순간의 상태를 기억한다. 세션은 <see cref="EndSampling"/>으로 닫아야
+        /// 원래 상태로 돌아간다. 한 순간에 튀는 효과(위험 표시 글리치·착지 스파크)는 되감을 수 없으므로
+        /// <b>플레이 모드에서 시간이 앞으로 흘러 그 시각을 지날 때만</b> 터뜨린다.
+        /// </remarks>
+        public void Sample(float time)
+        {
+            if (!sampling) BeginSampling();
+
+            float prev = lastSampleTime;
+            lastSampleTime = time;
+            bool emitEvents = Application.isPlaying && time > prev;
+
+            Timings tm = BuildTimings();
+
+            if (time < 0f || time >= tm.End)
+            {
+                if (group != null) group.alpha = 0f;
+                SetActive(gameObject, false);
+                return;
+            }
+
+            // 먼저 켜야 한다. 플레이 모드에서 처음 켜질 때 Awake가 알파를 0으로 덮으므로, 알파는 그 뒤에 쓴다.
+            SetActive(gameObject, true);
+            if (group == null) group = GetComponent<CanvasGroup>();
+
+            SampleGroupAlpha(time, in tm);
+            SampleWarning(time, in tm);
+            SampleIcon(time, prev, emitEvents, in tm);
+            SampleBoss(time, in tm);
+            SampleAsh(time, in tm);
+
+            // 착지 프레임. 부딪힌 바로 그 순간에 스파크가 튀어야 텍스트가 부순 것으로 읽힌다.
+            if (emitEvents && sparkBurst != null && warningIcon != null && Crossed(prev, time, tm.Land))
+                sparkBurst.Play(warningIcon.rectTransform.position);
+        }
+
+        /// <summary>
+        /// 샘플링 세션을 닫고 세션 시작 시점의 상태로 되돌린다. 열린 세션이 없으면 아무것도 하지 않는다.
+        /// 타임라인 클립이 범위를 벗어나거나 그래프가 사라질 때 부른다 — 빠지면 연출이 중간에 잘렸을 때
+        /// 경고 띠가 밀려난 채, BOSS가 박힌 채 화면에 남는다.
+        /// </summary>
+        public void EndSampling()
+        {
+            if (!sampling) return;
+            sampling = false;
+
+            MoveBands(0f);
 
             if (bossRoot != null)
             {
-                // 지난 재생이 흔들리는 도중에 끊겼으면 어긋난 자리가 남아 있다. 매번 제자리에서 시작한다.
                 bossRoot.anchoredPosition = bossHome;
-                bossRoot.localScale = Vector3.one;
-                bossRoot.gameObject.SetActive(false);
+                bossRoot.localScale = rest.BossScale;
+                SetActive(bossRoot.gameObject, rest.BossActive);
             }
 
-            // 지난 재생이 타들어가는 도중에 끊겼으면 지워진 채로 남아 있다.
-            if (ashDissolve != null) ashDissolve.ResetDissolve();
-
-            yield return Fade(0f, 1f, warningFadeIn);
-
-            // 1. 빠르게 두어 번 깜박인 뒤 켜진 채로 머문다.
-            //    같은 간격으로 계속 깜박이면 신호등처럼 읽힌다. 짧게 튄 뒤 멎어야
-            //    "경고가 들어왔다"가 되고, 머무는 동안 긴장이 쌓인다.
-            for (int i = 0; i < fastBlinkCount; i++)
+            if (warningIcon != null)
             {
-                SetIconVisible(true);
-                yield return Wait(fastBlinkOnSeconds);
-
-                SetIconVisible(false);
-                yield return Wait(fastBlinkOffSeconds);
+                warningIcon.rectTransform.localScale = rest.IconScale;
+                warningIcon.color = rest.IconColor;
+                SetActive(warningIcon.gameObject, rest.IconActive);
             }
 
-            SetIconVisible(true);
-            yield return Wait(iconHoldSeconds);
+            SetActive(warningRoot, rest.WarningActive);
 
-            // 2. 경고가 커튼처럼 위아래로 쓸려 나간다.
-            //    본 흐름과 나란히 돌려서, 띠가 아직 빠져나가는 중에 BOSS가 박히게 한다.
-            //    다 걷힌 뒤에 박으면 두 동작이 순서대로 재생되는 별개 연출로 보인다.
-            StartCoroutine(SweepCurtain());
-            yield return Wait(curtainDuration * slamTriggerRatio);
+            if (ashDissolve != null && ashTouched) ashDissolve.ResetDissolve();
+            ashTouched = false;
 
-            yield return Wait(slamExtraDelay);
+            if (group != null) group.alpha = rest.Alpha;
+            SetActive(gameObject, rest.RootActive);
+        }
 
-            // 3. BOSS가 내려와 박히고, 부딪힌 그 자리에서 위험 표시가 부서진다.
-            //    터지는 시점은 Slam 안의 착지 프레임이다(여기서 미리 터뜨리면 텍스트가
-            //    아직 공중에 있는 동안 아이콘이 사라져 부딪힌 것으로 안 읽힌다).
-            yield return Slam();
+        /// <summary>
+        /// 타임라인 에디터 미리보기가 건드리는 속성을 등록한다. <see cref="BossIntroTrack"/>이 부른다.
+        /// </summary>
+        /// <param name="driver">미리보기가 끝나면 등록된 속성을 원래 값으로 되돌리는 수집기.</param>
+        /// <remarks>
+        /// 여기에 없는 속성을 <see cref="Sample"/>이 바꾸면, 헤드를 끌어 본 것만으로 그 값이 씬에 저장된다
+        /// (띠가 밀려난 위치, 꺼진 오브젝트가 그대로 커밋되는 사고). 그리는 대상을 늘리면 여기도 함께 늘린다.
+        /// </remarks>
+        public void CollectDrivenProperties(IPropertyCollector driver)
+        {
+            if (driver == null) return;
 
-            yield return Wait(holdSeconds);
+            driver.AddFromName(gameObject, "m_IsActive");
+            AddComponent(driver, GetComponent<CanvasGroup>());
 
-            // 이 시점에 화면에 남은 것은 BOSS 텍스트뿐이다(띠는 화면 밖, 경고는 이미 꺼짐).
-            // 그래서 그룹 알파를 내리는 대신 텍스트가 직접 타들어가게 두고, 다 타면 그룹을 끈다.
-            // 둘을 겹치면 재가 뜨자마자 같이 흐려져 날리는 게 안 보인다.
-            if (ashDissolve != null) yield return ashDissolve.Play();
-            else yield return Fade(1f, 0f, fadeOutSeconds);
+            if (warningRoot != null) driver.AddFromName(warningRoot, "m_IsActive");
 
+            if (bands != null)
+            {
+                foreach (ScrollingBand band in bands)
+                {
+                    if (band != null) AddComponent(driver, band.transform);
+                }
+            }
+
+            if (warningIcon != null)
+            {
+                driver.AddFromName(warningIcon.gameObject, "m_IsActive");
+                AddComponent(driver, warningIcon.rectTransform);
+                AddComponent(driver, warningIcon);
+            }
+
+            if (bossRoot != null)
+            {
+                driver.AddFromName(bossRoot.gameObject, "m_IsActive");
+                AddComponent(driver, bossRoot);
+            }
+
+            if (bossNameText != null)
+            {
+                driver.AddFromName(bossNameText.gameObject, "m_IsActive");
+                AddComponent(driver, bossNameText);
+            }
+        }
+
+        private IEnumerator PlayRoutine()
+        {
+            float end = Duration;
+            float elapsed = 0f;
+
+            while (elapsed < end)
+            {
+                Sample(elapsed);
+                yield return null;
+                elapsed += Delta;
+            }
+
+            // 다 탄 뒤의 모습은 "아무것도 없음"이다. 상태를 되돌린 뒤 그룹째 내린다.
+            routine = null;
+            EndSampling();
             group.alpha = 0f;
             gameObject.SetActive(false);
-            routine = null;
+        }
+
+        private void BeginSampling()
+        {
+            sampling = true;
+            lastSampleTime = -1f;
+            ashTouched = false;
+
+            if (group == null) group = GetComponent<CanvasGroup>();
+            ResolveOptionalRefs();
+
+            // 세션마다 제자리를 다시 뜬다. 지난 세션은 EndSampling이 제자리로 돌려 두었으므로 항상 같은 값이다.
+            CaptureBandHome();
+            if (bossRoot != null) bossHome = bossRoot.anchoredPosition;
+
+            rest = new RestState
+            {
+                RootActive = gameObject.activeSelf,
+                Alpha = group != null ? group.alpha : 0f,
+                WarningActive = warningRoot != null && warningRoot.activeSelf,
+                IconActive = warningIcon != null && warningIcon.gameObject.activeSelf,
+                IconColor = warningIcon != null ? warningIcon.color : Color.white,
+                IconScale = warningIcon != null ? warningIcon.rectTransform.localScale : Vector3.one,
+                BossActive = bossRoot != null && bossRoot.gameObject.activeSelf,
+                BossScale = bossRoot != null ? bossRoot.localScale : Vector3.one,
+            };
+        }
+
+        private void ResolveOptionalRefs()
+        {
+            if (iconGlitch == null && warningIcon != null) iconGlitch = warningIcon.GetComponent<GlitchImageFx>();
+            if (sparkBurst == null) sparkBurst = GetComponentInChildren<SparkBurstFx>(true);
+            if (ashDissolve == null) ashDissolve = GetComponentInChildren<AshDissolveFx>(true);
+        }
+
+        /// <summary>
+        /// 인스펙터 값에서 단계별 시각을 계산한다. 순서는 <b>흐름 → 깜박임 → 걷힘(과 겹쳐) 충돌 → 머묾 → 타들어감</b>이다.
+        /// </summary>
+        /// <remarks>
+        /// 슬램 시작은 커튼 끝이 아니라 커튼 진행 도중(<see cref="slamTriggerRatio"/>)에 둔다.
+        /// 다 걷힌 뒤에 박으면 두 동작이 순서대로 재생되는 별개 연출로 보인다.
+        /// </remarks>
+        private Timings BuildTimings()
+        {
+            Timings t = default;
+            t.FadeIn = warningFadeIn;
+            t.BlinkStart = warningFadeIn;
+            t.HoldStart = t.BlinkStart + fastBlinkCount * (fastBlinkOnSeconds + fastBlinkOffSeconds);
+            t.CurtainStart = t.HoldStart + iconHoldSeconds;
+            t.CurtainEnd = t.CurtainStart + curtainDuration;
+            t.SlamStart = t.CurtainStart + curtainDuration * slamTriggerRatio + slamExtraDelay;
+            t.Land = t.SlamStart + slamDuration;
+            t.ShakeStart = t.Land + impactHoldSeconds;
+            t.ShakeEnd = t.ShakeStart + (impactShakeStrength > 0f && impactShakeDuration > 0f ? impactShakeDuration : 0f);
+            t.OutStart = t.ShakeEnd + holdSeconds;
+            t.OutDuration = ashDissolve != null ? ashDissolve.Duration : fadeOutSeconds;
+            t.End = t.OutStart + t.OutDuration;
+            return t;
+        }
+
+        /// <summary>그룹 알파. 경고가 나타나는 페이드인과, 재 연출이 없을 때의 페이드아웃만 담당한다.</summary>
+        private void SampleGroupAlpha(float time, in Timings tm)
+        {
+            float alpha = 1f;
+            if (tm.FadeIn > 0f && time < tm.FadeIn) alpha = time / tm.FadeIn;
+
+            // 재 연출을 쓰면 텍스트가 직접 타들어가므로 그룹은 1로 둔다.
+            // 둘을 겹치면 재가 뜨자마자 같이 흐려져 날리는 게 안 보인다.
+            if (ashDissolve == null && time >= tm.OutStart && tm.OutDuration > 0f)
+                alpha = 1f - Mathf.Clamp01((time - tm.OutStart) / tm.OutDuration);
+
+            group.alpha = alpha;
+        }
+
+        /// <summary>
+        /// 경고 띠가 위아래로 갈라지며 화면 밖으로 쓸려 나가고, 다 빠져나가면 경고 묶음을 통째로 끈다.
+        /// </summary>
+        /// <remarks>
+        /// 띠를 그냥 <c>SetActive(false)</c>로 지우면 흐르던 것이 한 프레임에 툭 없어져
+        /// 다음 단계와 이어지지 않는다. 화면 밖으로 밀어내면 "걷혔다"가 되고,
+        /// 열린 자리로 BOSS가 들어오는 인과가 생긴다.
+        /// </remarks>
+        private void SampleWarning(float time, in Timings tm)
+        {
+            SetActive(warningRoot, time < tm.CurtainEnd);
+
+            float progress = time < tm.CurtainStart
+                ? 0f
+                : curtainCurve.Evaluate(Mathf.Clamp01((time - tm.CurtainStart) / Mathf.Max(0.0001f, curtainDuration)));
+            MoveBands(progress);
+        }
+
+        /// <summary>
+        /// 위험 표시: 빠르게 두어 번 깜박인 뒤 켜진 채 머물고, BOSS가 착지하는 순간 부풀었다 터져 사라진다.
+        /// </summary>
+        /// <remarks>
+        /// 같은 간격으로 계속 깜박이면 신호등처럼 읽힌다. 짧게 튄 뒤 멎어야 "경고가 들어왔다"가 되고,
+        /// 머무는 동안 긴장이 쌓인다. 서서히 줄여 없애면 "조용히 물러났다"가 되므로, 부풀렸다 한 번에 터뜨려
+        /// BOSS가 그 자리를 밀어내고 들어온 것처럼 읽히게 한다.
+        /// </remarks>
+        private void SampleIcon(float time, float prev, bool emitEvents, in Timings tm)
+        {
+            if (warningIcon == null) return;
+
+            bool visible;
+            float scale = 1f;
+            float alpha = 1f;
+
+            if (time < tm.HoldStart)
+            {
+                visible = IsBlinkOn(time, in tm);
+            }
+            else if (time < tm.Land)
+            {
+                visible = true;
+            }
+            else if (iconPopDuration > 0f && time < tm.Land + iconPopDuration)
+            {
+                float k = (time - tm.Land) / iconPopDuration;
+                visible = true;
+                scale = Mathf.Lerp(1f, iconPopScale, k);
+                alpha = 1f - k;
+            }
+            else
+            {
+                visible = false;
+            }
+
+            warningIcon.rectTransform.localScale = Vector3.one * scale;
+
+            Color c = warningIcon.color;
+            c.a = alpha;
+            warningIcon.color = c;
+
+            SetActive(warningIcon.gameObject, visible);
+
+            // 켜지는 순간마다 글리치를 크게 튀긴다. 깜박임과 지지직이 같은 박자로 맞아야
+            // 신호가 들어오면서 화면이 흔들리는 것처럼 읽힌다.
+            if (emitEvents && iconGlitch != null && CrossedIconOnEdge(prev, time, in tm))
+                iconGlitch.Pulse();
         }
 
         /// <summary>
@@ -273,123 +574,86 @@ namespace ProjectS.UI
         /// <remarks>
         /// 크기만 줄이면 "멀리서 다가온다"라 부드럽게 읽힌다. 도장은 <b>아래로</b> 내려와야 하므로
         /// 높이와 크기를 같은 곡선으로 함께 줄인다. 착지 뒤에는 반동 대신 <b>완전한 정지</b>를 두는데,
-        /// 움직이던 것이 뚝 끊기는 그 정적이 충돌을 인지시킨다. 흔들림은 그 뒤에 오는 여파다.
+        /// 움직이던 것이 뚝 끊기는 그 정적이 충돌을 인지시킨다. 흔들림은 그 뒤에 오는 여파로,
+        /// 세로로 더 크게 흔들어 내려찍은 방향을 남긴다.
         /// </remarks>
-        private IEnumerator Slam()
+        private void SampleBoss(float time, in Timings tm)
         {
-            if (bossRoot == null) yield break;
+            if (bossRoot == null) return;
 
-            bossRoot.gameObject.SetActive(true);
+            bool active = time >= tm.SlamStart;
+            SetActive(bossRoot.gameObject, active);
 
-            float elapsed = 0f;
-            while (elapsed < slamDuration)
+            float scale = 1f;
+            Vector2 offset = Vector2.zero;
+
+            if (active && time < tm.Land)
             {
-                elapsed += Delta;
-                float t = Mathf.Clamp01(elapsed / slamDuration);
-                float e = slamCurve.Evaluate(t);
-
-                bossRoot.localScale = Vector3.one * Mathf.LerpUnclamped(slamStartScale, 1f, e);
-                bossRoot.anchoredPosition = bossHome + new Vector2(0f, Mathf.LerpUnclamped(slamDropDistance, 0f, e));
-                yield return null;
+                float e = slamCurve.Evaluate(Mathf.Clamp01((time - tm.SlamStart) / Mathf.Max(0.0001f, slamDuration)));
+                scale = Mathf.LerpUnclamped(slamStartScale, 1f, e);
+                offset.y = Mathf.LerpUnclamped(slamDropDistance, 0f, e);
             }
-
-            // 정확히 제자리에서 멎는다. 반동을 주면 도장이 아니라 튕기는 물건으로 읽힌다.
-            bossRoot.localScale = Vector3.one;
-            bossRoot.anchoredPosition = bossHome;
-
-            // 착지 프레임. 부딪힌 바로 그 순간에 위험 표시가 터져야 텍스트가 부순 것으로 읽힌다.
-            // 기다리지 않고 나란히 돌려서 터짐이 히트스톱·흔들림과 겹치게 한다.
-            StartCoroutine(PopIcon());
-
-            // 히트스톱. 여기서 아무것도 움직이지 않아야 앞의 속도가 충돌로 환산된다.
-            yield return Wait(impactHoldSeconds);
-
-            yield return ImpactShake();
-        }
-
-        /// <summary>찍힌 여파로 BOSS가 잠깐 흔들린다. 세로로 더 크게 흔들어 내려찍은 방향을 남긴다.</summary>
-        private IEnumerator ImpactShake()
-        {
-            if (impactShakeStrength <= 0f || impactShakeDuration <= 0f) yield break;
-
-            float elapsed = 0f;
-            while (elapsed < impactShakeDuration)
+            else if (time >= tm.ShakeStart && time < tm.ShakeEnd)
             {
-                elapsed += Delta;
-
                 // 제곱으로 잦아들게 해 첫 순간이 가장 크고 빠르게 멎는다.
-                float k = 1f - Mathf.Clamp01(elapsed / impactShakeDuration);
+                float k = 1f - Mathf.Clamp01((time - tm.ShakeStart) / impactShakeDuration);
                 float amp = impactShakeStrength * k * k;
 
-                bossRoot.anchoredPosition = bossHome + new Vector2(
-                    Random.Range(-amp, amp) * 0.45f,
-                    Random.Range(-amp, amp));
-                yield return null;
+                int step = Mathf.FloorToInt(time * ShakeRate);
+                offset.x = (Hash01(step * 2 + 1) * 2f - 1f) * amp * 0.45f;
+                offset.y = (Hash01(step * 2 + 2) * 2f - 1f) * amp;
             }
 
-            bossRoot.anchoredPosition = bossHome;
+            bossRoot.localScale = Vector3.one * scale;
+            bossRoot.anchoredPosition = bossHome + offset;
         }
 
         /// <summary>
-        /// 경고 띠가 위아래로 갈라지며 화면 밖으로 쓸려 나가고, 그 사이 위험 표시는 줄어들어 사라진다.
-        /// 다 빠져나가면 경고 묶음을 통째로 끈다.
+        /// 머묾이 끝나면 BOSS 텍스트가 재처럼 타들어간다. 이 시점에 화면에 남은 것은 BOSS 텍스트뿐이다.
         /// </summary>
-        /// <remarks>
-        /// 띠를 그냥 <c>SetActive(false)</c>로 지우면 흐르던 것이 한 프레임에 툭 없어져
-        /// 다음 단계와 이어지지 않는다. 화면 밖으로 밀어내면 "걷혔다"가 되고,
-        /// 열린 자리로 BOSS가 들어오는 인과가 생긴다.
-        /// </remarks>
-        private IEnumerator SweepCurtain()
+        private void SampleAsh(float time, in Timings tm)
         {
-            float elapsed = 0f;
-            while (elapsed < curtainDuration)
-            {
-                elapsed += Delta;
-                MoveBands(curtainCurve.Evaluate(Mathf.Clamp01(elapsed / curtainDuration)));
-                yield return null;
-            }
+            if (ashDissolve == null) return;
 
-            MoveBands(1f);
-            SetWarningActive(false);
+            if (time >= tm.OutStart)
+            {
+                ashDissolve.SetProgress(tm.OutDuration > 0f ? (time - tm.OutStart) / tm.OutDuration : 1f);
+                ashTouched = true;
+            }
+            else if (ashTouched)
+            {
+                // 되감아 머묾 이전으로 돌아왔다 — 탄 자국을 한 번만 지운다.
+                ashDissolve.ResetDissolve();
+                ashTouched = false;
+            }
         }
 
-        /// <summary>
-        /// 위험 표시가 순간적으로 부풀었다 터져 사라지고, 그 자리에서 불똥이 튄다.
-        /// BOSS가 내려오기 시작하는 바로 그 순간에 부른다.
-        /// </summary>
-        /// <remarks>
-        /// 서서히 줄여 없애면 "조용히 물러났다"가 되어 다음 단계와 이어지지 않는다.
-        /// 부풀렸다 한 번에 터뜨려야 BOSS가 그 자리를 밀어내고 들어온 것처럼 읽힌다.
-        /// </remarks>
-        private IEnumerator PopIcon()
+        private bool IsBlinkOn(float time, in Timings tm)
         {
-            if (warningIcon == null) yield break;
+            float local = time - tm.BlinkStart;
+            if (local < 0f) return true;   // 페이드인 동안은 켜진 채로 나타난다
 
-            if (sparkBurst != null) sparkBurst.Play(warningIcon.rectTransform.position);
+            float period = fastBlinkOnSeconds + fastBlinkOffSeconds;
+            if (period <= 0f) return true;
 
-            RectTransform rt = warningIcon.rectTransform;
-            Color baseColor = warningIcon.color;
-
-            float elapsed = 0f;
-            while (elapsed < iconPopDuration)
-            {
-                elapsed += Delta;
-                float t = Mathf.Clamp01(elapsed / iconPopDuration);
-
-                rt.localScale = Vector3.one * Mathf.Lerp(1f, iconPopScale, t);
-
-                Color c = baseColor;
-                c.a = baseColor.a * (1f - t);
-                warningIcon.color = c;
-
-                yield return null;
-            }
-
-            warningIcon.color = baseColor;
-            rt.localScale = Vector3.one;
-            warningIcon.gameObject.SetActive(false);
+            return local % period < fastBlinkOnSeconds;
         }
 
+        // 위험 표시가 "켜지는" 시각들: 경고 등장, 빠른 깜박임의 매 켜짐, 머묾 시작.
+        private bool CrossedIconOnEdge(float prev, float now, in Timings tm)
+        {
+            if (Crossed(prev, now, 0f) || Crossed(prev, now, tm.HoldStart)) return true;
+
+            float period = fastBlinkOnSeconds + fastBlinkOffSeconds;
+            for (int i = 0; i < fastBlinkCount; i++)
+            {
+                if (Crossed(prev, now, tm.BlinkStart + i * period)) return true;
+            }
+
+            return false;
+        }
+
+        private static bool Crossed(float prev, float now, float edge) => prev < edge && edge <= now;
 
         /// <summary>띠를 각자 화면 바깥 방향으로 <paramref name="progress"/>만큼 밀어낸다.</summary>
         private void MoveBands(float progress)
@@ -423,68 +687,29 @@ namespace ProjectS.UI
             }
         }
 
-        private void SetWarningActive(bool active)
+        // 상태가 실제로 바뀔 때만 토글한다. 같은 값으로 매 프레임 SetActive를 부르면 하위 OnEnable/OnDisable이 튄다.
+        private static void SetActive(GameObject target, bool active)
         {
-            if (warningRoot != null) warningRoot.SetActive(active);
-            if (!active) return;
-
-            // 커튼이 옮겨 놓은 띠와, 터지면서 부풀고 투명해진 아이콘을 제자리로 돌린다.
-            // 이걸 빠뜨리면 두 번째 재생부터 경고가 화면 밖에서 시작하거나 투명한 채로 뜬다.
-            MoveBands(0f);
-            if (warningIcon != null)
-            {
-                warningIcon.rectTransform.localScale = Vector3.one;
-
-                Color c = warningIcon.color;
-                c.a = 1f;
-                warningIcon.color = c;
-            }
-
-            SetIconVisible(true);
+            if (target != null && target.activeSelf != active) target.SetActive(active);
         }
 
-        // Graphic.enabled가 아니라 오브젝트를 껐다 켠다. 실제 위험 표시는 테두리·느낌표처럼
-        // 이미지 여러 장으로 조합되기 쉬운데, 컴포넌트만 끄면 자식이 그대로 남아 반쪽만 깜박인다.
-        private void SetIconVisible(bool visible)
+        private static void AddComponent(IPropertyCollector driver, Component component)
         {
-            if (warningIcon == null) return;
+            if (component != null) driver.AddFromComponent(component.gameObject, component);
+        }
 
-            warningIcon.gameObject.SetActive(visible);
-
-            // 켜지는 순간마다 글리치를 크게 튀긴다. 깜박임과 지지직이 같은 박자로 맞아야
-            // 신호가 들어오면서 화면이 흔들리는 것처럼 읽힌다.
-            if (visible && iconGlitch != null) iconGlitch.Pulse();
+        /// <summary>정수 하나에서 0~1 의사난수를 뽑는다(PCG 해시). 같은 시각이면 항상 같은 흔들림이 나온다.</summary>
+        private static float Hash01(int n)
+        {
+            unchecked
+            {
+                uint x = (uint)n * 747796405u + 2891336453u;
+                x = ((x >> (int)((x >> 28) + 4u)) ^ x) * 277803737u;
+                x = (x >> 22) ^ x;
+                return x / (float)uint.MaxValue;
+            }
         }
 
         private float Delta => Time.unscaledDeltaTime;
-
-        private IEnumerator Wait(float seconds)
-        {
-            float remain = seconds;
-            while (remain > 0f)
-            {
-                remain -= Delta;
-                yield return null;
-            }
-        }
-
-        private IEnumerator Fade(float from, float to, float duration)
-        {
-            if (duration <= 0f)
-            {
-                group.alpha = to;
-                yield break;
-            }
-
-            float elapsed = 0f;
-            while (elapsed < duration)
-            {
-                elapsed += Delta;
-                group.alpha = Mathf.Lerp(from, to, elapsed / duration);
-                yield return null;
-            }
-
-            group.alpha = to;
-        }
     }
 }
