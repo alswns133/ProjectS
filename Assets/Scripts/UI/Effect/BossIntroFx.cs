@@ -1,5 +1,6 @@
 ﻿using ProjectS.Managers;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -10,18 +11,29 @@ namespace ProjectS.UI
 {
     /// <summary>
     /// 보스 등장 연출(HUD 기획서 6절 · UI_DG_BossText · UI_DG_Warning).
-    /// 경고 배너가 흐르며 위험 표시가 깜박이다가, 경고가 위아래로 걷히면서 그 자리에 "BOSS"가 박힌다.
+    /// 경고 배너가 흐르며 위험 표시가 깜박이다가, 경고가 위아래로 걷히는 동안 위험 표시가 지지직거리며 커지고,
+    /// 한순간 일그러진 뒤 "BOSS" 텍스트로 바뀐다.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>흐름 → 깜박임 → 걷힘 → 충돌</b> 순서다. 사망 팝업의 글리치 연출(<see cref="GlitchTextFx"/>)을
+    /// <b>흐름 → 깜박임 → 걷힘(과 겹쳐) 고조 → 변형 → 텍스트</b> 순서다. 사망 팝업의 글리치 연출(<see cref="GlitchTextFx"/>)을
     /// 통째로 재사용하지 않는 것은 그 시그니처가 뚜렷해서 플레이어가 "죽었을 때 그것"으로 읽기 때문이다.
     /// 사망은 실패, 보스 등장은 긴장·기대라 감정 방향이 반대다.
     /// (위험 표시의 지지직은 <see cref="GlitchImageFx"/>로 결이 다른 지속 상태를 쓴다.)
     /// </para>
     /// <para>
-    /// <b>걷힘과 충돌은 겹쳐서 재생한다.</b> 띠가 다 빠져나간 뒤에 BOSS를 박으면 두 동작이
-    /// 순서대로 재생되는 별개 연출로 보인다. 아직 걷히는 중에 박혀야 "열린 자리로 들어왔다"가 된다.
+    /// <b>슬램(위에서 내려찍기)을 쓰지 않는다</b>(2026-09-15 TH). 앞 연출이 불꽃 커튼·플레어·지지직으로 이어지는
+    /// "신호가 터져 들어오는" 결인데, 물리적으로 내려찍는 동작만 결이 달라 따로 논다. 그래서 위험 표시 자체가
+    /// 일그러져 텍스트로 <b>변하는</b> 흐름으로 바꿨다. 아이콘이 가로로 찢어진 모양과 텍스트가 나타나는 첫 모양을
+    /// 같은 값(<see cref="warpStretch"/>·<see cref="warpSquash"/>)으로 맞춰, 두 오브젝트가 교체되는 순간이 이어져 보이게 한다.
+    /// </para>
+    /// <para>
+    /// <b>텍스트의 지지직은 셰이더가 아니라 글자 정점으로 낸다.</b> BOSS 텍스트는 이미 <see cref="AshDissolveFx"/>가
+    /// 폰트 셰이더를 재 셰이더로 갈아끼워 쓰므로 글리치 셰이더를 함께 얹을 수 없다. 정점 이동은 셰이더와 무관하게 먹는다.
+    /// </para>
+    /// <para>
+    /// <b>걷힘과 변형은 겹쳐서 재생한다.</b> 띠가 다 빠져나간 뒤에 바꾸면 두 동작이
+    /// 순서대로 재생되는 별개 연출로 보인다. 아직 걷히는 중에 바뀌어야 하나의 흐름으로 읽힌다.
     /// </para>
     /// <para>
     /// <b>표시 참조는 전부 선택 사항이다.</b> 비어 있는 단계는 건너뛰고 나머지만 재생한다 —
@@ -48,7 +60,7 @@ namespace ProjectS.UI
     public class BossIntroFx : MonoBehaviour
     {
         [Header("경고 단계")]
-        [Tooltip("배너·위험 표시를 담은 묶음. 파괴 단계에서 통째로 숨긴다.")]
+        [Tooltip("배너·위험 표시를 담은 묶음. 아이콘이 텍스트로 바뀌는 순간 통째로 숨긴다.")]
         [SerializeField] private GameObject warningRoot;
 
         [Tooltip("위아래 경고 띠. 흐르는 방향은 각 ScrollingBand의 speed 부호로 정한다.")]
@@ -130,91 +142,128 @@ namespace ProjectS.UI
         private AnimationCurve curtainCurve = new(
             new Keyframe(0f, 0f, 0f, 0f), new Keyframe(1f, 1f, 2.6f, 2.6f));
 
-        [Tooltip("커튼이 이만큼 진행했을 때 BOSS가 박히기 시작한다(0~1). " +
-                 "겹쳐야 두 동작이 하나로 읽힌다. 1이면 커튼이 끝난 뒤에 박힌다.")]
-        [SerializeField, Range(0f, 1f)] private float slamTriggerRatio = 0.5f;
+        [Tooltip("커튼이 이만큼 진행했을 때 위험 표시가 일그러지기 시작한다(0~1). " +
+                 "띠는 아이콘이 텍스트로 바뀌는 순간 밀려난 자리에서 한 번에 사라진다 — " +
+                 "0에 가까우면 거의 안 밀린 채 뚝 끊기고, 1이면 다 걷힌 뒤에 일그러진다.")]
+        [FormerlySerializedAs("slamTriggerRatio")]
+        [SerializeField, Range(0f, 1f)] private float morphTriggerRatio = 0.5f;
 
-        [Header("위험 표시 고조 (등장 → 슬램 착지)")]
-        [Tooltip("아이콘이 나타난 순간부터 BOSS가 착지하는 순간까지 커지는 최종 배율. 1이면 커지지 않는다. " +
-                 "착지 순간의 터짐은 이 크기에서 시작한다.")]
+        [Tooltip("커튼이 Morph Trigger Ratio에 도달한 뒤 일그러지기까지 더 기다릴 시간(초). " +
+                 "0이면 그 지점에서 곧바로 일그러진다.")]
+        [FormerlySerializedAs("slamExtraDelay")]
+        [FormerlySerializedAs("shatterToSlamDelay")]
+        [SerializeField, Min(0f)] private float morphExtraDelay;
+
+        [Header("위험 표시 고조 (등장 → 변형)")]
+        [Tooltip("아이콘이 나타난 순간부터 일그러지기 직전까지 커지는 최종 배율. 1이면 커지지 않는다. " +
+                 "일그러짐은 이 크기에서 시작한다.")]
         [SerializeField, Min(0f)] private float iconBuildUpScale = 1.3f;
 
         [Tooltip("아이콘이 나타날 때의 떨림 폭(px). 0이면 처음엔 가만히 있다가 점점 떨기 시작한다.")]
         [SerializeField, Min(0f)] private float iconShakeStart;
 
-        [Tooltip("착지 직전의 떨림 폭(px). 커질수록 슬램 직전의 긴장이 세진다.")]
+        [Tooltip("일그러지기 직전의 떨림 폭(px). 커질수록 변형 직전의 긴장이 세진다.")]
         [SerializeField, Min(0f)] private float iconShakeEnd = 8f;
 
-        [Tooltip("크기·떨림이 고조되는 진행 곡선. 뒤로 갈수록 가팔라야 '점점 차오르다 터진다'가 된다 — " +
+        [Tooltip("일그러지기 직전의 글리치 세기(0~1). 아이콘이 커지는 동안 같은 곡선으로 지지직이 거세진다. " +
+                 "0이면 Glitch Image Fx의 평상시 값·깜박임 튐만 남는다. 플레이 중에만 보인다(에디터 스크럽에서는 안 보임).")]
+        [SerializeField, Range(0f, 1f)] private float iconBuildUpGlitch = 0.45f;
+
+        [Tooltip("크기·떨림·글리치가 고조되는 진행 곡선. 뒤로 갈수록 가팔라야 '점점 차오르다 터진다'가 된다 — " +
                  "선형이면 처음부터 같은 속도로 커져 긴장이 쌓이는 느낌이 약하다.")]
         [SerializeField]
         private AnimationCurve iconBuildUpCurve = new(
             new Keyframe(0f, 0f, 0f, 0f), new Keyframe(1f, 1f, 2.2f, 2.2f));
 
-        [Header("위험 표시 터짐")]
-        [Tooltip("터지면서 부푸는 최대 배율. 1이면 부풀지 않고 사라지기만 한다.")]
-        [SerializeField, Min(1f)] private float iconPopScale = 1.4f;
+        [Header("변형 (아이콘 → 텍스트)")]
+        [Tooltip("아이콘이 일그러지는 시간(초). '한순간'이어야 한다 — 0.1초를 넘기면 찢어지는 게 아니라 늘어나는 것으로 보인다. " +
+                 "이 시간이 끝나는 프레임에 아이콘이 사라지고 텍스트가 나타난다.")]
+        [SerializeField, Min(0.01f)] private float warpSeconds = 0.07f;
 
-        [Tooltip("부풀었다 사라지는 데 걸리는 시간(초). 길면 터진 게 아니라 커졌다 없어진 것으로 보인다.")]
-        [SerializeField, Min(0.01f)] private float iconPopDuration = 0.08f;
+        [Tooltip("일그러진 모양의 가로 배율. 텍스트는 이 모양에서 나타나 제 모양으로 잡힌다(두 오브젝트가 이어져 보이게 공유).")]
+        [SerializeField, Min(0f)] private float warpStretch = 2.2f;
 
-        [Tooltip("터질 때 튀는 전기 스파크. 비워두면 자식에서 찾는다. 없으면 스파크 없이 터지기만 한다. " +
+        [Tooltip("일그러진 모양의 세로 배율. 작을수록 납작하게 찢어진다. 가로와 반대로 줘야 '신호가 가로로 찢어졌다'로 읽힌다.")]
+        [SerializeField, Min(0f)] private float warpSquash = 0.25f;
+
+        [Tooltip("일그러지는 순간 좌우로 튀는 폭(px). 텍스트가 잡히는 동안 이 폭에서 0으로 줄어든다.")]
+        [SerializeField, Min(0f)] private float warpJitter = 24f;
+
+        [Tooltip("일그러지는 진행 곡선. 끝이 가파를수록 버티다 한 번에 찢어진다.")]
+        [SerializeField]
+        private AnimationCurve warpCurve = new(
+            new Keyframe(0f, 0f, 0f, 0f), new Keyframe(1f, 1f, 3f, 3f));
+
+        [Tooltip("일그러지는 동안의 아이콘 글리치 세기(0~1). 플레이 중에만 보인다.")]
+        [SerializeField, Range(0f, 1f)] private float warpGlitch = 1f;
+
+        [Tooltip("아이콘이 텍스트로 바뀌는 순간 튀는 전기 스파크. 비워두면 자식에서 찾는다. 없으면 스파크 없이 바뀐다. " +
                  "양·속도·색은 SparkBurstFx 쪽에서 조절한다.")]
         [SerializeField] private SparkBurstFx sparkBurst;
 
-        [Tooltip("커튼이 slamTriggerRatio에 도달한 뒤 BOSS가 박히기까지 더 기다릴 시간(초). " +
-                 "0이면 그 지점에서 곧바로 박힌다.")]
-        [FormerlySerializedAs("shatterToSlamDelay")]
-        [SerializeField, Min(0f)] private float slamExtraDelay;
-
-        [Header("슬램 단계")]
-        [Tooltip("BOSS 텍스트 묶음. 슬램에서 크기를 흔든다.")]
+        [Header("텍스트 등장")]
+        [Tooltip("BOSS 텍스트 묶음. 일그러진 모양에서 제 모양으로 잡힌다.")]
         [SerializeField] private RectTransform bossRoot;
 
         [Tooltip("보스 이름 라벨. 비워두면 이름을 표시하지 않는다.")]
         [SerializeField] private TMP_Text bossNameText;
 
-        [Tooltip("박히기 시작할 때의 크기 배율. 클수록 멀리서 날아와 꽂히는 느낌이 난다.")]
-        [SerializeField, Min(1f)] private float slamStartScale = 3.2f;
+        [Tooltip("텍스트가 일그러진 모양에서 제 모양으로 잡히는 시간(초).")]
+        [SerializeField, Min(0f)] private float revealSeconds = 0.22f;
 
-        [Tooltip("내려찍기 시작 높이(px). 이만큼 위에서 제자리로 떨어진다. " +
-                 "크기만 줄면 '멀리서 다가온다'가 되어 도장으로 안 읽힌다.")]
-        [SerializeField] private float slamDropDistance = 260f;
-
-        [Tooltip("박히는 데 걸리는 시간(초). 길면 내려앉는 것처럼 보인다.")]
-        [SerializeField, Min(0.02f)] private float slamDuration = 0.09f;
-
-        [Tooltip("크기·높이가 줄어드는 진행 곡선. 앞이 평평하고 끝이 가파를수록 떠 있다 한 번에 꽂힌다.")]
+        [Tooltip("텍스트가 잡히는 진행 곡선. 앞이 가파를수록 '탁' 잡히고 끝에 남는 떨림만 잦아든다.")]
         [SerializeField]
-        private AnimationCurve slamCurve = new(
-            new Keyframe(0f, 0f, 0f, 0f), new Keyframe(1f, 1f, 3.2f, 3.2f));
+        private AnimationCurve revealCurve = new(
+            new Keyframe(0f, 0f, 3f, 3f), new Keyframe(1f, 1f, 0f, 0f));
 
-        [Tooltip("찍힌 직후 모든 것이 완전히 멈춰 있는 시간(초). " +
-                 "움직임이 뚝 끊기는 이 정적이 충돌을 인지시킨다. 0이면 곧바로 흔들린다.")]
-        [SerializeField, Min(0f)] private float impactHoldSeconds = 0.04f;
+        [Tooltip("텍스트가 잡히는 동안 글자마다 따로 좌우로 튀는 폭(px). 0이면 글자는 묶음째로만 움직인다. " +
+                 "글자가 서로 어긋나야 '신호가 아직 안 맞았다'로 읽힌다.")]
+        [SerializeField, Min(0f)] private float textCharJitter = 18f;
 
-        [Tooltip("찍힌 순간 아래로 박히는 폭(px). 0이면 흔들리지 않는다. 착지 첫 프레임에 이 폭으로 한 번에 내려박힌 뒤 튕기며 멎는다.")]
-        [SerializeField, Min(0f)] private float impactShakeStrength = 14f;
+        [Header("텍스트 글리치 (셰이더)")]
+        [Tooltip("텍스트가 나타나는 순간의 셰이더 글리치 세기(0~1). 아이콘이 찢어진 기세를 이어받는다. " +
+                 "★ Ash Dissolve Fx의 Dissolve Shader 슬롯에 'ProjectS/UI Glitch Ash Text'가 들어 있어야 보인다.")]
+        [SerializeField, Range(0f, 1f)] private float textGlitchPeak = 1f;
 
-        [Tooltip("진동이 완전히 멎기까지의 최대 시간(초). 실제로 보이는 길이는 대부분 Damping이 정한다 — 이 값은 끝에서 확실히 0에 닿게 하는 상한이다.")]
-        [SerializeField, Min(0f)] private float impactShakeDuration = 0.25f;
+        [Tooltip("글리치가 잦아든 뒤 남는 세기. 0이면 완전히 멈추고, 0.1쯤이면 머무는 동안에도 미세하게 지지직거린다.")]
+        [SerializeField, Range(0f, 1f)] private float textGlitchSettled = 0.1f;
 
-        [Tooltip("초당 튕기는 횟수(Hz). 쿵 하고 박히는 느낌은 14~20. 낮추면(8 이하) 느리게 출렁여 말랑하게 보인다.")]
-        [SerializeField, Min(0.1f)] private float impactShakeFrequency = 16f;
+        [Tooltip("글리치가 Peak에서 Settled로 잦아드는 시간(초).")]
+        [SerializeField, Min(0.01f)] private float textGlitchSettleSeconds = 0.6f;
 
-        [Tooltip("진동이 죽는 속도. 클수록 첫 충격 한 번만 남고 바로 멎어 '쿵'이 되고, 작을수록 여러 번 출렁여 젤리처럼 보인다. " +
-                 "18이면 약 0.05초 만에 폭이 1/3로 줄어 한두 번 튕기고 멎는다.")]
-        [SerializeField, Min(0f)] private float impactShakeDamping = 18f;
+        [Tooltip("잦아드는 진행 곡선(0 → 1). 앞이 가파를수록 빨리 잡히고 끝에 남는 지지직만 오래 간다.")]
+        [SerializeField]
+        private AnimationCurve textGlitchCurve = new(
+            new Keyframe(0f, 0f, 2f, 2f), new Keyframe(1f, 1f, 0f, 0f));
 
-        [Tooltip("가로 진동의 비율(세로 폭 대비). 내려찍은 충격이라 세로가 주가 되어야 한다. 0이면 세로로만 진동한다.")]
-        [SerializeField, Range(0f, 1f)] private float impactShakeHorizontal = 0.12f;
+        [Tooltip("글리치 모양(파편 크기·슬라이스·고스트 등)을 복사해 올 머티리얼. 'ProjectS/UI Glitch Ash Text' 셰이더로 만든 " +
+                 "BossTextGlitchLook.mat을 넣고 그 머티리얼 값을 조절한다. 비우면 셰이더 기본값을 쓴다. " +
+                 "매 프레임 복사하므로 타임라인을 스크럽하거나 플레이 중에 바꾼 값이 바로 보인다.")]
+        [SerializeField] private Material textGlitchLook;
 
-        [Tooltip("진동하며 눌렸다 펴지는 정도. 아래로 박힐 때 납작하고 넓어졌다가 튀어 오를 때 되돌아온다. " +
-                 "단단한 글자가 찌그러지면 말랑한 물체(젤리)로 읽히므로 '쿵'에는 0을 권장한다. 0.02 정도면 충격만 살짝 실린다.")]
-        [SerializeField, Range(0f, 0.3f)] private float impactSquash;
+        [Header("보스 텍스트 고조 (등장 → 사라짐)")]
+        [Tooltip("BOSS 글자 라벨. 이름 라벨과 함께 떨면서 커진다. 비워두면 BOSS 텍스트 묶음 아래에서 이름 라벨이 아닌 첫 텍스트를 찾는다. " +
+                 "★ BOSS 텍스트 묶음(Boss Root) 자신이 아니라 그 자식이어야 한다 — 묶음의 크기는 텍스트 등장 변형이 쓴다.")]
+        [SerializeField] private TMP_Text bossLabelText;
+
+        [Tooltip("텍스트가 나타난 순간부터 다 타 사라질 때까지 커지는 최종 배율. BOSS 라벨·이름 라벨에 같이 쓴다. 1이면 커지지 않는다.")]
+        [FormerlySerializedAs("nameGrowScale")]
+        [SerializeField, Min(0f)] private float textGrowScale = 1.15f;
+
+        [Tooltip("텍스트가 나타날 때의 떨림 폭(px).")]
+        [FormerlySerializedAs("nameShakeStart")]
+        [SerializeField, Min(0f)] private float textShakeStart = 1.5f;
+
+        [Tooltip("다 타 사라지기 직전의 떨림 폭(px).")]
+        [FormerlySerializedAs("nameShakeEnd")]
+        [SerializeField, Min(0f)] private float textShakeEnd = 4f;
+
+        [Tooltip("크기·떨림이 커지는 진행 곡선. 기본은 일정한 속도 — 터지는 끝이 없어 아이콘처럼 끝을 가파르게 할 이유가 없다.")]
+        [FormerlySerializedAs("nameGrowCurve")]
+        [SerializeField] private AnimationCurve textGrowCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
         [Header("마무리")]
-        [Tooltip("BOSS가 박힌 뒤 화면에 머무는 시간(초).")]
+        [Tooltip("텍스트가 제 모양으로 잡힌 뒤 화면에 머무는 시간(초).")]
         [SerializeField, Min(0f)] private float holdSeconds = 1.4f;
 
         [Tooltip("BOSS 텍스트가 재처럼 타들어가며 사라지는 연출. 비워두면 자식에서 찾는다. " +
@@ -227,7 +276,7 @@ namespace ProjectS.UI
         private CanvasGroup group;
         private Coroutine routine;
 
-        // 커튼은 띠를, 슬램은 BOSS를 제자리에서 옮긴다. 원래 자리를 기억해 두지 않으면
+        // 커튼은 띠를, 텍스트 등장은 BOSS를 제자리에서 옮긴다. 원래 자리를 기억해 두지 않으면
         // 두 번째 재생부터 옮겨진 자리를 기준으로 삼아 조금씩 밀려난다.
         private Vector2[] bandHome;
         private Vector2 bossHome;
@@ -254,7 +303,34 @@ namespace ProjectS.UI
         private int sparkCountOverride = -1;
         private RestState rest;
 
-        // 찍힌 뒤 흔들림을 뽑는 박자(Hz). 원래 매 프레임 난수였던 떨림을 시각에서 결정적으로 뽑아,
+        // 텍스트 등장 중 글자 정점을 흔들 대상(bossRoot 아래 전부). 흔든 뒤에는 메시를 다시 만들어 되돌려야 한다.
+        private TMP_Text[] bossTexts;
+        private bool textWarped;
+
+        // 이번 세션에 글리치를 넣을 폰트 머티리얼 인스턴스들(재 연출이 만든 것). BeginSampling에서 모은다.
+        private readonly List<Material> textGlitchMaterials = new();
+        private bool textGlitchWarned;
+        private Vector2 nameHome;
+        private Vector2 labelHome;
+
+        private static readonly int GlitchId = Shader.PropertyToID("_Glitch");
+
+        // Text Glitch Look 머티리얼에서 복사할 모양 값. 재 연출 값(_Dissolve 등)과 글자 색은 복사하지 않는다 — 그쪽 주인은 따로 있다.
+        private static readonly int[] GlitchLookFloatIds =
+        {
+            Shader.PropertyToID("_CellSize"), Shader.PropertyToID("_CellAspect"), Shader.PropertyToID("_RowWidthJitter"),
+            Shader.PropertyToID("_Scatter"), Shader.PropertyToID("_CellOffset"), Shader.PropertyToID("_RgbSplit"),
+            Shader.PropertyToID("_FlickerSpeed"), Shader.PropertyToID("_Scanline"), Shader.PropertyToID("_Softness"),
+            Shader.PropertyToID("_SliceHeight"), Shader.PropertyToID("_SliceAmount"), Shader.PropertyToID("_SliceOffset"),
+            Shader.PropertyToID("_GhostOffset"), Shader.PropertyToID("_GhostJitter"), Shader.PropertyToID("_GhostIdle"),
+        };
+
+        private static readonly int[] GlitchLookColorIds =
+        {
+            Shader.PropertyToID("_GhostColorL"), Shader.PropertyToID("_GhostColorR"),
+        };
+
+        // 떨림을 뽑는 박자(Hz). 매 프레임 난수 대신 시각에서 결정적으로 뽑아,
         // 스크럽해도 같은 모양이 나오게 한다.
         private const float ShakeRate = 60f;
 
@@ -274,6 +350,8 @@ namespace ProjectS.UI
             public Quaternion[] SparkRotation;
             public bool BossActive;
             public Vector3 BossScale;
+            public Vector3 NameScale;
+            public Vector3 LabelScale;
         }
 
         /// <summary>연출 안의 각 단계가 시작·끝나는 시각(초). 인스펙터 값에서 매번 계산한다.</summary>
@@ -288,10 +366,9 @@ namespace ProjectS.UI
             public float HoldStart;
             public float CurtainStart;
             public float CurtainEnd;
-            public float SlamStart;
-            public float Land;
-            public float ShakeStart;
-            public float ShakeEnd;
+            public float Morph;       // 아이콘이 일그러지기 시작. 고조의 끝
+            public float Swap;        // 아이콘이 사라지고 텍스트가 나타남
+            public float RevealEnd;   // 텍스트가 제 모양으로 잡힘
             public float OutStart;
             public float OutDuration;
             public float End;
@@ -365,7 +442,7 @@ namespace ProjectS.UI
             }
 
             // TODO(sound): 보스 등장 연출음 — 등장 스팅/전용 BGM 전환. SoundManager.Instance.PlaySFX(<보스 등장 SFX>) 또는 PlayBgm(<보스 BGM>);
-            //   커튼 슬램(slamTriggerRatio) 타이밍에 맞춰 임팩트음을 Sample의 착지 교차 지점에서 따로 낼 수도 있다.
+            //   아이콘이 텍스트로 바뀌는 순간(Timings.Swap)에 맞춰 임팩트음을 Sample의 교체 교차 지점에서 따로 낼 수도 있다.
             routine = StartCoroutine(PlayRoutine());
         }
 
@@ -419,7 +496,7 @@ namespace ProjectS.UI
         /// <param name="time">연출 시작 기준 시각(초). 0 미만이나 <see cref="Duration"/> 이상이면 숨긴다.</param>
         /// <remarks>
         /// 첫 호출이 샘플링 세션을 열고 그 순간의 상태를 기억한다. 세션은 <see cref="EndSampling"/>으로 닫아야
-        /// 원래 상태로 돌아간다. 한 순간에 튀는 효과(위험 표시 글리치·착지 스파크)는 되감을 수 없으므로
+        /// 원래 상태로 돌아간다. 한 순간에 튀는 효과(위험 표시 글리치·교체 스파크)는 되감을 수 없으므로
         /// <b>플레이 모드에서 시간이 앞으로 흘러 그 시각을 지날 때만</b> 터뜨린다.
         /// </remarks>
         public void Sample(float time)
@@ -460,17 +537,19 @@ namespace ProjectS.UI
             SampleWarning(time, beforeWarning, in tm);
             SampleIcon(time, prev, emitEvents, beforeWarning, in tm);
             SampleBoss(time, in tm);
+            SampleTextGrow(time, in tm);
+            SampleTextGlitch(time, in tm);
             SampleAsh(time, in tm);
 
-            // 착지 프레임. 부딪힌 바로 그 순간에 스파크가 튀어야 텍스트가 부순 것으로 읽힌다.
-            if (emitEvents && sparkBurst != null && warningIcon != null && Crossed(prev, time, tm.Land))
+            // 교체 프레임. 아이콘이 텍스트로 바뀌는 바로 그 순간에 스파크가 튀어야 둘이 한 사건으로 읽힌다.
+            if (emitEvents && sparkBurst != null && warningIcon != null && Crossed(prev, time, tm.Swap))
                 sparkBurst.Play(warningIcon.rectTransform.position);
         }
 
         /// <summary>
         /// 샘플링 세션을 닫고 세션 시작 시점의 상태로 되돌린다. 열린 세션이 없으면 아무것도 하지 않는다.
         /// 타임라인 클립이 범위를 벗어나거나 그래프가 사라질 때 부른다 — 빠지면 연출이 중간에 잘렸을 때
-        /// 경고 띠가 밀려난 채, BOSS가 박힌 채 화면에 남는다.
+        /// 경고 띠가 밀려난 채, 일그러진 BOSS가 떠 있는 채 화면에 남는다.
         /// </summary>
         public void EndSampling()
         {
@@ -478,6 +557,30 @@ namespace ProjectS.UI
             sampling = false;
 
             MoveBands(0f);
+
+            // 흔든 글자 정점은 씬에 저장되지 않지만, 남겨 두면 다음 등장까지 어긋난 글자가 그대로 보인다.
+            if (textWarped) RestoreTextMesh();
+            if (iconGlitch != null) iconGlitch.SetDrive(0f);
+
+            // 글리치를 0으로 둬야 다음 등장 전까지 멀쩡한 글자로 보인다(인스턴스라 씬에는 남지 않는다).
+            foreach (Material material in textGlitchMaterials)
+            {
+                if (material != null) material.SetFloat(GlitchId, 0f);
+            }
+
+            textGlitchMaterials.Clear();
+
+            if (bossNameText != null)
+            {
+                bossNameText.rectTransform.localScale = rest.NameScale;
+                bossNameText.rectTransform.anchoredPosition = nameHome;
+            }
+
+            if (GrowableLabel != null)
+            {
+                GrowableLabel.rectTransform.localScale = rest.LabelScale;
+                GrowableLabel.rectTransform.anchoredPosition = labelHome;
+            }
 
             if (bossRoot != null)
             {
@@ -576,7 +679,11 @@ namespace ProjectS.UI
             {
                 driver.AddFromName(bossNameText.gameObject, "m_IsActive");
                 AddComponent(driver, bossNameText);
+                AddComponent(driver, bossNameText.rectTransform);
             }
+
+            ResolveOptionalRefs();
+            if (GrowableLabel != null) AddComponent(driver, GrowableLabel.rectTransform);
         }
 
         private IEnumerator PlayRoutine()
@@ -617,6 +724,8 @@ namespace ProjectS.UI
             CaptureBandHome();
             if (bossRoot != null) bossHome = bossRoot.anchoredPosition;
             if (warningIcon != null) iconHome = warningIcon.rectTransform.anchoredPosition;
+            if (bossNameText != null) nameHome = bossNameText.rectTransform.anchoredPosition;
+            if (GrowableLabel != null) labelHome = GrowableLabel.rectTransform.anchoredPosition;
 
             rest = new RestState
             {
@@ -633,7 +742,49 @@ namespace ProjectS.UI
                 SparkRotation = CaptureSparkRotation(),
                 BossActive = bossRoot != null && bossRoot.gameObject.activeSelf,
                 BossScale = bossRoot != null ? bossRoot.localScale : Vector3.one,
+                NameScale = bossNameText != null ? bossNameText.rectTransform.localScale : Vector3.one,
+                LabelScale = GrowableLabel != null ? GrowableLabel.rectTransform.localScale : Vector3.one,
             };
+
+            PrepareTextGlitch();
+        }
+
+        /// <summary>
+        /// 이번 세션에 글리치를 넣을 BOSS 텍스트 머티리얼을 모은다.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// 머티리얼을 직접 만들거나 셰이더를 바꾸지 않는다. 폰트 머티리얼 인스턴스와 셰이더 교체는 재 연출(<see cref="AshDissolveFx"/>)이
+        /// 이미 맡고 있어서, 여기서도 바꾸면 두 주인이 서로 덮어쓴다. 재 연출의 셰이더 슬롯에 병합 셰이더를 넣어 두면
+        /// 같은 인스턴스에 <c>_Glitch</c>가 생기고, 이쪽은 그 값만 넣는다.
+        /// </para>
+        /// <para>
+        /// <see cref="TMP_Text.fontMaterial"/>이 아니라 <see cref="TMP_Text.fontSharedMaterial"/>을 읽는다. fontMaterial은 읽을 때마다
+        /// 메시를 다시 만들라고 표시하고, 인스턴스가 없으면 새로 만든다. 재 연출이 만든 뒤라면 shared가 곧 그 인스턴스다.
+        /// <c>_Glitch</c> 유무로 거르므로 폰트 원본 에셋을 건드릴 일은 없다.
+        /// </para>
+        /// </remarks>
+        private void PrepareTextGlitch()
+        {
+            textGlitchMaterials.Clear();
+            if (bossTexts == null) return;
+
+            // 재 연출이 셰이더를 갈아끼운 뒤여야 _Glitch가 보인다. 준비만 시키고 탄 정도는 0으로 둔다(세션 시작이라 원래 0이다).
+            if (ashDissolve != null) ashDissolve.ResetDissolve();
+
+            foreach (TMP_Text label in bossTexts)
+            {
+                Material material = label != null ? label.fontSharedMaterial : null;
+                if (material != null && material.HasProperty(GlitchId) && !textGlitchMaterials.Contains(material))
+                    textGlitchMaterials.Add(material);
+            }
+
+            // 슬롯을 안 바꾸면 화면만 봐서는 "글리치가 안 나온다"로만 보여 원인을 찾기 어렵다.
+            if (textGlitchMaterials.Count > 0 || textGlitchPeak <= 0f || textGlitchWarned) return;
+
+            textGlitchWarned = true;
+            Debug.LogWarning($"{name}: BOSS 텍스트 머티리얼에 _Glitch가 없어 텍스트 글리치를 건너뜁니다. " +
+                             "Ash Dissolve Fx의 Dissolve Shader 슬롯에 'ProjectS/UI Glitch Ash Text'를 넣으세요.", this);
         }
 
         // 플레어를 경고 묶음 안에 두면, 플레어가 켜지는 동안 묶음이 꺼져 있어 아무것도 안 보인다.
@@ -690,14 +841,29 @@ namespace ProjectS.UI
             if (iconGlitch == null && warningIcon != null) iconGlitch = warningIcon.GetComponent<GlitchImageFx>();
             if (sparkBurst == null) sparkBurst = GetComponentInChildren<SparkBurstFx>(true);
             if (ashDissolve == null) ashDissolve = GetComponentInChildren<AshDissolveFx>(true);
+            if (bossTexts == null && bossRoot != null) bossTexts = bossRoot.GetComponentsInChildren<TMP_Text>(true);
+
+            if (bossLabelText == null && bossTexts != null)
+            {
+                foreach (TMP_Text label in bossTexts)
+                {
+                    if (label == null || label == bossNameText || label.transform == bossRoot) continue;
+                    bossLabelText = label;
+                    break;
+                }
+            }
         }
 
+        // 떨림·확대를 넣을 BOSS 라벨. 묶음 자신이면 제외한다 — 묶음 크기·위치는 SampleBoss가 쓰므로 둘이 덮어써 튄다.
+        private TMP_Text GrowableLabel =>
+            bossLabelText != null && bossLabelText.transform != bossRoot && bossLabelText != bossNameText ? bossLabelText : null;
+
         /// <summary>
-        /// 인스펙터 값에서 단계별 시각을 계산한다. 순서는 <b>(플레어) → 흐름 → 깜박임 → 걷힘(과 겹쳐) 충돌 → 머묾 → 타들어감</b>이다.
+        /// 인스펙터 값에서 단계별 시각을 계산한다. 순서는 <b>(플레어) → 흐름 → 깜박임 → 걷힘(과 겹쳐) 변형 → 텍스트 → 머묾 → 타들어감</b>이다.
         /// </summary>
         /// <remarks>
-        /// 슬램 시작은 커튼 끝이 아니라 커튼 진행 도중(<see cref="slamTriggerRatio"/>)에 둔다.
-        /// 다 걷힌 뒤에 박으면 두 동작이 순서대로 재생되는 별개 연출로 보인다.
+        /// 변형 시작은 커튼 끝이 아니라 커튼 진행 도중(<see cref="morphTriggerRatio"/>)에 둔다.
+        /// 다 걷힌 뒤에 바꾸면 두 동작이 순서대로 재생되는 별개 연출로 보인다.
         /// </remarks>
         private Timings BuildTimings()
         {
@@ -716,11 +882,10 @@ namespace ProjectS.UI
             t.HoldStart = t.BlinkStart + fastBlinkCount * (fastBlinkOnSeconds + fastBlinkOffSeconds);
             t.CurtainStart = t.HoldStart + iconHoldSeconds;
             t.CurtainEnd = t.CurtainStart + curtainDuration;
-            t.SlamStart = t.CurtainStart + curtainDuration * slamTriggerRatio + slamExtraDelay;
-            t.Land = t.SlamStart + slamDuration;
-            t.ShakeStart = t.Land + impactHoldSeconds;
-            t.ShakeEnd = t.ShakeStart + ((impactShakeStrength > 0f || impactSquash > 0f) && impactShakeDuration > 0f ? impactShakeDuration : 0f);
-            t.OutStart = t.ShakeEnd + holdSeconds;
+            t.Morph = t.CurtainStart + curtainDuration * morphTriggerRatio + morphExtraDelay;
+            t.Swap = t.Morph + warpSeconds;
+            t.RevealEnd = t.Swap + revealSeconds;
+            t.OutStart = t.RevealEnd + holdSeconds;
             t.OutDuration = ashDissolve != null ? ashDissolve.Duration : fadeOutSeconds;
             t.End = t.OutStart + t.OutDuration;
             return t;
@@ -852,16 +1017,19 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 경고 띠가 위아래로 갈라지며 화면 밖으로 쓸려 나가고, 다 빠져나가면 경고 묶음을 통째로 끈다.
+        /// 경고 띠가 위아래로 갈라지며 화면 밖으로 쓸려 나가다가, 아이콘이 텍스트로 바뀌는 순간 경고 묶음째 끊긴다.
         /// </summary>
         /// <remarks>
-        /// 띠를 그냥 <c>SetActive(false)</c>로 지우면 흐르던 것이 한 프레임에 툭 없어져
-        /// 다음 단계와 이어지지 않는다. 화면 밖으로 밀어내면 "걷혔다"가 되고,
-        /// 열린 자리로 BOSS가 들어오는 인과가 생긴다.
+        /// 슬램 시절에는 다 빠져나간 뒤 껐다(툭 없어지면 다음 단계와 이어지지 않아서). 변형 연출에서는 반대로
+        /// <b>교체 프레임에 한 번에 끊는 것</b>이 신호가 바뀌는 순간으로 읽혀 앞 단계와 이어진다(2026-09-15 TH).
+        /// 밀려나는 정도는 <see cref="morphTriggerRatio"/>가 정한다.
         /// </remarks>
         private void SampleWarning(float time, bool beforeWarning, in Timings tm)
         {
-            SetActive(warningRoot, !beforeWarning && time < tm.CurtainEnd);
+            // 아이콘이 텍스트로 바뀌는 순간 띠도 함께 끊는다. 교체와 한 프레임에 겹쳐야 "신호가 바뀌었다"는 한 사건으로 읽힌다
+            // (다 빠져나갈 때까지 기다리면 텍스트가 뜬 뒤에도 띠가 흘러가 시선이 갈린다).
+            // 위험 표시가 이 묶음 안에 있어도 일그러지는 동안(Morph~Swap)은 보인다.
+            SetActive(warningRoot, !beforeWarning && time < tm.Swap);
 
             float progress = time < tm.CurtainStart
                 ? 0f
@@ -870,35 +1038,41 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 위험 표시: 빠르게 두어 번 깜박인 뒤 켜진 채 머물면서 점점 커지고 거세게 떨다가, BOSS가 착지하는 순간 부풀었다 터져 사라진다.
+        /// 위험 표시: 빠르게 두어 번 깜박인 뒤 켜진 채 머물면서 점점 커지고 거세게 지지직거리다가, 한순간 가로로 찢어지듯 일그러지고 사라진다.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// 같은 간격으로 계속 깜박이면 신호등처럼 읽힌다. 짧게 튄 뒤 멎어야 "경고가 들어왔다"가 되고,
-        /// 머무는 동안 긴장이 쌓인다. 경고가 길어지면 가만히 있는 아이콘이 정적으로 보이므로, 착지까지 크기와 떨림을
-        /// 함께 키워 "차오르다 터진다"로 만든다. 서서히 줄여 없애면 "조용히 물러났다"가 되므로, 부풀렸다 한 번에 터뜨려
-        /// BOSS가 그 자리를 밀어내고 들어온 것처럼 읽히게 한다.
+        /// 머무는 동안 긴장이 쌓인다. 경고가 길어지면 가만히 있는 아이콘이 정적으로 보이므로, 변형까지 크기·떨림·글리치를
+        /// 함께 키워 "차오르다 터진다"로 만든다.
+        /// </para>
+        /// <para>
+        /// <b>일그러짐은 가로로 늘고 세로로 납작해진다.</b> 고르게 부풀리면 "커졌다"일 뿐이고, 가로로 찢어져야
+        /// 앞 연출의 지지직(신호 손상)과 같은 언어로 읽힌다. 텍스트가 같은 모양에서 시작하므로 교체가 끊겨 보이지 않는다.
+        /// </para>
         /// </remarks>
         private void SampleIcon(float time, float prev, bool emitEvents, bool beforeWarning, in Timings tm)
         {
             if (warningIcon == null) return;
 
-            // 고조 진행도: 아이콘이 나타난 순간 0 → 착지 순간 1. 곡선을 거쳐 뒤로 갈수록 빠르게 차오른다.
-            float buildSpan = tm.Land - tm.WarningStart;
+            // 고조 진행도: 아이콘이 나타난 순간 0 → 일그러지기 시작하는 순간 1. 곡선을 거쳐 뒤로 갈수록 빠르게 차오른다.
+            float buildSpan = tm.Morph - tm.WarningStart;
             float buildRaw = buildSpan > 0f ? Mathf.Clamp01((time - tm.WarningStart) / buildSpan) : 1f;
-            float build = iconBuildUpCurve != null && iconBuildUpCurve.length > 0 ? iconBuildUpCurve.Evaluate(buildRaw) : buildRaw;
+            float build = Evaluate(iconBuildUpCurve, buildRaw);
             float grown = Mathf.LerpUnclamped(1f, iconBuildUpScale, build);
 
             bool visible;
-            float scale = grown;
-            float alpha = 1f;
+            Vector3 scale = Vector3.one * grown;
             Vector2 shake = Vector2.zero;
+            float glitch = 0f;
+            int step = Mathf.FloorToInt(time * ShakeRate);
 
             if (beforeWarning)
             {
                 // 플레어가 먼저 번쩍이고, 아이콘은 Warning Delay After Flare 뒤에 나타난다.
                 visible = false;
             }
-            else if (time < tm.Land)
+            else if (time < tm.Morph)
             {
                 visible = time >= tm.HoldStart || IsBlinkOn(time, in tm);
 
@@ -906,32 +1080,42 @@ namespace ProjectS.UI
                 float amp = Mathf.LerpUnclamped(iconShakeStart, iconShakeEnd, build);
                 if (amp > 0f)
                 {
-                    int step = Mathf.FloorToInt(time * ShakeRate);
                     shake.x = (Hash01(step * 2 + 101) * 2f - 1f) * amp;
                     shake.y = (Hash01(step * 2 + 102) * 2f - 1f) * amp;
                 }
+
+                glitch = Mathf.LerpUnclamped(0f, iconBuildUpGlitch, build);
             }
-            else if (iconPopDuration > 0f && time < tm.Land + iconPopDuration)
+            else if (time < tm.Swap)
             {
-                // 터짐은 다 커진 크기에서 시작한다. 1에서 다시 시작하면 착지 순간 아이콘이 툭 줄어들어 보인다.
-                float k = (time - tm.Land) / iconPopDuration;
+                // 일그러짐은 다 커진 크기에서 시작한다. 1에서 다시 시작하면 변형 순간 아이콘이 툭 줄어들어 보인다.
+                float w = Evaluate(warpCurve, warpSeconds > 0f ? Mathf.Clamp01((time - tm.Morph) / warpSeconds) : 1f);
                 visible = true;
-                scale = grown * Mathf.Lerp(1f, iconPopScale, k);
-                alpha = 1f - k;
+                scale = new Vector3(grown * Mathf.LerpUnclamped(1f, warpStretch, w),
+                                    grown * Mathf.LerpUnclamped(1f, warpSquash, w), 1f);
+
+                // 가로로는 크게 튀고 세로 떨림은 죽인다 — 세로까지 흔들리면 찢어진 게 아니라 흔들린 것으로 보인다.
+                shake.x = (Hash01(step * 2 + 101) * 2f - 1f) * Mathf.LerpUnclamped(iconShakeEnd, warpJitter, w);
+                shake.y = (Hash01(step * 2 + 102) * 2f - 1f) * iconShakeEnd * (1f - w);
+
+                glitch = warpGlitch;
             }
             else
             {
                 visible = false;
             }
 
-            warningIcon.rectTransform.localScale = Vector3.one * scale;
+            warningIcon.rectTransform.localScale = scale;
             warningIcon.rectTransform.anchoredPosition = iconHome + shake;
 
             Color c = warningIcon.color;
-            c.a = alpha;
+            c.a = 1f;
             warningIcon.color = c;
 
             SetActive(warningIcon.gameObject, visible);
+
+            // 글리치 세기의 바닥값을 준다. 평상시 떨림·깜박임 튐은 GlitchImageFx가 계속 굴리고, 이 값보다 약할 때만 밀려난다.
+            if (iconGlitch != null) iconGlitch.SetDrive(glitch);
 
             // 켜지는 순간마다 글리치를 크게 튀긴다. 깜박임과 지지직이 같은 박자로 맞아야
             // 신호가 들어오면서 화면이 흔들리는 것처럼 읽힌다.
@@ -940,65 +1124,202 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// BOSS가 위에서 내려와 제자리에 꽂힌다. 하강 → 정지 → 진동 순서다.
+        /// BOSS 텍스트가 아이콘이 일그러진 모양에서 나타나 제 모양으로 잡힌다. 잡히는 동안 묶음과 글자가 좌우로 어긋나다 맞아 들어간다.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// 크기만 줄이면 "멀리서 다가온다"라 부드럽게 읽힌다. 도장은 <b>아래로</b> 내려와야 하므로
-        /// 높이와 크기를 같은 곡선으로 함께 줄인다. 착지 뒤에는 반동 대신 <b>완전한 정지</b>를 두는데,
-        /// 움직이던 것이 뚝 끊기는 그 정적이 충돌을 인지시킨다. 진동은 그 뒤에 오는 여파다.
+        /// 텍스트는 아이콘과 <b>같은 가로·세로 배율</b>(<see cref="warpStretch"/>·<see cref="warpSquash"/>)에서 시작한다.
+        /// 교체 프레임에 모양이 이어져야 "아이콘이 사라지고 글자가 떴다"가 아니라 "아이콘이 글자로 변했다"가 된다.
         /// </para>
         /// <para>
-        /// <b>진동은 난수 떨림이 아니라 잦아드는 파형이다.</b> 매 프레임 난수로 흔들면 방향이 제멋대로 튀어
-        /// "정신없이 떨린다"로 읽힌다.
-        /// </para>
-        /// <para>
-        /// <b>"쿵"과 "젤리"를 가르는 것은 첫 순간과 감쇠다.</b> 사인(0에서 출발)으로 흔들면 박힌 뒤 폭이 서서히 차올라
-        /// 말랑하게 눌리는 것처럼 보이고, 감쇠가 느리면 여러 번 출렁여 젤리가 된다. 단단한 것이 떨어지면 <b>닿는 순간이
-        /// 가장 세고</b> 곧바로 죽는다. 그래서 코사인(최대에서 출발)으로 착지 첫 프레임에 아래로 박히게 하고,
-        /// 지수 감쇠(<see cref="impactShakeDamping"/>)로 한두 번 튕기고 멎게 한다.
+        /// 묶음 전체의 흔들림만으로는 글자가 한 덩어리로 움직여 "흔들리는 간판"으로 보인다. 글자마다 따로 어긋나야
+        /// 신호가 아직 맞춰지는 중으로 읽혀서 <see cref="textCharJitter"/>를 함께 준다.
         /// </para>
         /// </remarks>
         private void SampleBoss(float time, in Timings tm)
         {
             if (bossRoot == null) return;
 
-            bool active = time >= tm.SlamStart;
+            bool active = time >= tm.Swap;
             SetActive(bossRoot.gameObject, active);
 
             Vector3 scale = Vector3.one;
             Vector2 offset = Vector2.zero;
+            float charJitter = 0f;
 
-            if (active && time < tm.Land)
+            if (active && time < tm.RevealEnd)
             {
-                float e = slamCurve.Evaluate(Mathf.Clamp01((time - tm.SlamStart) / Mathf.Max(0.0001f, slamDuration)));
-                scale = Vector3.one * Mathf.LerpUnclamped(slamStartScale, 1f, e);
-                offset.y = Mathf.LerpUnclamped(slamDropDistance, 0f, e);
-            }
-            else if (time >= tm.ShakeStart && time < tm.ShakeEnd)
-            {
-                float t = time - tm.ShakeStart;
+                float e = Evaluate(revealCurve, revealSeconds > 0f ? Mathf.Clamp01((time - tm.Swap) / revealSeconds) : 1f);
+                float remain = 1f - e;
 
-                // 지수로 빠르게 죽인다(쿵의 핵심). 끝에서 정확히 0에 닿도록 남은 시간 비율을 한 번 더 곱한다.
-                float fade = 1f - Mathf.Clamp01(t / impactShakeDuration);
-                float decay = Mathf.Exp(-impactShakeDamping * t) * fade;
+                scale = new Vector3(Mathf.LerpUnclamped(warpStretch, 1f, e), Mathf.LerpUnclamped(warpSquash, 1f, e), 1f);
 
-                // 코사인으로 최대에서 출발한다 — 착지 첫 프레임에 아래로 가장 세게 박히고, 그다음 튕겨 오른다.
-                float wave = Mathf.Cos(2f * Mathf.PI * impactShakeFrequency * t);
+                int step = Mathf.FloorToInt(time * ShakeRate);
+                offset.x = (Hash01(step * 2 + 301) * 2f - 1f) * warpJitter * remain;
 
-                offset.y = -impactShakeStrength * decay * wave;
-
-                // 가로는 박자를 어긋낸 작은 흔들림. 세로와 같은 박자면 대각선으로만 움직여 기계적으로 보인다.
-                offset.x = impactShakeStrength * impactShakeHorizontal * decay *
-                           Mathf.Sin(2f * Mathf.PI * impactShakeFrequency * 1.37f * t);
-
-                // 아래로 눌릴 때(wave > 0) 납작하고 넓게, 튀어 오를 때 반대로. 부피가 유지되는 것처럼 가로·세로를 반대로 준다.
-                float squash = impactSquash * decay * wave;
-                scale = new Vector3(1f + squash, 1f - squash, 1f);
+                charJitter = textCharJitter * remain;
             }
 
             bossRoot.localScale = scale;
             bossRoot.anchoredPosition = bossHome + offset;
+
+            SampleTextJitter(time, charJitter);
+        }
+
+        /// <summary>
+        /// BOSS 묶음 안의 글자들을 글자마다 다른 폭으로 좌우로 어긋낸다. 폭이 0이면 흔들었던 메시를 되돌린다.
+        /// </summary>
+        /// <remarks>
+        /// 셰이더가 아니라 TMP 정점을 직접 옮기는 이유는 재 연출(<see cref="AshDissolveFx"/>)이 폰트 셰이더를 이미 쓰고 있어서다.
+        /// 매 샘플마다 메시를 새로 만든 뒤 옮기므로 이동이 누적되지 않는다. 등장 구간(수백 ms)에만 돌아 비용은 무시할 만하다.
+        /// </remarks>
+        private void SampleTextJitter(float time, float amplitude)
+        {
+            if (bossTexts == null) return;
+
+            if (amplitude <= 0f)
+            {
+                if (textWarped) RestoreTextMesh();
+                return;
+            }
+
+            textWarped = true;
+            int step = Mathf.FloorToInt(time * ShakeRate);
+
+            foreach (TMP_Text label in bossTexts)
+            {
+                if (label == null || !label.isActiveAndEnabled) continue;
+
+                label.ForceMeshUpdate();
+                TMP_TextInfo info = label.textInfo;
+
+                for (int i = 0; i < info.characterCount; i++)
+                {
+                    TMP_CharacterInfo ch = info.characterInfo[i];
+                    if (!ch.isVisible) continue;
+
+                    // 가로가 주가 되어야 신호가 어긋난 것으로 읽힌다. 세로까지 크면 글자가 흩어진 것으로 보인다.
+                    var delta = new Vector3(
+                        (Hash01(step * 131 + i * 7919 + 17) * 2f - 1f) * amplitude,
+                        (Hash01(step * 131 + i * 7919 + 53) * 2f - 1f) * amplitude * 0.2f,
+                        0f);
+
+                    Vector3[] vertices = info.meshInfo[ch.materialReferenceIndex].vertices;
+                    int v = ch.vertexIndex;
+                    vertices[v] += delta;
+                    vertices[v + 1] += delta;
+                    vertices[v + 2] += delta;
+                    vertices[v + 3] += delta;
+                }
+
+                label.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices);
+            }
+        }
+
+        /// <summary>흔들었던 글자 메시를 원래 배치로 다시 만든다. 꺼져 있는 라벨은 켜질 때 TMP가 스스로 다시 만든다.</summary>
+        private void RestoreTextMesh()
+        {
+            textWarped = false;
+            if (bossTexts == null) return;
+
+            foreach (TMP_Text label in bossTexts)
+            {
+                if (label != null && label.isActiveAndEnabled) label.ForceMeshUpdate();
+            }
+        }
+
+        /// <summary>
+        /// BOSS 라벨과 보스 이름이 나타난 순간부터 다 타 사라질 때까지 계속 떨면서 커진다.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// 텍스트가 잡힌 뒤 가만히 머물면 경고 아이콘에서 이어진 긴장이 끊겨 정지 화면이 된다. 아이콘의 고조와 같은 언어(떨림 + 확대)를
+        /// 텍스트에 이어 붙여 "아직 끝나지 않았다"를 남긴다. BOSS 묶음(<see cref="SampleBoss"/>)의 변형 위에 곱해진다.
+        /// </para>
+        /// <para>
+        /// 묶음이 아니라 라벨마다 따로 움직인다. 크기는 같은 값으로 커지지만 떨림은 라벨마다 다른 난수를 써서,
+        /// 두 줄이 한 덩어리로 흔들리지 않고 각자 불안하게 떨린다.
+        /// </para>
+        /// </remarks>
+        private void SampleTextGrow(float time, in Timings tm)
+        {
+            float g = 0f;
+            bool on = time >= tm.Swap;
+            if (on)
+            {
+                float span = tm.End - tm.Swap;
+                g = Evaluate(textGrowCurve, span > 0f ? Mathf.Clamp01((time - tm.Swap) / span) : 1f);
+            }
+
+            if (GrowableLabel != null)
+                ApplyGrowShake(GrowableLabel.rectTransform, rest.LabelScale, labelHome, on, g, time, 501);
+
+            if (bossNameText != null)
+                ApplyGrowShake(bossNameText.rectTransform, rest.NameScale, nameHome, on, g, time, 401);
+        }
+
+        private void ApplyGrowShake(RectTransform target, Vector3 baseScale, Vector2 home, bool on, float g, float time, int seed)
+        {
+            Vector3 scale = baseScale;
+            Vector2 shake = Vector2.zero;
+
+            if (on)
+            {
+                scale = baseScale * Mathf.LerpUnclamped(1f, textGrowScale, g);
+
+                float amp = Mathf.LerpUnclamped(textShakeStart, textShakeEnd, g);
+                if (amp > 0f)
+                {
+                    int step = Mathf.FloorToInt(time * ShakeRate);
+                    shake.x = (Hash01(step * 2 + seed) * 2f - 1f) * amp;
+                    shake.y = (Hash01(step * 2 + seed + 1) * 2f - 1f) * amp;
+                }
+            }
+
+            target.localScale = scale;
+            target.anchoredPosition = home + shake;
+        }
+
+        /// <summary>
+        /// BOSS 텍스트의 셰이더 글리치. 나타나는 순간 <see cref="textGlitchPeak"/>에서 시작해 <see cref="textGlitchSettled"/>로 잦아든다.
+        /// </summary>
+        /// <remarks>
+        /// 모양 값은 매 프레임 <see cref="textGlitchLook"/>에서 복사한다. 인스턴스 머티리얼은 재생 중에만 있어 직접 고칠 방법이 없는데,
+        /// 복사를 세션 시작에 한 번만 하면 프리셋을 고쳐도 다시 재생하기 전까지 반영되지 않아 값 맞추기가 번거롭다.
+        /// </remarks>
+        private void SampleTextGlitch(float time, in Timings tm)
+        {
+            if (textGlitchMaterials.Count == 0) return;
+
+            float glitch = textGlitchPeak;
+            if (time >= tm.Swap)
+            {
+                float k = Mathf.Clamp01((time - tm.Swap) / textGlitchSettleSeconds);
+                glitch = Mathf.LerpUnclamped(textGlitchPeak, textGlitchSettled, Evaluate(textGlitchCurve, k));
+            }
+
+            foreach (Material material in textGlitchMaterials)
+            {
+                if (material == null) continue;
+
+                CopyGlitchLook(material);
+                material.SetFloat(GlitchId, Mathf.Clamp01(glitch));
+            }
+        }
+
+        private void CopyGlitchLook(Material target)
+        {
+            if (textGlitchLook == null) return;
+
+            foreach (int id in GlitchLookFloatIds)
+            {
+                if (textGlitchLook.HasProperty(id)) target.SetFloat(id, textGlitchLook.GetFloat(id));
+            }
+
+            foreach (int id in GlitchLookColorIds)
+            {
+                if (textGlitchLook.HasProperty(id)) target.SetColor(id, textGlitchLook.GetColor(id));
+            }
         }
 
         /// <summary>
@@ -1089,6 +1410,12 @@ namespace ProjectS.UI
         private static void AddComponent(IPropertyCollector driver, Component component)
         {
             if (component != null) driver.AddFromComponent(component.gameObject, component);
+        }
+
+        /// <summary>곡선이 비어 있어도 선형으로 동작하게 한다. 인스펙터에서 곡선을 지우면 키가 0개가 된다.</summary>
+        private static float Evaluate(AnimationCurve curve, float t)
+        {
+            return curve != null && curve.length > 0 ? curve.Evaluate(t) : t;
         }
 
         /// <summary>정수 하나에서 0~1 의사난수를 뽑는다(PCG 해시). 같은 시각이면 항상 같은 흔들림이 나온다.</summary>
