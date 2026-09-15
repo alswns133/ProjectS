@@ -61,13 +61,19 @@ namespace ProjectS.Networking
         {
             base.Start();
 
-            // 전용 서버 프로세스(-batchmode -nographics 또는 커맨드라인 -server)면 서버로 기동한다.
+            // 전용 서버 프로세스(-batchmode)면 서버로 기동한다.
             // 클라는 여기서 아무것도 하지 않는다 — 마을 진입 시 ConnectFromVillage로 접속한다.
-            if (IsDedicatedServer())
+            // ★ 마을 월드 로드는 데이터(JsonManager)가 준비된 뒤라야 안전하므로 여기서 하지 않고
+            //   Bootstrap이 ReadyTask 이후 처리한다(B안: 커스텀 SceneManager 로드, Mirror ServerChangeScene 아님).
+            if (IsServerMode)
             {
+                // ★ 헤드리스 서버는 렌더가 없어 프레임 루프가 무제한(수천 FPS)으로 돈다 →
+                //   CPU 코어 100% 스핀 + TempJob이 4프레임 안에 소비 안 돼 "deleting an allocation
+                //   older than 4 frames" 경고가 쏟아진다. 서버 틱레이트를 고정해 둘 다 잡는다.
+                Application.targetFrameRate = 30;   // 서버 시뮬 틱(필요 시 60까지)
+                QualitySettings.vSyncCount = 0;     // vSync가 targetFrameRate를 덮지 않게(헤드리스도 명시)
+
                 StartServer();
-                // TODO(운영): 전용 서버는 부팅 시 마을 씬을 로드한 상태로 대기해야 한다
-                //             (ServerChangeScene(마을) 또는 서버 부팅 씬 자체를 마을로).
             }
         }
 
@@ -112,13 +118,21 @@ namespace ProjectS.Networking
             FinishLoadScene();
         }
 
-        /// <summary>커맨드라인/배치모드로 전용 서버 여부를 판정한다.</summary>
-        private bool IsDedicatedServer()
-        {
-            if (Application.isBatchMode) return true;
-            // TODO: 필요하면 커맨드라인 인자(-server) 파싱 추가.
-            return false;
-        }
+        /// <summary>
+        /// 이 프로세스가 전용(headless) 서버로 떠야 하는가. Bootstrap도 이 값으로 클라 흐름
+        /// (로그인·튜토리얼·클라 씬 로드)을 스킵할지 가른다.
+        /// <para>
+        /// 판정: <b>Dedicated Server 빌드</b>는 컴파일 심볼 <c>UNITY_SERVER</c>가 켜지므로 항상 서버다
+        /// (실행 인자와 무관 — 이게 가장 견고한 신호). 그 외 일반 빌드/에디터는 <c>-batchmode</c>로 뜬
+        /// 경우에만 서버로 본다(전용 서버 빌드 없이 헤드리스 테스트할 때).
+        /// </para>
+        /// </summary>
+        public static bool IsServerMode =>
+#if UNITY_SERVER
+            true;
+#else
+            Application.isBatchMode;
+#endif
 
         // ── 클라: 마을 진입 시 접속 ──────────────────────────────────
 
