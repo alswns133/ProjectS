@@ -69,5 +69,18 @@ namespace ProjectS.UI
 
         private void OnHitComboChanged(int hitCount)
             => view.SetHitCombo(hitCount);
+
+        // [2026.09.15 태하] 콤보 유지 게이지. 남은 시간은 매 프레임 줄어드는 연속 값이라
+        // static 이벤트를 매 프레임 쏘는 대신 여기서 직접 읽어 View에 넘긴다.
+        // 타이머를 HUD에 따로 두지 않는 이유: 히트스톱·피격 리셋과 어긋나지 않게 판정 원천(PlayerHitCombo)을 하나로 유지하기 위함.
+        private void Update()
+        {
+            if (PlayerManager.Instance == null) return;
+
+            var player = PlayerManager.Instance.Player;
+            if (player == null || player.HitCombo == null) return;
+
+            view.SetHitComboTimer(player.HitCombo.RemainingRatio);
+        }
     }
 }

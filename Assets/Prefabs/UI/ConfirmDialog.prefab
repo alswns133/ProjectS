@@ -147,6 +147,7 @@ GameObject:
   m_Component:
   - component: {fileID: 982339548005414444}
   - component: {fileID: 369815011668150304}
+  - component: {fileID: 2165186864235035816}
   m_Layer: 0
   m_Name: ConfirmDialog
   m_TagString: Untagged
@@ -161,7 +162,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2833798595286364494}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -191,6 +192,18 @@ MonoBehaviour:
   confirmButton: {fileID: 8517007616690621289}
   cancelButton: {fileID: 28873158311641915}
   backgroundBlocker: {fileID: 2471844342341594590}
+--- !u!225 &2165186864235035816
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2833798595286364494}
+  m_Enabled: 1
+  m_Alpha: 0.9
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &3562694542603875483
 GameObject:
   m_ObjectHideFlags: 0
@@ -250,7 +263,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 0.6}
+  m_Color: {r: 0, g: 0, b: 0, a: 0.7058824}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
