@@ -1,3 +1,4 @@
+﻿using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,11 +16,11 @@ namespace ProjectS.UI
     /// <b>계속 타고 있는 불</b>이어야 성립한다 — 그래서 셰이더가 매 프레임 대류·명멸한다.
     /// </para>
     /// <para>
-    /// <b>모양은 머티리얼 에셋, 진행은 이 컴포넌트.</b> 불의 결·색·경계 같은 모양 값은
-    /// <see cref="curtainMaterial"/> 에셋의 인스펙터에서 조정한다. 이 컴포넌트는 그 에셋을 복사한 인스턴스에
-    /// 덮임·걷힘 진행과 중심·시간만 넣는다. 에셋 자체에 진행값을 쓰면 재생할 때마다 .mat 파일이 바뀌어
-    /// 커밋에 섞이고, 다음 판이 탄 상태로 시작한다. 에디터에서는 매 프레임 에셋 값을 인스턴스로 다시 복사하므로
-    /// 재생 중에도 에셋을 만지면 곧바로 화면에 반영된다.
+    /// <b>모양도 진행도 이 컴포넌트에서 조정한다.</b> 불의 색·결·명암·경계 같은 셰이더 값은 <see cref="look"/>에
+    /// 모아 두고, 머티리얼 에셋은 셰이더와 UI 공통 값(스텐실 등)을 실어 나르는 틀로만 쓴다. 연출을 만지다가
+    /// 머티리얼 에셋과 컴포넌트를 오가지 않게 하기 위함이다. 값은 에셋을 복사한 <b>인스턴스</b>에만 넣는다 —
+    /// 에셋 자체에 쓰면 재생할 때마다 .mat 파일이 바뀌어 커밋에 섞이고, 다음 판이 탄 상태로 시작한다.
+    /// 에디터에서는 매 프레임 인스턴스에 다시 넣으므로 재생 중에도 슬라이더를 움직이면 곧바로 화면에 반영된다.
     /// </para>
     /// <para>
     /// <b>에디터 미리보기</b>(<see cref="previewInEditor"/>). 타임라인을 돌리지 않아도 가림막을 원하는 진행 상태로
@@ -50,12 +51,21 @@ namespace ProjectS.UI
         [Tooltip("화면을 가득 채우는 Graphic(Image, 스프라이트 비워도 됨). 비우면 이 오브젝트에서 찾는다.")]
         [SerializeField] private Graphic target;
 
-        [Tooltip("불의 모양 값(결·색·경계)을 담은 머티리얼 에셋. 여기서 값을 조정한다. " +
-                 "실행 중에는 이 에셋을 복사한 인스턴스를 쓰므로 에셋 파일이 진행값으로 더러워지지 않는다.")]
+        [Tooltip("셰이더와 UI 공통 값(스텐실 등)을 실어 나르는 머티리얼 에셋. 불 모양 값은 에셋이 아니라 아래 '불 모양'에서 조정한다. " +
+                 "실행 중에는 이 에셋을 복사한 인스턴스를 쓰므로 에셋 파일이 더러워지지 않는다.")]
         [SerializeField] private Material curtainMaterial;
 
-        [Tooltip("머티리얼 에셋이 비었을 때만 쓰는 대체 셰이더. 이 경우 모양 값은 셰이더 기본값 그대로다.")]
+        [Tooltip("머티리얼 에셋이 비었을 때만 쓰는 대체 셰이더. 이때도 불 모양 값은 아래 '불 모양'을 따른다.")]
         [SerializeField] private Shader curtainShader;
+
+        [Header("불 모양 (셰이더 값)")]
+        [Tooltip("UI Fire Curtain 셰이더의 모양 값 전부. 머티리얼 에셋 값보다 우선한다. " +
+                 "덮임·걷힘·중심·시간처럼 코드가 매 프레임 채우는 값과 스텐실(마스크가 채움)은 여기 없다.")]
+        [SerializeField] private CurtainLook look = new();
+
+        // 머티리얼 에셋에 조정해 두었던 값을 컴포넌트로 한 번 옮겼는지. 이 필드가 생기기 전의 씬은 false로 읽히므로,
+        // 처음 한 번 에셋 값을 가져와야 필드 기본값(셰이더 기본값)이 기존에 튜닝한 불 모양을 덮어쓰지 않는다.
+        [SerializeField, HideInInspector] private bool lookImported;
 
         [Tooltip("폭발의 월드 좌표를 화면 좌표로 옮길 카메라. 비우면 Camera.main을 쓴다.")]
         [SerializeField] private Camera worldCamera;
@@ -82,6 +92,10 @@ namespace ProjectS.UI
         [SerializeField]
         private AnimationCurve burnCurve = new(
             new Keyframe(0f, 0f, 0.8f, 0.8f), new Keyframe(1f, 1f, 2.2f, 2.2f));
+
+        [Tooltip("켜면 걷힘(원형으로 뚫림)이 폭발 자리가 아니라 커튼 정중앙에서 시작한다. 덮임은 계속 폭발 자리를 따라간다. " +
+                 "끄면 걷힘도 덮임과 같은 폭발 자리에서 뚫린다. Burn(월드 좌표)로 중심을 직접 넘기면 그 값이 이긴다.")]
+        [SerializeField] private bool burnFromCurtainCenter = true;
 
         [Header("경계 여유")]
         [Tooltip("진행값을 1보다 얼마나 더 밀지. 경계가 노이즈로 일렁이므로 정확히 1에서 멈추면 " +
@@ -130,19 +144,140 @@ namespace ProjectS.UI
         // 지난 프레임의 걷힘 진행. Timeline이 되감을 때 불똥을 내지 않으려고 방향을 본다.
         private float lastBurn;
 
+        // Burn(월드 좌표)로 호출부가 직접 넘긴 걷힘 중심. 있으면 burnFromCurtainCenter보다 우선하고, Clear에서 비운다.
+        private Vector2? burnCenterOverride;
+
         // 이번 프레임의 렉트 크기·최대 반지름. UpdateGeometry가 채우고 불똥 방출이 그대로 쓴다.
+        // 덮임과 걷힘은 중심이 다를 수 있어 반지름 정규화 값도 따로 든다.
         private Vector2 rectSize = new(1920f, 1080f);
         private float maxRadius = 1100f;
+        private Vector2 burnCenter = new(0.5f, 0.5f);
+        private float burnMaxRadius = 1100f;
 
         // 참조가 빠졌다는 경고를 한 번만 낸다. 에디터 미리보기는 매 틱 Prepare를 부르므로 그대로 두면 콘솔이 넘친다.
         private bool warnedMissing;
+
+        // 폭발 중심이 화면 밖이었다는 경고를 한 번만 낸다(ToViewport 참고).
+        private bool warnedOffscreen;
 
         private static readonly int CoverID = Shader.PropertyToID("_Cover");
         private static readonly int BurnID = Shader.PropertyToID("_Burn");
         private static readonly int CenterID = Shader.PropertyToID("_Center");
         private static readonly int RectSizeID = Shader.PropertyToID("_RectSize");
         private static readonly int MaxRadiusID = Shader.PropertyToID("_MaxRadius");
+        private static readonly int BurnCenterID = Shader.PropertyToID("_BurnCenter");
+        private static readonly int BurnMaxRadiusID = Shader.PropertyToID("_BurnMaxRadius");
         private static readonly int FxTimeID = Shader.PropertyToID("_FxTime");
+
+        private static readonly int TintID = Shader.PropertyToID("_Color");
+        private static readonly int BaseStrengthID = Shader.PropertyToID("_BaseStrength");
+        private static readonly int SmokeColorID = Shader.PropertyToID("_SmokeColor");
+        private static readonly int FireColorID = Shader.PropertyToID("_FireColor");
+        private static readonly int HotColorID = Shader.PropertyToID("_HotColor");
+        private static readonly int WhiteHotID = Shader.PropertyToID("_WhiteHot");
+        private static readonly int SootColorID = Shader.PropertyToID("_SootColor");
+        private static readonly int NoiseScaleID = Shader.PropertyToID("_NoiseScale");
+        private static readonly int RidgeID = Shader.PropertyToID("_Ridge");
+        private static readonly int BoilID = Shader.PropertyToID("_Boil");
+        private static readonly int RiseSpeedID = Shader.PropertyToID("_RiseSpeed");
+        private static readonly int RadialStretchID = Shader.PropertyToID("_RadialStretch");
+        private static readonly int SwirlSpeedID = Shader.PropertyToID("_SwirlSpeed");
+        private static readonly int ContrastID = Shader.PropertyToID("_Contrast");
+        private static readonly int GammaID = Shader.PropertyToID("_Gamma");
+        private static readonly int CoreBoostID = Shader.PropertyToID("_CoreBoost");
+        private static readonly int FlickerID = Shader.PropertyToID("_Flicker");
+        private static readonly int EdgeNoiseID = Shader.PropertyToID("_EdgeNoise");
+        private static readonly int EdgeTongueID = Shader.PropertyToID("_EdgeTongue");
+        private static readonly int EdgeSoftID = Shader.PropertyToID("_EdgeSoft");
+        private static readonly int EmberWidthID = Shader.PropertyToID("_EmberWidth");
+        private static readonly int SootWidthID = Shader.PropertyToID("_SootWidth");
+        private static readonly int BurnSeedID = Shader.PropertyToID("_BurnSeed");
+
+        /// <summary>
+        /// UI Fire Curtain 셰이더의 모양 값 묶음. 필드 기본값은 셰이더 기본값과 같다.
+        /// </summary>
+        /// <remarks>
+        /// 셰이더 Properties와 1:1이다. 셰이더에 모양 값을 추가하면 여기 필드, 위 ID, <see cref="ApplyLook"/>,
+        /// <see cref="ImportLookFromMaterial"/> 네 곳을 함께 늘린다 — 빠지면 그 값만 머티리얼 에셋 값에 묶여 조정되지 않는다.
+        /// </remarks>
+        [Serializable]
+        private class CurtainLook
+        {
+            [Header("바탕")]
+            [Tooltip("전체 색조. 불 색 전체에 곱해진다.")]
+            public Color tint = Color.white;
+
+            [Tooltip("캡처한 폭발 프레임 등을 불 아래에 깔고 싶을 때만 올린다. " +
+                     "Image가 _MainTex를 제 스프라이트(흰색)로 덮어쓰므로, 0이 아니면 화면이 하얗게 뜬다.")]
+            [Range(0f, 1f)] public float baseStrength;
+
+            [Header("색 램프 (차가운 쪽 → 뜨거운 쪽)")]
+            [Tooltip("불꽃 사이의 어두운 연기.")]
+            public Color smokeColor = new(0.09f, 0.045f, 0.035f, 1f);
+
+            [Tooltip("중간 불. 폭발 파티클 색과 맞춘다.")]
+            [ColorUsage(true, true)] public Color fireColor = new(1f, 0.24f, 0.05f, 1f);
+
+            [Tooltip("뜨거운 호박색. HDR이라 Bloom이 집는다.")]
+            [ColorUsage(true, true)] public Color hotColor = new(1f, 0.66f, 0.18f, 1f);
+
+            [Tooltip("가장 뜨거운 심지. 아주 좁게 나와야 한다.")]
+            [ColorUsage(true, true)] public Color whiteHot = new(1f, 0.95f, 0.82f, 1f);
+
+            [Tooltip("타고 남은 그을음 테두리.")]
+            public Color sootColor = new(0.05f, 0.03f, 0.03f, 1f);
+
+            [Header("이글거림")]
+            [Tooltip("불꽃 덩어리 크기. 클수록 잘다.")]
+            public float noiseScale = 3.2f;
+
+            [Tooltip("0이면 뭉게구름, 1이면 가늘게 뻗는 불꽃 혀.")]
+            [Range(0f, 1f)] public float ridge = 0.75f;
+
+            [Tooltip("층이 서로 말려 끓는 정도. 이글거림의 핵심.")]
+            [Range(0f, 2f)] public float boil = 0.9f;
+
+            [Tooltip("열기가 위로 오르는 기준 속도(옥타브마다 배수가 다르다).")]
+            public float riseSpeed = 0.55f;
+
+            [Tooltip("폭발이 밀어낸 방향으로 불꽃이 늘어나는 정도.")]
+            [Range(0f, 3f)] public float radialStretch = 1.2f;
+
+            [Tooltip("중심을 감고 도는 속도.")]
+            public float swirlSpeed = 0.16f;
+
+            [Header("명암")]
+            [Tooltip("낮으면 균일한 색면(=밍밍), 높으면 불꽃과 연기가 갈린다.")]
+            [Range(1f, 6f)] public float contrast = 3f;
+
+            [Tooltip("크면 뜨거운 부분이 좁아져 심지가 또렷해진다.")]
+            [Range(0.4f, 3f)] public float gamma = 1.35f;
+
+            [Tooltip("중심이 더 뜨겁게 타는 정도.")]
+            [Range(0f, 2f)] public float coreBoost = 0.7f;
+
+            [Tooltip("전체 밝기 명멸.")]
+            [Range(0f, 1f)] public float flicker = 0.22f;
+
+            [Header("경계")]
+            [Tooltip("경계가 일렁이는 폭. 0이면 원형 아이리스로 보인다.")]
+            [Range(0f, 1f)] public float edgeNoise = 0.3f;
+
+            [Tooltip("경계를 핥는 불꽃 혀의 잘기.")]
+            public float edgeTongue = 5.5f;
+
+            [Tooltip("경계 번짐. 크면 부드럽고 작으면 날카롭다.")]
+            [Range(0.001f, 0.4f)] public float edgeSoftness = 0.045f;
+
+            [Tooltip("타는 자리에 남는 불씨 띠 두께.")]
+            [Range(0f, 0.4f)] public float emberWidth = 0.1f;
+
+            [Tooltip("불씨 바깥의 그을음 띠 두께.")]
+            [Range(0f, 0.4f)] public float sootWidth = 0.07f;
+
+            [Tooltip("걷힘 경계를 덮임과 어긋나게 하는 오프셋.")]
+            public float burnSeed = 17.3f;
+        }
 
         /// <summary>지금 화면이 가려져 있거나 가려지는 중인지.</summary>
         public bool IsCovering => routine != null || currentCover > 0.001f;
@@ -231,7 +366,10 @@ namespace ProjectS.UI
             yield return CoverInternal();
         }
 
-        /// <summary>가려진 화면이 중심부터 타며 걷힌다. 덮을 때 쓴 중심을 그대로 쓴다.</summary>
+        /// <summary>
+        /// 가려진 화면이 타며 걷힌다. 시작점은 <see cref="burnFromCurtainCenter"/>를 따른다
+        /// (켜져 있으면 커튼 정중앙, 꺼져 있으면 덮을 때 쓴 폭발 자리).
+        /// </summary>
         public IEnumerator Burn()
         {
             yield return BurnInternal();
@@ -239,12 +377,13 @@ namespace ProjectS.UI
 
         /// <summary>
         /// 가려진 화면이 <paramref name="worldCenter"/>의 화면 위치부터 타며 걷힌다.
-        /// 보스 위치를 넘기면 "보스가 불을 밀어내고 드러난다"로 읽힌다.
+        /// 보스 위치를 넘기면 "보스가 불을 밀어내고 드러난다"로 읽힌다. 걷힘 경계만 옮기고 불의 결은 그대로 둔다.
         /// </summary>
         /// <param name="worldCenter">걷힘이 시작될 월드 좌표.</param>
         public IEnumerator Burn(Vector3 worldCenter)
         {
-            SetCenter(ToViewport(worldCenter));
+            burnCenterOverride = ToViewport(worldCenter);
+            UpdateGeometry();
             yield return BurnInternal();
         }
 
@@ -271,6 +410,7 @@ namespace ProjectS.UI
             emberCarry = 0f;
             lastBurn = 0f;
             drivenExternally = false;
+            burnCenterOverride = null;   // 이번 판에 넘겨받은 걷힘 중심이 다음 판까지 남지 않게 한다
 
             // 떠 있던 불똥까지 치운다. 남겨 두면 가림막만 사라지고 불똥이 허공에 떠 있다.
             if (embers != null) embers.Clear();
@@ -437,10 +577,11 @@ namespace ProjectS.UI
             if (!Application.isPlaying) return;
             if (embers == null || embersPerSecond <= 0f) return;
 
-            float radius = progress * maxRadius;
+            // 불똥은 타는 경계에서 나므로 덮임이 아니라 걷힘의 중심·반지름을 쓴다.
+            float radius = progress * burnMaxRadius;
 
             // 반지름 0에서는 낼 자리가 없다. 화면 절반쯤 왔을 때가 기준 개수가 되도록 정규화한다.
-            float density = Mathf.Clamp01(radius / Mathf.Max(1f, maxRadius * 0.5f));
+            float density = Mathf.Clamp01(radius / Mathf.Max(1f, burnMaxRadius * 0.5f));
 
             emberCarry += embersPerSecond * density * deltaTime;
 
@@ -449,11 +590,21 @@ namespace ProjectS.UI
 
             emberCarry -= amount;
 
-            Vector2 centerPx = new((center.x - 0.5f) * rectSize.x, (center.y - 0.5f) * rectSize.y);
+            Vector2 centerPx = new((burnCenter.x - 0.5f) * rectSize.x, (burnCenter.y - 0.5f) * rectSize.y);
             embers.EmitRing(centerPx, radius, amount, emberScatter);
         }
 
-        /// <summary>월드 좌표를 뷰포트(0~1)로 옮긴다. 카메라 뒤에 있으면 화면 중앙으로 떨어뜨린다.</summary>
+        /// <summary>
+        /// 월드 좌표를 뷰포트(0~1)로 옮긴다. 카메라 뒤에 있으면 화면 중앙으로, 화면 밖이면 가장 가까운 가장자리로 당긴다.
+        /// </summary>
+        /// <remarks>
+        /// <b>화면 밖 좌표를 그대로 쓰면 원이 사라진다.</b> 반지름은 중심에서 가장 먼 모서리까지로 정규화하는데,
+        /// 중심이 화면 밖 멀리 있으면 그 거리가 화면보다 몇 배 커져 화면 안의 정규화 반지름이 거의 같은 값(예: 0.8~0.9)에
+        /// 몰린다. 그러면 원의 호가 화면을 가로지르는 거의 평평한 띠가 되고, 경계 노이즈가 그 차이를 이겨
+        /// 원형으로 퍼지는 대신 여기저기 뚫리는 디졸브처럼 보인다. 중심은 클립에 들어서는 순간 한 번만 뜨므로,
+        /// 그 순간의 카메라 컷에서 폭발 지점이 화면 밖이면 그 판 전체가 이렇게 된다(되감아 뒤에서 들어오면
+        /// 다른 컷에서 떠 멀쩡해 보이는 이유).
+        /// </remarks>
         private Vector2 ToViewport(Vector3 worldCenter)
         {
             Camera cam = worldCamera != null ? worldCamera : Camera.main;
@@ -462,9 +613,28 @@ namespace ProjectS.UI
             Vector3 vp = cam.WorldToViewportPoint(worldCenter);
 
             // z가 음수면 카메라 뒤라 x/y가 반전된 쓰레기 값이다. 그대로 넘기면 불이 엉뚱한 데서 자란다.
-            if (vp.z <= 0f) return new Vector2(0.5f, 0.5f);
+            if (vp.z <= 0f)
+            {
+                WarnCenterOffscreen(cam, vp, "카메라 뒤");
+                return new Vector2(0.5f, 0.5f);
+            }
 
-            return new Vector2(vp.x, vp.y);
+            if (vp.x < 0f || vp.x > 1f || vp.y < 0f || vp.y > 1f)
+                WarnCenterOffscreen(cam, vp, "화면 밖");
+
+            return new Vector2(Mathf.Clamp01(vp.x), Mathf.Clamp01(vp.y));
+        }
+
+        // 폭발 지점이 화면에 안 잡힌 채로 중심을 뜬 경우를 한 번 알린다. 원인은 코드가 아니라 "그 순간의 카메라 컷"이라
+        // 화면만 봐서는 짐작하기 어렵다. 스크럽할 때마다 뜨면 소음이라 세션당 한 번만 낸다.
+        private void WarnCenterOffscreen(Camera cam, Vector3 viewport, string reason)
+        {
+            if (warnedOffscreen) return;
+            warnedOffscreen = true;
+
+            Debug.LogWarning($"{name}: 폭발 중심이 {reason}(뷰포트 {viewport.x:0.00}, {viewport.y:0.00}, z {viewport.z:0.0})라 " +
+                             $"화면 가장자리로 당겨 씁니다 — 카메라 '{cam.name}'. 불이 폭발 자리에서 자라게 하려면 " +
+                             "커튼 클립 시작 시점의 카메라 컷에 폭발 지점(Explosion Center)이 보이도록 클립이나 컷을 옮기세요.", this);
         }
 
         private void SetCenter(Vector2 viewport)
@@ -474,11 +644,13 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 렉트 크기와, 중심에서 가장 먼 모서리까지의 거리를 셰이더에 넣는다.
+        /// 렉트 크기와, 덮임·걷힘 각 중심에서 가장 먼 모서리까지의 거리를 셰이더에 넣는다.
         /// </summary>
         /// <remarks>
         /// 이 거리로 반지름을 정규화하기 때문에 진행값 1이 곧 "화면 끝까지"가 된다.
         /// 중심이 화면 구석이면 반대편 모서리가 훨씬 머니, 고정값을 쓰면 덜 덮이거나 덜 걷힌다.
+        /// 덮임(폭발 자리)과 걷힘(기본은 커튼 정중앙)은 중심이 달라 거리도 따로 잰다 — 하나로 쓰면
+        /// 중앙에서 뚫리는 걷힘이 폭발 자리 기준 거리로 정규화돼 1에 닿기 전에 끝나거나 너무 늦게 끝난다.
         /// 해상도 변경에도 따라가야 해서 매 프레임 갱신한다(값 세팅뿐이라 비용은 무시할 수준).
         /// </remarks>
         private void UpdateGeometry()
@@ -490,16 +662,25 @@ namespace ProjectS.UI
             float w = Mathf.Max(1f, rect.width);
             float h = Mathf.Max(1f, rect.height);
 
-            // 중심에서 네 모서리까지 중 가장 먼 거리. 중심이 한쪽으로 치우칠수록 커진다.
-            float dx = Mathf.Max(center.x, 1f - center.x) * w;
-            float dy = Mathf.Max(center.y, 1f - center.y) * h;
-
             rectSize = new Vector2(w, h);
-            maxRadius = Mathf.Sqrt(dx * dx + dy * dy);
+            maxRadius = FarthestCornerDistance(center, w, h);
+
+            burnCenter = burnCenterOverride ?? (burnFromCurtainCenter ? new Vector2(0.5f, 0.5f) : center);
+            burnMaxRadius = FarthestCornerDistance(burnCenter, w, h);
 
             material.SetVector(CenterID, new Vector4(center.x, center.y, 0f, 0f));
             material.SetVector(RectSizeID, new Vector4(w, h, 0f, 0f));
             material.SetFloat(MaxRadiusID, maxRadius);
+            material.SetVector(BurnCenterID, new Vector4(burnCenter.x, burnCenter.y, 0f, 0f));
+            material.SetFloat(BurnMaxRadiusID, burnMaxRadius);
+        }
+
+        // 중심에서 네 모서리까지 중 가장 먼 거리(px). 중심이 한쪽으로 치우칠수록 커진다.
+        private static float FarthestCornerDistance(Vector2 viewportCenter, float width, float height)
+        {
+            float dx = Mathf.Max(viewportCenter.x, 1f - viewportCenter.x) * width;
+            float dy = Mathf.Max(viewportCenter.y, 1f - viewportCenter.y) * height;
+            return Mathf.Sqrt(dx * dx + dy * dy);
         }
 
         /// <summary>머티리얼 인스턴스를 준비한다. 참조가 빠져 있으면 한 번 경고하고 조용히 물러난다.</summary>
@@ -532,6 +713,9 @@ namespace ProjectS.UI
             material.name = $"{name} (Instance)";
             material.hideFlags = HideFlags.DontSave;
 
+            // 에셋에서 복사한 모양 값을 컴포넌트 값으로 덮는다. 빌드에서는 여기서 한 번만 넣는다.
+            ApplyLook();
+
             if (self == null) self = (RectTransform)transform;
             UpdateGeometry();
             ApplyProgress(currentCover, currentBurn);
@@ -539,6 +723,43 @@ namespace ProjectS.UI
             // IMaterialModifier가 새 인스턴스를 돌려주도록 다시 그리게 한다.
             target.SetMaterialDirty();
             return true;
+        }
+
+        /// <summary>
+        /// <see cref="look"/>의 모양 값을 인스턴스 머티리얼에 넣는다. 에셋 복사(<c>SyncFromTemplate</c>) 뒤와
+        /// 인스턴스를 만든 직후에 부른다 — 에셋 값보다 컴포넌트 값이 이기게 하기 위함이다.
+        /// </summary>
+        private void ApplyLook()
+        {
+            if (material == null || look == null) return;
+
+            material.SetColor(TintID, look.tint);
+            material.SetFloat(BaseStrengthID, look.baseStrength);
+
+            material.SetColor(SmokeColorID, look.smokeColor);
+            material.SetColor(FireColorID, look.fireColor);
+            material.SetColor(HotColorID, look.hotColor);
+            material.SetColor(WhiteHotID, look.whiteHot);
+            material.SetColor(SootColorID, look.sootColor);
+
+            material.SetFloat(NoiseScaleID, look.noiseScale);
+            material.SetFloat(RidgeID, look.ridge);
+            material.SetFloat(BoilID, look.boil);
+            material.SetFloat(RiseSpeedID, look.riseSpeed);
+            material.SetFloat(RadialStretchID, look.radialStretch);
+            material.SetFloat(SwirlSpeedID, look.swirlSpeed);
+
+            material.SetFloat(ContrastID, look.contrast);
+            material.SetFloat(GammaID, look.gamma);
+            material.SetFloat(CoreBoostID, look.coreBoost);
+            material.SetFloat(FlickerID, look.flicker);
+
+            material.SetFloat(EdgeNoiseID, look.edgeNoise);
+            material.SetFloat(EdgeTongueID, look.edgeTongue);
+            material.SetFloat(EdgeSoftID, look.edgeSoftness);
+            material.SetFloat(EmberWidthID, look.emberWidth);
+            material.SetFloat(SootWidthID, look.sootWidth);
+            material.SetFloat(BurnSeedID, look.burnSeed);
         }
 
         private void WarnOnce(string message)
@@ -561,7 +782,7 @@ namespace ProjectS.UI
 
 #if UNITY_EDITOR
         /// <summary>
-        /// 머티리얼 에셋의 모양 값을 인스턴스로 다시 복사하고, 이 컴포넌트가 쥔 진행·중심 값을 다시 얹는다.
+        /// 머티리얼 에셋 값을 인스턴스로 다시 복사하고, 이 컴포넌트가 쥔 모양·진행·중심 값을 다시 얹는다.
         /// </summary>
         /// <remarks>
         /// 복사하면 <c>_Cover</c>·<c>_Burn</c> 같은 진행값까지 에셋 값(0)으로 덮이므로, 반드시 뒤에서 되돌려 넣는다.
@@ -569,9 +790,11 @@ namespace ProjectS.UI
         /// </remarks>
         private void SyncFromTemplate()
         {
-            if (material == null || curtainMaterial == null) return;
+            if (material == null) return;
 
-            material.CopyPropertiesFromMaterial(curtainMaterial);
+            // 에셋을 복사하면 모양 값까지 에셋 값으로 덮이므로, 복사 뒤에 컴포넌트 값을 반드시 다시 얹는다.
+            if (curtainMaterial != null) material.CopyPropertiesFromMaterial(curtainMaterial);
+            ApplyLook();
             UpdateGeometry();
             ApplyProgress(currentCover, currentBurn);
         }
@@ -610,9 +833,97 @@ namespace ProjectS.UI
 
         private void OnValidate()
         {
+            // 이 필드가 생기기 전에 저장된 컴포넌트면, 머티리얼 에셋에 튜닝해 둔 값을 한 번 옮겨 온다.
+            if (!lookImported)
+            {
+                lookImported = true;
+                if (curtainMaterial != null)
+                {
+                    ImportLookFromMaterial(curtainMaterial);
+
+                    // OnValidate 안에서 바꾼 값은 수정됨으로 표시되지 않아 저장 때 빠질 수 있다. 다음 틱에 표시한다.
+                    UnityEditor.EditorApplication.delayCall += () =>
+                    {
+                        if (this != null) UnityEditor.EditorUtility.SetDirty(this);
+                    };
+                }
+            }
+
+            // 슬라이더를 움직이는 즉시 인스턴스에 넣는다(재생 중에는 Update의 동기화가 이어받는다).
+            if (material != null) ApplyLook();
+
             // 인스펙터에서 미리보기를 켜거나 값을 바꾸면 곧바로 다시 그리게 한다.
             if (!Application.isPlaying) UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
         }
+
+        /// <summary>
+        /// 새로 붙인 컴포넌트는 옮겨 올 옛 값이 없다. 머티리얼이 이미 꽂혀 있으면 그 값에서 시작하고, 아니면 셰이더 기본값이다.
+        /// </summary>
+        private void Reset()
+        {
+            lookImported = true;
+            if (curtainMaterial != null) ImportLookFromMaterial(curtainMaterial);
+        }
+
+        /// <summary>
+        /// 머티리얼 에셋에 조정된 모양 값을 컴포넌트로 가져온다. 인스펙터의 컴포넌트 메뉴(⋮)에서 부른다.
+        /// 에셋 쪽에서 맞춰 둔 값을 되살리고 싶을 때 쓴다 — 컴포넌트에서 바꾼 값은 덮어쓴다.
+        /// </summary>
+        [ContextMenu("머티리얼 에셋에서 불 모양 값 가져오기")]
+        private void ImportLookFromMaterialMenu()
+        {
+            if (curtainMaterial == null)
+            {
+                Debug.LogWarning($"{name}: 머티리얼 에셋이 비어 가져올 값이 없습니다.", this);
+                return;
+            }
+
+            UnityEditor.Undo.RecordObject(this, "불 모양 값 가져오기");
+            ImportLookFromMaterial(curtainMaterial);
+            UnityEditor.EditorUtility.SetDirty(this);
+            if (material != null) ApplyLook();
+        }
+
+        /// <summary>머티리얼의 모양 값을 <see cref="look"/>에 옮긴다. 셰이더에 없는 값은 건너뛴다(필드 값 유지).</summary>
+        /// <param name="source">값을 읽을 머티리얼.</param>
+        private void ImportLookFromMaterial(Material source)
+        {
+            look ??= new CurtainLook();
+
+            look.tint = ReadColor(source, TintID, look.tint);
+            look.baseStrength = ReadFloat(source, BaseStrengthID, look.baseStrength);
+
+            look.smokeColor = ReadColor(source, SmokeColorID, look.smokeColor);
+            look.fireColor = ReadColor(source, FireColorID, look.fireColor);
+            look.hotColor = ReadColor(source, HotColorID, look.hotColor);
+            look.whiteHot = ReadColor(source, WhiteHotID, look.whiteHot);
+            look.sootColor = ReadColor(source, SootColorID, look.sootColor);
+
+            look.noiseScale = ReadFloat(source, NoiseScaleID, look.noiseScale);
+            look.ridge = ReadFloat(source, RidgeID, look.ridge);
+            look.boil = ReadFloat(source, BoilID, look.boil);
+            look.riseSpeed = ReadFloat(source, RiseSpeedID, look.riseSpeed);
+            look.radialStretch = ReadFloat(source, RadialStretchID, look.radialStretch);
+            look.swirlSpeed = ReadFloat(source, SwirlSpeedID, look.swirlSpeed);
+
+            look.contrast = ReadFloat(source, ContrastID, look.contrast);
+            look.gamma = ReadFloat(source, GammaID, look.gamma);
+            look.coreBoost = ReadFloat(source, CoreBoostID, look.coreBoost);
+            look.flicker = ReadFloat(source, FlickerID, look.flicker);
+
+            look.edgeNoise = ReadFloat(source, EdgeNoiseID, look.edgeNoise);
+            look.edgeTongue = ReadFloat(source, EdgeTongueID, look.edgeTongue);
+            look.edgeSoftness = ReadFloat(source, EdgeSoftID, look.edgeSoftness);
+            look.emberWidth = ReadFloat(source, EmberWidthID, look.emberWidth);
+            look.sootWidth = ReadFloat(source, SootWidthID, look.sootWidth);
+            look.burnSeed = ReadFloat(source, BurnSeedID, look.burnSeed);
+        }
+
+        private static float ReadFloat(Material source, int id, float fallback)
+            => source.HasProperty(id) ? source.GetFloat(id) : fallback;
+
+        private static Color ReadColor(Material source, int id, Color fallback)
+            => source.HasProperty(id) ? source.GetColor(id) : fallback;
 #endif
     }
 }

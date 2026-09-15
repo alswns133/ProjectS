@@ -8,6 +8,7 @@
 //
 // 부서짐은 세 겹이다.
 //   · 셀       : 화면을 잘게 나눈 사각 격자. 살아남은 셀만 그려 '가루가 된' 인상을 만든다.
+//                가로 비율(_CellAspect)을 키우면 가로로 긴 조각이 되어 '깨진 그래픽(디지털 신호 손상)'으로 읽힌다.
 //   · 슬라이스 : 가로로 긴 띠. 띠 단위로 좌우로 밀려 '신호가 어긋난' 인상을 만든다.
 //   · 고스트   : 글자 사본을 좌우로 밀어 빨강/시안으로 얹는 색수차(아래 설명).
 //   글리치가 0으로 가면 셋 다 잦아들고 온전한 글자만 남는다.
@@ -32,6 +33,7 @@
 //
 // 한계: TMP의 외곽선·언더레이·마스킹(_ClipRect)은 지원하지 않는다. 면(face)만 그린다.
 // (2026-09-02 TH: 슬라이스 · 고스트 Pass 추가)
+// (2026-09-14 TH: 셀 가로 비율 _CellAspect · 행별 폭 흔들림 _RowWidthJitter 추가 — 기본값이면 기존 머티리얼은 그대로)
 Shader "ProjectS/UI Glitch Text"
 {
     Properties
@@ -44,7 +46,15 @@ Shader "ProjectS/UI Glitch Text"
         _Glitch ("Glitch", Range(0,1)) = 1
 
         // ── 파편(셀) ──────────────────────────────────────────────────────
-        _CellSize ("Cell Size (px)", Float) = 9          // 파편 한 조각의 크기. 작을수록 잘게 부서진다
+        _CellSize ("Cell Size (px)", Float) = 9          // 파편 한 조각의 크기(세로). 작을수록 잘게 부서진다
+        // 파편의 가로:세로 비율. 1이면 정사각형, 3이면 세로의 3배 길이로 가로로 긴 조각이 된다.
+        // 정사각 가루는 '먼지'로, 가로로 긴 조각은 '신호가 깨진 화면'으로 읽힌다.
+        // ★ 기본 1 — 이 셰이더를 쓰는 다른 머티리얼의 모양이 바뀌지 않게 한다. 켜는 것은 머티리얼마다 개별로.
+        _CellAspect ("Cell Aspect (W/H)", Range(0.25, 8)) = 1
+        // 행(가로 한 줄)마다 조각 폭을 랜덤하게 늘이고 줄인다. 0이면 모든 행이 같은 폭, 1이면 행마다 1/4배~4배.
+        // 폭이 같으면 조각 경계가 세로로 줄지어 격자가 티 나는데, 행마다 달라야 '찢어진 신호'로 읽힌다.
+        // 파편 재배치(_FlickerSpeed)마다 새로 뽑는다. ★ 기본 0 — 다른 머티리얼의 모양을 바꾸지 않는다.
+        _RowWidthJitter ("Row Width Jitter", Range(0, 1)) = 0
         _Scatter ("Scatter", Range(0,1)) = 0.85          // 글리치 1일 때 사라지는 셀의 비율
         _CellOffset ("Cell Offset", Float) = 0.006       // 살아남은 셀이 어긋나는 정도(아틀라스 UV)
 
@@ -139,6 +149,8 @@ Shader "ProjectS/UI Glitch Text"
 
         float _Glitch;
         float _CellSize;
+        float _CellAspect;
+        float _RowWidthJitter;
         float _Scatter;
         float _CellOffset;
         float _RgbSplit;
@@ -240,7 +252,21 @@ Shader "ProjectS/UI Glitch Text"
 
             // [셀] 파편 격자. 글자가 아니라 화면(로컬 좌표)에 격자를 깔아야, 여러 글자에 걸쳐
             // 같은 크기의 조각으로 부서진다. 글자마다 격자가 달라지면 크기가 들쭉날쭉해 보인다.
-            float2 cell = floor(i.local / max(1.0, _CellSize));
+            // 세로는 _CellSize, 가로는 그 _CellAspect배. 둘 다 1px 밑으로는 줄이지 않는다(0 나누기·흰 노이즈 방지).
+            float cellH = max(1.0, _CellSize);
+            float row = floor(i.local.y / cellH);
+
+            // 행마다 폭 배율을 뽑는다. 지수(4^±j)로 뽑아 늘어나는 쪽과 줄어드는 쪽이 같은 비중이 되고, 폭이 0이 되지 않는다.
+            // 시간 계단(t)을 섞어 파편 재배치 때마다 행 폭도 새로 뽑힌다.
+            float rRow = hash21(float2(row * 5.17, t * 0.73) + seed);
+            float widthScale = pow(4.0, (rRow * 2.0 - 1.0) * _RowWidthJitter);
+            float cellW = max(1.0, _CellSize * max(0.01, _CellAspect) * widthScale);
+
+            // 행마다 격자 시작점도 어긋낸다. 폭만 바꾸면 모든 행이 x=0에서 시작해 왼쪽 경계가 세로로 줄지어 보인다.
+            // 흔들림이 0이면 기존 격자와 똑같이 두기 위해 어긋남도 끈다(다른 머티리얼 모양 보존).
+            float rowPhase = (_RowWidthJitter > 0.0001) ? hash21(float2(row * 9.41, t * 0.29) + seed) * cellW : 0.0;
+
+            float2 cell = float2(floor((i.local.x + rowPhase) / cellW), row);
 
             float rAlive = hash21(cell + t * 0.137 + seed);
             float rOffX  = hash21(cell * 1.7 + t * 0.311 + seed);

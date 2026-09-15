@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -114,6 +114,24 @@ namespace ProjectS.UI
 
             routine = StartCoroutine(PlayRoutine());
             yield return routine;
+        }
+
+        /// <summary>전부 타 없어지는 데 걸리는 시간(초). 시간을 밖에서 쥐는 호출부가 구간 길이로 쓴다.</summary>
+        public float Duration => duration;
+
+        /// <summary>
+        /// 탄 정도를 진행도로 직접 지정한다. <see cref="Play"/>처럼 제 시간으로 흘러가지 않으므로,
+        /// Timeline 클립처럼 시간을 밖에서 쥐는 호출부(스크럽·되감기)가 쓴다.
+        /// </summary>
+        /// <param name="normalizedTime">타들어감 구간 안의 진행도(0~1). 범위를 벗어나면 잘라 쓴다.</param>
+        public void SetProgress(float normalizedTime)
+        {
+            if (!Prepare()) return;
+            WarnIfCurveMisconfigured();
+
+            // 곡선이 잘못 잡혀도 범위를 벗어난 값이 셰이더로 새어 나가지 않게 막는다.
+            float burn = Mathf.Clamp01(burnCurve.Evaluate(Mathf.Clamp01(normalizedTime)));
+            foreach (Material material in materials) material.SetFloat(DissolveID, burn);
         }
 
         /// <summary>탄 상태를 원래대로 되돌린다. 재생 전에 반드시 거쳐야 다음 판이 정상으로 시작한다.</summary>

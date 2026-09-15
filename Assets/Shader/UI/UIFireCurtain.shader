@@ -45,6 +45,9 @@ Shader "ProjectS/UI Fire Curtain"
         [HideInInspector] _Center ("Center (viewport 0~1)", Vector) = (0.5, 0.5, 0, 0)
         [HideInInspector] _RectSize ("Rect Size (px)", Vector) = (1920, 1080, 0, 0)
         [HideInInspector] _MaxRadius ("Max Radius (px)", Float) = 1100   // 중심에서 가장 먼 모서리까지
+        // 걷힘 경계만 따로 쓰는 중심. 덮임은 폭발 자리에서, 걷힘은 커튼 중앙에서 뚫리게 하기 위함이다.
+        [HideInInspector] _BurnCenter ("Burn Center (viewport 0~1)", Vector) = (0.5, 0.5, 0, 0)
+        [HideInInspector] _BurnMaxRadius ("Burn Max Radius (px)", Float) = 1100
 
         // ── 색 램프: 차가운 쪽부터 뜨거운 쪽까지 ─────────────────────────
         _SmokeColor ("Smoke (coldest)", Color) = (0.09, 0.045, 0.035, 1)  // 불꽃 사이의 어두운 연기
@@ -148,6 +151,8 @@ Shader "ProjectS/UI Fire Curtain"
             float4 _Center;
             float4 _RectSize;
             float _MaxRadius;
+            float4 _BurnCenter;
+            float _BurnMaxRadius;
 
             float _NoiseScale;
             float _Ridge;
@@ -276,9 +281,14 @@ Shader "ProjectS/UI Fire Curtain"
                 // 대기 중에도 깜박이는 것을 막는다.
                 filled *= step(0.0001, _Cover);
 
-                // 걷힘: 같은 중심이되 시드를 어긋내 역재생으로 보이지 않게 한다.
-                float burnTongue = flameFbm(p * _EdgeTongue + _BurnSeed, t * 1.6) - 0.5;
-                float burnField = r + burnTongue * _EdgeNoise;
+                // 걷힘: 덮임과 중심을 따로 둔다(_BurnCenter). 불의 결은 폭발 중심 좌표(p, r)에서 그대로 뜨고
+                // 뚫리는 경계만 옮기므로, 걷힘이 시작돼도 이글거리는 무늬가 튀지 않는다.
+                // 시드를 어긋내 덮임의 역재생으로 보이지 않게 한다.
+                float2 burnD = i.local - (_BurnCenter.xy - 0.5) * _RectSize.xy;
+                float2 burnP = burnD / max(1.0, _RectSize.y);
+                float burnR = length(burnD) / max(1.0, _BurnMaxRadius);
+                float burnTongue = flameFbm(burnP * _EdgeTongue + _BurnSeed, t * 1.6) - 0.5;
+                float burnField = burnR + burnTongue * _EdgeNoise;
                 float burned = 1.0 - smoothstep(_Burn - _EdgeSoft, _Burn + _EdgeSoft, burnField);
 
                 float alpha = saturate(filled * (1.0 - burned));
