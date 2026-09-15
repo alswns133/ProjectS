@@ -2539,6 +2539,55 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4136167610539933175, guid: 3f6dc9a05b4f3ff49bdfa03736ccbbb5, type: 3}
   m_PrefabInstance: {fileID: 739785957}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &761723760
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 761723762}
+  - component: {fileID: 761723761}
+  m_Layer: 0
+  m_Name: ProjectileImpactSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &761723761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 761723760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 893567648bc18ad48bcfe235fee627aa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.ProjectileImpactSpawner
+  prewarm:
+  - prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    count: 0
+  - prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    count: 0
+--- !u!4 &761723762
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 761723760}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &762317340
 GameObject:
   m_ObjectHideFlags: 0
@@ -3963,6 +4012,53 @@ Transform:
   - {fileID: 924557733}
   m_Father: {fileID: 613225494}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1189774345
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1189774347}
+  - component: {fileID: 1189774346}
+  m_Layer: 0
+  m_Name: RapidFire
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1189774346
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1189774345}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 146caf6d0b75e694288780fa42690b54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.ProjectileSpawner
+  prewarm:
+  - prefab: {fileID: 8203456545268061989, guid: 03949b5a7864840479907aa726724056, type: 3}
+    count: 1
+--- !u!4 &1189774347
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1189774345}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
 --- !u!1 &1261617721
 GameObject:
   m_ObjectHideFlags: 0
@@ -5163,7 +5259,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7321723494302105327, guid: af7013192679420439841cda59b5117e, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7514891926200369859, guid: af7013192679420439841cda59b5117e, type: 3}
       propertyPath: m_Layer
@@ -6476,21 +6572,9 @@ MonoBehaviour:
   defaultPrefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
   effects:
   - key: Attack1
-    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
   - key: Attack2
-    prefab: {fileID: 6708302881962103724, guid: 41ae6ff099e27684a99b1fd6d23941c7, type: 3}
-  - key: Attack3
-    prefab: {fileID: 6294996035555364578, guid: 6338021fcfb16ed4080f35e8a2419541, type: 3}
-  - key: Run_Attack
-    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
-  - key: Strong_Attack
-    prefab: {fileID: 7620426476709372169, guid: 7fb10e284ee039944a10e5ed898761a4, type: 3}
-  - key: Skill3_1
-    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
-  - key: Jump_Attack_1
-    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
-  - key: Jump_Attack_2
-    prefab: {fileID: -5827739164191890754, guid: ab80be6143d129b4682122a9768a151d, type: 3}
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
 --- !u!1 &1937823494
 GameObject:
   m_ObjectHideFlags: 0
@@ -7036,6 +7120,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 159788958574999851, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: projectileSpawner
+      value: 
+      objectReference: {fileID: 1189774346}
+    - target: {fileID: 159788958574999851, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
       propertyPath: attackHitBoxes.Array.data[0].area
       value: 
       objectReference: {fileID: 1771288755}
@@ -7095,81 +7183,13 @@ PrefabInstance:
       propertyPath: attackHitBoxes.Array.data[14].area
       value: 
       objectReference: {fileID: 512650315}
-    - target: {fileID: 270216282985847989, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 270216282985847989, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: EmissionModule.rateOverTime.scalar
-      value: 100000
-      objectReference: {fileID: 0}
-    - target: {fileID: 573497877543410074, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1102924043123592686, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1905273092722488237, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1905273092722488237, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: EmissionModule.rateOverTime.scalar
-      value: 100000
-      objectReference: {fileID: 0}
-    - target: {fileID: 1905273092722488237, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: EmissionModule.m_Bursts.Array.data[0].countCurve.scalar
-      value: 5
-      objectReference: {fileID: 0}
     - target: {fileID: 2450288825128707988, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
       propertyPath: m_Name
       value: Erwin
       objectReference: {fileID: 0}
-    - target: {fileID: 2962837796743065280, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3192840694987191696, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3274396445579290827, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5317488992574405894, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5342614332648066205, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6442557219319110936, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7688413250553988828, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7689352976052941057, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 8026367590852642256, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
       propertyPath: sceneId
       value: 3897579179
-      objectReference: {fileID: 0}
-    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: effects.Array.data[0].anchorToWorld
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: effects.Array.data[1].anchorToWorld
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
       propertyPath: m_LocalPosition.x
@@ -7209,10 +7229,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 9178405138400782787, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: moveWithTransform
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -12048,8 +12064,10 @@ SceneRoots:
   - {fileID: 1029200538}
   - {fileID: 1530003120}
   - {fileID: 1745252329}
+  - {fileID: 1189774347}
   - {fileID: 1119560218}
   - {fileID: 1607893021}
   - {fileID: 1901975243}
+  - {fileID: 761723762}
   - {fileID: 398305666}
   - {fileID: 1284891270}
