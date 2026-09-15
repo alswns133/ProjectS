@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 5439558300349192803}
   - component: {fileID: 5439558300349192805}
   - component: {fileID: 5439558300349192804}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Effect_04_ChargeLine
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -26,13 +26,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5439558300349192802}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.7071068, z: -0.7071068, w: 0}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: -0.7071068, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.3, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 8842589248633462262}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: -180}
 --- !u!198 &5439558300349192805
 ParticleSystem:
   m_ObjectHideFlags: 0
@@ -42,7 +43,7 @@ ParticleSystem:
   m_GameObject: {fileID: 5439558300349192802}
   serializedVersion: 8
   lengthInSec: 2
-  simulationSpeed: 1
+  simulationSpeed: 1.2
   stopAction: 0
   cullingMode: 0
   ringBufferMode: 0
@@ -50,7 +51,7 @@ ParticleSystem:
   emitterVelocityMode: 0
   looping: 0
   prewarm: 0
-  playOnAwake: 1
+  playOnAwake: 0
   useUnscaledTime: 0
   autoRandomSeed: 1
   startDelay:
@@ -116,7 +117,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.75
+      scalar: 1
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -287,7 +288,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1.5
+      scalar: 1
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -4852,7 +4853,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: bfe915b95b8c4da459b159adf3aa495d, type: 2}
+  - {fileID: 2100000, guid: 32283b5252d541c46940a0e1a215f2e5, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4906,3 +4907,81 @@ ParticleSystemRenderer:
   m_MeshWeighting1: 1
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
+--- !u!1001 &6210356466636953332
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 5439558300349192803}
+    m_Modifications:
+    - target: {fileID: 3213510057728559872, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: playOnAwake
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559872, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: startDelay.scalar
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 10.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559875, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f0f1d7e8a4cf90b45806c6cb4e975b29, type: 2}
+    - target: {fileID: 3213510057728559877, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_Name
+      value: Effect_04_ReleaseParticle
+      objectReference: {fileID: 0}
+    - target: {fileID: 3213510057728559877, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+--- !u!4 &8842589248633462262 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3213510057728559874, guid: 1ed9b1b1028b1b1499595f3fe1b63773, type: 3}
+  m_PrefabInstance: {fileID: 6210356466636953332}
+  m_PrefabAsset: {fileID: 0}
