@@ -4,6 +4,8 @@ using UnityEngine.SceneManagement;
 using ProjectS.Managers;
 using ProjectS.Scenes;
 using ProjectS.Players;
+using ProjectS.Enemies;
+using Unity.VisualScripting;
 
 namespace ProjectS.Networking
 {
@@ -31,6 +33,9 @@ namespace ProjectS.Networking
         /// <summary>이 프로젝트 타입으로 접근하기 위한 캐스팅 도우미(base의 singleton 재사용).</summary>
         public static GameNetworkManager Game => singleton as GameNetworkManager;
 
+        [Header("레이드 보스 프리팹")]
+        [SerializeField] private Boss[] raidBoss;
+
         // 필드 — 클라가 방금 additive로 들어간 던전 씬 이름(로드 후 마을을 가려낼 때 쓴다). 비면 던전 진입 아님.
         private string enteringDungeonScene;
 
@@ -52,6 +57,13 @@ namespace ProjectS.Networking
             foreach (var p in list)
             {
                 if (p == null) continue;              // ② 빈 슬롯 방어
+                spawnPrefabs.Add(p.gameObject);
+            }
+
+            if (raidBoss == null) return;
+            foreach(var p in raidBoss)
+            {
+                if(p == null) continue;
                 spawnPrefabs.Add(p.gameObject);
             }
 
@@ -122,17 +134,29 @@ namespace ProjectS.Networking
         /// 이 프로세스가 전용(headless) 서버로 떠야 하는가. Bootstrap도 이 값으로 클라 흐름
         /// (로그인·튜토리얼·클라 씬 로드)을 스킵할지 가른다.
         /// <para>
-        /// 판정: <b>Dedicated Server 빌드</b>는 컴파일 심볼 <c>UNITY_SERVER</c>가 켜지므로 항상 서버다
-        /// (실행 인자와 무관 — 이게 가장 견고한 신호). 그 외 일반 빌드/에디터는 <c>-batchmode</c>로 뜬
-        /// 경우에만 서버로 본다(전용 서버 빌드 없이 헤드리스 테스트할 때).
+        /// 판정 우선순위:
+        /// <list type="number">
+        /// <item><b>에디터는 항상 false</b> — 활성 빌드 타깃이 Dedicated Server(<c>UNITY_SERVER</c>)여도
+        ///   에디터 Play는 서버로 뜨지 않는다. 에디터는 호스트/클라로 반복 테스트하는 곳이고(보스 등 서버
+        ///   권위 로직은 에디터 Host=서버+클라로 확인), 실제 전용 서버는 빌드로만 띄운다.</item>
+        /// <item><b>Dedicated Server 빌드</b>(<c>UNITY_SERVER</c>) = 항상 서버(실행 인자 무관).</item>
+        /// <item>그 외 일반 빌드는 <c>-batchmode</c>로 뜬 경우에만 서버(전용 빌드 없이 헤드리스 테스트).</item>
+        /// </list>
         /// </para>
         /// </summary>
-        public static bool IsServerMode =>
-#if UNITY_SERVER
-            true;
+        public static bool IsServerMode
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return false;
+#elif UNITY_SERVER
+                return true;
 #else
-            Application.isBatchMode;
+                return Application.isBatchMode;
 #endif
+            }
+        }
 
         // ── 클라: 마을 진입 시 접속 ──────────────────────────────────
 
