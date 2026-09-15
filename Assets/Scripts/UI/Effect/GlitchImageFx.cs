@@ -44,6 +44,9 @@ namespace ProjectS.UI
         private float nextSpike;
         private float spikeRemain;
 
+        // 밖에서 준 글리치 바닥값. 평상시·튐 값이 이보다 약하면 이 값이 쓰인다(SetDrive).
+        private float drive;
+
         private static readonly int GlitchId = Shader.PropertyToID("_Glitch");
 
         private void Awake()
@@ -105,6 +108,21 @@ namespace ProjectS.UI
             ScheduleNextSpike();
         }
 
+        /// <summary>
+        /// 글리치 세기의 바닥값을 정한다. 보스 등장 연출처럼 밖에서 "점점 거세지는" 흐름을 줄 때 매 프레임 부른다.
+        /// 0이면 바닥값이 없어져 평상시·튐 리듬만 남는다.
+        /// </summary>
+        /// <param name="value">바닥값(0~1).</param>
+        /// <remarks>
+        /// 값을 덮어쓰지 않고 바닥으로만 쓰는 이유는, 이 컴포넌트가 스스로 굴리는 튐(<see cref="Pulse"/>)을 살려 두기 위함이다.
+        /// 덮어쓰면 고조되는 동안 깜박임에 맞춘 지지직이 사라져 단조롭게 커지기만 한다.
+        /// </remarks>
+        public void SetDrive(float value)
+        {
+            drive = Mathf.Clamp01(value);
+            Apply(spikeRemain > 0f ? spikeGlitch : idleGlitch);
+        }
+
         private void ScheduleNextSpike()
         {
             float max = Mathf.Max(spikeIntervalMin, spikeIntervalMax);
@@ -113,7 +131,7 @@ namespace ProjectS.UI
 
         private void Apply(float value)
         {
-            if (instanced != null) instanced.SetFloat(GlitchId, value);
+            if (instanced != null) instanced.SetFloat(GlitchId, Mathf.Max(value, drive));
         }
     }
 }
