@@ -1,6 +1,8 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using ProjectS.Managers;
+using ProjectS.Networking;
 using ProjectS.UI;
 using ProjectS.Core;
 
@@ -60,7 +62,8 @@ namespace ProjectS.Scenes
             //    이 시점엔 게임 카메라(플레이어 프리팹 안, 부트스트랩에선 비활성)가 아직 없어,
             //    안 가리면 카메라 기본 배경(파란색)이 데이터 로딩~첫 씬 활성화 사이에 노출된다.
             //    씬 전환(GameSceneManager)에서도 ShowLoading을 다시 부르지만, 그 전 구간까지 앞당겨 덮는다.
-            UIManager.Instance.ShowLoading();
+            //    ★ 전용 서버는 렌더링/클라 UI가 없으므로 로딩 화면을 띄우지 않는다.
+            if (!GameNetworkManager.IsServerMode) UIManager.Instance.ShowLoading();
 
             // 1) 매니저들이 Awake에서 초기화를 '시작'할 시간을 줌
             //    (JsonManager.Awake가 ReadyTask 발사)
@@ -69,6 +72,17 @@ namespace ProjectS.Scenes
             await JsonManager.Instance.ReadyTask;
             RequsetScene();
             SetupMinimap();   // 씬 전환 전에 미니맵 데이터를 등록소에 채워 둔다
+
+            // 전용 서버: 로그인·튜토리얼·클라 UI/씬 흐름을 타지 않는다. 데이터가 준비된 이 시점에
+            // 마을 월드만 서버용으로 로드한다(B안 — Mirror ServerChangeScene 아님; 클라는 GameSceneManager로 독립 씬관리).
+            // 접속·연결별 플레이어(ChatManager) 스폰은 GameNetworkManager가 담당하고, StartServer는 이미 완료됐다.
+            // 씬 파일명은 씬 클래스명과 같아야 한다("VillageGather") — RequestSceneChange<VillageGather>와 동일 규약.
+            if (GameNetworkManager.IsServerMode)
+            {
+                SceneManager.LoadSceneAsync(nameof(VillageGather), LoadSceneMode.Single);
+                return;
+            }
+
             print(Application.persistentDataPath);  // 로컬 장소
             print(Application.dataPath);            // Asset 폴더
             print(Application.streamingAssetsPath);
