@@ -28,6 +28,13 @@ namespace ProjectS.Players
         /// <summary>현재 누적 히트 수. 0이면 콤보 없음.</summary>
         public int HitCount { get; private set; }
 
+        /// <summary>
+        /// 콤보가 끊기기까지 남은 시간 비율(1 = 방금 적중, 0 = 곧 리셋 또는 콤보 없음).
+        /// HUD 유지 게이지가 매 프레임 읽는다. 연속 값이라 이벤트로 매 프레임 쏘지 않고 읽어가게 둔다.
+        /// </summary>
+        public float RemainingRatio
+            => HitCount > 0 && comboResetDelay > 0f ? 1f - Mathf.Clamp01(decayTimer / comboResetDelay) : 0f;
+
         private void Update()
         {
             // 카운트가 없으면 타이머를 굴리지 않는다(불필요한 감쇠 계산 방지).

@@ -87,7 +87,7 @@ namespace ProjectS.Debugging
 
         /// <summary>
         /// 보스 등장 연출을 처음부터 재생한다.
-        /// 경고 배너 → 위험 표시 깜박임 → 파편 파괴 → BOSS 슬램까지 한 번에 이어진다.
+        /// 경고 배너 → 위험 표시 깜박임·고조 → 일그러짐 → BOSS 텍스트 등장까지 한 번에 이어진다.
         /// </summary>
         [ContextMenu("5. 보스 등장 연출")]
         public void ShowBossIntro()
