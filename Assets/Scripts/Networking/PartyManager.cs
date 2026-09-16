@@ -1,4 +1,5 @@
 ﻿using Mirror;
+using ProjectS.Enemies;
 using ProjectS.Events;
 using ProjectS.Players;
 using ProjectS.Scenes;
@@ -51,6 +52,9 @@ namespace ProjectS.Networking
         }
 
         [SerializeField] private CharacterRoster roster;
+
+        [Tooltip("레이드 보스(서버 권위 스폰). GameNetworkManager.raidBoss에 등록된 프리팹과 같은 것이어야 한다.")]
+        [SerializeField] private Boss raidBossPrefab;
 
         // 보류 초대: 대상 netId → 보류 초대. "이 사람은 지금 누구의(어느 던전으로의) 초대를 받고 있나"를 서버가 기억한다.
         // 1인당 1건만 보류(2인 파티라 동시에 여러 초대를 받을 이유가 적다).
@@ -521,6 +525,44 @@ namespace ProjectS.Networking
                 SceneManager.MoveGameObjectToScene(avatar, instance);
                 NetworkServer.Spawn(avatar, conn);
                 i++;
+            }
+
+            // ── 보스 스폰(서버 권위, b안: 기존 EnemyRoom 스폰포인트 재사용) ──
+            // 인스턴스 씬에서 IsEndBoss 스폰포인트를 찾아 그 위치에 네트워크 보스 프리팹을 서버가 직접 스폰한다.
+            // (그 포인트의 EnemyRef=addressable 로컬 보스는 무시 — 레이드 보스는 등록된 네트워크 프리팹.)
+            // NetworkServer.Spawn을 conn 없이 부르면 소유권 없는 서버 소유 오브젝트가 된다(= 서버 권위).
+            if (raidBossPrefab == null)
+            {
+                Debug.LogWarning("[진단][Boss] raidBossPrefab 미할당 → 보스 스폰 스킵. PartyManager 인스펙터에 보스 프리팹을 할당하라.", this);
+            }
+            else
+            {
+                Vector3 bossPos = basePos;      // 스폰포인트 못 찾으면 플레이어 스폰 근처로 폴백
+                Quaternion bossRot = baseRot;
+                bool found = false;
+
+                foreach (GameObject root in instance.GetRootGameObjects())
+                {
+                    EnemySpawnPoint bossPoint = null;
+                    foreach (EnemySpawnPoint sp in root.GetComponentsInChildren<EnemySpawnPoint>())
+                        if (sp != null && sp.IsEndBoss) { bossPoint = sp; break; }
+
+                    if (bossPoint != null)
+                    {
+                        bossPos = bossPoint.Position;
+                        bossRot = bossPoint.Rotation;
+                        found = true;
+                        break;
+                    }
+                }
+
+                Debug.Log($"[진단][Boss] 스폰 시도 — prefab='{raidBossPrefab.name}', IsEndBoss포인트={(found ? "찾음" : "없음→플레이어스폰 폴백")}, pos={bossPos}", this);
+
+                GameObject boss = Instantiate(raidBossPrefab.gameObject, bossPos, bossRot);
+                SceneManager.MoveGameObjectToScene(boss, instance);
+                NetworkServer.Spawn(boss);
+
+                Debug.Log($"[진단][Boss] NetworkServer.Spawn 호출됨 — netId={boss.GetComponent<NetworkIdentity>()?.netId}", this);
             }
         }
 

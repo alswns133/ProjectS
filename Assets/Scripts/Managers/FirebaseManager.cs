@@ -8,6 +8,7 @@ using Firebase.Database;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using ProjectS.Data;
+using ProjectS.Networking;
 
 namespace ProjectS.Managers
 {
@@ -105,6 +106,11 @@ namespace ProjectS.Managers
         // async void는 Unity 진입점(Start)에서만 예외적으로 허용한다.
         private async void Start()
         {
+            // 전용 서버는 Firebase(로그인·세이브 = "누가/어느 캐릭터" 정하는 클라 관심사)를 초기화하지 않는다.
+            // 서버는 연결 단위로만 플레이어를 알고, 세이브는 클라가 자기 것을 읽고 쓴다(현 모델). 서버에서
+            // 이걸 돌리면 헤드리스에 불필요한 Firebase 네이티브·인증이 붙는다.
+            if (GameNetworkManager.IsServerMode) return;
+
             await InitializeFirebaseAsync();
         }
 

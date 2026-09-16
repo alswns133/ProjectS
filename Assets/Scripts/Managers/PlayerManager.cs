@@ -2,6 +2,7 @@
 using ProjectS.Effects;
 using ProjectS.Players;
 using ProjectS.Scenes;
+using ProjectS.Networking;
 
 namespace ProjectS.Managers
 {
@@ -64,6 +65,11 @@ namespace ProjectS.Managers
         // 비활성 상태로 두는 이유: 스폰 전까지 중력으로 떨어지거나 입력/AI 표적이 되는 것을 막기 위함.
         private void EnsurePlayer()
         {
+            // 전용 서버는 보이는(로컬) 플레이어가 필요 없다 — 네트워크 플레이어는 연결별 ChatManager이고,
+            // 레이드 아바타는 서버가 별도로 스폰한다(A안). 서버에서 Haru 프리팹(Animator·카메라리그·이펙트)을
+            // 생성하는 것 자체가 낭비라 만들지 않는다. (server-reachable 코드는 Player null을 방어함.)
+            if (GameNetworkManager.IsServerMode) return;
+
             if (Player != null) return;
 
             Player existing = FindAnyObjectByType<Player>();
