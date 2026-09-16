@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using ProjectS.Networking;
 using ProjectS.Enemies;
 using ProjectS.Events;
 using ProjectS.Managers;
@@ -133,6 +134,13 @@ namespace ProjectS.Scenes
         /// </summary>
         protected virtual void SetupSpawning()
         {
+            // ★ "파티로 동시입장한 네트워크 레이드"에서만 로컬 스폰을 막는다. 그때는 서버가
+            //   보스를 스폰해 Mirror로 복제하므로, 클라가 로컬로도 스폰하면 "로컬 보스 + 서버 보스"가 겹친다.
+            //   기준은 접속 여부(NetworkClient.active)가 아니라 파티 소속(PartyId!=0)이다 —
+            //   에디터는 항상 Host라 접속으로 가르면 '솔로 레이드'까지 스킵돼 보스가 아예 안 뜬다.
+            //   솔로(무소속)·비네트워크 레이드는 서버 스폰이 없으니 기존대로 EnemySpawner가 로컬 스폰한다.
+            if (PlayerPresence.Local != null && PlayerPresence.Local.PartyId != 0) return;
+
             enemySpawner = FindAnyObjectByType<EnemySpawner>();
             rooms = FindObjectsByType<EnemyRoom>(FindObjectsSortMode.None);
 

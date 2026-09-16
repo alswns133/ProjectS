@@ -61,7 +61,9 @@ namespace ProjectS.Players
 
         [Header("네트워크 콤보 재생")]
         [Tooltip("콤보 타수별 Animator State 이름. 인덱스0=1타. Player_Dungeon의 실제 State명과 일치(언더바!).")]
-        [SerializeField] private string[] attackStateNames = { "Attack_1", "Attack_2", "Attack_3" };
+        // ★ 콤보 State는 'Attack' 서브머신 안에 있어, 짧은 이름이 아니라 '서브머신.State' 풀 경로여야
+        //   CrossFade가 비-기본 State(Attack_2/3)까지 해석한다. 짧은 이름은 서브머신 기본(Attack_1)만 잡힌다.
+        [SerializeField] private string[] attackStateNames = { "Attack.Attack_1", "Attack.Attack_2", "Attack.Attack_3" };
         [SerializeField] private float attackCrossFade = 0.05f;
 
         private int[] attackStateHashes;
@@ -406,12 +408,7 @@ namespace ProjectS.Players
         public void PlayAttackStepNetworked(int step)
         {
             int i = step - 1;
-            if (attackStateHashes == null || i < 0 || i >= attackStateHashes.Length)
-            {
-                Debug.Log($"[진단][Combo] PlayAttackStepNetworked step={step} → 범위밖(무시). len={attackStateHashes?.Length}");
-                return;
-            }
-            Debug.Log($"[진단][Combo] PlayAttackStepNetworked step={step} → CrossFade '{attackStateNames[i]}'");
+            if (attackStateHashes == null || i < 0 || i >= attackStateHashes.Length) return;
             animator.CrossFadeInFixedTime(attackStateHashes[i], attackCrossFade);
         }
     }

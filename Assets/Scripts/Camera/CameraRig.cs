@@ -124,6 +124,18 @@ namespace ProjectS.Cameras
         }
 
         /// <summary>
+        /// 레이드 줌아웃 한계를 직접 적용한다. 네트워크 아바타의 CameraRig는 씬 진입보다 <b>늦게</b> 스폰돼
+        /// GameSceneManager가 씬 진입 시 1회 부르는 <see cref="SetZoomOutDistance"/>를 못 받는다
+        /// (그 시점엔 아바타가 아직 없음) → 프리팹 기본 max(10) 그대로 남는다. 레이드 전용 아바타이므로
+        /// 소유 아바타 스폰 시 OwnerGate가 이 메서드로 레이드 한계를 직접 건다.
+        /// </summary>
+        public void ApplyRaidZoomOut()
+        {
+            maxDistance = raidMaxDistance;
+            distance = Mathf.Min(distance, maxDistance);
+        }
+
+        /// <summary>
         /// 연출용으로 카메라 중심(Follow 지점)을 옮긴다. 궤도 회전은 이 지점을 축으로 돈다.
         /// </summary>
         /// <param name="offset">

@@ -42,6 +42,11 @@ public class OwnerGate : NetworkBehaviour
             //   던전 전환은 RaidGather가 '숨겨진 로컬 플레이어'에게만 걸었으므로, 조종할 이 아바타에 직접 건다.
             GetComponentInChildren<Player>(true)?.EnterDungeon();
 
+            // ★ 이 아바타의 CameraRig는 씬 진입보다 늦게 스폰돼 GameSceneManager의 레이드 줌아웃 적용
+            //   (SetZoomOutDistance, 씬 진입 시 1회)을 못 받는다 → 기본 max(10) 그대로. 레이드 전용
+            //   아바타이므로 여기서 레이드 줌아웃(20)을 직접 건다.
+            GetComponentInChildren<CameraRig>(true)?.ApplyRaidZoomOut();
+
             Debug.Log($"[진단][OwnerGate] OWNED 컨트롤러={GetComponentInChildren<Animator>(true)?.runtimeAnimatorController?.name}");
 
             return;
