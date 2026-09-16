@@ -214,6 +214,16 @@ Transform:
   m_Children: []
   m_Father: {fileID: 928413162}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!198 &44067200 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 5910818693102827106, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+  m_PrefabInstance: {fileID: 1843125960543401252}
+  m_PrefabAsset: {fileID: 0}
+--- !u!198 &52503595 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 7688413250553988828, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+  m_PrefabInstance: {fileID: 1843125960543401252}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &58867019
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2573,6 +2583,8 @@ MonoBehaviour:
     count: 0
   - prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
     count: 0
+  - prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    count: 0
 --- !u!4 &761723762
 Transform:
   m_ObjectHideFlags: 0
@@ -3442,6 +3454,11 @@ Transform:
   - {fileID: 492043103}
   m_Father: {fileID: 928413162}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!198 &1026035645 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 3661635702372676674, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+  m_PrefabInstance: {fileID: 1843125960543401252}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1026038492
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4043,7 +4060,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.ProjectileSpawner
   prewarm:
   - prefab: {fileID: 8203456545268061989, guid: 03949b5a7864840479907aa726724056, type: 3}
-    count: 1
+    count: 10
+  - prefab: {fileID: 8203456545268061989, guid: 03949b5a7864840479907aa726724056, type: 3}
+    count: 10
+  - prefab: {fileID: 8203456545268061989, guid: 03949b5a7864840479907aa726724056, type: 3}
+    count: 10
 --- !u!4 &1189774347
 Transform:
   m_ObjectHideFlags: 0
@@ -6569,12 +6590,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectSpawner
   prewarm: []
   source: 0
-  defaultPrefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+  defaultPrefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
   effects:
-  - key: Attack1
-    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
-  - key: Attack2
-    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+  - key: Attack3
+    prefab: {fileID: 9180208090679346414, guid: cf5fbacd839a42d47a75366699a62f77, type: 3}
 --- !u!1 &1937823494
 GameObject:
   m_ObjectHideFlags: 0
@@ -7187,9 +7206,49 @@ PrefabInstance:
       propertyPath: m_Name
       value: Erwin
       objectReference: {fileID: 0}
-    - target: {fileID: 8026367590852642256, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
-      propertyPath: sceneId
-      value: 3897579179
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[0].key
+      value: Attack1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[1].key
+      value: Attack2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[2].key
+      value: Attack3
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[0].particle
+      value: 
+      objectReference: {fileID: 52503595}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[1].particle
+      value: 
+      objectReference: {fileID: 44067200}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[2].particle
+      value: 
+      objectReference: {fileID: 1026035645}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[1].anchorToWorld
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[2].anchorToWorld
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[1].stopOnInterrupt
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452412849884561943, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: effects.Array.data[2].stopOnInterrupt
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
       propertyPath: m_LocalPosition.x
