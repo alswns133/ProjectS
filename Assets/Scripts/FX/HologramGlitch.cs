@@ -72,6 +72,20 @@ namespace ProjectS.FX
         [SerializeField] private float minScrollMultiplier = 20f;
         [SerializeField] private float maxScrollMultiplier = 60f;
 
+        [Header("글자 찢김 (전용 셰이더 필요)")]
+        [Tooltip("글리치 중 셰이더의 '_Glitch_Strength'를 올려 글자를 가로로 찢는다. " +
+                 "HologramSignGlitch 셰이더처럼 이 프로퍼티를 노출하는 머티리얼에서만 동작하고, " +
+                 "없으면 자동으로 건너뛴다(원본 Synty 머티리얼에 붙여도 안전하다).")]
+        [SerializeField] private bool affectTear = true;
+
+        [Tooltip("글리치 중 찢김 세기 범위(0~1). 스터터마다 이 범위에서 다시 뽑는다. " +
+                 "실제 찢김 폭은 머티리얼의 Tear Amount와 곱해지므로, 폭 조절은 머티리얼에서 한다.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float minTearStrength = 0.35f;
+
+        [Range(0f, 1f)]
+        [SerializeField] private float maxTearStrength = 1f;
+
         [Header("위치 흔들림 (지직거림)")]
         [Tooltip("글리치 중 오브젝트를 미세하게 흔들어 신호가 떨리는 느낌을 준다. " +
                  "이 셰이더는 UV를 흔들 수 있는 프로퍼티가 없어, 화면 찢김은 오브젝트를 " +
@@ -110,6 +124,11 @@ namespace ProjectS.FX
         private static readonly int OpacityId = Shader.PropertyToID("_Opacity");
         private static readonly int ScrollSpeedId = Shader.PropertyToID("_Scroll_Speed");
 
+        // 전용 셰이더(HologramSignGlitch)에만 있는 프로퍼티. 원본 Synty 머티리얼에는 없으므로
+        // 존재 여부를 확인한 뒤에만 건드린다. 없는 프로퍼티를 넣어도 에러는 안 나지만,
+        // '넣었는데 왜 안 되지'로 시간을 버리게 되므로 Awake에서 한 번 판정해 둔다.
+        private static readonly int GlitchStrengthId = Shader.PropertyToID("_Glitch_Strength");
+
         private MaterialPropertyBlock block;
         private float basePower;
         private float baseOpacity;
@@ -129,6 +148,8 @@ namespace ProjectS.FX
         private Vector3[] desiredOffset;
         private Vector3[] appliedOffset;
         private bool isDropout;
+        private bool hasTearProperty;
+        private float tearStrength;
 
         private void Awake()
         {
@@ -156,6 +177,7 @@ namespace ProjectS.FX
             basePower = source.GetFloat(EmissionPowerId);
             baseOpacity = source.HasProperty(OpacityId) ? source.GetFloat(OpacityId) : 1f;
             baseScroll = source.HasProperty(ScrollSpeedId) ? source.GetFloat(ScrollSpeedId) : 0f;
+            hasTearProperty = source.HasProperty(GlitchStrengthId);
 
             // 기준 속도가 0이면 배율을 곱해도 계속 0이라 스캔라인이 아예 안 움직인다.
             if (affectScroll && Mathf.Abs(baseScroll) < 0.0001f)
@@ -183,6 +205,7 @@ namespace ProjectS.FX
             powerScale = 1f;
             scrollMultiplier = 1f;
             isDropout = false;
+            tearStrength = 0f;
             ClearJitter();
         }
 
@@ -194,6 +217,7 @@ namespace ProjectS.FX
             powerScale = 1f;
             scrollMultiplier = 1f;
             isDropout = false;
+            tearStrength = 0f;
             ClearJitter();
             Apply(basePower, baseOpacity, baseScroll);
         }
@@ -212,6 +236,7 @@ namespace ProjectS.FX
                     powerScale = 1f;
                     scrollMultiplier = 1f;
                     isDropout = false;
+                    tearStrength = 0f;
                     ClearJitter();
                 }
             }
@@ -228,6 +253,10 @@ namespace ProjectS.FX
                 // 두절은 스터터 단위로만 판정한다. 매 프레임 뽑으면 프레임레이트에 따라
                 // 끊기는 빈도가 달라져, 기기마다 연출이 다르게 보인다.
                 isDropout = dropoutChance > 0f && Random.value < dropoutChance;
+
+                // 찢김도 스터터 단위로 새로 뽑는다. 밝기·흔들림과 같은 순간에 같이 바뀌어야
+                // 하나의 고장으로 읽힌다. 따로 놀면 두 개의 효과가 겹친 것처럼 지저분해진다.
+                tearStrength = Random.Range(minTearStrength, maxTearStrength);
 
                 RollJitter();
 
@@ -331,6 +360,7 @@ namespace ProjectS.FX
                 block.SetFloat(EmissionPowerId, power);
                 if (affectOpacity) block.SetFloat(OpacityId, opacity);
                 if (affectScroll) block.SetFloat(ScrollSpeedId, scroll);
+                if (affectTear && hasTearProperty) block.SetFloat(GlitchStrengthId, tearStrength);
 
                 targets[i].SetPropertyBlock(block);
             }
@@ -344,6 +374,7 @@ namespace ProjectS.FX
             if (maxDuration < minDuration) maxDuration = minDuration;
             if (maxPowerScale < minPowerScale) maxPowerScale = minPowerScale;
             if (maxScrollMultiplier < minScrollMultiplier) maxScrollMultiplier = minScrollMultiplier;
+            if (maxTearStrength < minTearStrength) maxTearStrength = minTearStrength;
         }
     }
 }
