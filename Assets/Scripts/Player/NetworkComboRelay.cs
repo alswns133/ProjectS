@@ -16,7 +16,6 @@ namespace ProjectS.Players
         /// <summary>오너가 콤보 타수를 확정할 때 호출. 오너만 서버로 올린다.</summary>
         public void BroadcastAttackStep(int step)
         {
-            Debug.Log($"[진단][Combo] BroadcastAttackStep step={step}, isOwned={isOwned}");
             if (!isOwned) return;
             CmdAttackStep(step);
         }
