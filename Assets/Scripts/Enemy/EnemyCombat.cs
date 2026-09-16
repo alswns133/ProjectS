@@ -359,8 +359,12 @@ namespace ProjectS.Enemies
                 DamageResult result = DamageCalculator.Calculate(in attackContext, target.Defense, target.IsBoss);
 
                 // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다(구르기 무적에 씹힌 스침에 이펙트가 나오지 않게).
+                // 방향은 히트박스 중심 → 접점. oriented 이펙트만 회전으로 쓴다.
                 if (target.TakeDamage(in result))
-                    CombatEvents.FireEnemyHitLanded(buffer[i].ClosestPoint(currentAttack.hitBox.position));
+                {
+                    Vector3 hitPoint = buffer[i].ClosestPoint(currentAttack.hitBox.position);
+                    CombatEvents.FireEnemyHitLanded(hitPoint, hitPoint - currentAttack.hitBox.position);
+                }
             }
         }
 
@@ -474,8 +478,12 @@ namespace ProjectS.Enemies
 
                     // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다.
                     // 구르기 무적에 씹힌 공격에도 이펙트가 나오면 플레이어가 맞은 것으로 오인한다.
+                    // 방향은 히트박스 중심 → 접점. oriented 이펙트만 회전으로 쓴다.
                     if (target.TakeDamage(in result))
-                        CombatEvents.FireEnemyHitLanded(buffer[i].ClosestPoint(hitBox.position));
+                    {
+                        Vector3 hitPoint = buffer[i].ClosestPoint(hitBox.position);
+                        CombatEvents.FireEnemyHitLanded(hitPoint, hitPoint - hitBox.position);
+                    }
                 }
             }
         }

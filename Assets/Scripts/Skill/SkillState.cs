@@ -335,8 +335,29 @@ namespace ProjectS.Skills
             stats.ApplyPassiveStats(BuildPassiveStats(stats.CharacterId));
         }
 
-        // 현재 캐릭터의 패시브 스킬들을 훑어 EffectType별로 합산한다(레벨 초과분 × 레벨당 효과).
+        // 현재 캐릭터의 패시브 합계(클라 경로) — 이 인메모리 levels(미저장 변경 포함)를 레벨 원본으로 쓴다.
         private static PassiveStats BuildPassiveStats(int characterId)
+            => ComputePassive(characterId, GetLevel);
+
+        /// <summary>
+        /// 주어진 배운-레벨 세이브로 패시브 합계를 계산한다(서버권위 스탯 도출용). 인메모리 <c>levels</c>에 의존하지
+        /// 않는 <b>순수</b> 함수라, 서버가 접속 커넥션의 세이브만으로 도출할 수 있다(<see cref="BuildPassiveStats"/>와
+        /// 같은 계산을 공유해 클라·서버가 어긋나지 않는다). 저장에 없는 스킬은 시작 레벨(<see cref="DefaultLevel"/>)로 본다.
+        /// </summary>
+        /// <param name="characterId">캐릭터 타입(그 캐릭터의 패시브 행만 합산).</param>
+        /// <param name="skillLevels">세이브의 배운 레벨 목록(null이면 전부 기본 레벨).</param>
+        public static PassiveStats ComputePassiveStats(int characterId, IReadOnlyList<SkillLevelSave> skillLevels)
+        {
+            var byId = new Dictionary<int, int>();
+            if (skillLevels != null)
+                foreach (SkillLevelSave s in skillLevels)
+                    if (s != null && s.skillId != 0) byId[s.skillId] = s.level;
+
+            return ComputePassive(characterId, id => byId.TryGetValue(id, out int lv) ? lv : DefaultLevel(id));
+        }
+
+        // 패시브 합산의 단일 코어. 레벨 원본만 함수로 주입받아 클라(인메모리)·서버(세이브)가 같은 계산을 공유한다.
+        private static PassiveStats ComputePassive(int characterId, System.Func<int, int> levelOf)
         {
             PassiveStats result = default;
 
@@ -348,7 +369,7 @@ namespace ProjectS.Skills
                 if (row == null || row.Kind != SkillKind.Passive) continue;
                 if (characterId > 0 && row.CharacterId != characterId) continue;
 
-                int steps = GetLevel(row.SkillId) - row.StartLevel;   // 패시브 StartLevel=0
+                int steps = levelOf(row.SkillId) - row.StartLevel;   // 패시브 StartLevel=0
                 if (steps <= 0) continue;
 
                 float total = row.EffectPerLevel * steps;
