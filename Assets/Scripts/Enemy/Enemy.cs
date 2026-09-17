@@ -1,4 +1,6 @@
-﻿using ProjectS.Core;
+﻿using System.Collections.Generic;
+using Mirror;
+using ProjectS.Core;
 using ProjectS.Events;
 using ProjectS.Managers;
 using ProjectS.Players;
@@ -175,11 +177,25 @@ namespace ProjectS.Enemies
         // 대상의 생사 판정용. Transform만으로는 죽었는지 알 수 없어 따로 캐싱한다.
         private IDamageable targetDamageable;
 
+        // 대상이 플레이어일 때의 참조. 원격 클라 플레이어의 생사는 서버 쪽 사본(IDamageable)으로 알 수 없어 따로 판정한다.
+        private Player targetPlayer;
+
         /// <summary>
         /// 추적 대상이 살아 있는지 여부. 생사를 알 수 없는 대상(IDamageable이 없는 경우)은
         /// 살아 있는 것으로 본다 — 모르는 이유로 몬스터가 멈춰 서는 것보다 낫다.
         /// </summary>
-        public bool IsTargetAlive => targetDamageable == null || !targetDamageable.IsDead;
+        /// <remarks>
+        /// 원격 클라 플레이어는 서버 쪽 사본이 데미지를 받지 않아(EnemyHitRouter가 오너에게 보냄) 사본 HP가 항상 가득이다.
+        /// 그래서 오너가 올리는 HP 비율로 본다 — 안 그러면 보스가 쓰러진 플레이어를 계속 노린다.
+        /// </remarks>
+        public bool IsTargetAlive => targetPlayer != null
+            ? IsPlayerAlive(targetPlayer)
+            : targetDamageable == null || !targetDamageable.IsDead;
+
+        /// <summary>
+        /// 레이드 보스인지(교전 로코모션 <see cref="RaidBossLocomotion"/> 보유). 레이드 전용 어그로 규칙을 이 값으로 가른다.
+        /// </summary>
+        public bool IsRaidBoss => EngageState != null;
 
         /// <summary>피격용 루트 콜라이더. 사망 시 추가 피격과 물리 충돌을 막기 위해 DeadState가 끈다.</summary>
         public Collider BodyCollider { get; private set; }
@@ -229,8 +245,24 @@ namespace ProjectS.Enemies
         private float surroundAngleOffset;
         private readonly RaycastHit[] allyBlockHits = new RaycastHit[8];
 
+        // 네트워크 스폰 여부·서버 여부 판정용. 싱글(로컬 스폰) 적은 컴포넌트가 있어도 netId가 0이다.
+        private NetworkIdentity networkIdentity;
+
+        /// <summary>
+        /// 이 컴퓨터가 이 적의 <b>전투 판정 권한</b>을 갖는가. 싱글(로컬 스폰)이거나, 네트워크 스폰이면 서버일 때만 true.
+        /// </summary>
+        /// <remarks>
+        /// ★ Animation Event는 <b>꺼진 컴포넌트에도 전달</b>된다. 그래서 서버 권위 보스의 클립을 재생하는 모든 클라에서도
+        /// 타격·잡기 이벤트가 불린다. 판정 이벤트는 반드시 이 값으로 막는다 — 안 막으면 컴퓨터마다 판정이 달라진다
+        /// (2026-09-17 "잡기 후속타가 잡힌 본인 화면에만 보임"의 원인). 이펙트·카메라 흔들림 같은 연출 이벤트는 막지 않는다.
+        /// </remarks>
+        public bool HasGameplayAuthority
+            => networkIdentity == null || networkIdentity.netId == 0 || networkIdentity.isServer;
+
         private void Awake()
         {
+            TryGetComponent(out networkIdentity);
+
             // 컴포넌트 캐싱은 Awake에서 1회만. 상태들이 매 프레임 GetComponent를 하지 않게 한다.
             Movement = GetComponent<EnemyMovement>();
             Animation = GetComponent<EnemyAnimation>();
@@ -292,17 +324,54 @@ namespace ProjectS.Enemies
             // 재개(ResumeAI)가 있어야 해서 enabled 대신 플래그로 이 Update만 건너뛴다(구독은 유지).
             if (aiSuspended) return;
 
-            // 타깃이 없거나(아바타가 아직 안 떴거나 이탈) 비활성이 되면 주기적으로 다시 찾는다.
-            // 파티 레이드에서 보스가 아바타보다 먼저 스폰되거나, 추격 대상이 사라지는 경우의 안전망이다.
+            // 대상이 죽으면 기다리지 않고 곧바로 다른 대상을 찾는다(어그로 규칙: 죽으면 다른 플레이어에게 끌린다).
+            // 살아 있는 대상이 하나도 없으면 Target이 null이 되어 아래 주기 탐색으로 넘어가므로 매 프레임 탐색하지 않는다.
+            if (Target != null && !IsTargetAlive) nextTargetReacquireTime = 0f;
+
+            // 타깃이 없거나(아바타가 아직 안 떴거나 이탈·전원 사망) 비활성이면 주기적으로 다시 찾는다.
+            // 파티 레이드에서 보스가 아바타보다 먼저 스폰되거나, 부활한 플레이어를 다시 잡는 경로다.
             // 매 프레임 탐색은 비싸서 간격을 둔다.
-            if ((Target == null || !Target.gameObject.activeInHierarchy) && Time.time >= nextTargetReacquireTime)
+            bool needsTarget = Target == null || !Target.gameObject.activeInHierarchy || !IsTargetAlive;
+            if (needsTarget && Time.time >= nextTargetReacquireTime)
             {
                 nextTargetReacquireTime = Time.time + TargetReacquireInterval;
                 AcquireTarget();
             }
 
+            if (IsRaidBoss) UpdateRaidBossEngagement();
+
             StateMachine.Update();
             //Debug.Log(StateMachine.Current);
+        }
+
+        // 레이드 보스 어그로 규칙(2026-09-17 사용자 확정)의 "전원 사망 → 대기 / 부활 → 교전 재개" 부분.
+        // 레이드는 아레나 전체가 전장이라 감지 거리로 재발견을 기다리지 않는다 — 대상이 생기면 곧바로 교전한다.
+        private void UpdateRaidBossEngagement()
+        {
+            if (Target == null)
+            {
+                // 전원 사망: 쫓던 중이면 그 자리에 멈춰 대기한다. 공격 모션 중이면 끝난 뒤 교전 상태로 돌아와 여기서 멈춘다.
+                if (StateMachine.Current == EngageState)
+                {
+                    Movement.StopAndClearPath();
+                    Animation.SetSpeedImmediate(0f);
+                    StateMachine.ChangeState(IdleState);
+                }
+                return;
+            }
+
+            // 살아 있는 대상이 생겼다(전투 시작·부활): 대기 중이면 곧바로 교전을 재개한다.
+            if (StateMachine.Current == IdleState)
+                StateMachine.ChangeState(AggroState);
+        }
+
+        /// <summary>
+        /// 공격 패턴 하나가 끝났다(<see cref="EnemyAttackState"/>의 Exit). 레이드 보스는 여기서 다음 대상을
+        /// 살아 있는 플레이어 중 무작위로 다시 고른다(어그로 규칙: 패턴마다 랜덤).
+        /// </summary>
+        public void OnAttackPatternFinished()
+        {
+            if (IsRaidBoss && HasGameplayAuthority) AcquireTarget();
         }
 
         // 등장 연출 동안 AI를 재우는 게이트. SuspendAI에서 켜고 ResumeAI에서 끈다.
@@ -329,25 +398,73 @@ namespace ProjectS.Enemies
         /// </summary>
         private void AcquireTarget()
         {
+            // 레이드 보스: 살아 있는 플레이어 중 무작위(어그로 규칙). 아무도 없으면 대상 없음 → 대기.
+            if (IsRaidBoss)
+            {
+                SetTarget(PickRandomAlivePlayer());
+                return;
+            }
+
             Player local = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
 
-            // ① 로컬 지속 플레이어가 '활성'이면 그대로 쓴다(싱글·마을·솔로 던전 경로 유지).
+            // ① 로컬 지속 플레이어가 '활성'이고 살아 있으면 그대로 쓴다(싱글·마을·솔로 던전 경로 유지).
             //    지속 플레이어는 DontDestroyOnLoad라 씬 비교 대상이 아니므로 아래 씬 탐색으로는 잡히지 않는다.
-            Player player = (local != null && local.gameObject.activeInHierarchy) ? local : null;
+            Player player = (local != null && local.gameObject.activeInHierarchy && IsPlayerAlive(local)) ? local : null;
 
             // ② 없으면(전용 서버=아예 없음 / 호스트=OwnerGate가 Hide) 자기 씬의 네트워크 아바타를 찾는다.
             if (player == null) player = FindNearestPlayerInScene();
 
             // ③ 그래도 없으면 비활성 로컬 플레이어라도 건다 — 씬 진입 전(활성화 대기) Target이 null로
             //    굳어 감지가 영영 무반응이 되는 기존 버그를 막기 위한 원래 동작이다.
-            if (player == null) player = local;
+            //    단 죽은 플레이어는 걸지 않는다(대상이 죽었으면 매 프레임 재탐색으로 빠지므로).
+            if (player == null && local != null && IsPlayerAlive(local)) player = local;
 
             if (player == null) return;   // 아직 아무도 없음 → 다음 주기에 다시 시도
 
-            Target = player.transform;
+            SetTarget(player);
+        }
+
+        // 대상과 생사 판정용 참조를 한꺼번에 바꾼다. null이면 대상 없음.
+        private void SetTarget(Player player)
+        {
+            targetPlayer = player;
+            Target = player != null ? player.transform : null;
 
             // Player가 이미 Awake에서 캐싱해 둔 것을 그대로 받는다(Start는 모든 Awake 이후라 안전).
-            targetDamageable = player.Stats;
+            targetDamageable = player != null ? player.Stats : null;
+        }
+
+        // 후보 수집 버퍼(할당 방지).
+        private readonly List<Player> targetCandidates = new();
+
+        // 이 적과 같은 전장의 살아 있는 플레이어 중 무작위 하나. 없으면 null.
+        private Player PickRandomAlivePlayer()
+        {
+            targetCandidates.Clear();
+
+            // 싱글: 로컬 지속 플레이어(DDoL이라 씬 비교 대상이 아님).
+            Player local = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            if (local != null && local.gameObject.activeInHierarchy && IsPlayerAlive(local)) targetCandidates.Add(local);
+
+            // 멀티: 자기 씬(파티 인스턴스)의 네트워크 아바타. 다른 파티 인스턴스의 플레이어는 제외한다.
+            foreach (Player candidate in FindObjectsByType<Player>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            {
+                if (candidate == null || candidate == local || !candidate.gameObject.activeInHierarchy) continue;
+                if (candidate.gameObject.scene != gameObject.scene) continue;
+                if (!IsPlayerAlive(candidate)) continue;
+
+                targetCandidates.Add(candidate);
+            }
+
+            return targetCandidates.Count > 0 ? targetCandidates[Random.Range(0, targetCandidates.Count)] : null;
+        }
+
+        // 플레이어 생사. 원격 클라 플레이어는 오너가 올린 HP 비율로, 그 외는 실제 PlayerStats로 본다.
+        private static bool IsPlayerAlive(Player player)
+        {
+            if (player == null) return false;
+            if (EnemyHitRouter.TryGetRemoteAvatar(player, out NetworkDamageRelay relay)) return relay.ServerIsOwnerAlive;
+            return player.Stats == null || !player.Stats.IsDead;
         }
 
         // 같은 씬의 활성 플레이어 중 가장 가까운 대상. 파티 레이드의 네트워크 아바타를 잡는 경로이며,
@@ -363,6 +480,7 @@ namespace ProjectS.Enemies
             {
                 if (candidate == null || !candidate.gameObject.activeInHierarchy) continue;
                 if (candidate.gameObject.scene != gameObject.scene) continue;   // 다른 파티 인스턴스 배제
+                if (!IsPlayerAlive(candidate)) continue;                         // 죽은 플레이어는 대상이 아니다
 
                 float sqr = (candidate.transform.position - transform.position).sqrMagnitude;
                 if (sqr >= bestSqr) continue;
@@ -391,16 +509,31 @@ namespace ProjectS.Enemies
         /// <summary>
         /// 등장 연출이 끝나면 AI를 재개한다. 에이전트를 연출로 옮겨진 최종 위치의 가까운 NavMesh 지점으로
         /// 복귀시키고(<see cref="EnemyMovement.EndRootMotionAndLand"/>), 곧바로 교전 흐름으로 진입한다
-        /// (연출 자체가 "발견"이므로 레이드=Engage, 그 외=Chase. 사거리 밖이면 대기/순찰로 안전하게 떨어진다).
-        /// <see cref="BossIntroDirector"/>가 <see cref="UnityEngine.Playables.PlayableDirector.stopped"/>에서 호출한다.
+        /// (연출 자체가 "발견"이므로 레이드=Engage, 그 외=Chase).
+        /// <see cref="BossIntroDirector"/>가 연출 종료 시 호출한다.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// ★ <b>감지 거리를 보지 않는다(2026-09-17 변경).</b> 예전에는 <see cref="CanDetectTarget"/>으로 "감지 거리 안이면 교전,
+        /// 밖이면 대기"였다. 보스방 트리거를 밟아 플레이어가 보스 가까이서 연출이 시작되던 구조에 맞춘 규칙이다.
+        /// 레이드가 "전원 스폰 완료 후 연출"로 바뀌면서 플레이어는 스폰 지점(보스와 약 58m)에 있고 보스 감지 거리는 20m라,
+        /// 연출이 끝나면 보스가 대기 상태로 들어가 누가 다가올 때까지 멈춰 섰다. 연출로 이미 서로를 "발견"했으므로
+        /// 살아 있는 대상이 있으면 거리와 무관하게 교전한다.
+        /// </para>
+        /// <para>
+        /// 추적형(Chase) 적은 추적 범위를 벗어나면 스스로 대기로 돌아가므로, 보스방 진입형 연출에서는 결과가 예전과 같다.
+        /// </para>
+        /// </remarks>
         public void ResumeAI()
         {
             aiSuspended = false;
             Movement.EndRootMotionAndLand();
 
+            // 연출 동안 대상이 바뀌었을 수 있다(파티원 이탈·사망, 스폰 순서). 지금 가장 가까운 살아 있는 대상으로 다시 잡는다.
+            AcquireTarget();
+
             IState next;
-            if (CanDetectTarget())
+            if (Target != null && IsTargetAlive)
                 next = AggroState;
             else
                 next = HasPatrol ? (IState)PatrolState : IdleState;

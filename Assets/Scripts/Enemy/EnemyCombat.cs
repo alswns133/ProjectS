@@ -225,6 +225,7 @@ namespace ProjectS.Enemies
         private void Awake()
         {
             enemy = GetComponent<Enemy>();
+            bossNetSync = GetComponent<BossNetSync>();
         }
 
         private void Start()
@@ -232,6 +233,33 @@ namespace ProjectS.Enemies
             // 투사체 슬롯이 하나도 없으면(순수 근접 몬스터) 스포너를 찾지 않는다.
             // Start인 이유: 스포너가 자기 Awake에서 프리웜 풀을 만들므로 그 뒤에 잡아야 안전하다.
             if (HasProjectileAttack()) projectileSpawner = FindAnyObjectByType<ProjectileSpawner>();
+        }
+
+        // 네트워크 보스의 투사체 복제 통로(없으면 싱글·잡몹).
+        private BossNetSync bossNetSync;
+
+        /// <summary>
+        /// 서버가 쏜 투사체를 이 화면에 <b>보이기만 하는</b> 복제본으로 날린다. <see cref="BossNetSync"/>가 서버 지시를 받아 부른다.
+        /// </summary>
+        /// <remarks>
+        /// 판정은 서버의 원본 투사체가 한다(원격 플레이어 적중은 <see cref="EnemyProjectileHitRouter"/>가 그 플레이어에게 보냄).
+        /// 구경하는 클라에서는 이 컴포넌트가 꺼져 Start가 안 돌아 스포너가 비어 있을 수 있어, 여기서 필요할 때 찾는다.
+        /// </remarks>
+        /// <param name="slot">attacks 배열 번호. 음수면 조우 공격(detectAttack).</param>
+        /// <param name="position">발사 위치.</param>
+        /// <param name="rotation">발사 방향.</param>
+        public void FireVisualProjectile(int slot, Vector3 position, Quaternion rotation)
+        {
+            AttackPattern attack = slot < 0 ? detectAttack : (attacks != null && slot < attacks.Length ? attacks[slot] : null);
+            if (attack == null || attack.projectilePrefab == null) return;
+
+            if (projectileSpawner == null) projectileSpawner = FindAnyObjectByType<ProjectileSpawner>();
+            if (projectileSpawner == null) return;
+
+            AttackContext none = default;
+            projectileSpawner.Fire(attack.projectilePrefab, position, rotation, in none, 0f, attack.canPierce, null,
+                                   visualOnly: true);
+            PlayMuzzleFlash(attack);
         }
 
         /// <summary>등록된 공격 중 가장 긴 사거리. ChaseState가 공격 전환 판정에 쓴다.</summary>
@@ -319,8 +347,11 @@ namespace ProjectS.Enemies
         /// </summary>
         public void OnChargeHitBegin()
         {
+            // 판정 권한이 없는 컴퓨터(네트워크 보스를 구경하는 클라)에서 온 이벤트는 무시한다(Enemy.HasGameplayAuthority).
+            if (enemy == null || !enemy.HasGameplayAuthority) return;
+
             // 돌진이 아닌 공격 클립에 실수로 찍혔거나, 공격 상태가 끝난 뒤 블렌드 아웃 중 도착한 이벤트는 무시한다.
-            if (enemy == null || enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState) return;
+            if (enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState) return;
             if (currentAttack == null || currentAttack.kind != AttackKind.Charge) return;
 
             chargeHitActive = true;
@@ -360,11 +391,10 @@ namespace ProjectS.Enemies
 
                 // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다(구르기 무적에 씹힌 스침에 이펙트가 나오지 않게).
                 // 방향은 히트박스 중심 → 접점. oriented 이펙트만 회전으로 쓴다.
-                if (target.TakeDamage(in result))
-                {
-                    Vector3 hitPoint = buffer[i].ClosestPoint(currentAttack.hitBox.position);
-                    CombatEvents.FireEnemyHitLanded(hitPoint, hitPoint - currentAttack.hitBox.position);
-                }
+                // 원격 클라의 플레이어면 EnemyHitRouter가 그 컴퓨터로 보내고, 적용·이펙트는 그쪽이 한다.
+                Vector3 chargeHitPoint = buffer[i].ClosestPoint(currentAttack.hitBox.position);
+                if (EnemyHitRouter.Apply(buffer[i], target, in result, chargeHitPoint, chargeHitPoint - currentAttack.hitBox.position))
+                    CombatEvents.FireEnemyHitLanded(chargeHitPoint, chargeHitPoint - currentAttack.hitBox.position);
             }
         }
 
@@ -399,8 +429,12 @@ namespace ProjectS.Enemies
         /// </summary>
         public void OnAttackHit()
         {
+            // 판정 권한이 없는 컴퓨터(네트워크 보스를 구경하는 클라)에서 온 이벤트는 무시한다(Enemy.HasGameplayAuthority).
+            // 예전엔 아래 상태 조건에 "우연히" 걸려 막혀 있었다 — 명시적으로 막아, 상태 코드가 바뀌어도 새지 않게 한다.
+            if (enemy == null || !enemy.HasGameplayAuthority) return;
+
             // 피격·사망 등으로 공격 상태가 끝난 뒤 블렌드 아웃 중 도착한 이벤트는 무시한다.
-            if (enemy == null || enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState)
+            if (enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.AttackState)
                 return;
 
             // Animation Event가 공격 선택 직후가 아닌 시점에 와도 마지막 선택 공격 기준으로 판정한다.
@@ -420,8 +454,11 @@ namespace ProjectS.Enemies
         /// </summary>
         public void OnDetectHit()
         {
+            // 판정 권한이 없는 컴퓨터(네트워크 보스를 구경하는 클라)에서 온 이벤트는 무시한다(Enemy.HasGameplayAuthority).
+            if (enemy == null || !enemy.HasGameplayAuthority) return;
+
             // 조우 연출이 끝난 뒤(다른 상태로 전환된 뒤) 블렌드 아웃 중 도착한 이벤트는 무시한다.
-            if (enemy == null || enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.DetectState)
+            if (enemy.Stats.IsDead || enemy.StateMachine.Current != enemy.DetectState)
                 return;
 
             ExecuteAttackHit(detectAttack);
@@ -479,11 +516,10 @@ namespace ProjectS.Enemies
                     // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다.
                     // 구르기 무적에 씹힌 공격에도 이펙트가 나오면 플레이어가 맞은 것으로 오인한다.
                     // 방향은 히트박스 중심 → 접점. oriented 이펙트만 회전으로 쓴다.
-                    if (target.TakeDamage(in result))
-                    {
-                        Vector3 hitPoint = buffer[i].ClosestPoint(hitBox.position);
+                    // 원격 클라의 플레이어면 EnemyHitRouter가 그 컴퓨터로 보내고, 적용·이펙트는 그쪽이 한다.
+                    Vector3 hitPoint = buffer[i].ClosestPoint(hitBox.position);
+                    if (EnemyHitRouter.Apply(buffer[i], target, in result, hitPoint, hitPoint - hitBox.position))
                         CombatEvents.FireEnemyHitLanded(hitPoint, hitPoint - hitBox.position);
-                    }
                 }
             }
         }
@@ -515,6 +551,7 @@ namespace ProjectS.Enemies
             Quaternion rotation = GetFireRotation(attack);
 
             // 게이지 회복(gaugeGain)과 적중 콜백은 플레이어 스킬 게이지 전용이라 몬스터는 쓰지 않는다.
+            // 원격 클라 플레이어를 맞히면 EnemyProjectileHitRouter가 그 플레이어 컴퓨터로 보낸다(근접과 같은 경로).
             projectileSpawner.Fire(
                 attack.projectilePrefab,
                 attack.muzzle.position,
@@ -522,7 +559,15 @@ namespace ProjectS.Enemies
                 in attackContext,
                 0f,
                 attack.canPierce,
-                null);
+                null,
+                hitRouter: EnemyProjectileHitRouter.Instance);
+
+            // 네트워크 보스면 구경하는 화면에도 보이기 전용 복제본을 날리게 한다(투사체는 로컬 오브젝트라 원래 서버에만 보인다).
+            if (bossNetSync != null)
+            {
+                int slot = attack == detectAttack ? -1 : System.Array.IndexOf(attacks, attack);
+                bossNetSync.RelayProjectile(slot, attack.muzzle.position, rotation);
+            }
 
             // 총구 화염은 총알이 실제로 나간 뒤에만 재생한다.
             // 위의 가드로 발사가 취소됐는데 화염만 터지면 "쐈는데 안 나간" 것처럼 보인다.

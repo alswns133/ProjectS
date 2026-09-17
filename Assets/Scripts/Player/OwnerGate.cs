@@ -3,6 +3,7 @@ using ProjectS.Cameras;
 using ProjectS.Managers;
 using ProjectS.Players;
 using ProjectS.Debugging;
+using ProjectS.Events;
 using System.Collections.Generic;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -11,6 +12,17 @@ public class OwnerGate : NetworkBehaviour
 {
     private readonly List<Behaviour> ownerOnly = new(); // Input·Movement·Combat·PlayerAnimation·카메라
     private CharacterController cc;
+
+    /// <summary>
+    /// 이 클라가 조작하는 네트워크 아바타의 <see cref="Player"/>. 없으면 null.
+    /// 멀티에선 <c>PlayerManager.Player</c>가 숨겨진 마을 캐릭터라, 입력 잠금 같은 "내 캐릭터" 처리는 이 값을 봐야 한다
+    /// (<see cref="LocalPlayer.Current"/>가 싱글/멀티를 가려 돌려준다).
+    /// </summary>
+    public static Player LocalAvatar { get; private set; }
+
+    // 플레이 모드 리로드 후 이전 판의 아바타 참조가 남지 않게 한다(static 리셋 방침).
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => LocalAvatar = null;
 
     public void Awake()
     {
@@ -47,6 +59,18 @@ public class OwnerGate : NetworkBehaviour
             //   아바타이므로 여기서 레이드 줌아웃(20)을 직접 건다.
             GetComponentInChildren<CameraRig>(true)?.ApplyRaidZoomOut();
 
+            LocalAvatar = GetComponentInChildren<Player>(true);
+
+            // 레이드 한 판마다 부활 기회 1회. 원격 클라는 RaidGather.Enter에서도 받지만, 호스트는 서버가 인스턴스를 직접
+            // 로드해 그 진입 흐름을 타지 않아 기회를 못 받고 첫 사망에 바로 마을로 튕겼다. 내 아바타가 뜨는 순간이 곧
+            // 레이드 입장이므로 여기서도 준다(최대치가 1이라 두 번 받아도 1이다).
+            ReviveBudget.GrantOnDungeonEnter();
+
+            // ★ 장비 보너스는 착용/해제 때만 재계산돼, 새로 스폰된 아바타는 레벨 기본치만 가진 채 시작한다
+            //   (마을과 수치가 달라지던 원인). LocalAvatar를 세운 직후 리프레시를 요청해 InventoryManager가
+            //   장비 스탯을 이 아바타에 다시 건다. 패시브는 아바타 PlayerStats.Start의 SkillState.RestoreFrom이 건다.
+            PlayerEvents.FireStatsRefreshRequested();
+
             Debug.Log($"[진단][OwnerGate] OWNED 컨트롤러={GetComponentInChildren<Animator>(true)?.runtimeAnimatorController?.name}");
 
             return;
@@ -66,6 +90,14 @@ public class OwnerGate : NetworkBehaviour
         GetComponentInChildren<PlayerAnimation>(true)?.UseDungeonController();
 
         Debug.Log($"[진단][OwnerGate] NON-OWNED 컨트롤러={GetComponentInChildren<Animator>(true)?.runtimeAnimatorController?.name}");
+    }
+
+    public override void OnStopClient()
+    {
+        base.OnStopClient();
+
+        // 내 아바타가 사라지면(인스턴스 이탈·접속 종료) 참조를 비워 싱글 캐릭터로 되돌아가게 한다.
+        if (LocalAvatar != null && LocalAvatar.transform.IsChildOf(transform)) LocalAvatar = null;
     }
 
     private void AddGetComponent<T>() where T : Behaviour
