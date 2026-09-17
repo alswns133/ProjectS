@@ -201,7 +201,7 @@ namespace ProjectS.Managers
                 {
                     if (es == null) continue;
 
-                    EquipmentInstance inst = BuildEquipment(json, es.tableId, es.enhanceStep, es.mainStat, es.options);
+                    EquipmentInstance inst = EquipmentSaveLoader.BuildEquipment(json, es.tableId, es.enhanceStep, es.mainStat, es.options);
                     if (inst != null) PlaceAt(equipGrid, es.slot, inst);   // 정의 없으면 skip
                 }
             }
@@ -213,7 +213,7 @@ namespace ProjectS.Managers
                 {
                     if (es == null) continue;
 
-                    EquipmentInstance inst = BuildEquipment(json, es.tableId, es.enhanceStep, es.mainStat, es.options);
+                    EquipmentInstance inst = EquipmentSaveLoader.BuildEquipment(json, es.tableId, es.enhanceStep, es.mainStat, es.options);
                     if (inst != null) equipped[(EquipSlot)es.equipSlot] = inst;
                 }
             }
@@ -289,46 +289,8 @@ namespace ProjectS.Managers
             return list;
         }
 
-        // 세이브된 옵션을 런타임 ItemOption으로 복원한다. 퍼센트·라벨은 ItemOptionData(타입×등급)에서 재조립.
-        private static List<ItemOption> RebuildOptions(ItemGrade grade, List<ItemOptionSave> saved)
-        {
-            var list = new List<ItemOption>(saved?.Count ?? 0);
-            if (saved == null) return list;
-
-            JsonManager json = JsonManager.Instance;
-            foreach (ItemOptionSave os in saved)
-            {
-                if (os == null) continue;
-
-                var type = (ItemOptionType)os.type;
-                bool isPercent = false;
-                string label = type.ToString();
-
-                if (json != null && json.IsReady)
-                    foreach (ItemOptionData od in json.ItemOptionDict.Values)
-                        if (od.OptionType == type && od.Grade == grade)
-                        {
-                            isPercent = od.IsPercent;
-                            label = od.Label;
-                            break;
-                        }
-
-                list.Add(new ItemOption(type, os.value, isPercent, label));
-            }
-            return list;
-        }
-
-        // 세이브 값으로 장비 인스턴스를 재구성한다. 정의가 사라졌으면 null(호출측이 skip).
-        private static EquipmentInstance BuildEquipment(JsonManager json, int tableId, int enhanceStep, int mainStat, List<ItemOptionSave> optionSaves)
-        {
-            ItemData item = json.Get<ItemData>(tableId);
-            EquipmentData equip = json.Get<EquipmentData>(tableId);
-            if (item == null || equip == null) return null;
-
-            List<ItemOption> options = RebuildOptions(item.Grade, optionSaves);
-            int rolled = mainStat > 0 ? mainStat : -1;   // 구세이브(0)는 생성자에서 MainStatBase로 폴백
-            return new EquipmentInstance(item, equip, enhanceStep, rolled, options);
-        }
+        // 세이브 값 → EquipmentInstance 복원은 EquipmentSaveLoader(클라·서버 공용)로 이관했다.
+        // (RebuildOptions/BuildEquipment는 서버권위 스탯 도출과 공유하려 한곳으로 모음.)
 
         // 현재 보유 골드를 발행한다. 초기 1회(Start)와 스냅샷 재요청(씬 진입) 양쪽에서 쓴다.
         private void PublishGold() => PlayerEvents.FireGoldChanged(gold);

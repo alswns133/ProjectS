@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Events;
@@ -42,6 +42,10 @@ namespace ProjectS.Effects
         // (기존 동작을 유지하려면 예전에 쓰던 단일 프리팹을 여기로 옮겨 연결할 것).
         [SerializeField] private HitEffect defaultPrefab;
 
+        // 기본 프리팹도 방향을 따라 세울지. 기존 씬 데이터에는 새 bool의 기본값 false가 적용되어
+        // 지금까지 맞춰 둔 이펙트의 회전은 바뀌지 않는다.
+        [SerializeField] private bool defaultOriented;
+
         // key -> 프리팹. 풀 사이즈(prewarm)는 베이스(KeyedPooledSpawner)의 Prewarm 배열에서 별도로 잡는다
         // — "무엇을 키로 찾을지"와 "얼마나 미리 만들어 둘지"는 다른 관심사라 배열을 나눴다.
         [Serializable]
@@ -49,12 +53,16 @@ namespace ProjectS.Effects
         {
             public string key;
             public HitEffect prefab;
+
+            // 총 스프레이·검흔처럼 타격 방향으로 재생할 이펙트만 켠다.
+            // 기존 저장 데이터에 이 필드가 없으면 Unity가 false로 역직렬화하므로 기존 연출은 유지된다.
+            public bool oriented;
         }
 
         [SerializeField] private EffectEntry[] effects;
 
         // 매 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
-        private readonly Dictionary<string, HitEffect> effectMap = new Dictionary<string, HitEffect>();
+        private readonly Dictionary<string, EffectEntry> effectMap = new Dictionary<string, EffectEntry>();
 
         protected override void Awake()
         {
@@ -76,7 +84,7 @@ namespace ProjectS.Effects
                     continue;
                 }
 
-                effectMap.Add(normKey, entry.prefab);
+                effectMap.Add(normKey, entry);
             }
         }
 
@@ -92,24 +100,36 @@ namespace ProjectS.Effects
             else CombatEvents.OnEnemyHitLanded -= OnHitLanded;
         }
 
-        private void OnHitLanded(Vector3 hitPos, string key)
+        private void OnHitLanded(Vector3 hitPos, Vector3 hitDir, string key)
         {
-            HitEffect prefab = ResolvePrefab(key);
-            if (prefab == null) return;
+            ResolvePrefab(key, out HitEffect prefab, out bool oriented);
+            if (prefab == null)
+                return;
 
-            GetFromPool(prefab).Play(hitPos, GetReturnCallback(prefab));
+            HitEffect effect = GetFromPool(prefab);
+
+            // 방향이 없는 구 호출부/특수 연출은 회전을 건드리지 않아 기존 프리팹 설정을 보존한다.
+            if (oriented && hitDir.sqrMagnitude > 0.0001f)
+                effect.Play(hitPos, Quaternion.LookRotation(hitDir), GetReturnCallback(prefab));
+            else
+                effect.Play(hitPos, GetReturnCallback(prefab));
         }
 
         // 키로 등록된 이펙트를 찾고, 없으면 기본 이펙트로 대체한다.
         // 키 오타를 경고로 남기지 않는 이유: 다른 슬롯 시스템과 달리 여기는 매 히트마다 지나가는
         // 흔한 경로라, 매번 경고를 쌓으면 콘솔이 도배된다. 기본값으로 조용히 대체해도
         // "이펙트가 아예 안 나옴" 수준으로 눈에 띄어 튜닝 중 놓치기 어렵다.
-        private HitEffect ResolvePrefab(string key)
+        private void ResolvePrefab(string key, out HitEffect prefab, out bool oriented)
         {
-            if (!string.IsNullOrEmpty(key) && effectMap.TryGetValue(AnimationEventKey.Normalize(key), out HitEffect found))
-                return found;
+            if (!string.IsNullOrEmpty(key) && effectMap.TryGetValue(AnimationEventKey.Normalize(key), out EffectEntry found))
+            {
+                prefab = found.prefab;
+                oriented = found.oriented;
+                return;
+            }
 
-            return defaultPrefab;
+            prefab = defaultPrefab;
+            oriented = defaultOriented;
         }
     }
 }

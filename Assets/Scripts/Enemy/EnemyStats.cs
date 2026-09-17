@@ -106,6 +106,15 @@ namespace ProjectS.Enemies
             currentHp = Mathf.Clamp(spawnHpOverride, 0, maxHp);
         }
 
+        /// <summary>
+        /// 관찰자 클라에서 서버가 동기화한 현재 HP를 표시값에 반영한다(보스 HP 바용). 서버 권위 보스는 데미지가
+        /// 서버에서만 적용돼 관찰자의 <see cref="currentHp"/>가 안 바뀌므로, <c>BossNetSync</c>가 SyncVar로 받은 값을
+        /// 이걸로 밀어넣어 바가 서버 HP를 따라가게 한다. <see cref="TakeDamage"/>와 달리 이벤트·그로기·사망 처리를
+        /// 하지 않는다 — 순수 표시값 갱신이며, 사망/연출은 서버가 주도한다.
+        /// </summary>
+        /// <param name="hp">서버가 동기화한 현재 HP(0~MaxHp로 클램프).</param>
+        public void SetNetworkHp(int hp) => currentHp = Mathf.Clamp(hp, 0, maxHp);
+
         private void Awake()
         {
             currentHp = maxHp;

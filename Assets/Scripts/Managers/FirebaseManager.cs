@@ -227,6 +227,29 @@ namespace ProjectS.Managers
             auth.SignOut();
         }
 
+        /// <summary>
+        /// 현재 로그인된 유저의 Firebase ID 토큰을 가져온다(서버권위 스탯 파이프라인의 접속 인증용).
+        /// 클라가 접속 시 이 토큰을 서버로 넘기면, 서버는 이 토큰으로 '그 유저의' 세이브만 RTDB REST로
+        /// 읽는다(<c>?auth=&lt;idToken&gt;</c>). 위조 차단은 DB 보안규칙이 하므로 서버는 별도 검증코드가 필요 없다.
+        /// 만료(약 1시간)가 임박하면 SDK가 자동 갱신하며, <paramref name="forceRefresh"/>로 강제 갱신도 가능하다.
+        /// </summary>
+        /// <param name="forceRefresh">true면 캐시된 토큰을 무시하고 새로 발급받는다(재도출 등에서 사용).</param>
+        /// <returns>ID 토큰 문자열. 미초기화·미로그인·예외면 null.</returns>
+        public async Task<string> GetIdTokenAsync(bool forceRefresh = false)
+        {
+            if (!IsInitialized || auth == null || auth.CurrentUser == null) return null;
+
+            try
+            {
+                return await auth.CurrentUser.TokenAsync(forceRefresh);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Firebase] ID 토큰 획득 실패: {ex}");
+                return null;
+            }
+        }
+
         // Firebase 오류를 우리 열거형으로 좁혀 번역한다.
         private LoginResult ConvertLoginError(FirebaseException ex)
         {

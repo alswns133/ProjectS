@@ -165,7 +165,7 @@ namespace ProjectS.Tutorials
             // 플레이어 몸에 붙는 피격 이펙트. OnPlayerHitLanded(=플레이어의 공격이 적중)가 아니라
             // OnEnemyHitLanded(=플레이어가 맞음)를 써야 연출 종류가 맞는다.
             if (spawnHitEffect)
-                CombatEvents.FireEnemyHitLanded(PlayerPosition() + Vector3.up);
+                CombatEvents.FireEnemyHitLanded(PlayerPosition() + Vector3.up, Vector3.zero);
 
             if (playHitMotion) PlayHitMotion();
 

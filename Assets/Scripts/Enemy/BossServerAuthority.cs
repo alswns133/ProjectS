@@ -31,6 +31,10 @@ namespace ProjectS.Enemies
             Add<EnemyMovement>();  // NavMeshAgent 기반 이동
             Add<EnemyCombat>();    // 공격 판정
             Add<NavMeshAgent>();   // 경로/속도(클라는 NetworkTransform이 준 위치만 따라감)
+
+            // ★ 페이즈 전환은 반드시 서버만. 관찰자도 BossNetSync가 동기화한 HP로 CombatEvents.OnEnemyHealthChanged를
+            //   받기 때문에, 이걸 안 끄면 관찰자가 로컬로 2페이즈를 스폰하고 1페이즈를 파괴해 화면이 갈라진다.
+            Add<BossPhaseTransition>();
         }
 
         public override void OnStartClient()

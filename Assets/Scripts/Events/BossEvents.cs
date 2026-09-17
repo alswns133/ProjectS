@@ -26,7 +26,13 @@ namespace ProjectS.Events
 
         /// <summary>보스 등장 발행. 보스방 트리거/레이드 입장 시점에서 호출한다.</summary>
         /// <param name="boss">등장한 보스. 이름·HP·줄당 HP·그로기의 소유자.</param>
-        public static void FireBossAppeared(Boss boss) => OnBossAppeared?.Invoke(boss);
+        public static void FireBossAppeared(Boss boss)
+        {
+            // 진단용: 이 줄이 콘솔에 안 보이면 보스가 아예 안 떴다는 뜻이다(스폰 실패/네트워크 미접속 등).
+            UnityEngine.Debug.Log($"[진단][BossEvents] FireBossAppeared — boss={(boss != null ? boss.name : "null")}, 구독자={OnBossAppeared?.GetInvocationList().Length ?? 0}명", boss);
+
+            OnBossAppeared?.Invoke(boss);
+        }
 
         /// <summary>
         /// 보스 퇴장(사망 / 교전 종료 / 씬 이탈). 구독자는 바를 숨긴다.

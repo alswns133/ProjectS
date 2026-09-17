@@ -342136,6 +342136,7 @@ GameObject:
   - component: {fileID: 5556868983350014027}
   - component: {fileID: 560216740953722782}
   - component: {fileID: 5352168776041628395}
+  - component: {fileID: 326609509207336285}
   m_Layer: 6
   m_Name: Boss_Raid_Hammer
   m_TagString: Untagged
@@ -343496,6 +343497,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82561c5fd19c21e47876a4bc328b0130, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.BossServerAuthority
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+--- !u!114 &326609509207336285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5687241768397509265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfb9ce624a49aaf49b2b5b019fac552b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.BossNetSync
   syncDirection: 0
   syncMode: 0
   syncInterval: 0

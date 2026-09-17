@@ -34,7 +34,7 @@ namespace ProjectS.Events
             => OnDamageDealt?.Invoke(worldPos, amount, kind);
 
         /// <summary>
-        /// 플레이어의 공격이 적에게 적중 (맞은 부위의 월드 좌표, 공격 슬롯 키).
+        /// 플레이어의 공격이 적에게 적중 (맞은 부위의 월드 좌표, 타격 방향, 공격 슬롯 키).
         /// OnDamageDealt와 달리 '때린 쪽'이 발행한다 → 어디를 때렸는지는 히트 판정을
         /// 수행한 공격자만 알기 때문. 적 몸에 붙는 타격 이펙트가 구독한다.
         /// (OnDamageDealt의 좌표는 데미지 텍스트용 머리 위 고정 높이라 접점 연출에는 못 쓴다.)
@@ -42,35 +42,42 @@ namespace ProjectS.Events
         /// 피격 이펙트는 연출이 달라야 해서, 구독자가 발행처를 구분할 수 있어야 한다.
         /// 키(2026-08 추가): 평타/스킬별로 다른 타격 이펙트를 고를 수 있도록 HitBoxSlot/ProjectileSlot의
         /// 키를 그대로 실어 보낸다. 빈 문자열이면 구독자는 기본 이펙트로 대체한다.
+        /// 방향(2026-09 추가): 총 스프레이·검흔처럼 맞은 부위에서 진행 방향으로 세워야 하는 타격
+        /// 이펙트를 위해, 히트 판정만 아는 타격 방향(월드, 정규화 전 무방)을 함께 싣는다.
+        /// 벽 탄흔이 표면 법선을 싣는 것과 같은 이유다. 방향이 필요 없는 발행처는 Vector3.zero를
+        /// 넘기고, 구독자는 그 경우 회전 없이(기존과 동일) 재생한다.
         /// </summary>
-        public static event Action<Vector3, string> OnPlayerHitLanded;
+        public static event Action<Vector3, Vector3, string> OnPlayerHitLanded;
 
         /// <summary>
         /// 플레이어 공격 적중 이벤트 발행. 플레이어 쪽 히트 판정 주체(PlayerCombat, Projectile)가
         /// 대상에 데미지를 넣은 직후, 맞은 콜라이더 표면의 접점 좌표로 호출한다.
         /// </summary>
         /// <param name="hitPos">맞은 부위의 월드 좌표(콜라이더 표면 접점)</param>
+        /// <param name="hitDir">타격이 향한 방향(월드). 방향 연출이 필요 없으면 Vector3.zero.</param>
         /// <param name="key">이 타격을 낸 공격의 슬롯 키(예: "Attack1", "Skill4_1"). 없으면 빈 문자열.</param>
-        public static void FirePlayerHitLanded(Vector3 hitPos, string key = "")
-            => OnPlayerHitLanded?.Invoke(hitPos, key);
+        public static void FirePlayerHitLanded(Vector3 hitPos, Vector3 hitDir, string key = "")
+            => OnPlayerHitLanded?.Invoke(hitPos, hitDir, key);
 
         /// <summary>
-        /// 몬스터의 공격이 플레이어에게 적중 (맞은 부위의 월드 좌표, 공격 키).
+        /// 몬스터의 공격이 플레이어에게 적중 (맞은 부위의 월드 좌표, 타격 방향, 공격 키).
         /// 플레이어 몸에 붙는 피격 이펙트가 구독한다.
         /// 키(2026-08 추가): 몬스터 공격마다 다른 피격 이펙트를 고를 수 있게 대비해 시그니처를
         /// 맞춰 뒀다. EnemyCombat의 AttackPattern.name은 "로직 키로 쓰지 않는다"고 명시된 표시용
         /// 필드라 아직 여기 채워 넣지 않았다(기존 호출부는 기본값 빈 문자열로 그대로 동작).
+        /// 방향(2026-09 추가): OnPlayerHitLanded와 같은 목적. 방향이 필요 없으면 Vector3.zero.
         /// </summary>
-        public static event Action<Vector3, string> OnEnemyHitLanded;
+        public static event Action<Vector3, Vector3, string> OnEnemyHitLanded;
 
         /// <summary>
         /// 몬스터 공격 적중 이벤트 발행. EnemyCombat이 플레이어에게 데미지를
         /// 넣은 직후, 맞은 콜라이더 표면의 접점 좌표로 호출한다.
         /// </summary>
         /// <param name="hitPos">맞은 부위의 월드 좌표(콜라이더 표면 접점)</param>
+        /// <param name="hitDir">타격이 향한 방향(월드). 방향 연출이 필요 없으면 Vector3.zero.</param>
         /// <param name="key">이 타격을 낸 공격의 키. 아직 발행 쪽에서 채우지 않아 기본값 빈 문자열.</param>
-        public static void FireEnemyHitLanded(Vector3 hitPos, string key = "")
-            => OnEnemyHitLanded?.Invoke(hitPos, key);
+        public static void FireEnemyHitLanded(Vector3 hitPos, Vector3 hitDir, string key = "")
+            => OnEnemyHitLanded?.Invoke(hitPos, hitDir, key);
 
         /// <summary>
         /// 투사체가 지형·벽에 막혀 소멸 (접점 월드 좌표, 표면 법선, 재생할 이펙트 프리팹).

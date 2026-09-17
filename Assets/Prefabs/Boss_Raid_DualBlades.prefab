@@ -16316,6 +16316,7 @@ GameObject:
   - component: {fileID: 1661201315309994555}
   - component: {fileID: 7492403399004123236}
   - component: {fileID: 5482364037084802205}
+  - component: {fileID: 1426980044352267544}
   m_Layer: 6
   m_Name: Boss_Raid_DualBlades
   m_TagString: Untagged
@@ -17184,6 +17185,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82561c5fd19c21e47876a4bc328b0130, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.BossServerAuthority
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+--- !u!114 &1426980044352267544
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890781944157325120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfb9ce624a49aaf49b2b5b019fac552b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.BossNetSync
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
