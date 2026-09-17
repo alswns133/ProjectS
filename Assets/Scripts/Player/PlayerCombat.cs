@@ -128,6 +128,7 @@ namespace ProjectS.Players
         private Player player;
 
         private NetworkComboRelay comboRelay;
+        private NetworkDamageRelay damageRelay;   // 서버 권위 보스 히트를 서버로 라우팅(없으면 no-op)
 
         // 콤보 창이 열리기 전에 들어온 공격 입력을 기억해 다음 타로 넘긴다.
         private bool attackBuffered;
@@ -232,6 +233,7 @@ namespace ProjectS.Players
             input = GetComponent<PlayerInputHandler>();
             player = GetComponent<Player>();
             comboRelay = GetComponent<NetworkComboRelay>();
+            damageRelay = GetComponent<NetworkDamageRelay>();
             skillReadyTime = new float[MaxSkillNumber + 1];
             relayProjectileHit = gain => TargetHit?.Invoke(gain);
 
@@ -585,6 +587,17 @@ namespace ProjectS.Players
                     // 랜덤 편차·치명타도 대상별로 굴러간다(광역이면 적마다 다른 숫자가 뜬다).
                     DamageResult result = DamageCalculator.Calculate(in attack, target.Defense, target.IsBoss);
 
+                    // ★ 서버 권위 보스면 로컬 적용 대신 서버로 라우팅한다(서버가 권위 스탯으로 재계산·적용).
+                    //   보냈으면 로컬 TakeDamage를 건너뛰고(이중 적용 방지) 손맛(히트 이펙트·게이지)만 즉시 준다.
+                    //   솔로·비네트워크 보스·호스트·일반몹이면 false라 아래 로컬 경로를 그대로 탄다.
+                    if (damageRelay != null && damageRelay.TryReportBossHit(buffer[i], slot.skillId, result.Amount, attack.GroggyDamage))
+                    {
+                        Vector3 relayHitPoint = buffer[i].ClosestPoint(box.position);
+                        CombatEvents.FirePlayerHitLanded(relayHitPoint, relayHitPoint - box.position, key);
+                        TargetHit?.Invoke(gaugeGain);
+                        continue;
+                    }
+
                     // 데미지가 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다.
                     // 시체 타격으로 스킬 게이지를 채우는 악용을 막는 효과도 겸한다.
                     if (!target.TakeDamage(in result)) continue;
@@ -598,7 +611,10 @@ namespace ProjectS.Players
                     // 맞은 부위 접점은 히트 판정을 한 여기(때린 쪽)만 알 수 있다.
                     // 콜라이더 표면에서 히트박스 중심에 가장 가까운 점 = 실제 맞은 부위 근사치.
                     // key를 함께 보내 공격마다 다른 타격 이펙트를 고를 수 있게 한다.
-                    CombatEvents.FirePlayerHitLanded(buffer[i].ClosestPoint(box.position), key);
+                    // 방향은 히트박스 중심 → 접점(때린 쪽에서 맞은 부위로). 방향 연출을 쓰는
+                    // 이펙트(oriented)만 이 값을 회전으로 쓰고, 나머지는 무시한다.
+                    Vector3 hitPoint = buffer[i].ClosestPoint(box.position);
+                    CombatEvents.FirePlayerHitLanded(hitPoint, hitPoint - box.position, key);
 
                     // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다.
                     // ★ 설계 수치 시트에는 우클릭 SG가 "+20 / 사용당"으로 적혀 있지만,
@@ -676,7 +692,7 @@ namespace ProjectS.Players
                 key);
         }
 
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
             if (attackHitBoxes == null) return;
@@ -692,7 +708,7 @@ namespace ProjectS.Players
 
             Gizmos.matrix = Matrix4x4.identity;
         }
-    #endif
+#endif
 
         public bool OnAttackInput()
         {
@@ -759,14 +775,14 @@ namespace ProjectS.Players
             comboWindowOpen = true;
 
             // 홀드, 선입력 즉시 발동
-            TryConsumeComboInput(); 
+            TryConsumeComboInput();
         }
 
         public bool TryConsumeComboInput()
         {
             if (!comboWindowOpen) return false;
 
-            if(input.AttackHeld || attackBuffered)
+            if (input.AttackHeld || attackBuffered)
             {
                 anim.PlayAttackTrigger();
                 attackBuffered = false;
@@ -844,14 +860,14 @@ namespace ProjectS.Players
             {
                 CombatAction.Combo => comboStep switch
                 {
-                    1 => nk == "Attack1",
-                    2 => nk == "Attack2",
-                    3 => nk == "Attack3",
+                    1 => nk.StartsWith("Attack1", StringComparison.Ordinal),
+                    2 => nk.StartsWith("Attack2", StringComparison.Ordinal),
+                    3 => nk.StartsWith("Attack3", StringComparison.Ordinal),
                     _ => false,
                 },
                 CombatAction.Skill => IsCurrentSkillKey(key),
-                CombatAction.StrongAttack => nk == "StrongAttack",
-                CombatAction.RunAttack => nk == "RunAttack",
+                CombatAction.StrongAttack => nk.StartsWith("StrongAttack", StringComparison.Ordinal),
+                CombatAction.RunAttack => nk.StartsWith("RunAttack", StringComparison.Ordinal),
                 CombatAction.JumpAttack => nk.StartsWith("Jump", StringComparison.Ordinal),
                 _ => false,
             };

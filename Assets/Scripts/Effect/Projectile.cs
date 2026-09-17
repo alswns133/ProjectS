@@ -188,8 +188,10 @@ namespace ProjectS.Effects
 
                 // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
                 // 내면 플레이어가 적중시킨 것으로 오인한다.
-                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, sourceKey);
-                else CombatEvents.FireEnemyHitLanded(point, sourceKey);
+                // 방향은 투사체 진행 방향(direction). 총 스프레이처럼 맞은 부위에서
+                // 날아온 궤적 방향으로 세워 재생할 이펙트가 쓴다(구독자가 oriented일 때만).
+                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey);
+                else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey);
 
                 onTargetHit?.Invoke(gaugeGain);
                 hitCount++;

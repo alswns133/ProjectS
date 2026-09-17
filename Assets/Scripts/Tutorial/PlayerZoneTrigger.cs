@@ -95,14 +95,17 @@ namespace ProjectS.Tutorials
 
             isPlayerInside = value;
 
+            // 진단용: 존이 실제로 반응했는지, 인스펙터에 연결된 대상이 몇 개인지 찍는다.
+            // (연결이 0개면 아무 일도 안 일어나는데 화면상으로는 "트리거가 안 먹는다"로 보인다.)
+            Debug.Log($"[진단][Zone] {name}: 플레이어 {(value ? "진입" : "이탈")} — " +
+                      $"Entered연결={onPlayerEntered.GetPersistentEventCount()}개, Exited연결={onPlayerExited.GetPersistentEventCount()}개", this);
+
             onPlayerInsideChanged?.Invoke(value);
 
             if (value) onPlayerEntered?.Invoke();
             else onPlayerExited?.Invoke();
 
             PlayerInsideChanged?.Invoke(value);
-
-            
         }
 
 #if UNITY_EDITOR

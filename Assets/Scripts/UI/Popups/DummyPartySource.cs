@@ -227,6 +227,18 @@ namespace ProjectS.UI
             SetPhase(PartyPhase.Invited);
         }
 
+        /// <summary>
+        /// 파티원 입장에서 파티장이 출발을 건 것처럼 만들어 출발 응답 팝업을 띄운다.
+        /// 더미는 늘 초대한 쪽(파티장)이라, 이 통로가 없으면 파티원 쪽 출발 화면을 볼 방법이 없다.
+        /// </summary>
+        [ContextMenu("파티장이 출발한 것처럼")]
+        public void SimulateLeaderDepart()
+        {
+            Partner ??= new PartyMemberInfo("leader", "시온", 31, 0, isOnline: true, PartyInviteState.Invitable);
+            IsLeader = false;
+            SetPhase(PartyPhase.Departing);
+        }
+
         private void OnDisable()
         {
             // 대기 중 코루틴이 끊기면 IsInviting이 켜진 채 굳어 빈 칸이 영영 잠긴다.

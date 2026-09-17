@@ -72,6 +72,39 @@ namespace ProjectS.FX
         [SerializeField] private float minScrollMultiplier = 20f;
         [SerializeField] private float maxScrollMultiplier = 60f;
 
+        [Header("글자 찢김 (전용 셰이더 필요)")]
+        [Tooltip("글리치 중 셰이더의 '_Glitch_Strength'를 올려 글자를 가로로 찢는다. " +
+                 "HologramSignGlitch 셰이더처럼 이 프로퍼티를 노출하는 머티리얼에서만 동작하고, " +
+                 "없으면 자동으로 건너뛴다(원본 Synty 머티리얼에 붙여도 안전하다).")]
+        [SerializeField] private bool affectTear = true;
+
+        [Tooltip("글리치 중 찢김 세기 범위(0~1). 스터터마다 이 범위에서 다시 뽑는다. " +
+                 "실제 찢김 폭은 머티리얼의 Tear Amount와 곱해지므로, 폭 조절은 머티리얼에서 한다.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float minTearStrength = 0.35f;
+
+        [Range(0f, 1f)]
+        [SerializeField] private float maxTearStrength = 1f;
+
+        [Header("위치 흔들림 (지직거림)")]
+        [Tooltip("글리치 중 오브젝트를 미세하게 흔들어 신호가 떨리는 느낌을 준다. " +
+                 "이 셰이더는 UV를 흔들 수 있는 프로퍼티가 없어, 화면 찢김은 오브젝트를 " +
+                 "직접 움직이는 방식으로만 낼 수 있다.")]
+        [SerializeField] private bool affectJitter = true;
+
+        [Tooltip("로컬 축별 최대 흔들림 폭(유닛). 간판 크기에 비례해 정한다. " +
+                 "가로로만 튀게 하려면 Y·Z를 0으로 둔다. 너무 키우면 간판이 떨어져 나간 것처럼 보인다.")]
+        [SerializeField] private Vector3 jitterAmount = new Vector3(0.04f, 0.015f, 0f);
+
+        [Tooltip("켜면 대상 Renderer마다 다른 값으로 흔든다. 줄이 각각 어긋나 '찢어진 신호'로 읽힌다. " +
+                 "끄면 전체가 한 덩어리로 같이 흔들린다.")]
+        [SerializeField] private bool perTargetJitter = true;
+
+        [Tooltip("스터터마다 이 확률로 완전히 꺼진다(신호 두절). 0이면 사용하지 않는다. " +
+                 "밝기만 오르내리는 것보다 '끊긴다'는 인상이 훨씬 강해진다.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float dropoutChance = 0.25f;
+
         [Header("맥박 (선택 · 기본 꺼짐)")]
         [Tooltip("글리치만으로 밋밋할 때 켠다. 글리치가 이미 충분하면 끈 채로 두는 게 낫다.")]
         [SerializeField] private bool usePulse;
@@ -91,6 +124,11 @@ namespace ProjectS.FX
         private static readonly int OpacityId = Shader.PropertyToID("_Opacity");
         private static readonly int ScrollSpeedId = Shader.PropertyToID("_Scroll_Speed");
 
+        // 전용 셰이더(HologramSignGlitch)에만 있는 프로퍼티. 원본 Synty 머티리얼에는 없으므로
+        // 존재 여부를 확인한 뒤에만 건드린다. 없는 프로퍼티를 넣어도 에러는 안 나지만,
+        // '넣었는데 왜 안 되지'로 시간을 버리게 되므로 Awake에서 한 번 판정해 둔다.
+        private static readonly int GlitchStrengthId = Shader.PropertyToID("_Glitch_Strength");
+
         private MaterialPropertyBlock block;
         private float basePower;
         private float baseOpacity;
@@ -102,6 +140,16 @@ namespace ProjectS.FX
         private float powerScale = 1f;
         private float scrollMultiplier = 1f;
         private bool ready;
+
+        // 흔들림은 "이번에 넣고 싶은 값(desired)"과 "지금 실제로 넣어둔 값(applied)"을 따로 들고,
+        // 매 프레임 applied를 빼고 desired를 더한다. 절대 위치를 기억했다가 되돌리는 방식이면
+        // 같은 오브젝트를 ConveyorLoop 같은 다른 스크립트가 움직일 때 서로 위치를 덮어써서
+        // 간판이 제자리로 튕겨 버린다. 차분으로 얹으면 누가 움직이든 그 위에 덧칠된다.
+        private Vector3[] desiredOffset;
+        private Vector3[] appliedOffset;
+        private bool isDropout;
+        private bool hasTearProperty;
+        private float tearStrength;
 
         private void Awake()
         {
@@ -129,6 +177,7 @@ namespace ProjectS.FX
             basePower = source.GetFloat(EmissionPowerId);
             baseOpacity = source.HasProperty(OpacityId) ? source.GetFloat(OpacityId) : 1f;
             baseScroll = source.HasProperty(ScrollSpeedId) ? source.GetFloat(ScrollSpeedId) : 0f;
+            hasTearProperty = source.HasProperty(GlitchStrengthId);
 
             // 기준 속도가 0이면 배율을 곱해도 계속 0이라 스캔라인이 아예 안 움직인다.
             if (affectScroll && Mathf.Abs(baseScroll) < 0.0001f)
@@ -137,6 +186,9 @@ namespace ProjectS.FX
                     $"[HologramGlitch] {name}: '_Scroll_Speed'가 0이라 스캔라인 폭주가 보이지 않습니다. " +
                     "머티리얼에서 0이 아닌 값을 주거나 Affect Scroll을 끄세요.", this);
             }
+
+            desiredOffset = new Vector3[targets.Length];
+            appliedOffset = new Vector3[targets.Length];
 
             block = new MaterialPropertyBlock();
             ready = true;
@@ -152,6 +204,9 @@ namespace ProjectS.FX
             nextGlitchTime = now + Random.Range(minInterval, maxInterval);
             powerScale = 1f;
             scrollMultiplier = 1f;
+            isDropout = false;
+            tearStrength = 0f;
+            ClearJitter();
         }
 
         private void OnDisable()
@@ -161,6 +216,9 @@ namespace ProjectS.FX
             // 글리치 도중에 꺼지면 어두워진 채로 씬에 남는다. 기준값으로 되돌린다.
             powerScale = 1f;
             scrollMultiplier = 1f;
+            isDropout = false;
+            tearStrength = 0f;
+            ClearJitter();
             Apply(basePower, baseOpacity, baseScroll);
         }
 
@@ -177,6 +235,9 @@ namespace ProjectS.FX
                 {
                     powerScale = 1f;
                     scrollMultiplier = 1f;
+                    isDropout = false;
+                    tearStrength = 0f;
+                    ClearJitter();
                 }
             }
 
@@ -188,6 +249,16 @@ namespace ProjectS.FX
                 // 매 스터터마다 새로 뽑는다. 속도가 바뀔 때마다 패너 오프셋이 튀므로,
                 // 값이 바뀌는 순간 자체가 라인이 어긋나는 연출이 된다.
                 scrollMultiplier = Random.Range(minScrollMultiplier, maxScrollMultiplier);
+
+                // 두절은 스터터 단위로만 판정한다. 매 프레임 뽑으면 프레임레이트에 따라
+                // 끊기는 빈도가 달라져, 기기마다 연출이 다르게 보인다.
+                isDropout = dropoutChance > 0f && Random.value < dropoutChance;
+
+                // 찢김도 스터터 단위로 새로 뽑는다. 밝기·흔들림과 같은 순간에 같이 바뀌어야
+                // 하나의 고장으로 읽힌다. 따로 놀면 두 개의 효과가 겹친 것처럼 지저분해진다.
+                tearStrength = Random.Range(minTearStrength, maxTearStrength);
+
+                RollJitter();
 
                 nextStutterTime = now + Mathf.Max(0.01f, stutterInterval);
             }
@@ -206,7 +277,65 @@ namespace ProjectS.FX
             if (affectOpacity && powerScale < 1f)
                 opacity = Mathf.Lerp(glitchOpacity, baseOpacity, powerScale);
 
+            if (isDropout)
+            {
+                power = 0f;
+                opacity = 0f;
+            }
+
             Apply(power, opacity, baseScroll * scrollMultiplier);
+            SyncJitter();
+        }
+
+        /// <summary>
+        /// 이번 스터터 동안 유지할 흔들림 값을 새로 뽑는다.
+        /// </summary>
+        private void RollJitter()
+        {
+            if (!affectJitter) return;
+
+            Vector3 shared = RandomOffset();
+
+            for (int i = 0; i < desiredOffset.Length; i++)
+                desiredOffset[i] = perTargetJitter ? RandomOffset() : shared;
+        }
+
+        private Vector3 RandomOffset()
+        {
+            return new Vector3(
+                Random.Range(-jitterAmount.x, jitterAmount.x),
+                Random.Range(-jitterAmount.y, jitterAmount.y),
+                Random.Range(-jitterAmount.z, jitterAmount.z));
+        }
+
+        /// <summary>흔들림을 0으로 되돌린다. 글리치가 끝났거나 컴포넌트가 꺼질 때 호출한다.</summary>
+        private void ClearJitter()
+        {
+            if (desiredOffset == null) return;
+
+            for (int i = 0; i < desiredOffset.Length; i++)
+                desiredOffset[i] = Vector3.zero;
+
+            SyncJitter();
+        }
+
+        /// <summary>
+        /// 실제 Transform에 흔들림을 반영한다. 넣어둔 값(applied)을 빼고 새 값(desired)을 더하는
+        /// 차분 방식이라, 같은 오브젝트를 움직이는 다른 스크립트와 싸우지 않는다.
+        /// </summary>
+        private void SyncJitter()
+        {
+            if (desiredOffset == null) return;
+
+            for (int i = 0; i < targets.Length; i++)
+            {
+                if (targets[i] == null) continue;
+                if (desiredOffset[i] == appliedOffset[i]) continue;
+
+                Transform t = targets[i].transform;
+                t.localPosition += desiredOffset[i] - appliedOffset[i];
+                appliedOffset[i] = desiredOffset[i];
+            }
         }
 
         private void BeginGlitch(float now)
@@ -231,6 +360,7 @@ namespace ProjectS.FX
                 block.SetFloat(EmissionPowerId, power);
                 if (affectOpacity) block.SetFloat(OpacityId, opacity);
                 if (affectScroll) block.SetFloat(ScrollSpeedId, scroll);
+                if (affectTear && hasTearProperty) block.SetFloat(GlitchStrengthId, tearStrength);
 
                 targets[i].SetPropertyBlock(block);
             }
@@ -244,6 +374,7 @@ namespace ProjectS.FX
             if (maxDuration < minDuration) maxDuration = minDuration;
             if (maxPowerScale < minPowerScale) maxPowerScale = minPowerScale;
             if (maxScrollMultiplier < minScrollMultiplier) maxScrollMultiplier = minScrollMultiplier;
+            if (maxTearStrength < minTearStrength) maxTearStrength = minTearStrength;
         }
     }
 }
