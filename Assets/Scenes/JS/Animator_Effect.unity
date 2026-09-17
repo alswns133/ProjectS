@@ -3980,7 +3980,7 @@ GameObject:
   - component: {fileID: 1189774347}
   - component: {fileID: 1189774346}
   m_Layer: 0
-  m_Name: RapidFire
+  m_Name: ProjectileSpawner
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4000,10 +4000,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.ProjectileSpawner
   prewarm:
   - prefab: {fileID: 8203456545268061989, guid: 03949b5a7864840479907aa726724056, type: 3}
-    count: 10
-  - prefab: {fileID: 8203456545268061989, guid: 03949b5a7864840479907aa726724056, type: 3}
-    count: 10
-  - prefab: {fileID: 8203456545268061989, guid: 03949b5a7864840479907aa726724056, type: 3}
+    count: 30
+  - prefab: {fileID: 8895988964119889886, guid: ceb9fec33e9612e4d8ed2c0f26260a12, type: 3}
     count: 10
 --- !u!4 &1189774347
 Transform:
@@ -6506,9 +6504,14 @@ MonoBehaviour:
   prewarm: []
   source: 0
   defaultPrefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+  defaultOriented: 1
   effects:
   - key: Attack3
     prefab: {fileID: 9180208090679346414, guid: cf5fbacd839a42d47a75366699a62f77, type: 3}
+    oriented: 1
+  - key: Skill1
+    prefab: {fileID: 9152707511363254258, guid: 8ed3ed545929b574a9900c1af530163d, type: 3}
+    oriented: 1
 --- !u!1 &1937823494
 GameObject:
   m_ObjectHideFlags: 0
