@@ -80,6 +80,17 @@ namespace ProjectS.Effects
         // 공격마다 다른 타격 이펙트를 고를 수 있게 한다.
         private string sourceKey;
 
+        // ── 멀티(2026-09-17) ──
+        // 적중을 다른 곳(서버·원격 플레이어)으로 보낼지 묻는 통로. null이면 기존대로 그 자리에서 적용한다.
+        private IProjectileHitRouter hitRouter;
+
+        // 쏜 슬롯의 스킬 ID. 플레이어 투사체가 서버 권위 보스를 맞혔을 때 서버가 권위 스탯으로 재계산하는 데 쓴다.
+        private int skillId;
+
+        // 보이기 전용 복제본인지. 판정 권한이 없는 화면(남이 쏜 투사체를 구경하는 쪽)에서 날리는 것으로,
+        // 데미지·히트 이벤트 없이 벽에 막히거나 첫 대상에서 멈추기만 한다 — 판정은 쏜 쪽 한 곳에서만 한다.
+        private bool visualOnly;
+
         /// <summary>
         /// 투사체를 발사한다. ProjectileSpawner의 Fire를 통해서만 호출된다.
         /// </summary>
@@ -88,6 +99,9 @@ namespace ProjectS.Effects
         /// <param name="onTargetHit">적중 1회당 호출. 인자는 회복할 스킬 게이지 양.</param>
         /// <param name="onFinished">수명 종료 시 풀 반환 콜백.</param>
         /// <param name="sourceKey">이 투사체를 쏜 슬롯의 키. 적중 이벤트에 그대로 실린다.</param>
+        /// <param name="hitRouter">적중을 다른 곳으로 보낼지 묻는 통로(멀티). null이면 그 자리에서 적용.</param>
+        /// <param name="skillId">쏜 슬롯의 스킬 ID(서버 재계산용). 몬스터는 0.</param>
+        /// <param name="visualOnly">true면 판정 없이 보이기만 하는 복제본.</param>
         public void Launch(
             Vector3 position,
             Quaternion rotation,
@@ -96,7 +110,10 @@ namespace ProjectS.Effects
             bool canPierce,
             Action<float> onTargetHit,
             Action<Projectile> onFinished,
-            string sourceKey = "")
+            string sourceKey = "",
+            IProjectileHitRouter hitRouter = null,
+            int skillId = 0,
+            bool visualOnly = false)
         {
             this.attack = attack;
             this.gaugeGain = gaugeGain;
@@ -104,6 +121,9 @@ namespace ProjectS.Effects
             this.onTargetHit = onTargetHit;
             this.onFinished = onFinished;
             this.sourceKey = sourceKey;
+            this.hitRouter = hitRouter;
+            this.skillId = skillId;
+            this.visualOnly = visualOnly;
 
             transform.SetPositionAndRotation(position, rotation);
             startPosition = position;
@@ -177,23 +197,45 @@ namespace ProjectS.Effects
                 if (!hit.collider.TryGetComponent<IDamageable>(out IDamageable target)) continue;
                 if (!alreadyHit.Add(target)) continue;
 
+                // 보이기 전용 복제본: 판정은 쏜 쪽 한 곳에서만 하므로 데미지·히트 이벤트 없이 모양만 맞춘다.
+                // 관통이 아니면 첫 대상에서 사라지고, 관통이면 지나간다.
+                if (visualOnly)
+                {
+                    if (!canPierce) return false;
+                    continue;
+                }
+
                 // 방어 경감은 맞는 쪽 방어도로 계산하므로 적중 대상마다 따로 굴린다.
                 DamageResult result = DamageCalculator.Calculate(in attack, target.Defense, target.IsBoss);
-
-                // 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다(근접 판정과 같은 방침).
-                if (!target.TakeDamage(in result)) continue;
 
                 // 캐스트 시작 지점에 이미 겹쳐 있던 콜라이더는 point가 원점으로 나오므로 근사치로 보정한다.
                 Vector3 point = hit.distance > 0f ? hit.point : hit.collider.ClosestPoint(from);
 
-                // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
-                // 내면 플레이어가 적중시킨 것으로 오인한다.
-                // 방향은 투사체 진행 방향(direction). 총 스프레이처럼 맞은 부위에서
-                // 날아온 궤적 방향으로 세워 재생할 이펙트가 쓴다(구독자가 oriented일 때만).
-                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey);
-                else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey);
+                // 멀티: 서버 권위 보스·원격 플레이어면 그 자리 적용 대신 통로로 보낸다(근접 타격과 같은 경로).
+                bool showHitFeedback;
+                if (hitRouter != null && hitRouter.TryRoute(hit.collider, in result, skillId, point, direction, out showHitFeedback))
+                {
+                    // 보냈다. 원격 플레이어로 보낸 경우는 그쪽이 적용·이펙트를 정하므로 여기서 손맛을 내지 않는다.
+                }
+                else
+                {
+                    // 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다(근접 판정과 같은 방침).
+                    if (!target.TakeDamage(in result)) continue;
+                    showHitFeedback = true;
+                }
 
-                onTargetHit?.Invoke(gaugeGain);
+                if (showHitFeedback)
+                {
+                    // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
+                    // 내면 플레이어가 적중시킨 것으로 오인한다.
+                    // 방향은 투사체 진행 방향(direction). 총 스프레이처럼 맞은 부위에서
+                    // 날아온 궤적 방향으로 세워 재생할 이펙트가 쓴다(구독자가 oriented일 때만).
+                    if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey);
+                    else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey);
+
+                    onTargetHit?.Invoke(gaugeGain);
+                }
+
                 hitCount++;
 
                 if (!canPierce || hitCount >= maxPierceTargets) return false;

@@ -38,6 +38,16 @@ namespace ProjectS.Logging
         [SerializeField, Range(0, 5)] private int remoteRetryCount = 2;
         [SerializeField, Min(0.1f)] private float remoteRetryDelaySeconds = 1f;
 
+        [Header("Server forward")]
+        [Tooltip("원격 클라의 로그를 서버 콘솔로 보낸다(팀 규칙: 클라 디버그는 서버에서 전부 보여야 한다). 릴리스 빌드에서는 꺼진다.")]
+        [SerializeField] private bool forwardClientLogsToServer = true;
+        [Tooltip("이 심각도 이상만 보낸다. 기본 Info = 전부.")]
+        [SerializeField] private LogSeverity forwardMinimumSeverity = LogSeverity.Info;
+        [Tooltip("초당 최대 전송 줄 수. 넘치면 대기열에 남았다가 다음 초에 나간다.")]
+        [SerializeField, Min(1)] private int forwardMaxPerSecond = 60;
+        [Tooltip("접속 전·전송 대기 중 보관할 최대 줄 수. 넘치면 버리고 버린 개수만 알린다.")]
+        [SerializeField, Min(10)] private int forwardMaximumPendingEntries = 500;
+
         public string BuildId => string.IsNullOrWhiteSpace(buildId) ? Application.version : buildId.Trim();
         public string TesterId => testerId?.Trim() ?? string.Empty;
         public int MaxCapturedLogsPerFrame => Mathf.Max(1, maxCapturedLogsPerFrame);
@@ -53,6 +63,10 @@ namespace ProjectS.Logging
         public int RemoteMaximumPendingEntries => Mathf.Max(RemoteBatchSize, remoteMaximumPendingEntries);
         public int RemoteRetryCount => Mathf.Clamp(remoteRetryCount, 0, 5);
         public float RemoteRetryDelaySeconds => Mathf.Max(0.1f, remoteRetryDelaySeconds);
+        public bool ForwardClientLogsToServer => forwardClientLogsToServer;
+        public LogSeverity ForwardMinimumSeverity => forwardMinimumSeverity;
+        public int ForwardMaxPerSecond => Mathf.Max(1, forwardMaxPerSecond);
+        public int ForwardMaximumPendingEntries => Mathf.Max(10, forwardMaximumPendingEntries);
 
         public bool HasRemoteConfiguration =>
             !string.IsNullOrWhiteSpace(AppsScriptUrl) && !string.IsNullOrWhiteSpace(SharedSecret);
@@ -76,6 +90,10 @@ namespace ProjectS.Logging
             remoteMaximumPendingEntries = 500;
             remoteRetryCount = 2;
             remoteRetryDelaySeconds = 1f;
+            forwardClientLogsToServer = true;
+            forwardMinimumSeverity = LogSeverity.Info;
+            forwardMaxPerSecond = 60;
+            forwardMaximumPendingEntries = 500;
         }
     }
 }

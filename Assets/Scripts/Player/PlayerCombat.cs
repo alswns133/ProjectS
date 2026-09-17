@@ -652,6 +652,7 @@ namespace ProjectS.Players
                 return;
             }
 
+            if (projectileSpawner == null) projectileSpawner = FindProjectileSpawner();
             if (projectileSpawner == null)
             {
                 Debug.LogWarning("ProjectileSpawner is not assigned.", this);
@@ -681,6 +682,7 @@ namespace ProjectS.Players
             // muzzle 방향에 슬롯별 회전 오프셋을 더해 검기 방향(가로/세로/대각)을 맞춘다.
             Quaternion rotation = slot.muzzle.rotation * Quaternion.Euler(slot.rotationOffset);
 
+            // 서버 권위 보스를 맞히면 damageRelay가 근접과 같은 경로(TryReportBossHit)로 서버에 보낸다. 싱글·일반몹은 그 자리 적용.
             projectileSpawner.Fire(
                 slot.prefab,
                 slot.muzzle.position,
@@ -689,7 +691,48 @@ namespace ProjectS.Players
                 gaugeGain,
                 slot.canPierce,
                 relayProjectileHit,
-                key);
+                key,
+                damageRelay,
+                slot.skillId);
+
+            // 멀티: 다른 화면에 보이기 전용 복제본을 날리게 알린다(투사체는 로컬 오브젝트라 원래 쏜 사람 화면에만 있다).
+            if (damageRelay != null) damageRelay.ReportProjectileFired(key, slot.muzzle.position, rotation);
+        }
+
+        /// <summary>
+        /// 남이 쏜 투사체를 이 화면에 <b>보이기만 하는</b> 복제본으로 날린다. 그 캐릭터의 <see cref="NetworkDamageRelay"/>가 부른다.
+        /// </summary>
+        /// <remarks>
+        /// 판정은 쏜 사람 화면의 원본이 한다. 같은 캐릭터 프리팹이라 슬롯 키로 같은 투사체 프리팹을 찾는다.
+        /// </remarks>
+        /// <param name="key">투사체 슬롯 키.</param>
+        /// <param name="position">발사 위치.</param>
+        /// <param name="rotation">발사 방향.</param>
+        public void FireVisualProjectile(string key, Vector3 position, Quaternion rotation)
+        {
+            if (string.IsNullOrEmpty(key) || !projectileMap.TryGetValue(AnimationEventKey.Normalize(key), out ProjectileSlot slot)) return;
+            if (slot.prefab == null) return;
+
+            if (projectileSpawner == null) projectileSpawner = FindProjectileSpawner();
+            if (projectileSpawner == null) return;
+
+            AttackContext none = default;
+            projectileSpawner.Fire(slot.prefab, position, rotation, in none, 0f, slot.canPierce, null, key, visualOnly: true);
+        }
+
+        // 투사체 스포너를 찾는다. 같은 씬(파티 인스턴스)의 것을 우선한다.
+        // ★ 스포너는 PlayerManager가 씬 진입 때 "지속 캐릭터"에만 넣어 준다. 멀티의 네트워크 아바타는 그 경로를 안 타
+        //   비어 있어서, 어윈 같은 투사체 캐릭터가 멀티에서 아예 발사하지 못했다(2026-09-17). 필요할 때 여기서 찾는다.
+        private ProjectileSpawner FindProjectileSpawner()
+        {
+            ProjectileSpawner fallback = null;
+            foreach (ProjectileSpawner candidate in FindObjectsByType<ProjectileSpawner>(FindObjectsSortMode.None))
+            {
+                if (candidate.gameObject.scene == gameObject.scene) return candidate;
+                if (fallback == null) fallback = candidate;
+            }
+
+            return fallback;
         }
 
 #if UNITY_EDITOR

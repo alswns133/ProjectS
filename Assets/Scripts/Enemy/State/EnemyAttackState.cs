@@ -153,6 +153,9 @@ namespace ProjectS.Enemies
                 isCharging = false;
                 isCodedCharging = false;
             }
+
+            // 패턴 하나가 끝났다 — 레이드 보스는 여기서 다음 대상을 무작위로 다시 고른다(어그로 규칙).
+            enemy.OnAttackPatternFinished();
         }
     }
 }

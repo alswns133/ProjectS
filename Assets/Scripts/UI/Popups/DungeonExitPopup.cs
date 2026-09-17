@@ -65,10 +65,8 @@ namespace ProjectS.UI
 
             RequestClose();
 
-            if (GameSceneManager.Instance != null)
-                GameSceneManager.Instance.RequestSceneChange<VillageGather>();
-            else
-                Debug.LogWarning($"{name}: GameSceneManager가 없어 마을로 돌아가지 못했다.", this);
+            // 멀티(파티 인스턴스)면 서버에 이탈도 알린다 — 씬만 바꾸면 서버에 아바타가 레이드에 남는다.
+            PartyInstanceExit.ReturnToVillage();
         }
 
         private void OnRetryClicked()

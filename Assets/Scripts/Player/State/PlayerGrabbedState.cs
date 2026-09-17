@@ -62,13 +62,20 @@ namespace ProjectS.Players
             SnapToAnchor();
         }
 
+        // 잡은 보스가 아직 "살아서 돌고 있는가".
+        // ★ 네트워크 보스를 구경하는 클라에서는 BossServerAuthority가 보스 AI(Enemy) 컴포넌트를 항상 꺼 둔다. 그래서 거기서
+        //   isActiveAndEnabled로 보면 멀티의 원격 플레이어는 잡히자마자 풀려난다(2026-09-17). 판정 권한이 있는 컴퓨터(싱글·서버)는
+        //   씬 이탈 정지(HaltForSceneExit=enabled 끔)를 잡기 위해 기존대로 컴포넌트 활성으로 보고, 그 외엔 오브젝트 활성으로 본다.
+        private bool IsGrabberAlive()
+            => grabber.HasGameplayAuthority ? grabber.isActiveAndEnabled : grabber.gameObject.activeInHierarchy;
+
         public override void Update()
         {
             elapsed += Time.deltaTime;
 
             // 잡은 주체가 죽거나 사라지면(씬 이탈로 비활성 등) 즉시 스스로 해제한다.
             // 이 실패 복구가 없으면 보스가 잡은 채 죽었을 때 플레이어가 영구히 고착된다.
-            if (grabber == null || grabber.Stats == null || grabber.Stats.IsDead || !grabber.isActiveAndEnabled)
+            if (grabber == null || grabber.Stats == null || grabber.Stats.IsDead || !IsGrabberAlive())
             {
                 player.ReleaseFromGrab(false);
                 return;

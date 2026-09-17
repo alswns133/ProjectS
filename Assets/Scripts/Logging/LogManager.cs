@@ -152,6 +152,9 @@ namespace ProjectS.Logging
             sinks.Add(overlay);
 
             sinks.Add(new GoogleSheetsLogSink(settings, ResolveBuildId, ResolveTesterId));
+
+            // 원격 클라의 로그를 서버 콘솔로 모은다(팀 규칙: 클라 디버그는 서버에서 전부 보여야 한다).
+            sinks.Add(new ServerForwardLogSink(settings));
         }
 
         private void OnLogMessageReceivedThreaded(string message, string stackTrace, LogType type)

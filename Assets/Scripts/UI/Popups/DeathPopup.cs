@@ -230,12 +230,17 @@ namespace ProjectS.UI
 
             // 살려 놓고 보내야 한다. VillageGather의 RefillOnSceneEnter는 죽어 있으면 회복을 건너뛰므로,
             // 이걸 빠뜨리면 마을에 HP 0인 채로 도착해 조작이 막힌다.
-            ResolvePlayer()?.Revive();
+            // 멀티에선 죽은 건 아바타지만 마을로 돌아가 조작할 건 지속 캐릭터라, 둘이 다르면 둘 다 살린다.
+            Player current = ResolvePlayer();
+            current?.Revive();
+
+            Player persistent = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            if (persistent != null && persistent != current) persistent.Revive();
 
             RequestClose();
 
-            if (GameSceneManager.Instance != null)
-                GameSceneManager.Instance.RequestSceneChange<VillageGather>();
+            // 멀티(파티 인스턴스)면 서버에 이탈도 알린다 — 씬만 바꾸면 서버에 아바타가 레이드에 남는다.
+            PartyInstanceExit.ReturnToVillage();
         }
 
         private void ShowChoice()
@@ -262,11 +267,13 @@ namespace ProjectS.UI
         }
 
         // 매니저를 우선하고, 매니저 없이 단독 실행하는 테스트 씬을 위해 씬 검색으로 폴백한다(Enemy와 동일).
+        // ★ 부활 대상은 "지금 조작 중인 플레이어"다. 멀티(파티 레이드)에선 조작 캐릭터가 네트워크 아바타이고
+        //   PlayerManager.Player는 OwnerGate가 숨겨 둔 마을 캐릭터라, 예전처럼 그걸 부활시키면 죽지도 않은 캐릭터에
+        //   Revive가 불려 아무 일도 안 일어나고 실제로 죽은 아바타는 계속 죽어 있었다(2026-09-17). LocalPlayer가 싱글/멀티를 가른다.
         private static Player ResolvePlayer()
         {
-            return PlayerManager.Instance != null
-                ? PlayerManager.Instance.Player
-                : Object.FindAnyObjectByType<Player>();
+            Player current = LocalPlayer.Current;
+            return current != null ? current : Object.FindAnyObjectByType<Player>();
         }
 
         private void SetCursorFree(bool free)

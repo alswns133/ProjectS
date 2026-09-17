@@ -22,6 +22,9 @@ namespace ProjectS.Effects
         /// <param name="onTargetHit">적중 1회당 호출. 인자는 회복할 스킬 게이지 양. 몬스터는 null을 넘긴다.</param>
         /// <param name="key">이 투사체를 쏜 슬롯의 키. 적중 시 CombatEvents 히트 이벤트에 그대로 실린다
         /// (공격마다 다른 타격 이펙트를 고를 수 있게 하기 위함). 없으면 빈 문자열.</param>
+        /// <param name="hitRouter">적중을 서버·원격 플레이어로 보낼지 묻는 통로(멀티). null이면 그 자리에서 적용.</param>
+        /// <param name="skillId">쏜 슬롯의 스킬 ID(서버 재계산용). 몬스터는 0.</param>
+        /// <param name="visualOnly">true면 판정 없이 보이기만 하는 복제본(남이 쏜 투사체를 구경하는 화면용).</param>
         public void Fire(
             Projectile prefab,
             Vector3 position,
@@ -30,12 +33,16 @@ namespace ProjectS.Effects
             float gaugeGain,
             bool canPierce,
             Action<float> onTargetHit,
-            string key = "")
+            string key = "",
+            IProjectileHitRouter hitRouter = null,
+            int skillId = 0,
+            bool visualOnly = false)
         {
             if (prefab == null) return;
 
             Projectile projectile = GetFromPool(prefab);
-            projectile.Launch(position, rotation, in attack, gaugeGain, canPierce, onTargetHit, GetReturnCallback(prefab), key);
+            projectile.Launch(position, rotation, in attack, gaugeGain, canPierce, onTargetHit, GetReturnCallback(prefab), key,
+                              hitRouter, skillId, visualOnly);
         }
     }
 }

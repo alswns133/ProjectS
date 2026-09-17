@@ -36,9 +36,14 @@ namespace ProjectS.Enemies
 
         private Animator animator;
 
+        // 네트워크 보스의 트리거 전달 통로(없으면 싱글·잡몹). NetworkAnimator는 트리거를 동기화하지 않아,
+        // 서버가 켠 트리거를 관찰자 클라에 따로 보내야 공격·발견 모션이 클라에서도 나온다.
+        private BossNetSync netSync;
+
         private void Awake()
         {
             animator = GetComponent<Animator>();
+            netSync = GetComponent<BossNetSync>();
             hasMove = HasParameter(MoveX);
 
             // 대기 변주(IdleVariant)·발견 트리거(doDetect)는 컨트롤러마다 없을 수 있다(보스는 자체 등장
@@ -87,6 +92,7 @@ namespace ProjectS.Enemies
         {
             if (!hasDetect) return;   // 발견 트리거가 없는 컨트롤러(자체 등장 연출을 쓰는 보스 등)에선 무시
             animator.SetTrigger(DoDetect);
+            RelayTrigger(DoDetect, -1);
         }
 
         /// <summary>
@@ -98,6 +104,31 @@ namespace ProjectS.Enemies
         {
             animator.SetInteger(AttackIndex, attackIndex);
             animator.SetTrigger(DoAttack);
+            RelayTrigger(DoAttack, attackIndex);
+        }
+
+        /// <summary>
+        /// 서버가 켠 트리거를 관찰자 클라 애니메이터에 그대로 켠다. <see cref="BossNetSync"/>가 서버 지시를 받아 부른다.
+        /// </summary>
+        /// <remarks>
+        /// 공격 번호를 트리거와 <b>같은 메시지로</b> 받아 먼저 넣는다. NetworkAnimator의 파라미터 동기화는 주기적(약 0.1초)이라
+        /// 트리거만 따로 오면 이전 공격 번호로 전이해 엉뚱한 공격 모션이 나올 수 있기 때문이다.
+        /// </remarks>
+        /// <param name="triggerHash">켤 트리거의 해시.</param>
+        /// <param name="attackIndex">함께 넣을 공격 번호. 음수면 건드리지 않는다.</param>
+        public void ApplyNetworkTrigger(int triggerHash, int attackIndex)
+        {
+            if (attackIndex >= 0) animator.SetInteger(AttackIndex, attackIndex);
+            animator.SetTrigger(triggerHash);
+        }
+
+        // ★ NetworkAnimator는 Int/Float/Bool만 동기화하고 트리거는 안 보낸다. 게다가 트리거로 "전이"해 들어간 상태는
+        //   상태 변경으로도 다시 보내지 않는다(Play로 직접 바꾼 상태만 보냄). 그래서 서버 AI가 켠 트리거를 여기서
+        //   따로 보내지 않으면 관찰자 클라의 보스는 공격 상태로 영영 들어가지 못한다(2026-09-17 "멀티 공격 모션 안 나옴").
+        //   싱글(로컬 스폰)·잡몹은 netSync가 없거나 서버가 아니라 아무 일도 안 한다.
+        private void RelayTrigger(int triggerHash, int attackIndex)
+        {
+            if (netSync != null) netSync.RelayTrigger(triggerHash, attackIndex);
         }
 
         /// <summary>
@@ -184,7 +215,11 @@ namespace ProjectS.Enemies
         /// 것을 막는다. 이 트리거는 보스만 쓰며(잡몹 애니메이터엔 이 파라미터가 없다), 보스 외에는 호출하지 않으므로
         /// "파라미터 없음" 경고가 나지 않는다.
         /// </summary>
-        public void PlayGrabFail() => animator.SetTrigger(DoGrabFail);
+        public void PlayGrabFail()
+        {
+            animator.SetTrigger(DoGrabFail);
+            RelayTrigger(DoGrabFail, -1);
+        }
 
         /// <summary>
         /// 공중 사망: 지금 재생 중인 공중 피격 클립의 진행도를 이어받아 Die_Air 모션을 재생
