@@ -17,8 +17,10 @@ namespace ProjectS.Networking
     /// - onlineScene/offlineScene은 비운다 — 접속 순간 자동 씬 전환이 일어나면 안 되기 때문.
     ///   (onlineScene=던전으로 두면 접속하자마자 전원이 던전으로 끌려간다.) 던전 이동은
     ///   파티 레디 완료 시 <see cref="GoToDungeon"/>가 ServerChangeScene으로 수동 처리한다.
-    /// - Player Prefab = 채팅 전용 경량 네트워크 오브젝트(NetworkIdentity + ChatManager). 접속 시
-    ///   커넥션마다 자동 스폰되어 소유권을 갖는다 → 로컬 클라의 채팅 Command가 허용된다.
+    /// - Player Prefab = 커넥션 소유 경량 네트워크 오브젝트 NetworkPlayer.prefab(NetworkIdentity +
+    ///   PlayerPresence·PartyManager·ChatManager·NetworkComboRelay·NetworkCombatStats). 접속 시 커넥션마다
+    ///   자동 스폰되어 소유권을 갖는다 → 로컬 클라의 Command(채팅·초대 등)가 허용되고, 서버가 이 오브젝트에
+    ///   커넥션 단위 사실(프레즌스·파티·권위 전투스탯)을 얹는다.
     ///   (마을의 보이는/조종하는 캐릭터는 여전히 로컬 PlayerManager.Player. 서로 별개다 — A안.)
     /// </summary>
     public class GameNetworkManager : NetworkManager
@@ -214,6 +216,18 @@ namespace ProjectS.Networking
         {
             // TODO: 던전 진입 직전 정리(로컬↔네트워크 플레이어 재빌드 경계 §5)와 맞물릴 지점.
             ServerChangeScene(dungeonSceneName);
+        }
+
+        // ── 접속 종료 정리 ───────────────────────────────────────────
+
+        /// <summary>
+        /// 커넥션이 끊길 때 뒤처리. 인증 게이트(<see cref="FirebaseServerAuthenticator"/>)가 이 커넥션에 대해
+        /// 보관한 토큰/세이브를 지워 장수명 전용 서버에서 누수를 막는다. 그 뒤 기본 정리(플레이어 오브젝트 파괴)를 탄다.
+        /// </summary>
+        public override void OnServerDisconnect(NetworkConnectionToClient conn)
+        {
+            FirebaseServerAuthenticator.RemovePending(conn);
+            base.OnServerDisconnect(conn);
         }
 
         // ── 스폰 훅 ─────────────────────────────────────────────────

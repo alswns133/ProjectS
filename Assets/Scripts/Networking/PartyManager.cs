@@ -564,6 +564,55 @@ namespace ProjectS.Networking
 
                 Debug.Log($"[진단][Boss] NetworkServer.Spawn 호출됨 — netId={boss.GetComponent<NetworkIdentity>()?.netId}", this);
             }
+
+            // ── 전원 스폰 완료 → 보스 등장 연출 시작 지시 ──────────────
+            // 레이드 연출의 시작 조건은 보스방 진입(존 트리거)이 아니라 "파티원 아바타 + 보스가 전부 떴다"이다
+            // (2026-09-16 확정). 그 시점을 아는 것은 서버뿐이라 — 클라는 저마다 인스턴스 씬을 additive로
+            // 로드하는 중이라 도착 시각이 제각각이다 — 여기서 각 파티원 클라에 시작을 지시한다.
+            foreach (PlayerPresence p in members)
+            {
+                NetworkConnectionToClient conn = p.connectionToClient;
+                if (conn == null) continue;
+
+                // ★ TargetRpc는 "불린 오브젝트"의 대상 클라 복제본에서 실행된다. 반드시 그 파티원 자신의
+                //   PartyManager에서 불러야 한다 — this(파티장)로 부르면 파티장 클라에서만 돈다.
+                if (p.TryGetComponent(out PartyManager member))
+                    member.TargetPlayBossIntro(conn);
+            }
+        }
+
+        /// <summary>
+        /// 레이드 보스 등장 연출을 시작하라는 지시(서버 → 각 파티원 클라). 전원 스폰이 끝난 뒤에만 온다.
+        /// </summary>
+        /// <param name="target">받을 파티원의 커넥션.</param>
+        [TargetRpc]
+        private void TargetPlayBossIntro(NetworkConnectionToClient target)
+        {
+            StartCoroutine(PlayBossIntroWhenReady());
+        }
+
+        // 지시가 도착한 시점에 이 클라의 인스턴스 씬 additive 로드가 아직 안 끝났을 수 있다
+        // (서버는 자기 로드만 기다렸다). 디렉터가 씬에 나타날 때까지 기다렸다 시작한다.
+        private IEnumerator PlayBossIntroWhenReady()
+        {
+            const float timeout = 30f;
+            float deadline = Time.time + timeout;
+
+            while (Time.time < deadline)
+            {
+                BossIntroDirector intro = FindAnyObjectByType<BossIntroDirector>();
+                if (intro != null)
+                {
+                    Debug.Log("[진단][BossIntro] 서버 지시 수신 — 전원 스폰 완료. 연출을 시작합니다.", intro);
+                    intro.PlayNow();
+                    yield break;
+                }
+
+                yield return null;
+            }
+
+            Debug.LogWarning($"[진단][BossIntro] 서버가 연출 시작을 지시했지만 {timeout:0}초 안에 BossIntroDirector를 " +
+                             "찾지 못했습니다 — 인스턴스 씬 로드 실패이거나 디렉터가 씬에 없습니다.", this);
         }
 
         // 카운트다운 만료(서버 안전망). CmdDepart가 Invoke로 예약해 파티장 인스턴스에서 돈다.

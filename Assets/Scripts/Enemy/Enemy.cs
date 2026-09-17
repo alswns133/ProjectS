@@ -279,20 +279,7 @@ namespace ProjectS.Enemies
 
         protected virtual void Start()
         {
-            // 참조 단일 창구: 지속 플레이어는 PlayerManager에서 pull한다(부트스트랩 Awake에서 이미 생성됨).
-            // FindAnyObjectByType로 직접 찾으면 안 되는 이유: 스폰 전 지속 플레이어는 SetActive(false)라
-            // FindAnyObjectByType가 비활성 오브젝트를 못 찾아 Target이 null로 굳는다(부트→마을→던전에서 감지 무반응 버그).
-            // PlayerManager가 없으면(부트스트랩 없이 직접 씬 테스트) 씬에 배치된 플레이어를 fallback으로 찾는다.
-            Player player = PlayerManager.Instance != null
-                ? PlayerManager.Instance.Player
-                : FindAnyObjectByType<Player>();
-            if (player != null)
-            {
-                Target = player.transform;
-
-                // Player가 이미 Awake에서 캐싱해 둔 것을 그대로 받는다(Start는 모든 Awake 이후라 안전).
-                targetDamageable = player.Stats;
-            }
+            AcquireTarget();
 
             // 순찰 지점이 있으면 순찰 몬스터, 없으면 제자리 대기 몬스터로 시작한다.
             StateMachine.ChangeState(HasPatrol ? PatrolState : IdleState);
@@ -305,12 +292,87 @@ namespace ProjectS.Enemies
             // 재개(ResumeAI)가 있어야 해서 enabled 대신 플래그로 이 Update만 건너뛴다(구독은 유지).
             if (aiSuspended) return;
 
+            // 타깃이 없거나(아바타가 아직 안 떴거나 이탈) 비활성이 되면 주기적으로 다시 찾는다.
+            // 파티 레이드에서 보스가 아바타보다 먼저 스폰되거나, 추격 대상이 사라지는 경우의 안전망이다.
+            // 매 프레임 탐색은 비싸서 간격을 둔다.
+            if ((Target == null || !Target.gameObject.activeInHierarchy) && Time.time >= nextTargetReacquireTime)
+            {
+                nextTargetReacquireTime = Time.time + TargetReacquireInterval;
+                AcquireTarget();
+            }
+
             StateMachine.Update();
             //Debug.Log(StateMachine.Current);
         }
 
         // 등장 연출 동안 AI를 재우는 게이트. SuspendAI에서 켜고 ResumeAI에서 끈다.
         private bool aiSuspended;
+
+        // 타깃 재획득 간격(초)과 다음 시도 시각. 밸런스가 아니라 탐색 비용을 줄이는 시스템 나사라 상수로 둔다.
+        private const float TargetReacquireInterval = 1f;
+        private float nextTargetReacquireTime;
+
+        /// <summary>
+        /// 추격할 플레이어를 찾아 <see cref="Target"/>에 건다. 스폰 시(Start) 1회 부르고, 타깃이 없거나 비활성이면
+        /// <see cref="Update"/>가 주기적으로 다시 부른다.
+        ///
+        /// <para>참조 단일 창구: 지속 플레이어는 PlayerManager에서 pull한다(부트스트랩 Awake에서 이미 생성됨).
+        /// FindAnyObjectByType로 직접 찾으면 안 되는 이유: 스폰 전 지속 플레이어는 SetActive(false)라
+        /// FindAnyObjectByType가 비활성 오브젝트를 못 찾아 Target이 null로 굳는다(부트→마을→던전에서 감지 무반응 버그).</para>
+        ///
+        /// <para><b>네트워크(파티 레이드) 대응 — 보스가 가만히 서 있던 원인.</b> 전용 서버는 PlayerManager가 로컬
+        /// 플레이어를 아예 만들지 않고(EnsurePlayer의 IsServerMode early return), 호스트는 OwnerGate가 로컬 플레이어를
+        /// Hide(SetActive(false))한다. 즉 레이드의 진짜 플레이어는 서버가 스폰한 <b>네트워크 아바타</b>다.
+        /// 그래서 로컬 플레이어가 없거나 비활성이면 <b>자기 씬 안</b>의 활성 플레이어 중 가장 가까운 대상을 잡는다.
+        /// 씬으로 좁히는 이유: additive로 파티 인스턴스가 여럿 열려 있을 때 다른 파티의 플레이어를 타깃으로
+        /// 잡아 엉뚱한 곳으로 달려가는 것을 막기 위함이다.</para>
+        /// </summary>
+        private void AcquireTarget()
+        {
+            Player local = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+
+            // ① 로컬 지속 플레이어가 '활성'이면 그대로 쓴다(싱글·마을·솔로 던전 경로 유지).
+            //    지속 플레이어는 DontDestroyOnLoad라 씬 비교 대상이 아니므로 아래 씬 탐색으로는 잡히지 않는다.
+            Player player = (local != null && local.gameObject.activeInHierarchy) ? local : null;
+
+            // ② 없으면(전용 서버=아예 없음 / 호스트=OwnerGate가 Hide) 자기 씬의 네트워크 아바타를 찾는다.
+            if (player == null) player = FindNearestPlayerInScene();
+
+            // ③ 그래도 없으면 비활성 로컬 플레이어라도 건다 — 씬 진입 전(활성화 대기) Target이 null로
+            //    굳어 감지가 영영 무반응이 되는 기존 버그를 막기 위한 원래 동작이다.
+            if (player == null) player = local;
+
+            if (player == null) return;   // 아직 아무도 없음 → 다음 주기에 다시 시도
+
+            Target = player.transform;
+
+            // Player가 이미 Awake에서 캐싱해 둔 것을 그대로 받는다(Start는 모든 Awake 이후라 안전).
+            targetDamageable = player.Stats;
+        }
+
+        // 같은 씬의 활성 플레이어 중 가장 가까운 대상. 파티 레이드의 네트워크 아바타를 잡는 경로이며,
+        // 2인 이상이면 가까운 쪽이 어그로 대상이 된다.
+        private Player FindNearestPlayerInScene()
+        {
+            Player[] candidates = FindObjectsByType<Player>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+            Player nearest = null;
+            float bestSqr = float.PositiveInfinity;
+
+            foreach (Player candidate in candidates)
+            {
+                if (candidate == null || !candidate.gameObject.activeInHierarchy) continue;
+                if (candidate.gameObject.scene != gameObject.scene) continue;   // 다른 파티 인스턴스 배제
+
+                float sqr = (candidate.transform.position - transform.position).sqrMagnitude;
+                if (sqr >= bestSqr) continue;
+
+                bestSqr = sqr;
+                nearest = candidate;
+            }
+
+            return nearest;
+        }
 
         /// <summary>
         /// 등장 연출(보스 Timeline 등) 동안 AI를 멈춰 연출이 몬스터를 온전히 제어하게 한다.

@@ -1,9 +1,12 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using Mirror;
+using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 using ProjectS.Enemies;
 using ProjectS.Events;
 using ProjectS.Managers;
+using ProjectS.Networking;
 using ProjectS.Players;
 
 namespace ProjectS.Scenes
@@ -54,6 +57,15 @@ namespace ProjectS.Scenes
         [Tooltip("등장 연출 동안 UI(UIManager 루트)를 끌지. 시그널 대신 여기서 Play에 끄고 stop에 되살린다.")]
         [SerializeField] private bool hideUIDuringIntro = true;
 
+        [Header("싱글(비파티) 플레이")]
+        [Tooltip("파티에 속하지 않고 혼자 들어온 경우, 서버 지시를 기다리지 않고 보스 등장 + 내 캐릭터 준비가 " +
+                 "끝나는 즉시 스스로 연출을 시작한다. 파티 레이드에서는 서버(PartyManager)가 전원 스폰 완료 후 " +
+                 "지시하므로 이 경로를 타지 않는다.")]
+        [SerializeField] private bool autoStartWhenSolo = true;
+
+        [Tooltip("싱글일 때 내 캐릭터가 준비되기를 기다리는 최대 시간(초). 넘으면 포기하고 경고만 남긴다.")]
+        [SerializeField, Min(1f)] private float soloWaitTimeout = 20f;
+
         /// <summary>보스에서 트랙에 꽂을 부분. 트랙이 요구하는 타입에 맞춰 고른다.</summary>
         private enum BossPart
         {
@@ -88,6 +100,13 @@ namespace ProjectS.Scenes
         // null이 아니면 "아직 깨우지 않은 재운 보스가 있다"는 뜻이라, 안전장치(OnDisable)의 판정 기준도 된다.
         private Boss suspendedBoss;
 
+        // 등장 신호로 받아 둔 보스. 연출 "시작"과 분리해 보관한다 — 트리거(PlayerZoneTrigger 등)가 올 때
+        // 재바인딩 대상이 필요한데, 보스 스폰은 그보다 한참 먼저(인스턴스 씬 생성 직후) 끝나기 때문이다.
+        private Boss appearedBoss;
+
+        // 보스보다 트리거가 먼저 온 경우의 예약. 보스가 등장하는 순간 곧바로 시작한다.
+        private bool pendingPlay;
+
         private void Awake()
         {
             if (director == null) director = GetComponent<PlayableDirector>();
@@ -101,11 +120,16 @@ namespace ProjectS.Scenes
                 //   한 번 재생하고 멈추도록 None으로 고정한다(끝나면 stopped가 발화해 입력·UI도 복구된다).
                 director.extrapolationMode = DirectorWrapMode.None;
             }
+
+            Debug.Log($"[진단][BossIntro] Awake — 오브젝트='{name}', 씬='{gameObject.scene.name}', " +
+                      $"director={(director != null ? "있음" : "★없음")}, " +
+                      $"playableAsset={(director != null && director.playableAsset != null ? director.playableAsset.name : "★없음")}", this);
         }
 
         private void OnEnable()
         {
             BossEvents.OnBossAppeared += OnBossAppeared;
+            Debug.Log($"[진단][BossIntro] OnEnable — 보스 등장 신호 구독 시작(씬='{gameObject.scene.name}')", this);
         }
 
         private void OnDisable()
@@ -124,12 +148,134 @@ namespace ProjectS.Scenes
             }
         }
 
+        // 등장 신호는 "연출을 시작하라"가 아니라 "재바인딩할 보스가 준비됐다"는 뜻으로만 받는다.
+        // 레이드 보스는 인스턴스 씬이 생기는 순간 스폰되므로(PartyManager), 여기서 바로 재생하면
+        // 플레이어가 보스방 근처에도 가기 전에 컷신이 터진다. 시작 시점은 PlayNow()가 정한다.
         private void OnBossAppeared(Boss boss)
         {
-            if (played || boss == null || director == null || director.playableAsset == null) return;
-            played = true;
+            Debug.Log($"[진단][BossIntro] 보스 등장 신호 수신 — boss={(boss != null ? boss.name : "null")}, " +
+                      $"보스씬='{(boss != null ? boss.gameObject.scene.name : "-")}', 내씬='{gameObject.scene.name}', played={played}", this);
 
-            // 한 번 재생했으면 다시는 트리거되지 않게 즉시 구독을 끊는다(다른 보스 등장·중복 발행에도 재생 안 됨).
+            if (played || boss == null) return;
+
+            // 다른 파티의 인스턴스 씬에서 온 보스는 무시한다 — BossEvents는 전역 static이라
+            // additive로 레이드 인스턴스가 여러 개 떠 있으면 남의 보스 신호까지 들어온다.
+            if (boss.gameObject.scene != gameObject.scene)
+            {
+                Debug.LogWarning($"[진단][BossIntro] ★씬이 달라 무시 — 보스='{boss.gameObject.scene.name}' vs 나='{gameObject.scene.name}'. " +
+                                 "이게 잘못된 거라면 이 씬 검사를 빼야 합니다.", this);
+                return;
+            }
+
+            appearedBoss = boss;
+            Debug.Log($"[진단][BossIntro] 보스 확보 완료 — '{boss.name}'. 이제 PlayNow() 호출을 기다립니다(pendingPlay={pendingPlay})", this);
+
+            // 시작 지시가 먼저 와 있었으면(스폰 완료 지시가 보스보다 빨랐던 경우) 여기서 시작한다.
+            if (pendingPlay)
+            {
+                BeginIntro();
+                return;
+            }
+
+            // 싱글(비파티)에는 "전원 스폰 완료"를 알려 줄 서버가 없다. 내 캐릭터가 준비되면 스스로 시작한다.
+            if (autoStartWhenSolo && IsSoloPlay())
+                StartCoroutine(PlayWhenLocalPlayerReady());
+        }
+
+        /// <summary>
+        /// 파티 없이 혼자 플레이 중인지. 파티 레이드에서는 <see cref="PartyManager"/>가 전원 스폰 완료 후
+        /// 연출 시작을 지시하므로, 그 지시를 기다려야 할지 스스로 시작해도 되는지를 여기서 가른다.
+        /// </summary>
+        /// <remarks>
+        /// 네트워크를 아예 안 쓰는 경우(오프라인 던전)와, 접속은 했지만 파티에 속하지 않은 경우를 모두 싱글로 본다.
+        /// </remarks>
+        private static bool IsSoloPlay()
+        {
+            if (!NetworkClient.active) return true;
+            if (PartyManager.Local == null) return true;
+
+            return !PartyManager.Local.TryGetComponent(out PlayerPresence me) || me.PartyId == 0;
+        }
+
+        // 싱글 경로: 보스는 떴지만 내 캐릭터가 아직 인스턴스 씬에 자리잡지 않았을 수 있다
+        // (PlayerManager가 워프 후 활성화한다). 준비될 때까지 기다렸다 시작한다.
+        private IEnumerator PlayWhenLocalPlayerReady()
+        {
+            Debug.Log("[진단][BossIntro] 싱글 플레이로 판단 — 내 캐릭터 스폰을 기다렸다 연출을 시작합니다.", this);
+
+            float deadline = Time.time + soloWaitTimeout;
+
+            while (Time.time < deadline)
+            {
+                if (played) yield break;   // 그 사이 서버 지시 등으로 이미 시작됐다
+
+                Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+                if (player != null && player.gameObject.activeInHierarchy)
+                {
+                    BeginIntro();
+                    yield break;
+                }
+
+                yield return null;
+            }
+
+            Debug.LogWarning($"[진단][BossIntro] {soloWaitTimeout:0}초 안에 내 캐릭터가 준비되지 않아 연출을 시작하지 못했습니다 " +
+                             "— PlayerManager가 이 씬에 캐릭터를 배치했는지 확인하세요.", this);
+        }
+
+        /// <summary>
+        /// 보스 등장 연출을 시작한다. 연출을 시작시키는 <b>유일한 공개 진입점</b>이다.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>누가 부르나</b>: 파티 레이드는 서버(<see cref="PartyManager"/>)가 <b>파티원 아바타와 보스를
+        /// 전부 스폰한 뒤</b> 각 클라에 지시해 부른다 — 시작 조건이 "보스방 진입"이 아니라 "전원 스폰 완료"라서다
+        /// (2026-09-16 확정). 싱글은 서버 지시가 없으므로 이 컴포넌트가 스스로 부른다
+        /// (<see cref="autoStartWhenSolo"/>).
+        /// </para>
+        /// <para>
+        /// ★ <b>존 트리거를 <see cref="PlayableDirector.Play"/>에 직접 물리지 않는다.</b> 그러면 타임라인만 돌고
+        /// 보스 트랙 재바인딩·AI 재우기·입력 잠금·종료 복구가 전부 생략된다. 보스 트랙들의 씬 바인딩이
+        /// 비어 있는 것은 런타임에 <see cref="RebindTo"/>가 채우는 전제이기 때문이라, 직통 Play는
+        /// <b>보스가 연출대로 하나도 움직이지 않는</b> 증상으로 나타난다(2026-09-16 실제 사고).
+        /// 보스방 진입형 연출이 필요한 다른 던전이라면 트리거를 이 메서드에 물린다.
+        /// </para>
+        /// <para>
+        /// 보스가 아직 안 떴으면 재생을 예약만 하고, 등장하는 순간 시작한다.
+        /// </para>
+        /// </remarks>
+        public void PlayNow()
+        {
+            Debug.Log($"[진단][BossIntro] ★PlayNow() 호출됨 — played={played}, 보스={(appearedBoss != null ? appearedBoss.name : "아직 없음")}", this);
+
+            if (played) return;
+
+            if (appearedBoss == null)
+            {
+                pendingPlay = true;
+                Debug.LogWarning("[BossIntroDirector] 보스가 아직 등장하지 않아 연출을 예약합니다 — 스폰 직후 시작합니다. " +
+                                 "계속 시작되지 않으면 보스 스폰 자체를 확인하세요(PartyManager의 raidBossPrefab).", this);
+                return;
+            }
+
+            BeginIntro();
+        }
+
+        /// <summary>보스가 확정된 뒤의 실제 시작. 재바인딩 → AI 재우기 → 입력·UI 잠금 → 재생 순서를 지킨다.</summary>
+        private void BeginIntro()
+        {
+            if (director == null || director.playableAsset == null)
+            {
+                Debug.LogError("[BossIntroDirector] 재생할 Timeline이 없습니다 — PlayableDirector 또는 Playable Asset이 비었습니다.", this);
+                return;
+            }
+
+            played = true;
+            pendingPlay = false;
+
+            Boss boss = appearedBoss;
+
+            // 한 번 재생했으면 다시는 트리거되지 않게 즉시 구독을 끊는다(페이즈 2 등장·중복 발행에도 재생 안 됨).
             BossEvents.OnBossAppeared -= OnBossAppeared;
 
             RebindTo(boss);
@@ -153,6 +299,9 @@ namespace ProjectS.Scenes
             director.stopped += OnDirectorStopped;
 
             director.Play();
+
+            Debug.Log($"[진단][BossIntro] ★재생 시작 — timeline='{director.playableAsset.name}', 길이={director.duration:0.00}초, " +
+                      $"보스='{boss.name}', state={director.state}", this);
         }
 
         /// <summary>
@@ -169,26 +318,43 @@ namespace ProjectS.Scenes
             if (director.playableAsset is not TimelineAsset timeline) return;
             if (trackBindings == null) return;
 
+            // 어느 규칙이 실제로 트랙을 만났는지 표시해 둔다. 이름이 어긋난 규칙(오타·트랙 리네임)은
+            // 그냥 지나가면 아무 일도 안 일어나 "연출이 조용히 반만 도는" 증상이 된다 — 아래에서 짚어 준다.
+            bool[] matched = new bool[trackBindings.Length];
+
             foreach (TrackAsset track in timeline.GetOutputTracks())
             {
-                if (!TryGetBinding(track.name, out TrackBinding binding)) continue;   // 규칙에 없는 트랙은 건너뛴다
+                if (!TryGetBinding(track.name, out TrackBinding binding, out int index)) continue;   // 규칙에 없는 트랙은 건너뛴다
+
+                matched[index] = true;
                 director.SetGenericBinding(track, Resolve(in binding, boss));
+            }
+
+            for (int i = 0; i < matched.Length; i++)
+            {
+                if (matched[i]) continue;
+
+                Debug.LogWarning($"[BossIntroDirector] 트랙 이름 '{trackBindings[i].trackName}'이 Timeline '{timeline.name}'에 없습니다. " +
+                                 "이 규칙은 무시됩니다 — 트랙을 지웠거나 이름을 바꿨는지 확인하세요.", this);
             }
         }
 
         /// <summary>트랙 이름에 지정된 규칙이 있으면 그 바인딩을 돌려준다.</summary>
-        private bool TryGetBinding(string trackName, out TrackBinding binding)
+        /// <param name="index">찾은 규칙의 인덱스. 어느 규칙이 쓰였는지 표시해 미사용 규칙을 경고하는 데 쓴다.</param>
+        private bool TryGetBinding(string trackName, out TrackBinding binding, out int index)
         {
             for (int i = 0; i < trackBindings.Length; i++)
             {
                 if (trackBindings[i].trackName == trackName)
                 {
                     binding = trackBindings[i];
+                    index = i;
                     return true;
                 }
             }
 
             binding = default;
+            index = -1;
             return false;
         }
 
@@ -202,16 +368,28 @@ namespace ProjectS.Scenes
         /// </remarks>
         private static UnityEngine.Object Resolve(in TrackBinding binding, Boss boss)
         {
+            UnityEngine.Object resolved = ResolveCore(in binding, boss);
+
+            // part가 트랙이 요구하는 타입과 어긋나거나(Animator 없는 오브젝트에 Animator 지정 등) 자식을 못 찾으면
+            // 그 트랙만 빈 채로 재생된다 — 화면으론 "그 부분만 안 움직인다"로 보여 원인을 찾기 어렵다.
+            if (resolved == null)
+            {
+                string where = string.IsNullOrEmpty(binding.childPath) ? "보스 루트" : $"자식 '{binding.childPath}'";
+                Debug.LogWarning($"[BossIntroDirector] '{binding.trackName}' 트랙에 꽂을 {binding.part}를 {where}에서 찾지 못해 비운 채 진행합니다. " +
+                                 "자식 이름/경로와, 트랙이 요구하는 타입에 part가 맞는지 확인하세요.", boss);
+            }
+
+            return resolved;
+        }
+
+        private static UnityEngine.Object ResolveCore(in TrackBinding binding, Boss boss)
+        {
             // 자식 지정이 있으면 그 자식을, 없으면 보스 루트를 기준으로 삼는다.
             Transform target = boss.transform;
             if (!string.IsNullOrEmpty(binding.childPath))
             {
                 target = FindChild(boss.transform, binding.childPath);
-                if (target == null)
-                {
-                    Debug.LogWarning($"[BossIntroDirector] '{binding.trackName}' 트랙의 대상 자식을 '{binding.childPath}'에서 못 찾았습니다. 이 트랙은 비운 채 진행합니다.", boss);
-                    return null;
-                }
+                if (target == null) return null;   // 경고는 호출부(Resolve) 한 곳에서 낸다
             }
 
             return binding.part switch
@@ -255,8 +433,26 @@ namespace ProjectS.Scenes
             return match;
         }
 
+        // 진단용: 우리를 거치지 않고 타임라인이 재생되는 경우를 잡아낸다. PlayerZoneTrigger가 아직
+        // PlayableDirector.Play()에 직접 물려 있으면 여기 걸린다 — 그 경로는 보스 트랙 재바인딩이
+        // 통째로 생략돼 "컷신은 도는데 보스가 안 움직인다"가 된다.
+        private bool externalPlayWarned;
+
+        private void Update()
+        {
+            if (played || externalPlayWarned || director == null) return;
+            if (director.state != PlayState.Playing) return;
+
+            externalPlayWarned = true;
+            Debug.LogError("[진단][BossIntro] ★★ BossIntroDirector를 거치지 않고 Timeline이 재생되고 있습니다 — " +
+                           "보스 트랙 재바인딩이 통째로 생략돼 보스가 연출대로 움직이지 않습니다. " +
+                           "PlayerZoneTrigger의 On Player Entered에 남아 있는 PlayableDirector.Play() 연결을 지우세요.", this);
+        }
+
         private void OnDirectorStopped(PlayableDirector stopped)
         {
+            Debug.Log($"[진단][BossIntro] 재생 종료 신호 — stopped={(stopped != null ? stopped.name : "null")}, 내director={(director != null ? director.name : "null")}", this);
+
             if (stopped != director) return;
 
             // 재웠던 보스를 깨운다(에이전트 NavMesh 복귀 + 교전 흐름 진입). 한 번만 하도록 참조를 비운다.

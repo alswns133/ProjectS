@@ -102,7 +102,40 @@ namespace ProjectS.Enemies
         protected override void Start()
         {
             base.Start(); // Enemy.Start(Target 획득 + 상태머신 시작) 먼저
-            BossEvents.FireBossAppeared(this);
+
+            // 네트워크로 스폰된 보스는 등장/퇴장을 BossNetSync가 모든 클라(호스트 포함)에서 발행한다
+            // — 관찰자에선 이 Boss(Enemy) 컴포넌트가 BossServerAuthority로 비활성돼 Start가 아예 안 불리기도 하고,
+            //   호스트에선 여기서도 발행하면 이중 발행이 된다. 로컬 스폰(솔로)만 여기서 직접 발행한다.
+            if (!IsNetworkSpawned)
+                BossEvents.FireBossAppeared(this);
+        }
+
+        /// <summary>
+        /// 이 보스가 <b>실제로 네트워크 스폰</b>됐는지(= 등장/퇴장 발행을 <see cref="BossNetSync"/>에 맡길지).
+        /// </summary>
+        /// <remarks>
+        /// ★ "프리팹에 <see cref="BossNetSync"/>가 붙어 있나"로 갈라선 안 된다. 레이드 보스 프리팹은 파티용으로
+        /// 그 컴포넌트를 달고 있지만, 솔로에서는 같은 프리팹을 어드레서블로 <b>로컬 생성</b>해 쓴다. 그때는
+        /// <c>NetworkServer.Spawn</c>을 거치지 않아 <c>OnStartClient</c>가 영영 안 불리는데, 컴포넌트가 있다는
+        /// 이유로 여기서도 발행을 건너뛰면 <b>등장 신호가 양쪽 다 막혀</b> 보스 HP 바도 등장 연출도 안 뜬다
+        /// (2026-09-16 실제 사고). 스폰을 거쳤는지는 netId로 판정한다
+        /// (<see cref="BossPhaseTransition"/>이 같은 이유로 쓰는 기준).
+        /// </remarks>
+        /// <remarks>
+        /// 한 번 참이면 계속 참으로 굳힌다(sticky). 소멸 시점에는 Mirror가 이미 identity를 정리해 netId가
+        /// 0으로 돌아가 있을 수 있는데, 그때 다시 판정하면 <b>퇴장이 BossNetSync와 여기서 두 번</b> 발행된다.
+        /// </remarks>
+        private bool networkSpawnedOnce;
+
+        private bool IsNetworkSpawned
+        {
+            get
+            {
+                if (networkSpawnedOnce) return true;
+                if (TryGetComponent(out BossNetSync sync) && sync.netId != 0) networkSpawnedOnce = true;
+
+                return networkSpawnedOnce;
+            }
         }
 
         /// <summary>
@@ -113,7 +146,10 @@ namespace ProjectS.Enemies
         protected override void OnDespawn()
         {
             base.OnDespawn();
-            BossEvents.FireBossDisappeared(this);
+
+            // 등장과 짝 — 네트워크 스폰된 보스는 BossNetSync(OnStopClient)가 퇴장을 발행한다. 로컬 스폰만 여기서.
+            if (!IsNetworkSpawned)
+                BossEvents.FireBossDisappeared(this);
         }
 
         /// <summary>
