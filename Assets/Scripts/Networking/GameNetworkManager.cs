@@ -47,6 +47,11 @@ namespace ProjectS.Networking
         {
             base.Awake();
 
+            // 파티 인스턴스 가시성(인스턴스 안 보스·아바타는 그 파티원에게만). 씬 배치 없이 코드로 붙인다 — 서버 시작 전에 있어야
+            // 첫 스폰부터 규칙이 적용된다. 이미 다른 관심 영역 관리가 붙어 있으면 그것을 존중한다.
+            if (GetComponent<InterestManagementBase>() == null)
+                gameObject.AddComponent<PartyInstanceInterestManagement>();
+
             // 접속 순간 자동 씬 전환 방지(위 주석 참조). 인스펙터에서 비워도 되지만 코드로도 못박는다.
             onlineScene = string.Empty;
             offlineScene = string.Empty;
@@ -89,6 +94,15 @@ namespace ProjectS.Networking
 
                 StartServer();
             }
+        }
+
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+
+            // 원격 클라가 보내는 로그를 서버 콘솔에 남긴다(팀 규칙: 클라 디버그는 서버에서 전부 보여야 한다).
+            // 서버가 내려가면 Mirror가 핸들러를 비우므로 시작할 때마다 등록한다.
+            ProjectS.Logging.ClientLogRelay.RegisterServerHandler();
         }
 
         public override void OnStartClient()
@@ -227,7 +241,13 @@ namespace ProjectS.Networking
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
         {
             FirebaseServerAuthenticator.RemovePending(conn);
+
+            // 파티 인스턴스에 있던 사람이 끊기면, 기본 정리(본체·아바타 파괴) 뒤 인스턴스가 비었는지 본다 — 안 하면 빈 인스턴스가 남는다.
+            Scene instance = conn.identity != null ? conn.identity.gameObject.scene : default;
+
             base.OnServerDisconnect(conn);
+
+            if (instance.IsValid()) PartyManager.ServerUnloadInstanceIfEmpty(instance);
         }
 
         // ── 스폰 훅 ─────────────────────────────────────────────────

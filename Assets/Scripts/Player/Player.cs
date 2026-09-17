@@ -367,6 +367,7 @@ namespace ProjectS.Players
             Stats = GetComponent<PlayerStats>();
             Effect = GetComponent<PlayerEffects>();
             HitCombo = GetComponent<PlayerHitCombo>();
+            bodyController = GetComponent<CharacterController>();
 
             sm = new PlayerStateMachine();
             // 상태를 미리 생성해 보관 → 전환할 때마다 new 하지 않으므로 GC 부담이 없다.
@@ -894,6 +895,7 @@ namespace ProjectS.Players
         private void OnDied()
         {
             sm.ChangeState(DeadState);
+            SetDeadCollision(true);
 
             // 사망 시 히트 콤보를 즉시 비운다. 안 비우면 죽은 뒤에도 감쇠 시간(comboResetDelay)만큼
             // HUD에 지난 콤보 수가 남아 있게 된다.
@@ -959,7 +961,56 @@ namespace ProjectS.Players
             Animation.ResetDeath();  // 사망 모션에서 로코모션으로 복귀
             Combat.CancelAction();   // 사망 시 남은 공격/시전 상태 정리
             UnlockMovement();        // 사망 중 걸려 있던 이동 잠금 해제
+            SetDeadCollision(false); // 사망 중 꺼 둔 충돌 복구
             sm.ChangeState(FreeState);
+        }
+
+        // ── 사망 중 충돌 제거 ──────────────────────────────────────
+        // 죽은 플레이어는 몬스터·다른 플레이어와 부딪히지 않는다(2026-09-17 기획).
+
+        // 사망 시 바꾸는 레이어. 몬스터의 타격·잡기·루트모션 막힘 검사는 전부 Player 레이어만 찾으므로 여기로 옮기면 무시된다.
+        private const string DeadLayerName = "Ignore Raycast";
+
+        private CharacterController bodyController;
+
+        // 사망 전 레이어. -1이면 지금 사망 충돌 상태가 아니다(중복 호출 시 원래 레이어를 덮어쓰지 않게 하는 기준).
+        private int aliveLayer = -1;
+
+        /// <summary>
+        /// 사망 중 충돌을 끄거나(true) 되살린다(false). 사망·부활 시 자동으로 불리며, 서버는 원격 플레이어 아바타 사본에도
+        /// 부른다(<c>PlayerPresence</c>가 오너의 HP 0 도달/복구를 받았을 때).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// 레이어를 <see cref="DeadLayerName"/>으로 옮겨 몬스터 판정(OverlapBox·SphereCast의 Player 마스크)에서 빠지고,
+        /// <see cref="CharacterController.detectCollisions"/>를 꺼 다른 캐릭터가 몸에 막히지 않게 한다.
+        /// 죽은 캐릭터 자신의 이동(낙하 등)은 바닥과 계속 충돌한다.
+        /// </para>
+        /// <para>
+        /// 다른 클라 화면의 남의 아바타는 <c>OwnerGate</c>가 이미 CharacterController를 꺼 두므로 따로 처리하지 않는다.
+        /// </para>
+        /// </remarks>
+        /// <param name="dead">true면 충돌 제거, false면 복구.</param>
+        public void SetDeadCollision(bool dead)
+        {
+            if (dead)
+            {
+                if (aliveLayer >= 0) return;   // 이미 사망 충돌 상태
+
+                int deadLayer = LayerMask.NameToLayer(DeadLayerName);
+                if (deadLayer < 0) return;
+
+                aliveLayer = gameObject.layer;
+                gameObject.layer = deadLayer;
+                if (bodyController != null) bodyController.detectCollisions = false;
+                return;
+            }
+
+            if (aliveLayer < 0) return;        // 사망 충돌 상태가 아니었다
+
+            gameObject.layer = aliveLayer;
+            aliveLayer = -1;
+            if (bodyController != null) bodyController.detectCollisions = true;
         }
 
         // ── 태그 판정 헬퍼(자유 이동 캐릭터 전용) ─────────────────────────────

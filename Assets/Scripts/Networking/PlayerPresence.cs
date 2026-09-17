@@ -235,7 +235,12 @@ namespace ProjectS.Networking
         //   안전하다. 지금은 문턱만 두었으니, 사망 표시가 한 박자 늦으면 여기에 경계 조건을 더한다.
         private void PushVitals()
         {
-            if (Mathf.Abs(localHpRatio - lastSentHpRatio) < SendThreshold &&
+            // ★ 사망(0이 됨)·부활(0에서 벗어남)은 문턱과 무관하게 반드시 올린다. 서버는 원격 플레이어의 생사를 이 값으로만 알아
+            //   (보스 어그로가 죽은 플레이어를 건너뛰는 근거), 0.5%→0 같은 마지막 타격이 문턱에 걸려 빠지면 죽었는데도 산 것으로 본다.
+            bool lifeEdge = (localHpRatio <= 0f) != (lastSentHpRatio <= 0f);
+
+            if (!lifeEdge &&
+                Mathf.Abs(localHpRatio - lastSentHpRatio) < SendThreshold &&
                 Mathf.Abs(localSgRatio - lastSentSgRatio) < SendThreshold)
                 return;
 
@@ -253,8 +258,29 @@ namespace ProjectS.Networking
         [Command]
         private void CmdSetVitals(float hp, float sg)
         {
+            bool wasAlive = hpRatio > 0f;
+
             hpRatio = Mathf.Clamp01(hp);
             sgRatio = Mathf.Clamp01(sg);
+
+            // 오너가 죽거나(0 도달) 부활하면 서버 쪽 아바타 사본의 충돌도 맞춘다. 서버의 보스 판정(타격·잡기·루트모션 막힘)은
+            // 이 사본을 보는데, 사본은 데미지를 받지 않아(EnemyHitRouter가 오너에게 보냄) 스스로는 죽지 않기 때문이다.
+            bool isAlive = hpRatio > 0f;
+            if (wasAlive != isAlive) ServerApplyAvatarLife(isAlive);
+        }
+
+        // 이 커넥션이 조종하는 아바타(서버 사본)에 사망 충돌 상태를 반영한다.
+        [Server]
+        private void ServerApplyAvatarLife(bool alive)
+        {
+            foreach (NetworkIdentity identity in NetworkServer.spawned.Values)
+            {
+                if (identity == null || identity.connectionToClient != connectionToClient) continue;
+                if (!identity.TryGetComponent(out ProjectS.Players.NetworkDamageRelay relay)) continue;
+
+                ProjectS.Players.Player avatar = identity.GetComponentInChildren<ProjectS.Players.Player>(true);
+                if (avatar != null) avatar.SetDeadCollision(!alive);
+            }
         }
 
         // cur/max를 0~1로. max가 0이면(스폰 직전 등) 0으로 눕혀 0 나눗셈을 피한다.

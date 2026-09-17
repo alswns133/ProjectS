@@ -35,11 +35,23 @@ namespace ProjectS.Scenes
         /// </remarks>
         /// <param name="baseMonsterId">씬/프리팹에 박혀 있는 기준 몬스터 ID</param>
         /// <returns>현재 던전·난이도가 반영된 몬스터 ID</returns>
-        public static int ResolveMonsterId(int baseMonsterId)
-        {
-            if (CurrentDungeonId <= 0) return baseMonsterId;
+        public static int ResolveMonsterId(int baseMonsterId) => ResolveMonsterId(baseMonsterId, CurrentDungeonId);
 
-            return CurrentDungeonId * 100 + Mathf.Abs(baseMonsterId) % 100;
+        /// <summary>
+        /// 전역 컨텍스트 대신 <b>지정한 던전 ID</b>로 몬스터 ID를 입힌다.
+        /// </summary>
+        /// <remarks>
+        /// 공유 서버에서는 여러 파티가 서로 다른 던전 인스턴스를 동시에 돌리므로, 전역 static 하나로는
+        /// "이 몬스터가 어느 던전 소속인가"를 표현할 수 없다. 서버가 스폰하면서 던전 ID를 몬스터에 직접
+        /// 쥐여 줄 때 쓴다(<c>EnemyStats.SetDungeonId</c>).
+        /// </remarks>
+        /// <param name="baseMonsterId">몬스터 프리팹의 기준 ID(뒤 2자리 순번만 의미 있음).</param>
+        /// <param name="dungeonId">입힐 던전 ID. 0 이하면 기준 ID를 그대로 돌려준다.</param>
+        public static int ResolveMonsterId(int baseMonsterId, int dungeonId)
+        {
+            if (dungeonId <= 0) return baseMonsterId;
+
+            return dungeonId * 100 + Mathf.Abs(baseMonsterId) % 100;
         }
 
         /// <summary>던전 씬 진입 시 그 던전 ID로 세팅한다.</summary>
