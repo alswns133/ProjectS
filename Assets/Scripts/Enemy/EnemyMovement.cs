@@ -112,8 +112,12 @@
         public bool ReachedPathEnd => agent.enabled && agent.isOnNavMesh && !agent.pathPending
             && agent.remainingDistance <= agent.stoppingDistance;
 
+        // 판정 권한 확인용(애니메이션 이벤트로 불리는 메서드가 구경하는 클라에서 에이전트를 건드리지 않게).
+        private Enemy owner;
+
         private void Awake()
         {
+            owner = GetComponent<Enemy>();
             agent = GetComponent<NavMeshAgent>();
             path = new NavMeshPath();
             baseSpeed = agent.speed;
@@ -159,11 +163,30 @@
             }
         }
 
+        // 경로 계산 중인 목적지와 이만큼 가까운 새 요청은 다시 보내지 않는다(미터).
+        private const float RepathWhilePendingDistance = 1f;
+
+        // 마지막으로 에이전트에 요청한 목적지. 계산 중(pathPending) 재요청을 거르는 기준이다.
+        private Vector3 lastRequestedDestination = new(float.PositiveInfinity, 0f, 0f);
+
         /// <summary>목적지를 갱신한다. 추적 상태가 매 프레임 호출한다.</summary>
+        /// <remarks>
+        /// ★ <b>경로 계산이 끝나지 않았으면 거의 같은 목적지로 다시 요청하지 않는다(2026-09-17).</b> NavMesh 경로는
+        /// 프레임당 계산량이 제한돼 먼 목적지(예: 레이드 보스→스폰 지점 58m)는 여러 프레임에 걸쳐 계산된다.
+        /// 추적 상태가 매 프레임 SetDestination을 부르면 계산이 매번 처음부터 다시 시작돼 <b>경로가 영영 완성되지 않고</b>
+        /// 몬스터가 제자리에 선다(hasPath=false, 속도 0). 가까운 거리는 한 프레임에 끝나 원래 문제가 드러나지 않았다.
+        /// 대상이 크게 움직였으면(1m 이상) 계산 중이어도 새 목적지로 갱신한다.
+        /// </remarks>
         public void SetDestination(Vector3 worldPos)
         {
             // 사망(에이전트 꺼짐)이나 NavMesh 밖 스폰 직후 호출돼도 예외가 나지 않게 방어한다.
             if (!agent.enabled || !agent.isOnNavMesh) return;
+
+            if (agent.pathPending &&
+                (lastRequestedDestination - worldPos).sqrMagnitude < RepathWhilePendingDistance * RepathWhilePendingDistance)
+                return;
+
+            lastRequestedDestination = worldPos;
             agent.SetDestination(worldPos);
         }
 
@@ -355,6 +378,10 @@
         /// </remarks>
         public void EndAttackRootMotion()
         {
+            // ★ 보스 클립의 Animation Event로도 불린다. 구경하는 클라에서는 BossServerAuthority가 에이전트를 일부러 꺼 뒀는데,
+            //   아래가 그걸 다시 켜 서버 위치 동기화와 싸운다. 판정 권한이 없는 컴퓨터에서는 무시한다.
+            if (owner != null && !owner.HasGameplayAuthority) return;
+
             chargeKeepTarget = null;
             useRootMotion = false;
             if (agent.enabled) return;

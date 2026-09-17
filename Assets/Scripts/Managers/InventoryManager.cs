@@ -583,7 +583,7 @@ namespace ProjectS.Managers
         {
             if (weapon == WeaponType.None) return true;
 
-            Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            Player player = LocalPlayer.Current;   // 멀티 레이드에선 숨겨진 마을 캐릭터가 아니라 조작 중인 아바타
             int charType = player != null ? player.Stats.CharacterId : 0;
 
             if (charType == 1) return weapon == WeaponType.Sword;
@@ -595,7 +595,7 @@ namespace ProjectS.Managers
         // publish=false면 값만 조용히 반영 — 부트스트랩/HUD 준비 전 발행이 미초기화 FillGauge를 건드리는 NRE를 막는다.
         private void RecomputeEquipmentStats(bool publish = true)
         {
-            Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            Player player = LocalPlayer.Current;   // 멀티 레이드에선 숨겨진 마을 캐릭터가 아니라 조작 중인 아바타
             if (player == null) return;
 
             EquipmentStats stats = EquipmentStatCalculator.Compute(equipped.Values);
@@ -632,7 +632,7 @@ namespace ProjectS.Managers
             if (consumableCooldowns.TryGetValue(itemId, out float readyAt) && Time.time < readyAt)
                 return false;   // 아직 쿨다운
 
-            Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            Player player = LocalPlayer.Current;   // 멀티 레이드에선 숨겨진 마을 캐릭터가 아니라 조작 중인 아바타
             if (player == null) return false;
 
             if (player.Stats.IsDead) return false; // 죽은 상태 → 사용 안 함
@@ -669,7 +669,7 @@ namespace ProjectS.Managers
                 yield return new WaitForSeconds(1f);
                 elapsed += 1f;
 
-                Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+                Player player = LocalPlayer.Current;   // 멀티 레이드에선 숨겨진 마을 캐릭터가 아니라 조작 중인 아바타
                 if (player == null) yield break;
                 player.Stats.Heal(perSecond);
             }

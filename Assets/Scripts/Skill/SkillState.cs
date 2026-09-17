@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Events;
@@ -326,10 +326,9 @@ namespace ProjectS.Skills
         /// </summary>
         public static void RecomputeAndApply()
         {
-            ProjectS.Players.PlayerStats stats =
-                PlayerManager.Instance != null && PlayerManager.Instance.Player != null
-                    ? PlayerManager.Instance.Player.Stats
-                    : null;
+            // 멀티 레이드에선 PlayerManager.Player가 숨겨진 마을 캐릭터라, 조작 중인 아바타(LocalPlayer)에 반영해야 한다.
+            ProjectS.Players.Player player = ProjectS.Players.LocalPlayer.Current;
+            ProjectS.Players.PlayerStats stats = player != null ? player.Stats : null;
 
             if (stats == null) return;   // 플레이어가 아직 없으면 스폰 후 다시 호출된다.
             stats.ApplyPassiveStats(BuildPassiveStats(stats.CharacterId));

@@ -95,29 +95,96 @@ namespace ProjectS.Enemies
             if (stats.CurrentHp <= floorHp) Transition();
         }
 
-        // 다음 페이즈를 스폰하고, HP를 이어주고, 결과창 트리거를 넘긴 뒤, 1페이즈를 걷어낸다.
-        // 네트워크(파티 레이드)면 서버가 NetworkServer.Spawn으로, 솔로면 기존 로컬(어드레서블) 경로로 간다.
+        // ── 전환 흐름(2026-09-17 확정: "연출 중엔 보이기만, 끝나고 실제 전환") ─────────────────
+        //   ① 임계 도달 → 2페이즈를 미리 스폰(HP 이어받기, AI 정지)
+        //   ② 페이즈 전환 연출 재생(BossIntroDirector 역할=PhaseTransition). 연출이 1페이즈 폭발과 2페이즈 등장을 보여 준다.
+        //      멀티는 서버 시각에 맞춰 모든 파티원이 같은 순간에 재생한다.
+        //   ③ 연출 종료 → 결과창 트리거를 2페이즈로 넘기고 1페이즈를 걷어낸다(2페이즈 AI는 디렉터가 깨운다).
+        //   씬에 전환 연출 디렉터가 없으면 예전처럼 즉시 전환한다.
+
+        // 네트워크 시작 시각 여유. 지시가 클라에 닿기 전에 시작 시각이 지나 앞부분이 잘리지 않게 한다(RaidIntroSession과 같은 이유).
+        private const double CutsceneStartLead = 0.25;
+
+        // 연출이 끝나기를 기다리는 다음 페이즈. 연출 종료(OnCutsceneFinished)에서 전환을 마무리한다.
+        private Boss pendingNext;
+
         private void Transition()
         {
             transitioned = true;
 
             int carried = boss.Stats.CurrentHp;   // 이어받을 남은 HP(하한 값 ≈ MaxHp*threshold)
 
-            if (IsNetworkedOnServer) TransitionNetworked(carried);
-            else TransitionLocal(carried);
+            Boss next = IsNetworkedOnServer ? SpawnNextNetworked(carried) : SpawnNextLocal(carried);
+            if (next == null) return;   // 실패 사유는 스폰 쪽이 경고했다(1페이즈가 하한에 남는다)
+
+            BossIntroDirector cutscene = BossIntroDirector.Find(gameObject.scene, BossIntroDirector.DirectorRole.PhaseTransition);
+            if (cutscene == null)
+            {
+                CompleteTransition(next);   // 전환 연출이 없는 씬: 예전처럼 즉시 전환
+                return;
+            }
+
+            // 연출이 시작되기 전 짧은 틈에도 두 보스가 움직이거나 공격하지 않게 곧바로 재운다.
+            // (연출 시작 시 디렉터가 다시 재우고, 끝나면 2페이즈만 깨운다 — 1페이즈는 걷어낸다.)
+            boss.SuspendAI();
+            next.SuspendAI();
+
+            pendingNext = next;
+            cutscene.Finished += OnCutsceneFinished;
+
+            if (IsNetworkedOnServer)
+            {
+                // 서버도 재생해 보스를 실제로 연출대로 움직인다(화면 연출은 각 파티원 클라가 붙인다).
+                double startTime = NetworkTime.time + CutsceneStartLead;
+                cutscene.PlayPhaseTransition(boss, next, startTime, false);
+
+                if (TryGetComponent(out BossNetSync sync)) sync.RelayPhaseTransition(next, startTime);
+            }
+            else
+            {
+                cutscene.PlayPhaseTransition(boss, next, double.NaN, true);
+            }
+
+            Debug.Log($"[진단][Phase] 전환 연출 시작 — '{boss.name}' → '{next.name}' (길이 {cutscene.Duration:0.00}초)", this);
+        }
+
+        // 전환 연출이 끝났다(자연 종료·강제 종료). 실제 전환을 마무리한다.
+        private void OnCutsceneFinished()
+        {
+            Boss next = pendingNext;
+            pendingNext = null;
+
+            // 씬 정리 중(디렉터가 비활성화되며 종료를 알린 경우)이면 이미 사라지는 중이라 아무것도 하지 않는다.
+            if (this == null || next == null || !gameObject.scene.isLoaded) return;
+
+            CompleteTransition(next);
+        }
+
+        // 결과창 트리거를 다음 페이즈로 넘기고 1페이즈를 걷어낸다.
+        private void CompleteTransition(Boss next)
+        {
+            // 결과창 트리거(clearBoss)를 최종 페이즈에만 넘긴다. 3페이즈 이상이면 다음 페이즈의 BossPhaseTransition이 이어 처리.
+            if (nextPhaseIsFinal) RegisterEndBoss(next);
+
+            Debug.Log($"[진단][Phase] 전환 완료 — '{next.name}' 교전 시작, '{boss.name}' 제거", this);
+
+            // 1페이즈는 죽이지 않고 걷어낸다. 사망/소멸(OnDespawn→FireBossDisappeared) 경로를 타지 않아 결과창을 건드리지 않고,
+            // 2페이즈가 이미 등장(FireBossAppeared)해 HP 바도 그대로 이어진다.
+            // 네트워크면 NetworkServer.Destroy — 로컬 Destroy면 클라에 언스폰이 안 간다.
+            if (IsNetworkedOnServer) NetworkServer.Destroy(gameObject);
+            else Destroy(gameObject);
         }
 
         /// <summary>
-        /// 서버 권위 페이즈 전환. 2페이즈를 <see cref="NetworkServer.Spawn"/>으로 띄워 모든 클라가 보게 하고,
-        /// 1페이즈는 <see cref="NetworkServer.Destroy"/>로 걷어낸다(로컬 Destroy면 클라에 언스폰이 안 간다).
+        /// 서버 권위 스폰. 2페이즈를 <see cref="NetworkServer.Spawn"/>으로 띄워 모든 클라가 보게 한다. 실패하면 null.
         /// </summary>
-        private void TransitionNetworked(int carriedHp)
+        private Boss SpawnNextNetworked(int carriedHp)
         {
             if (networkedNextPhasePrefab == null)
             {
                 Debug.LogWarning("[BossPhaseTransition] networkedNextPhasePrefab 미할당 → 네트워크 페이즈 전환 불가. " +
                                  "1페이즈가 하한에 멈춘 채 남는다. 인스펙터에 다음 페이즈(네트워크 프리팹)를 할당하라.", this);
-                return;
+                return null;
             }
 
             GameObject next = Instantiate(networkedNextPhasePrefab.gameObject, transform.position, transform.rotation);
@@ -128,7 +195,16 @@ namespace ProjectS.Enemies
 
             // 이어받은 HP는 스폰 통지 '전에' 주입한다(2페이즈 Start의 테이블 로딩 뒤에도 유지된다).
             Enemy nextEnemy = next.GetComponent<Enemy>();
-            if (nextEnemy != null && nextEnemy.Stats != null) nextEnemy.Stats.SetSpawnHp(carriedHp);
+            if (nextEnemy != null && nextEnemy.Stats != null)
+            {
+                nextEnemy.Stats.SetSpawnHp(carriedHp);
+
+                // 1페이즈가 받은 던전 ID를 그대로 넘긴다. 안 넘기면 2페이즈만 전역 컨텍스트(파티 경로에선 미설정)로
+                // 스탯을 읽어, 1페이즈와 다른 행(다른 MaxHp)이 되어 HP 바가 튄다.
+                Enemy current = GetComponent<Enemy>();
+                if (current != null && current.Stats != null)
+                    nextEnemy.Stats.SetDungeonId(current.Stats.DungeonIdOverride);
+            }
 
             NetworkServer.Spawn(next);
 
@@ -136,15 +212,13 @@ namespace ProjectS.Enemies
             // 관찰자는 자기 로컬 풀피로 그려 "2페이즈가 풀피로 보이는" 사고가 난다.
             if (next.TryGetComponent(out BossNetSync nextSync)) nextSync.ServerSetHp(carriedHp);
 
-            if (nextPhaseIsFinal && nextEnemy is Boss nextBoss) RegisterEndBoss(nextBoss);
-
-            // ★ 2페이즈를 먼저 스폰한 뒤에 1페이즈를 걷어낸다 — 클라에서 등장(FireBossAppeared)이 퇴장보다 먼저 와야
-            //   BossHpPresenter가 바를 새 보스로 갈아끼운 뒤 퇴장을 무시해 바가 깜빡이지 않는다.
-            NetworkServer.Destroy(gameObject);
+            // ★ 2페이즈를 먼저 스폰하고 1페이즈는 연출 뒤(CompleteTransition)에 걷어낸다 — 클라에서 등장(FireBossAppeared)이
+            //   퇴장보다 먼저 와야 BossHpPresenter가 바를 새 보스로 갈아끼운 뒤 퇴장을 무시해 바가 깜빡이지 않는다.
+            return nextEnemy as Boss;
         }
 
-        // 기존 로컬(솔로·비네트워크) 경로. 어드레서블 프리로드 → EnemySpawner.SpawnOne → Destroy.
-        private void TransitionLocal(int carriedHp)
+        // 기존 로컬(솔로·비네트워크) 경로. 어드레서블 프리로드 → EnemySpawner.SpawnOne. 실패하면 null.
+        private Boss SpawnNextLocal(int carriedHp)
         {
             EnemySpawner spawner = FindAnyObjectByType<EnemySpawner>();
             if (spawner == null || nextPhasePrefab == null || !nextPhasePrefab.RuntimeKeyIsValid())
@@ -152,7 +226,7 @@ namespace ProjectS.Enemies
                 Debug.LogWarning($"[BossPhaseTransition] 다음 페이즈로 전환하지 못함 — " +
                     $"EnemySpawner={(spawner != null ? "있음" : "없음")}, nextPhasePrefab 유효={nextPhasePrefab?.RuntimeKeyIsValid()}. " +
                     $"1페이즈가 하한(HP {thresholdRatio:P0})에 멈춘 채 남는다.", this);
-                return;
+                return null;
             }
 
             // 2페이즈를 같은 위치·방향에 스폰. SpawnOne은 프리로드된 프리팹만 성공한다(Start의 PreloadNextAsync).
@@ -160,18 +234,13 @@ namespace ProjectS.Enemies
             if (spawned == null)
             {
                 Debug.LogWarning("[BossPhaseTransition] 다음 페이즈 스폰 실패(프리로드 미완료 가능). 1페이즈가 하한에 남는다.", this);
-                return;
+                return null;
             }
 
             // 이어받은 HP 주입. SpawnOne 직후(=2페이즈 Start 전)라 테이블 로딩 후에도 이 값이 유지된다.
             spawned.Stats.SetSpawnHp(carriedHp);
 
-            // 결과창 트리거(clearBoss)를 최종 페이즈에만 넘긴다. 3페이즈 이상이면 다음 페이즈의 BossPhaseTransition이 이어 처리.
-            if (nextPhaseIsFinal && spawned is Boss nextBoss) RegisterEndBoss(nextBoss);
-
-            // 1페이즈는 죽이지 않고 즉시 걷어낸다. Destroy는 사망/소멸(OnDespawn→FireBossDisappeared) 경로를 타지 않아
-            // 결과창을 건드리지 않고, 2페이즈가 이미 등장(FireBossAppeared)해 HP 바도 그대로 이어진다.
-            Destroy(gameObject);
+            return spawned as Boss;
         }
 
         /// <summary>

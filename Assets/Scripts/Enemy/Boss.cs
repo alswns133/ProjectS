@@ -99,6 +99,17 @@ namespace ProjectS.Enemies
         // 뒤이어 오는 데미지/마무리 이벤트가 이 슬롯의 계수·앵커·던지기 세기를 쓴다.
         private GrabPattern currentGrab;
 
+        // currentGrab의 grabs 배열 번호. 원격 플레이어 컴퓨터가 자기 쪽 보스에서 같은 슬롯의 잡는 위치를 찾는 데 쓴다.
+        private int currentGrabSlot = -1;
+
+        // ── 멀티: 원격 클라 소유 플레이어 잡기(서버 판정 + 오너 최종 확인, 2026-09-17) ──
+        // 서버가 잡을지 물어본 원격 플레이어. 답(ServerOnGrabAnswer)이 이 대상에게서 온 것만 받아들인다.
+        private NetworkDamageRelay pendingGrabRelay;
+
+        // 잡기가 확정된 원격 플레이어. 데미지·마무리 이벤트가 이 통로로 그 플레이어 컴퓨터에 보낸다.
+        // 원격 플레이어는 grabbedPlayer(서버 쪽 사본)를 쓰지 않는다 — 사본을 잡아도 실제 플레이어는 안 잡힌다.
+        private NetworkDamageRelay grabbedRelay;
+
         protected override void Start()
         {
             base.Start(); // Enemy.Start(Target 획득 + 상태머신 시작) 먼저
@@ -173,7 +184,12 @@ namespace ProjectS.Enemies
         /// </summary>
         public void OnGrabConnect()
         {
+            // ★ 판정은 권한 있는 컴퓨터(싱글·서버)에서만. Animation Event는 꺼진 컴포넌트에도 와서, 막지 않으면 구경하는 클라가
+            //   제각각 잡기를 판정한다 — 잡힌 본인 화면에선 성공, 남의 화면에선 실패로 갈라져 후속타가 한쪽에만 보였다(2026-09-17).
+            if (!HasGameplayAuthority) return;
             if (Stats.IsDead) return;
+
+            pendingGrabRelay = null;
 
             // 이번 잡기 클립에 맞는 슬롯을 확정한다(데미지/마무리 이벤트도 이 슬롯을 참조).
             currentGrab = ResolveGrab();
@@ -186,24 +202,43 @@ namespace ProjectS.Enemies
                 currentGrab.grabHitbox.rotation,
                 grabTargetMask);
 
+            // 진단(2026-09-17 "잡기 후속타 안 나옴"): 서버가 잡기를 어떻게 판정했는지 남긴다. 원격 클라에서 찍혀도 서버 콘솔로 모인다.
+            LogGrabProbe(count);
+
             for (int i = 0; i < count; i++)
             {
                 // 현재 프로젝트 규칙: 피격 레이어 콜라이더와 Player는 같은 루트 GameObject에 둔다.
                 if (grabBuffer[i].TryGetComponent<Player>(out var player))
                 {
+                    // 원격 클라가 조종하는 플레이어: 서버 쪽 사본을 잡아도 실제 플레이어는 안 잡힌다.
+                    // "범위에 들었다"까지만 서버가 정하고, 잡힐지(구르기 무적 등)는 그 플레이어 컴퓨터에 묻는다.
+                    // 거부 답이 오면 ServerOnGrabAnswer가 헛잡기로 분기한다(모든 화면의 보스가 함께 분기).
+                    if (EnemyHitRouter.TryGetRemoteAvatar(player, out NetworkDamageRelay relay))
+                    {
+                        pendingGrabRelay = relay;
+                        grabbedRelay = null;
+                        relay.ServerRequestGrab(this, currentGrabSlot);
+                        Debug.Log($"[진단][Grab] 원격 플레이어 '{player.name}'에게 잡힘 여부 확인 요청", this);
+                        return;
+                    }
+
                     // 플레이어는 하나뿐 — 처음 찾은 대상에서 성공/실패를 판정하고 끝낸다.
                     if (player.OnGrabbed(this, currentGrab.grabAnchor))
                     {
                         // TODO(sound): 보스 잡기 성공(포착)음 — SoundManager.Instance.PlaySFX3D(<잡기 포착 SFX>, transform.position);
                         grabbedPlayer = player;
+                        Debug.Log($"[진단][Grab] 성공 — 대상 '{player.name}'", this);
                         return;                 // 잡기 성공
                     }
 
+                    Debug.Log($"[진단][Grab] 실패(플레이어가 거부) — '{player.name}' 사망={player.Stats.IsDead} 잡힘중={player.IsGrabbed} " +
+                              $"구르기={player.IsRolling} 각성기={player.Combat.IsCastingUltimate}", this);
                     NotifyGrabFailed();         // 범위엔 있었으나 회피/무적/사망으로 거부(헛잡기)
                     return;
                 }
             }
 
+            Debug.Log("[진단][Grab] 실패(범위 안 콜라이더에 Player 없음)", this);
             NotifyGrabFailed();                 // 범위에 플레이어가 없어 헛손질(헛잡기)
         }
 
@@ -220,7 +255,10 @@ namespace ProjectS.Enemies
             for (int i = 0; i < grabs.Length; i++)
             {
                 if (grabs[i] != null && grabs[i].animationIndex == index)
+                {
+                    currentGrabSlot = i;
                     return grabs[i];
+                }
             }
 
             // 슬롯이 하나뿐인 흔한 초기 구성에서는 매칭 실패가 정상(그 하나로 폴백)이라 경고를 내지 않는다.
@@ -230,10 +268,70 @@ namespace ProjectS.Enemies
 
             for (int i = 0; i < grabs.Length; i++)
             {
-                if (grabs[i] != null) return grabs[i];
+                if (grabs[i] != null)
+                {
+                    currentGrabSlot = i;
+                    return grabs[i];
+                }
             }
 
+            currentGrabSlot = -1;
             return null;
+        }
+
+        /// <summary>
+        /// 잡기 슬롯의 잡는 위치(플레이어가 붙을 곳). 원격 플레이어 컴퓨터가 서버가 알려 준 슬롯 번호로 자기 쪽 보스에서 찾는다.
+        /// </summary>
+        /// <param name="slot">grabs 배열 번호.</param>
+        /// <returns>잡는 위치. 슬롯이 없으면 null(플레이어 쪽이 제자리 구속으로 처리).</returns>
+        public Transform GetGrabAnchor(int slot)
+            => grabs != null && slot >= 0 && slot < grabs.Length && grabs[slot] != null ? grabs[slot].grabAnchor : null;
+
+        /// <summary>
+        /// 원격 플레이어가 잡힘 여부를 답했다(서버 전용). 수락이면 잡기 확정, 거부면 헛잡기로 분기한다.
+        /// </summary>
+        /// <remarks>
+        /// 요청한 대상(<see cref="pendingGrabRelay"/>)에게서 온 답만 받는다 — 다른 클라가 임의로 "잡혔다"를 보내 판정을 흔들지 못하게 한다.
+        /// </remarks>
+        /// <param name="relay">답한 플레이어의 전달 통로.</param>
+        /// <param name="accepted">잡혔으면 true.</param>
+        public void ServerOnGrabAnswer(NetworkDamageRelay relay, bool accepted)
+        {
+            if (!HasGameplayAuthority || relay == null || relay != pendingGrabRelay) return;
+
+            pendingGrabRelay = null;
+            if (Stats.IsDead) return;
+
+            Debug.Log($"[진단][Grab] 원격 플레이어 답 — {(accepted ? "잡힘(성공)" : "거부(헛잡기)")}", this);
+
+            if (accepted) grabbedRelay = relay;
+            else NotifyGrabFailed();
+        }
+
+        // 진단 전용: 잡기 판정 순간의 역할·범위·겹친 콜라이더를 한 줄로 남긴다.
+        // 콜라이더는 찾았는데 Player가 같은 오브젝트에 없으면(자식/부모에 있음) "같은 루트" 규칙 위반이 원인이다.
+        private void LogGrabProbe(int count)
+        {
+            string role = Mirror.NetworkServer.active
+                ? (Mirror.NetworkClient.active ? "Host" : "Server")
+                : (Mirror.NetworkClient.active ? "Client" : "Solo");
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"[진단][Grab][{role}] 판정 — 슬롯 animIndex={Combat.CurrentAttackIndex}, 박스중심={currentGrab.grabHitbox.position:F1}, " +
+                      $"크기={currentGrab.grabHitbox.lossyScale:F1}, 마스크={grabTargetMask.value}, 겹침={count}");
+
+            Player target = Target != null ? Target.GetComponentInParent<Player>() : null;
+            if (target != null)
+                sb.Append($", 대상 '{target.name}' 위치={target.transform.position:F1} 거리={Vector3.Distance(transform.position, target.transform.position):0.0}");
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider hit = grabBuffer[i];
+                sb.Append($"\n   · '{hit.name}' layer={LayerMask.LayerToName(hit.gameObject.layer)} " +
+                          $"같은오브젝트Player={hit.TryGetComponent<Player>(out _)} 부모Player={hit.GetComponentInParent<Player>() != null}");
+            }
+
+            Debug.Log(sb.ToString(), this);
         }
 
         // 잡기 실패(헛잡기) 공통 처리. 잡은 대상이 없음을 명확히 하고, 애니메이터를 실패/회복 모션으로 분기시킨다.
@@ -242,6 +340,7 @@ namespace ProjectS.Enemies
         private void NotifyGrabFailed()
         {
             grabbedPlayer = null;
+            grabbedRelay = null;
             // TODO(sound): 보스 헛잡기(허공 포착 실패)음 — SoundManager.Instance.PlaySFX3D(<헛잡기 SFX>, transform.position);
             Animation.PlayGrabFail();
         }
@@ -253,8 +352,19 @@ namespace ProjectS.Enemies
         /// </summary>
         public void OnGrabDamage()
         {
+            if (!HasGameplayAuthority || currentGrab == null) return;
+
+            // 원격 플레이어: 서버가 계산해 그 플레이어 컴퓨터로 보낸다(잡힘 중이라 경직 없이 데미지만 들어간다).
+            if (grabbedRelay != null)
+            {
+                AttackContext remoteContext = BuildGrabContext(currentGrab.grabDamageCoef);
+                DamageResult remoteResult = DamageCalculator.Calculate(in remoteContext, grabbedRelay.ServerDefense, false);
+                Vector3 at = grabbedRelay.transform.position;
+                grabbedRelay.ServerSendEnemyHit(in remoteResult, at, at - transform.position);
+                return;
+            }
+
             if (grabbedPlayer == null || grabbedPlayer.Stats == null || grabbedPlayer.Stats.IsDead) return;
-            if (currentGrab == null) return;
 
             AttackContext context = BuildGrabContext(currentGrab.grabDamageCoef);
             IDamageable target = grabbedPlayer.Stats;
@@ -277,10 +387,21 @@ namespace ProjectS.Enemies
         // 던지기 넉백 세기(throwHorizontalSpeed/throwUpSpeed)는 플레이어가 소유하지 않고 선택된 잡기 슬롯이 넘긴다.
         private void ReleaseGrabbed(bool asThrow)
         {
-            if (grabbedPlayer == null) return;
+            // 판정 권한이 없는 컴퓨터(구경하는 클라)의 마무리 이벤트는 무시한다 — 풀기는 서버가 잡힌 플레이어 컴퓨터에 알린다.
+            if (!HasGameplayAuthority) return;
 
             float horizontal = currentGrab != null ? currentGrab.throwHorizontalSpeed : 0f;
             float up = currentGrab != null ? currentGrab.throwUpSpeed : 0f;
+
+            if (grabbedRelay != null)
+            {
+                grabbedRelay.ServerSendGrabRelease(asThrow, horizontal, up);
+                grabbedRelay = null;
+                return;
+            }
+
+            if (grabbedPlayer == null) return;
+
             grabbedPlayer.ReleaseFromGrab(asThrow, horizontal, up);
             grabbedPlayer = null;
         }
