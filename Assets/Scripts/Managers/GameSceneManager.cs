@@ -37,7 +37,13 @@ namespace ProjectS.Managers
         /// <summary>
         /// 인자 = 진입 완료한 씬 이름
         /// </summary>
-        public static event System.Action<string> SceneEntered;   
+        public static event System.Action<string> SceneEntered;
+
+        /// <summary>
+        /// 씬 전환(로딩 화면 표시) 중인지. 레이드 등장 연출이 "이 클라 화면이 아직 로딩 중인가"를 판정해
+        /// 준비 완료 보고를 미루는 데 쓴다 — 로딩 화면 뒤에서 연출이 먼저 시작되면 앞부분을 못 본다.
+        /// </summary>
+        public bool IsLoading => loading;
 
         private void Awake()
         {

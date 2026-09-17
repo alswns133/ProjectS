@@ -141,7 +141,7 @@ namespace ProjectS.Managers
             GameObject go = Player.gameObject;
             go.SetActive(false);   // CharacterController를 끄고 위치를 세팅해야 순간이동이 물리에 씹히지 않는다
 
-            PlayerSpawnPoint spawn = FindAnyObjectByType<PlayerSpawnPoint>();
+            PlayerSpawnPoint spawn = FindInActiveScene<PlayerSpawnPoint>();
             if (spawn != null)
                 Player.transform.SetPositionAndRotation(spawn.transform.position, spawn.transform.rotation);
             else
@@ -152,9 +152,26 @@ namespace ProjectS.Managers
 
             // 투사체 스포너는 '씬에 하나, 씬 전환 시 Release'하는 씬 단위 서비스라 프리팹에 넣지 않는다.
             // 지속 플레이어를 씬 진입마다 현재 씬의 스포너로 다시 연결한다(없으면 null — 마을 등 비전투 씬).
-            Player.Combat.SetProjectileSpawner(FindAnyObjectByType<ProjectileSpawner>());
+            Player.Combat.SetProjectileSpawner(FindInActiveScene<ProjectileSpawner>());
 
             go.SetActive(true);
+        }
+
+        // 활성 씬 안의 오브젝트를 우선 찾는다. 없으면 아무거나.
+        // ★ 호스트는 서버를 겸해 마을 위에 파티 인스턴스(레이드)를 additive로 함께 들고 있다. 그냥 FindAnyObjectByType으로 찾으면
+        //   레이드에서 마을로 돌아올 때 인스턴스의 스폰 지점·스포너를 집을 수 있다. 활성 씬(마을)이 곧 "내가 있어야 할 씬"이다.
+        private static T FindInActiveScene<T>() where T : Component
+        {
+            UnityEngine.SceneManagement.Scene active = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+
+            T fallback = null;
+            foreach (T candidate in FindObjectsByType<T>(FindObjectsSortMode.None))
+            {
+                if (candidate.gameObject.scene == active) return candidate;
+                if (fallback == null) fallback = candidate;
+            }
+
+            return fallback;
         }
     }
 }

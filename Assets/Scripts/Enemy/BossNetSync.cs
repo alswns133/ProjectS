@@ -29,14 +29,101 @@ namespace ProjectS.Enemies
         // (스폰 직후 0으로 동기화돼 바가 '사망'으로 뜨는 것을 막는 센티넬).
         [SyncVar(hook = nameof(OnHpSynced))] private int netHp = -1;
 
+        // 서버가 테이블로 확정한 최대 HP·줄 수. -1 = 서버 스탯 미확정.
+        // 관찰자는 이 값을 바의 분모로 쓴다 — 자기 로컬 테이블로 계산하면 서버와 다른 행을 읽을 수 있다.
+        [SyncVar(hook = nameof(OnMaxHpSynced))] private int netMaxHp = -1;
+        [SyncVar(hook = nameof(OnMaxHpSynced))] private int netSegmentCount = -1;
+
         // 서버 그로기(남은 비율 0~1, 잠금). 초기값은 '가득·해제'라 피격 전에도 정상 표시된다(센티넬 불필요).
         [SyncVar(hook = nameof(OnGroggyRatioSynced))] private float netGroggyRatio = 1f;
         [SyncVar(hook = nameof(OnGroggyLockedSynced))] private bool netGroggyLocked;
+
+        private EnemyAnimation enemyAnimation;
+        private EnemyCombat enemyCombat;
 
         private void Awake()
         {
             boss = GetComponent<Boss>();
             stats = GetComponent<EnemyStats>();
+            enemyAnimation = GetComponent<EnemyAnimation>();
+            enemyCombat = GetComponent<EnemyCombat>();
+        }
+
+        // ── 애니메이터 트리거 전달 ──
+
+        /// <summary>
+        /// 서버 AI가 켠 애니메이터 트리거를 관찰자 클라에도 켠다. <see cref="EnemyAnimation"/>이 트리거를 켤 때마다 부른다.
+        /// 서버가 아니거나 아직 네트워크 스폰 전(싱글 로컬 스폰)이면 아무 일도 하지 않는다.
+        /// </summary>
+        /// <remarks>
+        /// NetworkAnimator는 트리거를 동기화하지 않아, 이게 없으면 클라에서 공격·헛잡기 모션이 안 나온다.
+        /// </remarks>
+        /// <param name="triggerHash">켤 트리거의 해시.</param>
+        /// <param name="attackIndex">함께 보낼 공격 번호. 음수면 없음.</param>
+        public void RelayTrigger(int triggerHash, int attackIndex)
+        {
+            if (!isServer) return;
+            RpcTrigger(triggerHash, attackIndex);
+        }
+
+        /// <summary>
+        /// 서버가 쏜 투사체를 구경하는 클라에서도 보이게 한다. 서버가 아니거나 네트워크 스폰 전(싱글)이면 아무 일도 하지 않는다.
+        /// </summary>
+        /// <param name="slot">EnemyCombat attacks 배열 번호. 음수면 조우 공격.</param>
+        /// <param name="position">발사 위치.</param>
+        /// <param name="rotation">발사 방향.</param>
+        public void RelayProjectile(int slot, Vector3 position, Quaternion rotation)
+        {
+            if (!isServer) return;
+            RpcProjectile(slot, position, rotation);
+        }
+
+        /// <summary>
+        /// 페이즈 전환 연출을 파티원 화면에서도 같은 시각에 재생하게 한다(서버 → 이 보스를 보는 모든 클라).
+        /// </summary>
+        /// <param name="next">새로 등장하는 다음 페이즈 보스(방금 서버가 스폰한 것).</param>
+        /// <param name="startTime">서버 시계 기준 연출 시작 시각.</param>
+        public void RelayPhaseTransition(Boss next, double startTime)
+        {
+            if (!isServer || next == null || !next.TryGetComponent(out NetworkIdentity nextIdentity)) return;
+            RpcPhaseTransition(nextIdentity.netId, startTime);
+        }
+
+        [ClientRpc]
+        private void RpcPhaseTransition(uint nextNetId, double startTime)
+        {
+            // ★ 호스트도 받는다(isServer여도 건너뛰지 않는다). 서버 쪽 재생에는 화면 연출(UI 끄기·입력 잠금)이 없어,
+            //   호스트가 이 파티원이면 여기서 붙인다. 파티원이 아닌 호스트에게는 관심 영역 관리가 이 보스를 안 보여 줘 오지 않는다.
+            if (boss == null) return;
+
+            Boss next = NetworkClient.spawned.TryGetValue(nextNetId, out NetworkIdentity nextIdentity) && nextIdentity != null
+                ? nextIdentity.GetComponent<Boss>()
+                : null;
+
+            // 서버 프로세스(호스트)는 여러 인스턴스를 들고 있을 수 있어 이 보스의 씬에서, 순수 클라는 하나뿐이라 전체에서 찾는다.
+            UnityEngine.SceneManagement.Scene scene = isServer ? gameObject.scene : default;
+            ProjectS.Scenes.BossIntroDirector cutscene =
+                ProjectS.Scenes.BossIntroDirector.Find(scene, ProjectS.Scenes.BossIntroDirector.DirectorRole.PhaseTransition);
+
+            if (cutscene != null) cutscene.PlayPhaseTransition(boss, next, startTime, true);
+            else Debug.LogWarning("[BossNetSync] 페이즈 전환 연출 디렉터를 찾지 못해 이 화면에서는 연출 없이 전환됩니다.", this);
+        }
+
+        [ClientRpc]
+        private void RpcProjectile(int slot, Vector3 position, Quaternion rotation)
+        {
+            // 호스트는 서버의 원본 투사체를 이미 보고 있다.
+            if (isServer || enemyCombat == null) return;
+            enemyCombat.FireVisualProjectile(slot, position, rotation);
+        }
+
+        [ClientRpc]
+        private void RpcTrigger(int triggerHash, int attackIndex)
+        {
+            // 호스트는 서버 쪽에서 이미 같은 애니메이터에 켰다(두 번 켜면 트리거가 한 번 더 소비될 수 있다).
+            if (isServer || enemyAnimation == null) return;
+
+            enemyAnimation.ApplyNetworkTrigger(triggerHash, attackIndex);
         }
 
         // ── 서버: 로컬 전투 이벤트를 SyncVar로 옮겨 담는다 ──
@@ -45,12 +132,31 @@ namespace ProjectS.Enemies
         {
             CombatEvents.OnEnemyHealthChanged += OnServerHealthChanged;
             BossEvents.OnBossGroggyChanged += OnServerGroggyChanged;
+
+            // 스탯 테이블은 EnemyStats.Start에서 비동기로 확정된다. 스폰 순간엔 아직 인스펙터 폴백이라
+            // 확정을 기다렸다 복제한다(이미 확정됐으면 바로).
+            if (stats == null) return;
+            if (stats.IsStatsReady) ServerPushStats();
+            else stats.StatsReady += ServerPushStats;
         }
 
         public override void OnStopServer()
         {
             CombatEvents.OnEnemyHealthChanged -= OnServerHealthChanged;
             BossEvents.OnBossGroggyChanged -= OnServerGroggyChanged;
+            if (stats != null) stats.StatsReady -= ServerPushStats;
+        }
+
+        // 서버가 확정한 스탯을 관찰자에게 넘긴다. 현재 HP도 함께 실어 센티넬(-1) 구간을 없앤다.
+        [Server]
+        private void ServerPushStats()
+        {
+            if (stats == null) return;
+            stats.StatsReady -= ServerPushStats;
+
+            netMaxHp = stats.MaxHp;
+            netSegmentCount = stats.SegmentCount;
+            netHp = stats.CurrentHp;
         }
 
         /// <summary>
@@ -79,6 +185,11 @@ namespace ProjectS.Enemies
 
         public override void OnStartClient()
         {
+            // ★ 등장 발행 "전에" 서버 값을 입힌다. 바(BossHpPresenter)는 등장 순간의 MaxHp로 초기화되는데,
+            //   관찰자에선 이 시점에 로컬 테이블 로딩도 안 끝나 인스펙터 폴백(maxHp=100 등)으로 그려지던 문제를 막는다.
+            //   스폰 페이로드에 이미 확정값이 실려 왔으면 여기서 바로 맞고, 아직이면 훅(OnMaxHpSynced)이 나중에 맞춘다.
+            if (!isServer) ApplyNetworkStats();
+
             if (boss != null) BossEvents.FireBossAppeared(boss);
         }
 
@@ -95,6 +206,25 @@ namespace ProjectS.Enemies
 
             stats.SetNetworkHp(newHp);
             CombatEvents.FireEnemyHealthChanged(stats, stats.MaxHp > 0 ? (float)newHp / stats.MaxHp : 0f);
+        }
+
+        // 서버 스탯이 늦게 확정돼 복제돼 온 경우. 값을 입히고 바가 새 분모로 다시 그리도록 갱신 이벤트를 낸다.
+        private void OnMaxHpSynced(int _, int __)
+        {
+            if (isServer || stats == null) return;
+            if (!ApplyNetworkStats()) return;
+
+            CombatEvents.FireEnemyHealthChanged(stats, stats.MaxHp > 0 ? (float)stats.CurrentHp / stats.MaxHp : 0f);
+        }
+
+        // 관찰자 로컬 스탯에 서버 값(최대 HP·줄 수·현재 HP)을 입힌다. 입혔으면 true.
+        private bool ApplyNetworkStats()
+        {
+            if (stats == null || netMaxHp <= 0) return false;
+
+            stats.SetNetworkStats(netMaxHp, netSegmentCount);
+            if (netHp >= 0) stats.SetNetworkHp(netHp);
+            return true;
         }
 
         private void OnGroggyRatioSynced(float _, float __) => ApplyGroggy();

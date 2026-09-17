@@ -36,7 +36,7 @@ namespace ProjectS.Networking
     /// </para>
     /// </summary>
     [RequireComponent(typeof(NetworkIdentity))]
-    public class PartyManager : NetworkBehaviour
+    public partial class PartyManager : NetworkBehaviour
     {
         /// <summary>로컬 플레이어 소유 인스턴스. 다리·팝업이 이걸 통해 요청 Command를 부른다. 접속 전 null.</summary>
         public static PartyManager Local { get; private set; }
@@ -437,12 +437,13 @@ namespace ProjectS.Networking
                 return;
             }
 
-            StartCoroutine(ServerLoadInstanceAndMove(me.PartyId, sceneName));
+            StartCoroutine(ServerLoadInstanceAndMove(me.PartyId, sceneName, me.PartyDungeonId));
         }
 
         // 던전 씬을 additive로 한 벌 더 로드하고, 같은 partyId 오브젝트를 그 인스턴스로 옮긴다.
+        // dungeonId는 이 인스턴스에 스폰하는 몬스터의 스탯 행을 고르는 데 쓴다(전역 DungeonContext는 파티 경로에서 안 채워진다).
         [Server]
-        private IEnumerator ServerLoadInstanceAndMove(uint pid, string sceneName)
+        private IEnumerator ServerLoadInstanceAndMove(uint pid, string sceneName, int dungeonId)
         {
             // additive 로드: 마을(기존 씬)은 그대로 두고 던전 사본을 새로 연다(전원 이동이 아니다).
             AsyncOperation op = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
@@ -467,6 +468,14 @@ namespace ProjectS.Networking
 
             Debug.Log($"[PartyManager] (Stage1) 파티 {pid} → '{sceneName}' 인스턴스 로드+이동 완료. " +
                       $"다음: Stage2(그 파티 2명 커넥션에만 SceneMessage(LoadAdditive) 전송).", this);
+
+            // ★ 등장 연출 대기 세션을 클라에 씬 로드를 지시하기 "전에" 연다. 세션이 여는 순간 파티원에게 대기 화면을
+            //   띄우라고 알리므로, 클라가 로딩 화면을 올리기 전에 대기 화면이 밑에 깔려 로딩→씬 사이 빈 프레임이 안 보인다.
+            List<PlayerPresence> introMembers = new();
+            foreach (NetworkIdentity id in NetworkServer.spawned.Values)
+                if (id != null && id.TryGetComponent(out PlayerPresence p) && p.PartyId == pid) introMembers.Add(p);
+
+            RaidIntroSession.Open(pid, instance, introMembers);
 
             // TODO(Stage 2): 이 파티 두 커넥션에만 클라 additive 로드를 지시한다.
             //   foreach 파티원 conn: conn.Send(new SceneMessage { sceneName = sceneName, sceneOperation = SceneOperation.LoadAdditive });
@@ -560,59 +569,21 @@ namespace ProjectS.Networking
 
                 GameObject boss = Instantiate(raidBossPrefab.gameObject, bossPos, bossRot);
                 SceneManager.MoveGameObjectToScene(boss, instance);
+
+                // ★ 스탯 테이블 행을 고를 던전 ID를 Start 전에 쥐여 준다. 파티 경로는 DungeonRouter/RaidGather.Enter를
+                //   안 거쳐 전역 컨텍스트가 레이드로 안 채워지므로, 안 하면 보스가 프리팹 기준 ID(1101=1던전 노말)
+                //   스탯으로 떠 HP·공격력·방어력이 전부 틀린다(2026-09-17 "멀티 보스 HP가 정보창과 다름").
+                if (boss.TryGetComponent(out EnemyStats bossStats)) bossStats.SetDungeonId(dungeonId);
+
                 NetworkServer.Spawn(boss);
 
                 Debug.Log($"[진단][Boss] NetworkServer.Spawn 호출됨 — netId={boss.GetComponent<NetworkIdentity>()?.netId}", this);
+
+                // 등장 연출 세션에 보스를 묶는다(스폰 즉시 AI 정지). 연출 시작은 여기서 하지 않는다 —
+                // 세션이 파티원 전원의 "화면 준비" 보고를 모은 뒤 시작한다(2026-09-17 확정 구조).
+                if (RaidIntroSession.TryGet(pid, out RaidIntroSession introSession))
+                    introSession.AttachBoss(boss.GetComponent<Boss>());
             }
-
-            // ── 전원 스폰 완료 → 보스 등장 연출 시작 지시 ──────────────
-            // 레이드 연출의 시작 조건은 보스방 진입(존 트리거)이 아니라 "파티원 아바타 + 보스가 전부 떴다"이다
-            // (2026-09-16 확정). 그 시점을 아는 것은 서버뿐이라 — 클라는 저마다 인스턴스 씬을 additive로
-            // 로드하는 중이라 도착 시각이 제각각이다 — 여기서 각 파티원 클라에 시작을 지시한다.
-            foreach (PlayerPresence p in members)
-            {
-                NetworkConnectionToClient conn = p.connectionToClient;
-                if (conn == null) continue;
-
-                // ★ TargetRpc는 "불린 오브젝트"의 대상 클라 복제본에서 실행된다. 반드시 그 파티원 자신의
-                //   PartyManager에서 불러야 한다 — this(파티장)로 부르면 파티장 클라에서만 돈다.
-                if (p.TryGetComponent(out PartyManager member))
-                    member.TargetPlayBossIntro(conn);
-            }
-        }
-
-        /// <summary>
-        /// 레이드 보스 등장 연출을 시작하라는 지시(서버 → 각 파티원 클라). 전원 스폰이 끝난 뒤에만 온다.
-        /// </summary>
-        /// <param name="target">받을 파티원의 커넥션.</param>
-        [TargetRpc]
-        private void TargetPlayBossIntro(NetworkConnectionToClient target)
-        {
-            StartCoroutine(PlayBossIntroWhenReady());
-        }
-
-        // 지시가 도착한 시점에 이 클라의 인스턴스 씬 additive 로드가 아직 안 끝났을 수 있다
-        // (서버는 자기 로드만 기다렸다). 디렉터가 씬에 나타날 때까지 기다렸다 시작한다.
-        private IEnumerator PlayBossIntroWhenReady()
-        {
-            const float timeout = 30f;
-            float deadline = Time.time + timeout;
-
-            while (Time.time < deadline)
-            {
-                BossIntroDirector intro = FindAnyObjectByType<BossIntroDirector>();
-                if (intro != null)
-                {
-                    Debug.Log("[진단][BossIntro] 서버 지시 수신 — 전원 스폰 완료. 연출을 시작합니다.", intro);
-                    intro.PlayNow();
-                    yield break;
-                }
-
-                yield return null;
-            }
-
-            Debug.LogWarning($"[진단][BossIntro] 서버가 연출 시작을 지시했지만 {timeout:0}초 안에 BossIntroDirector를 " +
-                             "찾지 못했습니다 — 인스턴스 씬 로드 실패이거나 디렉터가 씬에 없습니다.", this);
         }
 
         // 카운트다운 만료(서버 안전망). CmdDepart가 Invoke로 예약해 파티장 인스턴스에서 돈다.

@@ -54,6 +54,27 @@ namespace ProjectS.Enemies
         // 스폰 시 이어받을 HP(페이즈 인계). 0 이상이면 테이블 로딩이 풀피로 리셋해도 이 값으로 다시 맞춘다. 음수면 미설정.
         private int spawnHpOverride = -1;
 
+        // 스폰한 쪽이 직접 지정한 던전 ID. 0이면 전역 DungeonContext를 쓴다(싱글·일반 던전 경로).
+        private int dungeonIdOverride;
+
+        // 관찰자 클라가 서버에서 받은 표시값. 0 이상이면 로컬 테이블 로딩이 늦게 끝나도 이 값으로 되돌린다.
+        // 음수면 미설정(= 로컬 테이블 값이 곧 진실인 싱글/서버).
+        private int networkMaxHp = -1;
+        private int networkSegmentCount = -1;
+        private int networkHp = -1;
+
+        /// <summary>테이블 조회가 끝나 스탯이 확정됐는지. 테이블이 없거나 행이 없어 폴백을 쓰기로 한 경우도 확정으로 본다.</summary>
+        public bool IsStatsReady { get; private set; }
+
+        /// <summary>
+        /// 스탯이 확정되는 순간 1회 발행. 서버가 확정된 최대 HP를 관찰자에게 복제할 시점으로 쓴다
+        /// (<c>BossNetSync</c>). 테이블 로딩이 비동기라 스폰 직후엔 아직 인스펙터 폴백 값이기 때문이다.
+        /// </summary>
+        public event System.Action StatsReady;
+
+        /// <summary>스폰한 쪽이 지정한 던전 ID. 0이면 미지정. 다음 페이즈 보스에 같은 값을 넘길 때 쓴다.</summary>
+        public int DungeonIdOverride => dungeonIdOverride;
+
         public bool IsDead => currentHp <= 0;
 
         /// <summary>현재 HP. 보스 HP 바가 "현재/최대" 수치와 남은 줄 수 계산에 쓴다.</summary>
@@ -113,7 +134,56 @@ namespace ProjectS.Enemies
         /// 하지 않는다 — 순수 표시값 갱신이며, 사망/연출은 서버가 주도한다.
         /// </summary>
         /// <param name="hp">서버가 동기화한 현재 HP(0~MaxHp로 클램프).</param>
-        public void SetNetworkHp(int hp) => currentHp = Mathf.Clamp(hp, 0, maxHp);
+        public void SetNetworkHp(int hp)
+        {
+            networkHp = Mathf.Max(0, hp);
+            currentHp = Mathf.Clamp(networkHp, 0, maxHp);
+        }
+
+        /// <summary>
+        /// 관찰자 클라에서 서버가 확정한 최대 HP·줄 수를 반영한다(보스 HP 바의 분모).
+        /// </summary>
+        /// <remarks>
+        /// ★ 관찰자가 최대 HP를 <b>자기 로컬 테이블로 계산하면 안 된다.</b> 몬스터 ID의 던전·난이도 자리는
+        /// 입장 컨텍스트로 입혀지는데, 서버와 클라의 컨텍스트가 어긋나면 서로 다른 행을 읽어 바의 분모가
+        /// 서버 HP와 맞지 않는다(2026-09-17 "멀티 보스 바가 정보창과 다름"). 그래서 서버 값을 받아 고정하고,
+        /// 로컬 테이블 로딩이 나중에 끝나도 이 값으로 되돌린다.
+        /// </remarks>
+        /// <param name="serverMaxHp">서버의 최대 HP.</param>
+        /// <param name="serverSegmentCount">서버의 줄 수.</param>
+        public void SetNetworkStats(int serverMaxHp, int serverSegmentCount)
+        {
+            if (serverMaxHp <= 0) return;
+
+            networkMaxHp = serverMaxHp;
+            networkSegmentCount = Mathf.Max(0, serverSegmentCount);
+            ApplyNetworkOverrides();
+        }
+
+        /// <summary>
+        /// 이 몬스터가 속한 던전 ID를 직접 지정한다. <b>스폰 직후, Start 전에</b> 불러야 테이블 조회에 반영된다.
+        /// </summary>
+        /// <remarks>
+        /// 서버가 파티 인스턴스에 보스를 스폰할 때 쓴다. 파티 경로는 <c>DungeonRouter</c>/<c>RaidGather.Enter</c>를
+        /// 거치지 않아 전역 컨텍스트가 레이드로 세팅되지 않는다 — 그대로 두면 보스가 프리팹 기준 ID(예: 1101,
+        /// 1던전 노말)의 스탯으로 떠서 HP·공격력·방어력이 전부 틀린다. 공유 서버는 여러 인스턴스를 동시에
+        /// 돌리므로 전역 값을 바꾸는 대신 몬스터마다 쥐여 준다.
+        /// </remarks>
+        /// <param name="dungeonId">2자리 던전 ID(예: 레이드 99).</param>
+        public void SetDungeonId(int dungeonId) => dungeonIdOverride = dungeonId;
+
+        // 서버에서 받은 값이 있으면 로컬 값 위에 덮는다. 테이블 로딩 전/후 어느 쪽에서 불려도 결과가 같다.
+        private void ApplyNetworkOverrides()
+        {
+            if (networkMaxHp > 0)
+            {
+                maxHp = networkMaxHp;
+                segmentCount = networkSegmentCount;
+            }
+
+            if (networkHp >= 0) currentHp = Mathf.Clamp(networkHp, 0, maxHp);
+            else if (networkMaxHp > 0) currentHp = Mathf.Min(currentHp, maxHp);
+        }
 
         private void Awake()
         {
@@ -128,6 +198,13 @@ namespace ProjectS.Enemies
         private async void Start()
         {
             await ApplyStatTableAsync();
+            if (this == null) return;
+
+            // 관찰자가 서버 값을 먼저 받아 뒀다면, 방금 로컬 테이블이 덮은 값을 서버 값으로 되돌린다.
+            ApplyNetworkOverrides();
+
+            IsStatsReady = true;
+            StatsReady?.Invoke();
         }
 
         /// <summary>
@@ -144,7 +221,10 @@ namespace ProjectS.Enemies
 
             // ★ 난이도를 입힌 실제 ID로 통일한다. 이후 조회·킬 집계가 모두 이 값을 쓴다.
             //   던전 밖(직접 테스트)이면 원본 그대로 반환되므로 base ID가 유지된다.
-            monsterId = ProjectS.Scenes.DungeonContext.ResolveMonsterId(monsterId);
+            //   스폰한 쪽이 던전을 직접 지정했으면(서버의 파티 인스턴스) 전역 컨텍스트보다 그 값을 우선한다.
+            monsterId = dungeonIdOverride > 0
+                ? ProjectS.Scenes.DungeonContext.ResolveMonsterId(monsterId, dungeonIdOverride)
+                : ProjectS.Scenes.DungeonContext.ResolveMonsterId(monsterId);
 
             MonsterStatTable row = json.Get<MonsterStatTable>(monsterId);
             if (row == null)

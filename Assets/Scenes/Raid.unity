@@ -69042,6 +69042,7 @@ PlayableDirector:
     - 31bfffb32c1000a4698a5f79f3466a4c: {fileID: 0}
     - 3c0b80196e921fd4c876534012c729b1: {fileID: 0}
     - 33b8872225c1df849adc82c6f0d80cdf: {fileID: 0}
+    - 123defc33eb32a644950bcbea8fa664e: {fileID: 1236312865}
     - b3e538fa8fd43744fafb551ee822922a: {fileID: 0}
     - e176209b28bb66d4cb381dd258269fac: {fileID: 1761563918}
     - 5c01ceed893d21547980293414d25e17: {fileID: 0}
@@ -69056,6 +69057,7 @@ PlayableDirector:
     - 121199896a59a9441b74a8ce0709ed67: {fileID: 0}
     - 2cb84a23660745149a1f73378d52327e: {fileID: 0}
     - fba86a64c9f3fd549b91c7411872b569: {fileID: 0}
+    - 49048a9cd28e575478910265bdcf226f: {fileID: 1236312865}
 --- !u!114 &268638156
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -69073,35 +69075,35 @@ MonoBehaviour:
   cutsceneSafetyMargin: 3
   trackBindings:
   - trackName: Boss_Raid_Intro1
-    part: 0
+    target: 0
     childPath: 
   - trackName: Boss_Raid_Intro2
-    part: 0
+    target: 0
     childPath: 
   - trackName: SM_Wep_Hammer_01
-    part: 2
+    target: 0
     childPath: SM_Wep_Hammer_01
   - trackName: GrabIntro
-    part: 2
+    target: 0
     childPath: GrabIntro
   - trackName: Steam1
-    part: 2
+    target: 0
     childPath: Steam1
   - trackName: Steam2
-    part: 2
+    target: 0
     childPath: Steam2
   - trackName: Steam3
-    part: 2
+    target: 0
     childPath: Steam3
   - trackName: Red_Steam
-    part: 2
+    target: 0
     childPath: Red_Steam
-  - trackName: BossPoint
-    part: 1
-    childPath: 
   hideUIDuringIntro: 1
   autoStartWhenSolo: 1
   soloWaitTimeout: 20
+  soloWaitShowDelay: 0.3
+  endPoint: {fileID: 1236312864}
+  role: 0
 --- !u!1001 &268652922
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -86978,8 +86980,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 343343578}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.27059782, y: 0.6532818, z: -0.27059802, w: 0.6532813}
-  m_LocalPosition: {x: 10.11, y: 29.16, z: -78.63}
+  m_LocalRotation: {x: -0.033782545, y: 0.95766234, z: 0.25660437, w: 0.12607887}
+  m_LocalPosition: {x: 24.49, y: 1.99, z: -71.59}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -90922,6 +90924,7 @@ GameObject:
   m_Component:
   - component: {fileID: 373823399}
   - component: {fileID: 373823400}
+  - component: {fileID: 373823401}
   m_Layer: 0
   m_Name: BossPhaseDirector
   m_TagString: Untagged
@@ -91041,6 +91044,55 @@ PlayableDirector:
     - 8fd6d67cb1a242c4c927984fdae3e364: {fileID: 281214746}
     - 6fb97a7f2345fda499e5dd5783cafbff: {fileID: 1746884434}
     - 8928419edef1f334c9afc4b97cc5e219: {fileID: 1318310823}
+--- !u!114 &373823401
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 373823398}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b811fac1e0e4d4418a9617894f35c20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Scenes.BossIntroDirector
+  director: {fileID: 373823400}
+  lockPlayerInput: 1
+  cutsceneSafetyMargin: 3
+  trackBindings:
+  - trackName: SM_Wep_Hammer_01
+    target: 0
+    childPath: SM_Wep_Hammer_01
+  - trackName: GrabIntro
+    target: 0
+    childPath: GrabIntro
+  - trackName: Steam1
+    target: 0
+    childPath: Steam1
+  - trackName: Steam2
+    target: 0
+    childPath: Steam2
+  - trackName: Steam3
+    target: 0
+    childPath: Steam3
+  - trackName: Red_Steam
+    target: 0
+    childPath: Red_Steam
+  - trackName: Boss_Raid_Hammer
+    target: 0
+    childPath: 
+  - trackName: Boss_Raid_DualBlades
+    target: 1
+    childPath: 
+  - trackName: GrabPhase
+    target: 1
+    childPath: GrabPhase
+  hideUIDuringIntro: 1
+  autoStartWhenSolo: 1
+  soloWaitTimeout: 20
+  soloWaitShowDelay: 0.3
+  endPoint: {fileID: 1236312864}
+  role: 1
 --- !u!1001 &373982176
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -117131,7 +117183,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &517274968
 Transform:
   m_ObjectHideFlags: 0
@@ -287158,6 +287210,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4593282014200748, guid: 4668588a9e17c9f4aa539ee9c8f57a4c, type: 3}
   m_PrefabInstance: {fileID: 1235923650}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1236312864
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1236312865}
+  m_Layer: 0
+  m_Name: BossEndPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1236312865
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1236312864}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -15.85, y: 0.699, z: -78.91}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2145760652}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1237247112
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -323652,7 +323735,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 1
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 3ff278a1f9548de48be96c317f3a6361, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: 79c6694f079836e49a4018a6bc03ade0, type: 2}
   m_BuildHeightMesh: 0
 --- !u!1001 &1429998284
 PrefabInstance:
@@ -480152,6 +480235,7 @@ Transform:
   - {fileID: 1960675084}
   - {fileID: 639441115}
   - {fileID: 657829365}
+  - {fileID: 1236312865}
   - {fileID: 8053421280750049999}
   m_Father: {fileID: 1429629299}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -485442,7 +485526,7 @@ PrefabInstance:
     - target: {fileID: 5820456664521215526, guid: 1d59169af57a01244bf359afb2a0bda7, type: 3}
       propertyPath: m_sharedMaterial
       value: 
-      objectReference: {fileID: -2166818252473739485, guid: f1e6d3da2310cbd46a6177b0061e21b2, type: 2}
+      objectReference: {fileID: 0}
     - target: {fileID: 6044922811455081286, guid: 1d59169af57a01244bf359afb2a0bda7, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -485562,7 +485646,7 @@ PrefabInstance:
     - target: {fileID: 7379664552475582713, guid: 1d59169af57a01244bf359afb2a0bda7, type: 3}
       propertyPath: m_sharedMaterial
       value: 
-      objectReference: {fileID: -6923793362663324378, guid: cdcb117b22626f843998d553312603fe, type: 2}
+      objectReference: {fileID: 0}
     - target: {fileID: 8361321719770041229, guid: 1d59169af57a01244bf359afb2a0bda7, type: 3}
       propertyPath: m_fontSize
       value: 65
