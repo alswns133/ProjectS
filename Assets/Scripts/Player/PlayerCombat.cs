@@ -844,14 +844,14 @@ namespace ProjectS.Players
             {
                 CombatAction.Combo => comboStep switch
                 {
-                    1 => nk == "Attack1",
-                    2 => nk == "Attack2",
-                    3 => nk == "Attack3",
+                    1 => nk.StartsWith("Attack1", StringComparison.Ordinal),
+                    2 => nk.StartsWith("Attack2", StringComparison.Ordinal),
+                    3 => nk.StartsWith("Attack3", StringComparison.Ordinal),
                     _ => false,
                 },
                 CombatAction.Skill => IsCurrentSkillKey(key),
-                CombatAction.StrongAttack => nk == "StrongAttack",
-                CombatAction.RunAttack => nk == "RunAttack",
+                CombatAction.StrongAttack => nk.StartsWith("StrongAttack", StringComparison.Ordinal),
+                CombatAction.RunAttack => nk.StartsWith("RunAttack", StringComparison.Ordinal),
                 CombatAction.JumpAttack => nk.StartsWith("Jump", StringComparison.Ordinal),
                 _ => false,
             };
