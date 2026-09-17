@@ -192,7 +192,7 @@ CanvasGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 948042238208268762}
   m_Enabled: 1
-  m_Alpha: 1
+  m_Alpha: 0.9
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
@@ -273,7 +273,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.PartyInviteAcceptPopup
   partySourceBehaviour: {fileID: 0}
   messageText: {fileID: 8839496069127664376}
-  messageFormat: "{0} \uB2D8\uC774 \uD30C\uD2F0\uC5D0 \uCD08\uB300\uD588\uC2B5\uB2C8\uB2E4"
   inviterMetaText: {fileID: 3933329871873888084}
   metaFormat: Lv.{0} {1}
   classNames:
@@ -282,9 +281,18 @@ MonoBehaviour:
   dungeonNameText: {fileID: 5212416084472620066}
   difficultyText: {fileID: 2337630980761599094}
   countdown: {fileID: 5302899429677063375}
-  countdownTitle: "\uC751\uB2F5 \uC81C\uD55C"
   acceptButton: {fileID: 7596872356686252001}
   declineButton: {fileID: 4173087025046434840}
+  acceptLabel: {fileID: 6576333086349049803}
+  declineLabel: {fileID: 2688107742528404048}
+  messageFormat: "{0} \uB2D8\uC774 \uD30C\uD2F0\uC5D0 \uCD08\uB300\uD588\uC2B5\uB2C8\uB2E4"
+  countdownTitle: "\uC751\uB2F5 \uC81C\uD55C"
+  inviteAcceptText: "\uC218\uB77D"
+  inviteDeclineText: "\uAC70\uC808"
+  departMessageFormat: "{0} \uB2D8\uC774 \uB358\uC804 \uCD9C\uBC1C\uC744 \uC2DC\uC791\uD588\uC2B5\uB2C8\uB2E4"
+  departCountdownTitle: "\uCD9C\uBC1C\uAE4C\uC9C0"
+  departAcceptText: "\uC785\uC7A5"
+  departDeclineText: "\uCDE8\uC18C"
 --- !u!1 &1815428926653274527
 GameObject:
   m_ObjectHideFlags: 0
@@ -343,7 +351,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.24665712, g: 0.2894446, b: 0.381132, a: 1}
+  m_Color: {r: 0.07450981, g: 0.4156863, b: 0.74509805, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -610,7 +618,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.101960786, g: 0.12941177, b: 0.1882353, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -648,10 +656,10 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
-    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_NormalColor: {r: 0.10980393, g: 0.13333334, b: 0.19607845, a: 1}
+    m_HighlightedColor: {r: 0, g: 0.56078434, b: 0.90196085, a: 1}
+    m_PressedColor: {r: 0, g: 0.56078434, b: 0.90196085, a: 1}
+    m_SelectedColor: {r: 0, g: 0.56078434, b: 0.90196085, a: 1}
     m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
@@ -729,7 +737,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0.2971855, b: 0.4792453, a: 1}
+  m_Color: {r: 0.07450981, g: 0.4156863, b: 0.74509805, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1003,7 +1011,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.18431373, g: 0.37254903, b: 0.8156863, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1041,10 +1049,10 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
-    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_NormalColor: {r: 0.1137255, g: 0.17254902, b: 0.3254902, a: 1}
+    m_HighlightedColor: {r: 0, g: 0.56078434, b: 0.90196085, a: 1}
+    m_PressedColor: {r: 0, g: 0.56078434, b: 0.90196085, a: 1}
+    m_SelectedColor: {r: 0, g: 0.56078434, b: 0.90196085, a: 1}
     m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
