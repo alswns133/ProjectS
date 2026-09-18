@@ -127,16 +127,17 @@ namespace ProjectS.UI
             }
 
             // ── 출발 자동 프롬프트 ──────────────────────────────────
-            // 파티장이 출발을 걸면(Phase==Departing) 멤버에게 결성창을 자동으로 띄워 "던전 입장(확인)"을
-            // 받게 한다(초대 자동 팝업과 같은 취지 — 멤버가 Tab을 몰라도 확인할 수 있게).
-            // 파티장은 이미 결성창에서 출발을 걸었으므로 대상이 아니다(!IsLeader). 이미 열려 있으면 다시 열지 않는다.
+            // 파티장이 출발을 걸면(Phase==Departing) 멤버에게 응답 팝업을 출발 모드로 띄워 입장/취소를
+            // 받게 한다(초대 자동 팝업과 같은 창 — 멤버가 Tab을 몰라도 답할 수 있게, 2026-09-17 TH).
+            // 파티장은 이미 결성창에서 출발을 걸었으므로 대상이 아니다(!IsLeader). 결성창이 이미 열려 있으면
+            // 거기서 입장 버튼을 누를 수 있으므로 창을 겹쳐 띄우지 않는다.
             if (source.Phase == PartyPhase.Departing)
             {
                 if (!departPromptShown && !source.IsLeader
                     && !UIManager.Instance.IsPopupOpen<PartyRosterPopup>())
                 {
                     departPromptShown = true;
-                    UIManager.Instance.ShowPopup<PartyRosterPopup>();
+                    UIManager.Instance.ShowPopup<PartyInviteAcceptPopup>();
                 }
             }
             else

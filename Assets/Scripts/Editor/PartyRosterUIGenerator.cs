@@ -237,13 +237,10 @@ namespace ProjectS.EditorTools
             RectTransform formedRoot = CreateRect(win, "FormedRoot");
             StretchMiddle(formedRoot, bodyTop, Pad, Pad, Pad);
 
-            CountdownView departCountdown = CreateCountdown(formedRoot, "DepartCountdown", "파티원 대기 중", CyanColor);
-            StretchTop(departCountdown.GetComponent<RectTransform>(), 0f, CountdownHeight, 0f, 0f);
-
             TextMeshProUGUI departHint = CreateText(formedRoot, "DepartHintText", "파티장이 출발을 시작하면 활성화됩니다", 13f);
             departHint.color = MutedColor;
             departHint.alignment = TextAlignmentOptions.Center;
-            StretchTop(departHint.rectTransform, CountdownHeight + 8f, CountdownHeight + 36f, 0f, 0f);
+            StretchTop(departHint.rectTransform, 0f, 28f, 0f, 0f);
 
             (Button leaveButton, TextMeshProUGUI leaveLabel) =
                 CreateButton(formedRoot, "LeaveButton", "파티 나가기", 15f, PanelColor);
@@ -271,8 +268,7 @@ namespace ProjectS.EditorTools
                 ("leaveButton", leaveButton),
                 ("departButton", departButton),
                 ("departLabel", departLabel),
-                ("departHintText", departHint),
-                ("departCountdown", departCountdown));
+                ("departHintText", departHint));
 
             go.SetActive(false);   // 팝업은 닫힌 채로 시작한다(UIManager가 연다)
             return popup;
