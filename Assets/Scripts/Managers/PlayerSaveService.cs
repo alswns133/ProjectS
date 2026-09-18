@@ -43,6 +43,20 @@ namespace ProjectS.Managers
                 return Task.FromResult(false);
             }
 
+            // ★ 정의 테이블이 온전하지 않으면 저장하지 않는다. 인벤토리 복원이 정의 없는 장비를 전부 건너뛴 상태라,
+            //   여기서 WriteTo가 돌면 빈 인벤토리가 Firebase 세이브를 덮어쓴다(2026-09-18 Addressables가 빠진 개발 빌드에서
+            //   장비가 실제로 소실됨). 로딩 전(!IsReady)도 같은 이유로 막는다 — 아직 RestoreFrom 전이라 인벤토리가 비어 있다.
+            //   dirty는 내리지 않는다: 로딩 전 차단이면 로딩 뒤 다음 오토세이브가 이어서 저장한다.
+            JsonManager json = JsonManager.Instance;
+            if (json == null || !json.IsReady || json.HasLoadFailures)
+            {
+                string reason = json == null ? "JsonManager 없음"
+                    : !json.IsReady ? "테이블 로딩 전"
+                    : $"테이블 로드 실패({string.Join(", ", json.FailedTables)})";
+                Debug.LogError($"[PlayerSaveService] 저장 차단 — {reason}. 세이브 덮어쓰기(장비·아이템 소실)를 막기 위해 건너뜁니다.");
+                return Task.FromResult(false);
+            }
+
             // 현재 상태를 세이브 데이터로 수집(동기).
             Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
             if (player != null) player.Stats.WriteTo(save);

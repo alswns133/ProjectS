@@ -40,6 +40,7 @@ ExportedObj/
 !Tools/ExternalAssetsBaseBuilder/ExternalAssetsBaseBuilder.csproj
 !Tools/ExternalAssetsDeltaCommon/ExternalAssetsDeltaCommon.csproj
 !Tools/ExternalAssetsContributor/ExternalAssetsContributor.csproj
+!Tools/DbBackup/DbBackup.csproj
 *.unityproj
 *.sln
 *.suo
@@ -107,6 +108,19 @@ crashlytics-build.properties
 firebase-tools-instant-win.exe
 firebase-debug.log
 .firebase/
+
+# ===== DB 백업 도구 (Tools/DbBackup) — 실제 설정·키·백업본은 절대 커밋 금지 =====
+# 설정은 예시(dbbackup.config.example.json)만 커밋한다. 서비스 계정 키는 DB 전체 읽기/쓰기 권한이라
+# 저장소 밖에 두는 게 원칙이지만, 실수로 옮겨 놓아도 올라가지 않게 이름 패턴까지 막는다.
+/Tools/DbBackup/dbbackup.config.json
+/Tools/DbBackup/**/*-sa.json
+# 서비스 계정 키 이름 패턴은 폴더와 무관하게 저장소 전체에서 막는다(키를 어디로 옮겨 놓든 올라가지 않게).
+*serviceAccount*.json
+*service-account*.json
+# Firebase 콘솔 "새 비공개 키 생성" 파일 이름({프로젝트}-firebase-adminsdk-…json). 저장소 어디에 떨어져도 막는다.
+*firebase-adminsdk*.json
+/Tools/DbBackup/bin/
+/Tools/DbBackup/obj/
 
 # Unity scene recovery backups (crash recovery temp folder)
 /[Aa]ssets/_Recovery/

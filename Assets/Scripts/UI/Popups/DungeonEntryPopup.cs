@@ -66,9 +66,9 @@ namespace ProjectS.UI
         [SerializeField] private Button enterButton;              // ⑦ [SPACE]
         [SerializeField] private Button cancelButton;             // ⑧ [ESC]
 
-        [SerializeField] private RectTransform leftTopBg;
+        [SerializeField] private GameObject leftBottomLock;
 
-        [SerializeField] private RectTransform leftBottomBg;
+        [SerializeField] private GameObject leftBottomBg;
 
         // 게이트가 넘긴 값. 열기 전에 채워진다.
         private EntryMode mode = EntryMode.Dungeon;
@@ -82,9 +82,6 @@ namespace ProjectS.UI
 
         // 난이도 탭 콜백이 초기화 중에도 불려 선택을 덮어쓰지 않게 하는 빗장.
         private bool suppressTabCallback;
-
-        // 레이드 던전일때 파티창이 나와야하므로 던전 선택창을 크기를 줄이는 값
-        private const int LeftTopBgBottomSize = 304;
 
         /// <summary>
         /// 유저가 퀘스트 트래커를 접어 둔 상태인가. <b>쓰는 곳은 접기/펼치기 버튼 하나뿐이다.</b>
@@ -115,22 +112,18 @@ namespace ProjectS.UI
             // 이미 떠 있는 상태에서 바꿔치기해도 화면이 따라오게 한다(게이트가 겹쳐 있는 경우).
             if (IsVisible) Rebuild();
 
-            if (leftTopBg == null || leftBottomBg == null) return;
-
-            Vector2 offSetSize = leftTopBg.offsetMin;
+            if (leftBottomLock == null || leftBottomBg == null) return;
 
             if (entryMode == EntryMode.Raid)
             {
-                offSetSize.y = LeftTopBgBottomSize;
-                leftBottomBg.gameObject.SetActive(true);
+                leftBottomBg.SetActive(true);
+                leftBottomLock.SetActive(false);
             }
             else
             {
-                offSetSize.y = 0;
-                leftBottomBg.gameObject.SetActive(false);
+                leftBottomLock.SetActive(true);
+                leftBottomBg.SetActive(false);
             }
-
-            leftTopBg.offsetMin = offSetSize;
         }
 
         // 버튼 연결은 최초 1회만. BasePopup이 OnInit을 한 번만 호출해 주므로 중복 구독이 쌓이지 않는다.

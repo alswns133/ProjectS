@@ -1,4 +1,5 @@
-using Mirror;
+﻿using Mirror;
+using ProjectS.Effects;
 using ProjectS.Events;
 using UnityEngine;
 
@@ -34,9 +35,18 @@ namespace ProjectS.Enemies
         [SyncVar(hook = nameof(OnMaxHpSynced))] private int netMaxHp = -1;
         [SyncVar(hook = nameof(OnMaxHpSynced))] private int netSegmentCount = -1;
 
+        // 서버 테이블의 표시 이름(MonsterStatTable.Name). 최대 HP와 같은 이유로 관찰자가 자기 테이블 행을 믿지 않고 서버 값을 쓴다.
+        [SyncVar(hook = nameof(OnDisplayNameSynced))] private string netDisplayName = "";
+
         // 서버 그로기(남은 비율 0~1, 잠금). 초기값은 '가득·해제'라 피격 전에도 정상 표시된다(센티넬 불필요).
         [SyncVar(hook = nameof(OnGroggyRatioSynced))] private float netGroggyRatio = 1f;
         [SyncVar(hook = nameof(OnGroggyLockedSynced))] private bool netGroggyLocked;
+
+        // 페이즈 전환으로 걷어내지는 중인지(클라 로컬). 켜져 있으면 OnStopClient가 퇴장을 발행하지 않는다
+        // — 발행하면 클라의 DungeonResultReporter가 1페이즈 퇴장을 클리어로 잡아 결과창을 띄운다.
+        // SyncVar가 아닌 이유: SyncVar 변경은 다음 브로드캐스트에 실려 NetworkServer.Destroy의 언스폰보다 늦게 도착한다.
+        // 그래서 언스폰과 같은 신뢰 채널로 순서가 보장되는 ClientRpc(RpcPhaseRetire)로 켠다.
+        private bool retiredByPhase;
 
         private EnemyAnimation enemyAnimation;
         private EnemyCombat enemyCombat;
@@ -94,6 +104,28 @@ namespace ProjectS.Enemies
                       $"받을 접속 수={netIdentity.observers.Count}", this);
         }
 
+        /// <summary>
+        /// 이 보스가 <b>죽은 게 아니라 페이즈 전환으로 걷어내진다</b>고 모든 클라에 알린다.
+        /// <see cref="BossPhaseTransition"/>이 1페이즈를 <c>NetworkServer.Destroy</c>하기 <b>직전</b>에 부른다.
+        /// </summary>
+        /// <remarks>
+        /// 안 부르면 클라의 <see cref="OnStopClient"/>가 1페이즈 퇴장을 발행하고, 클라 쪽 <c>DungeonResultReporter</c>는
+        /// clearBoss가 비어 있어(등록은 서버에서만 된다) 그 퇴장을 클리어로 잡아 페이즈 전환 순간 결과창을 띄운다.
+        /// Destroy '뒤'에 부르면 이미 언스폰된 뒤라 Rpc가 가지 않는다.
+        /// </remarks>
+        public void RelayPhaseRetire()
+        {
+            if (!isServer) return;
+            RpcPhaseRetire();
+        }
+
+        [ClientRpc]
+        private void RpcPhaseRetire()
+        {
+            // ★ 호스트도 받아야 한다(isServer 가드 금지) — 호스트 화면도 OnStopClient에서 퇴장을 발행하기 때문.
+            retiredByPhase = true;
+        }
+
         [ClientRpc]
         private void RpcPhaseTransition(uint nextNetId, double startTime)
         {
@@ -136,6 +168,34 @@ namespace ProjectS.Enemies
             enemyAnimation.ApplyNetworkTrigger(triggerHash, attackIndex);
         }
 
+        /// <summary>
+        /// 서버 보스의 사망 모션을 관찰자 클라에도 재생시킨다. <see cref="EnemyAnimation"/>이 사망 모션을 재생할 때 부른다.
+        /// 서버가 아니거나 네트워크 스폰 전(싱글)이면 아무 일도 하지 않는다.
+        /// </summary>
+        /// <remarks>
+        /// 사망 연출(DeadState)은 서버에서만 돌아, 이게 없으면 관찰자 화면의 보스는 HP 0이 돼도 선 채로 남는다.
+        /// 소멸은 사망 연출 뒤 <c>Boss.OnDespawn</c>의 언스폰이 따로 처리한다.
+        /// </remarks>
+        /// <param name="airborne">공중 사망(Die_Air)인지.</param>
+        public void RelayDie(bool airborne)
+        {
+            if (!isServer) return;
+            RpcDie(airborne);
+        }
+
+        [ClientRpc]
+        private void RpcDie(bool airborne)
+        {
+            // 호스트는 서버 쪽 DeadState가 같은 애니메이터에 이미 재생했고, 슬로우모션도 Boss.OnDied가 걸었다.
+            if (isServer) return;
+
+            if (enemyAnimation != null) enemyAnimation.ApplyNetworkDie(airborne);
+
+            // 마지막 타격 슬로우모션(싱글 보스와 같은 연출). Boss.OnDied는 서버에서만 돌아 파티원 화면엔 안 걸리므로 여기서 건다.
+            // 각 클라의 timeScale만 바뀌어 서버·다른 파티원에는 영향이 없다.
+            SlowMotionController.PlayOrCreate();
+        }
+
         // ── 서버: 로컬 전투 이벤트를 SyncVar로 옮겨 담는다 ──
 
         public override void OnStartServer()
@@ -167,6 +227,7 @@ namespace ProjectS.Enemies
             netMaxHp = stats.MaxHp;
             netSegmentCount = stats.SegmentCount;
             netHp = stats.CurrentHp;
+            netDisplayName = stats.DisplayName ?? "";
         }
 
         /// <summary>
@@ -205,6 +266,8 @@ namespace ProjectS.Enemies
 
         public override void OnStopClient()
         {
+            // 페이즈 전환으로 걷어내진 보스는 퇴장이 아니다(2페이즈가 이미 등장해 바도 넘어갔다). 진짜 처치일 때만 발행한다.
+            if (retiredByPhase) return;
             if (boss != null) BossEvents.FireBossDisappeared(boss);
         }
 
@@ -227,11 +290,22 @@ namespace ProjectS.Enemies
             CombatEvents.FireEnemyHealthChanged(stats, stats.MaxHp > 0 ? (float)stats.CurrentHp / stats.MaxHp : 0f);
         }
 
-        // 관찰자 로컬 스탯에 서버 값(최대 HP·줄 수·현재 HP)을 입힌다. 입혔으면 true.
+        // 서버 표시 이름이 늦게 복제돼 온 경우. 값을 입히고, 바가 이름을 다시 그리도록 갱신 이벤트를 낸다
+        // (BossHpPresenter가 HP 갱신 때 이름도 함께 맞춘다).
+        private void OnDisplayNameSynced(string _, string newName)
+        {
+            if (isServer || stats == null || string.IsNullOrEmpty(newName)) return;
+
+            stats.SetNetworkDisplayName(newName);
+            CombatEvents.FireEnemyHealthChanged(stats, stats.MaxHp > 0 ? (float)stats.CurrentHp / stats.MaxHp : 0f);
+        }
+
+        // 관찰자 로컬 스탯에 서버 값(최대 HP·줄 수·현재 HP·표시 이름)을 입힌다. 입혔으면 true.
         private bool ApplyNetworkStats()
         {
             if (stats == null || netMaxHp <= 0) return false;
 
+            if (!string.IsNullOrEmpty(netDisplayName)) stats.SetNetworkDisplayName(netDisplayName);
             stats.SetNetworkStats(netMaxHp, netSegmentCount);
             if (netHp >= 0) stats.SetNetworkHp(netHp);
             return true;

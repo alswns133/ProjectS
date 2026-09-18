@@ -20,10 +20,22 @@ namespace ProjectS.UI
         // 지금 바가 붙어 있는 보스의 스탯. HP/그로기 이벤트를 이 보스 것만 받도록 거르는 기준.
         private EnemyStats currentBoss;
 
+        // 이름 폴백(오브젝트 이름)용 보스 참조. currentBoss와 짝으로 세팅·해제한다.
+        private Boss currentBossObject;
+
+        // ★ 꺼져 있는 동안에도 구독을 유지한다(Awake에서 구독, OnDestroy에서 해제).
+        //   보스 페이즈 전환 연출은 UIManager 루트를 통째로 꺼 두는데, 호스트·싱글에서는 그 사이에 다음 페이즈 등장
+        //   (FireBossAppeared)이 발행된다. OnDisable에서 구독을 끊으면 이 등장을 놓쳐, 연출 뒤에도 바가 1페이즈에 붙은 채
+        //   2페이즈 HP를 "다른 보스"로 걸러 안 깎였다(2026-09-18). 뷰는 코루틴 없이 Update로만 그려, 꺼진 동안 값만 받아 둬도 안전하다.
+        protected override bool KeepSubscribedWhileDisabled => true;
+
         private void Awake()
         {
             if (view == null) view = GetComponent<BossHpView>();
+            Subscribe();
         }
+
+        private void OnDestroy() => Unsubscribe();
 
         protected override void Subscribe()
         {
@@ -59,13 +71,9 @@ namespace ProjectS.UI
             if (boss == null || boss.Stats == null) return;
 
             currentBoss = boss.Stats;
+            currentBossObject = boss;
 
-            // 이름 키가 비었으면 오브젝트 이름으로 대체한다(테이블 미로딩·미입력 대비).
-            string bossName = string.IsNullOrEmpty(currentBoss.DisplayNameKey)
-                ? boss.name
-                : currentBoss.DisplayNameKey;
-
-            view.Show(bossName);
+            view.Show(ResolveName());
             view.SetHp(currentBoss.CurrentHp, currentBoss.MaxHp, currentBoss.SegmentCount);
 
             // 그로기 컴포넌트가 있으면 현재 값으로, 없으면 가득·해제 상태로 초기화한다.
@@ -80,14 +88,27 @@ namespace ProjectS.UI
 
             view.Hide();
             currentBoss = null;
+            currentBossObject = null;
         }
 
         // HP 변화: 지금 뜬 보스의 것만 받아 원본 수치로 줄 수·바를 갱신한다.
+        // 이름도 함께 맞춘다 — 등장 순간엔 테이블 로딩 전이거나(인스펙터 폴백) 관찰자가 서버 이름을 아직 못 받아
+        // 키·오브젝트 이름이 떴을 수 있어서, 이후 갱신 때 확정된 이름으로 바꿔 끼운다.
         private void OnEnemyHealthChanged(EnemyStats stats, float ratio)
         {
             if (stats == null || stats != currentBoss) return;
 
+            view.SetName(ResolveName());
             view.SetHp(stats.CurrentHp, stats.MaxHp, stats.SegmentCount);
+        }
+
+        // 표시 이름 폴백: 테이블 Name → NameKey(내부 키) → 오브젝트 이름. 이름 칸을 아직 안 채운 행도 무언가는 뜨게 한다.
+        private string ResolveName()
+        {
+            if (currentBoss == null) return string.Empty;
+            if (!string.IsNullOrEmpty(currentBoss.DisplayName)) return currentBoss.DisplayName;
+            if (!string.IsNullOrEmpty(currentBoss.DisplayNameKey)) return currentBoss.DisplayNameKey;
+            return currentBossObject != null ? currentBossObject.name : string.Empty;
         }
 
         // 그로기 변화: 지금 뜬 보스의 것만 받아 그로기 바·자물쇠를 갱신한다.

@@ -348,7 +348,10 @@ namespace ProjectS.Players
             if (hitHovering) verticalVelocity = 0f;
 
             // 착지 순간(공중 → 접지)에 공중 관성을 확실히 제거한다.
-            if (IsGrounded && !wasGrounded) airVelocity = Vector3.zero;
+            // 하강 중(vv<=0)일 때만 착지로 본다. 이동 중엔 루트모션 Move(OnAnimatorMove) 때문에 isGrounded가
+            // 한 프레임씩 false로 튀는데, 그 직후 프레임에 점프하면 이 조건이 '점프 프레임'에 걸려 Jump()가 넣은
+            // 관성을 지웠다. 공중 조향은 관성 크기를 유지만 하므로 0이 되면 그 점프 내내 제자리 점프가 됐다.
+            if (IsGrounded && !wasGrounded && verticalVelocity <= 0f) airVelocity = Vector3.zero;
             wasGrounded = IsGrounded;
 
             // ── 공격/스킬 잠금 분기(원본 FreeMoveController의 ActionLocked 블록 재현) ──────────────
