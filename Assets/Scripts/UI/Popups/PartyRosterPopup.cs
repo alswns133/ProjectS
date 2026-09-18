@@ -8,7 +8,7 @@ namespace ProjectS.UI
 {
     /// <summary>
     /// 파티 결성창(docs/PARTY_WINDOW_UI.md §8). 마을에서 <c>Tab</c>으로 연다.
-    /// 한 창이 세 화면을 갈아 끼운다 — 파티 없음 · 파티 결성 · 출발 카운트다운(30초).
+    /// 한 창이 두 화면을 갈아 끼운다 — 파티 없음 · 파티 결성(출발 대기 포함).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -18,15 +18,16 @@ namespace ProjectS.UI
     /// 이 창은 <see cref="PartyPhase.Invited"/>를 '파티 없음'과 같게 취급한다 — 그 국면엔 아직 파티가 없다.
     /// </para>
     /// <para>
-    /// <b>남은 시간은 Update에서 읽는다.</b> 데이터원이 매 프레임 알림을 쏘면 슬롯·목록까지 통째로
-    /// 다시 그려진다. 국면이 바뀔 때만 <see cref="IPartySource.OnChanged"/>가 오고, 숫자는 여기서 직접 읽는다.
+    /// <b>출발 제한 시간은 이 창에 그리지 않는다(2026-09-17 TH).</b> 파티원은 출발 응답 팝업
+    /// (<see cref="PartyInviteAcceptPopup"/>의 출발 모드)에서 남은 시간을 보고 입장/취소를 고른다.
+    /// 같은 숫자를 두 창에 그리면 겹쳐 뜰 때 중복이고, 결성창 레이아웃만 무거워진다.
     /// </para>
     /// <para>
     /// <b>파티가 없어도 창은 열린다.</b> 아무 반응이 없으면 키가 먹은 것인지 창이 없는 것인지 알 수 없다.
     /// 대신 기능을 전부 잠그고 다음에 할 것을 한 줄로 안내한다(§8).
     /// </para>
     /// <para>
-    /// <b>30초가 지나도 파티는 유지된다</b>(2026-09-07). 출발만 취소되고 화면은 '파티 결성'으로 돌아오며,
+    /// <b>출발 제한 시간이 지나도 파티는 유지된다</b>(2026-09-07). 출발만 취소되고 화면은 '파티 결성'으로 돌아오며,
     /// 파티장은 다시 [던전 입장]을 눌러 새로 걸 수 있다.
     /// </para>
     /// </remarks>
@@ -53,7 +54,7 @@ namespace ProjectS.UI
         [SerializeField] private TMP_Text emptyText;
         [SerializeField] private string emptyMessage = "던전 입구에서 파티를 만들 수 있습니다";
 
-        [Header("파티 결성 · 출발(30초)")]
+        [Header("파티 결성 · 출발")]
         [SerializeField] private GameObject formedRoot;
         [SerializeField] private Button leaveButton;
         [Tooltip("파티장은 출발 걸기/취소, 파티원은 즉시 입장. 상황에 따라 라벨이 바뀐다.")]
@@ -61,15 +62,12 @@ namespace ProjectS.UI
         [SerializeField] private TMP_Text departLabel;
         [Tooltip("파티원이 아직 못 누를 때 이유를 적어 두는 자리.")]
         [SerializeField] private TMP_Text departHintText;
-        [SerializeField] private CountdownView departCountdown;
 
         [Header("문구")]
         [SerializeField] private string departLabelStart = "던전 입장";
         [SerializeField] private string departLabelCancel = "출발 취소";
         [SerializeField] private string departLabelConfirm = "던전 입장";
         [SerializeField] private string departHintWaiting = "파티장이 출발을 시작하면 활성화됩니다";
-        [SerializeField] private string leaderWaitingTitle = "파티원 대기 중";
-        [SerializeField] private string memberDepartTitle = "파티장이 출발했습니다";
 
         private IPartySource source;
 
@@ -110,16 +108,6 @@ namespace ProjectS.UI
             if (source != null) source.OnChanged -= Redraw;
         }
 
-        // 숫자는 여기서 직접 읽는다. 데이터원이 매 프레임 알림을 쏘게 하면 슬롯·목록까지 다시 그려진다.
-        private void Update()
-        {
-            if (source == null) return;
-
-            if (source.Phase != PartyPhase.Departing) return;
-
-            departCountdown?.Set(source.RemainingSeconds, source.PhaseDuration);
-        }
-
         private void Redraw()
         {
             if (source == null)
@@ -148,7 +136,6 @@ namespace ProjectS.UI
 
             if (emptyRoot != null) emptyRoot.SetActive(!formed);
             if (formedRoot != null) formedRoot.SetActive(formed);
-            if (departCountdown != null) departCountdown.gameObject.SetActive(phase == PartyPhase.Departing);
 
             if (emptyText != null) emptyText.text = emptyMessage;
         }
@@ -189,7 +176,6 @@ namespace ProjectS.UI
                 departButton.interactable = formed;
                 if (departLabel != null) departLabel.text = departing ? departLabelCancel : departLabelStart;
                 if (departHintText != null) departHintText.gameObject.SetActive(false);
-                if (departCountdown != null) departCountdown.SetTitle(leaderWaitingTitle);
                 return;
             }
 
@@ -201,8 +187,6 @@ namespace ProjectS.UI
                 departHintText.gameObject.SetActive(formed && !departing);
                 departHintText.text = departHintWaiting;
             }
-
-            if (departCountdown != null) departCountdown.SetTitle(memberDepartTitle);
         }
 
         // ── 입력 ────────────────────────────────────────────────
