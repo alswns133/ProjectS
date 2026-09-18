@@ -342,7 +342,7 @@ namespace ProjectS.Scenes
 
                 if (Time.time > bossDeadline && !double.IsNaN(startTime))
                 {
-                    Debug.LogWarning("[BossIntroDirector] 시작 시각이 됐지만 보스가 도착하지 않아 연출을 건너뜁니다.", this);
+                    Debug.LogWarning($"{LogTag} 시작 시각이 됐지만 보스가 도착하지 않아 연출을 건너뜁니다.", this);
                     Finish();
                     yield break;
                 }
@@ -374,7 +374,7 @@ namespace ProjectS.Scenes
             if (elapsed >= duration)
             {
                 // 너무 늦게 도착했다(시간 초과로 먼저 시작한 뒤 합류 등). 볼 연출이 없으니 정리만 한다.
-                Debug.Log($"[진단][BossIntro] 연출이 이미 끝난 시각({elapsed:0.00}/{duration:0.00}초)이라 건너뜁니다.", this);
+                Debug.Log($"{LogTag} 연출이 이미 끝난 시각({elapsed:0.00}/{duration:0.00}초)이라 건너뜁니다.", this);
                 Finish();
                 return;
             }
@@ -426,8 +426,18 @@ namespace ProjectS.Scenes
             // 진단: 연출 시작 순간의 위치·상태를 한 줄 남긴다 — 종료 후 기록과 비교해 연출 중 실제로 이동했는지 본다.
             ProjectS.Debugging.BossAnimatorProbe.Attach(boss, 0.1f, "연출 시작");
 
-            Debug.Log($"[진단][BossIntro] 재생 시작 — 보스='{boss.name}', {elapsed:0.00}초 지점부터, " +
-                      $"화면연출={wantPresentation}, 관찰자={IsNetworkObserver(boss)}", this);
+            Debug.Log($"{LogTag} 재생 시작 — 보스='{boss.name}', 다음페이즈={(nextPhaseBoss != null ? nextPhaseBoss.name : "-")}, " +
+                      $"{elapsed:0.00}초 지점부터, 화면연출={wantPresentation}, 관찰자={IsNetworkObserver(boss)}", this);
+        }
+
+        // 진단 로그 머리말: 어떤 연출(등장/전환)이고 어느 컴퓨터(서버/호스트/클라)인지. 클라 로그도 서버 콘솔로 모이므로 구분이 필요하다.
+        private string LogTag
+        {
+            get
+            {
+                string net = NetworkServer.active ? (NetworkClient.active ? "Host" : "Server") : (NetworkClient.active ? "Client" : "Solo");
+                return $"[진단][{(role == DirectorRole.Intro ? "BossIntro" : "Phase")}][{net}]";
+            }
         }
 
         // 이 프로세스 화면에 연출을 붙인다: 대기 화면을 내리고, UI를 끄고, 조작 중인 캐릭터의 입력을 컷신으로 잠근다.

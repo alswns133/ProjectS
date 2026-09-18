@@ -86,7 +86,12 @@ namespace ProjectS.Enemies
         public void RelayPhaseTransition(Boss next, double startTime)
         {
             if (!isServer || next == null || !next.TryGetComponent(out NetworkIdentity nextIdentity)) return;
+
             RpcPhaseTransition(nextIdentity.netId, startTime);
+
+            // 진단: 이 지시를 받을 클라 수(이 보스를 보는 접속). 0이면 관심 영역 관리가 파티원을 관찰자로 안 넣은 것.
+            Debug.Log($"[진단][Phase] 연출 시작 지시 전송 — 다음 페이즈 netId={nextIdentity.netId}, 시작 {startTime:0.00}, " +
+                      $"받을 접속 수={netIdentity.observers.Count}", this);
         }
 
         [ClientRpc]
@@ -104,6 +109,11 @@ namespace ProjectS.Enemies
             UnityEngine.SceneManagement.Scene scene = isServer ? gameObject.scene : default;
             ProjectS.Scenes.BossIntroDirector cutscene =
                 ProjectS.Scenes.BossIntroDirector.Find(scene, ProjectS.Scenes.BossIntroDirector.DirectorRole.PhaseTransition);
+
+            // 진단: 클라가 지시를 받았는지, 다음 페이즈·디렉터를 찾았는지(클라 로그는 서버 콘솔로도 모인다).
+            string role = isServer ? "Host" : "Client";
+            Debug.Log($"[진단][Phase][{role}] 연출 시작 지시 수신 — 다음 페이즈={(next != null ? next.name : "★못 찾음 netId=" + nextNetId)}, " +
+                      $"디렉터={(cutscene != null ? cutscene.name : "★못 찾음")}, 지금={NetworkTime.time:0.00} 시작={startTime:0.00}", this);
 
             if (cutscene != null) cutscene.PlayPhaseTransition(boss, next, startTime, true);
             else Debug.LogWarning("[BossNetSync] 페이즈 전환 연출 디렉터를 찾지 못해 이 화면에서는 연출 없이 전환됩니다.", this);

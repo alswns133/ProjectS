@@ -120,6 +120,14 @@ namespace ProjectS.Enemies
             BossIntroDirector cutscene = BossIntroDirector.Find(gameObject.scene, BossIntroDirector.DirectorRole.PhaseTransition);
             if (cutscene == null)
             {
+                // 진단: 왜 못 찾았는지 — 씬에 있는 디렉터들의 역할·씬을 전부 남긴다(역할 미설정·다른 씬·비활성 구분).
+                var found = new System.Text.StringBuilder();
+                foreach (BossIntroDirector d in FindObjectsByType<BossIntroDirector>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    found.Append($" ['{d.name}' role={d.Role} 씬='{d.gameObject.scene.name}' 활성={d.isActiveAndEnabled}]");
+
+                Debug.LogWarning($"[진단][Phase] 전환 연출 디렉터(Role=PhaseTransition)를 보스 씬 '{gameObject.scene.name}'에서 못 찾아 즉시 전환합니다. " +
+                                 $"발견된 디렉터:{(found.Length > 0 ? found.ToString() : " 없음")}", this);
+
                 CompleteTransition(next);   // 전환 연출이 없는 씬: 예전처럼 즉시 전환
                 return;
             }
