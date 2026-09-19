@@ -196,8 +196,11 @@ namespace ProjectS.Effects
                 // TODO: 직격+폭발 둘 다 주는 기획이면 여기서 별도 Set을 쓴다.
                 if (!alreadyHit.Add(target)) continue;
 
+                // 피격 이펙트 방향은 폭심→대상이 아니라 쏜 쪽(발사 지점)→대상으로 잡는다.
+                // 폭심 기준이면 폭심 뒤편에 있던 적은 이펙트가 플레이어 쪽으로 튀어나와, 누가 때렸는지 읽히지 않는다.
+                // 발사 지점을 쓰는 이유: 쏜 뒤 플레이어가 움직여도 "날아온 방향"은 발사 순간 기준이 맞고, 쏜 쪽 참조도 필요 없다.
                 Vector3 point = col.ClosestPoint(center);
-                Vector3 direction = point - center;
+                Vector3 direction = point - startPosition;
                 direction = direction.sqrMagnitude > 0.0001f ? direction.normalized : transform.forward;
 
                 // TODO(선택): 벽 뒤 차폐 — center→point를 obstacleMask로 Raycast해 막히면 continue.
@@ -246,6 +249,10 @@ namespace ProjectS.Effects
                     // 캐스트 시작 지점에 이미 겹쳐 있으면 point/normal이 원점으로 나온다.
                     // 그 경우 진행 방향의 반대를 법선으로 써서 이펙트가 쏜 쪽을 향하게 한다.
                     Vector3 normal = hit.distance > 0f ? hit.normal : -direction;
+
+                    // TODO(임시 진단): 발사 직후 장애물과 겹쳐 바로 사라지는 경우 추적용. 원인 확인 후 제거.
+                    if (hit.distance <= 0f || (from - startPosition).sqrMagnitude < 0.0001f)
+                        Debug.Log($"[Projectile] 발사 직후 장애물 소멸 key={sourceKey} obstacle={hit.collider.name} layer={LayerMask.LayerToName(hit.collider.gameObject.layer)}", hit.collider);
                     CombatEvents.FireProjectileBlocked(hit.point, normal, blockedEffect);
                     return false;
                 }
@@ -300,7 +307,7 @@ namespace ProjectS.Effects
             {
                 // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
                 // 내면 플레이어가 적중시킨 것으로 오인한다.
-                // 방향은 직격이면 투사체 진행 방향, 폭발이면 폭심→대상 방향.
+                // 방향은 직격이면 투사체 진행 방향, 폭발이면 발사 지점→대상 방향(둘 다 쏜 쪽 기준).
                 // 맞은 부위에서 날아온 방향으로 세워 재생할 이펙트가 쓴다(구독자가 oriented일 때만).
                 if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey);
                 else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey);
