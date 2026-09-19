@@ -673,7 +673,12 @@ namespace ProjectS.Players
             // 현재 액션과 키가 맞을 때만 발사하고, 구르기·피격·사망이나 다른 액션으로 캔슬된 클립에서
             // 뒤늦게 도착한 이벤트는 무시한다.
             // JS - 어윈 투사체를 위한 임시 테스트용 코드
-            if (!CanApplyHitFrame(key)) return;
+            if (!CanApplyHitFrame(key))
+            {
+                // TODO(임시 진단): 투사체가 가끔 안 나가는 원인 추적용. 원인 확인 후 제거.
+                Debug.Log($"[Projectile] 게이트 차단 key={key} action={currentAction} step={comboStep} casting={IsCastingSkill} interrupted={player.IsActionInterrupted}", this);
+                return;
+            }
 
             // 투사체는 발사 후에 적을 만나므로, 완성된 데미지 숫자가 아니라 계산 재료를 들려 보낸다.
             // 방어 경감은 맞는 대상마다 달라 발사 시점에는 최종 피해를 알 수 없기 때문이다.

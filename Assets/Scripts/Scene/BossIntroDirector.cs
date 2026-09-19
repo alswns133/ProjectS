@@ -543,6 +543,9 @@ namespace ProjectS.Scenes
                 if (playerReady && waitLockedPlayer == null) LockWaitInput(player);
                 if (playerReady && !IsScreenLoading()) break;
 
+                // 에디터에서 레이드 씬을 바로 튼 테스트면 캐릭터가 영영 안 온다(PlayerManager 없음). 기다리지 않고 바로 재생한다.
+                if (IsEditorDirectPlay()) break;
+
                 if (Time.time > deadline)
                 {
                     Debug.LogWarning($"[BossIntroDirector] {soloWaitTimeout:0}초 안에 내 캐릭터가 준비되지 않아 연출 없이 보스를 깨웁니다 " +
@@ -660,6 +663,18 @@ namespace ProjectS.Scenes
         // 이 클라 화면이 아직 로딩 화면인가. 로딩 뒤에서 연출이 먼저 시작되면 앞부분을 못 본다.
         private static bool IsScreenLoading()
             => GameSceneManager.Instance != null && GameSceneManager.Instance.IsLoading;
+
+        // 에디터에서 부트스트랩을 거치지 않고 씬을 바로 튼 테스트인가(DebugRaidDirectPlay 참고).
+        // 이때는 캐릭터를 만들어 줄 PlayerManager가 없어, 캐릭터 대기를 그대로 두면 soloWaitTimeout 뒤 연출이 통째로 생략된다.
+        // 빌드는 항상 부트스트랩을 거치므로 false로 고정한다.
+        private static bool IsEditorDirectPlay()
+        {
+#if UNITY_EDITOR
+            return PlayerManager.Instance == null && GameSceneManager.Instance == null;
+#else
+            return false;
+#endif
+        }
 
         // 이 프로세스의 로컬 플레이어가 파티에 속해 있는가(= 서버가 시작을 정하는 레이드).
         private static bool IsPartyMember()
@@ -822,6 +837,45 @@ namespace ProjectS.Scenes
                                  "이 규칙은 무시됩니다 — 트랙을 지웠거나 이름을 바꿨는지 확인하세요.", this);
             }
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// 에디터 전용(플레이 X): 미리보기용 보스를 트랙에 꽂는다. Timeline 창에서 바로 스크럽해 연출을 확인하기 위함이다.
+        /// 런타임과 같은 규칙(<see cref="RebindTo"/>)을 그대로 써서, 미리보기에서 맞게 꽂히면 런타임에서도 맞게 꽂힌다.
+        /// </summary>
+        /// <remarks>BossIntroDirectorEditor의 [트랙 자동 할당] 버튼이 부른다. 해제는 <see cref="EditorUnbindWhere"/>.</remarks>
+        /// <param name="boss">등장 연출의 보스 / 전환 연출의 나가는 페이즈.</param>
+        /// <param name="next">전환 연출의 새로 등장하는 페이즈. 등장 연출이면 null.</param>
+        public void EditorBindPreview(Boss boss, Boss next)
+        {
+            if (director == null) director = GetComponent<PlayableDirector>();
+
+            // nextPhaseBoss는 런타임 진행 상태라 미리보기가 끝나면 원래대로 돌려 둔다.
+            Boss savedNext = nextPhaseBoss;
+            nextPhaseBoss = next;
+            RebindTo(boss);
+            nextPhaseBoss = savedNext;
+        }
+
+        /// <summary>
+        /// 에디터 전용: 규칙(<see cref="trackBindings"/>)에 걸린 트랙 중 <paramref name="isPreview"/>가 true인 대상이 꽂힌 트랙을 비운다.
+        /// 씬 오브젝트가 꽂힌 트랙(전환 연출의 Steam1 등)은 미리보기 대상이 아니므로 건드리지 않는다.
+        /// </summary>
+        /// <param name="isPreview">꽂힌 대상이 미리보기 보스(의 일부)인지 판정.</param>
+        public void EditorUnbindWhere(System.Func<Object, bool> isPreview)
+        {
+            if (director == null) director = GetComponent<PlayableDirector>();
+            if (director == null || director.playableAsset is not TimelineAsset timeline || trackBindings == null) return;
+
+            foreach (TrackAsset track in timeline.GetOutputTracks())
+            {
+                if (!TryGetBinding(track.name, out _, out _)) continue;
+
+                Object current = director.GetGenericBinding(track);
+                if (current != null && isPreview(current)) director.SetGenericBinding(track, null);
+            }
+        }
+#endif
 
         /// <summary>트랙 이름에 지정된 규칙이 있으면 그 바인딩을 돌려준다.</summary>
         /// <param name="index">찾은 규칙의 인덱스. 어느 규칙이 쓰였는지 표시해 미사용 규칙을 경고하는 데 쓴다.</param>
