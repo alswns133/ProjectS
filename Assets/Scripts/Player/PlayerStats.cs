@@ -163,16 +163,36 @@ namespace ProjectS.Players
         public event Action Damaged;
 
         /// <summary>
-        /// 회피 무적 여부. 두 경로의 합이다:
-        /// 구르기 중 수동 무적(PlayerRollState가 Enter/Exit에서 켜고 끔) + 구르기 종료 후 잔여 무적(타이머).
+        /// 무적 여부. 세 경로의 합이다:
+        /// 구르기 중 수동 무적(PlayerRollState가 Enter/Exit에서 켜고 끔) + 구르기 종료 후 잔여 무적(타이머)
+        /// + 보스 페이즈 전환 연출 무적(<see cref="SetCutsceneInvincible"/>).
         /// true인 동안 일반 공격 데미지는 무시되고, 즉사기(ignoreInvincibility)만 통과한다.
         /// </summary>
-        public bool IsInvincible => manualInvincible || Time.time < invincibleUntilTime;
+        public bool IsInvincible => manualInvincible || Time.time < invincibleUntilTime || Time.time < cutsceneInvincibleUntil;
 
         // 구르기 상태가 Enter/Exit 짝으로 제어하는 수동 무적.
         // 잔여 무적(invincibleUntilTime)과 분리해 두어, Exit의 해제 보장이 타이머와 얽히지 않는다.
         private bool manualInvincible;
         private float invincibleUntilTime;
+
+        // 페이즈 전환 연출 무적의 만료 시각. 구르기 무적과 따로 두는 이유: 구르기 Exit의 SetInvincible(false)나
+        // 잔여 무적 갱신이 연출 무적을 덮어 끄면 안 되기 때문이다. 0이면 없음.
+        private float cutsceneInvincibleUntil;
+
+        /// <summary>
+        /// 보스 페이즈 전환 연출 동안 무적을 건다. <c>BossIntroDirector</c>가 전환 연출을 이 화면에 붙일 때 부른다.
+        /// 정상 경로는 연출 종료 시 <see cref="ClearCutsceneInvincible"/>로 풀고, <paramref name="maxSeconds"/>는 종료를
+        /// 못 잡았을 때의 안전 만료다(무적이 영구히 남지 않게).
+        /// </summary>
+        /// <remarks>
+        /// 피격 판정은 맞은 플레이어 컴퓨터의 <see cref="TakeDamage(in DamageResult)"/>가 하므로(EnemyHitRouter),
+        /// 각 파티원 화면의 조작 캐릭터에 걸면 멀티에서도 그대로 통한다.
+        /// </remarks>
+        /// <param name="maxSeconds">안전 만료까지의 시간(초). 보통 남은 연출 길이 + 5초.</param>
+        public void SetCutsceneInvincible(float maxSeconds) => cutsceneInvincibleUntil = Time.time + Mathf.Max(0f, maxSeconds);
+
+        /// <summary>페이즈 전환 연출 무적을 즉시 푼다. 연출이 끝날 때 부른다.</summary>
+        public void ClearCutsceneInvincible() => cutsceneInvincibleUntil = 0f;
 
         /// <summary>
         /// 무적 상태를 켜고 끈다. 호출측(구르기 상태)이 Enter/Exit 짝으로 호출해야

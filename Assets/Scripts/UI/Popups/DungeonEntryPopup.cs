@@ -66,9 +66,11 @@ namespace ProjectS.UI
         [SerializeField] private Button enterButton;              // ⑦ [SPACE]
         [SerializeField] private Button cancelButton;             // ⑧ [ESC]
 
-        [SerializeField] private RectTransform leftTopBg;
-
+        [Header("좌하단 — 모드별 교체")]
+        [Tooltip("레이드에서만 켜지는 좌하단 영역(파티창 자리).")]
         [SerializeField] private RectTransform leftBottomBg;
+        [Tooltip("일반 던전에서 좌하단 자리를 채우는 잠금 표시. leftBottomBg와 항상 반대로 켜진다.")]
+        [SerializeField] private GameObject leftBottomLock;
 
         // 게이트가 넘긴 값. 열기 전에 채워진다.
         private EntryMode mode = EntryMode.Dungeon;
@@ -82,9 +84,6 @@ namespace ProjectS.UI
 
         // 난이도 탭 콜백이 초기화 중에도 불려 선택을 덮어쓰지 않게 하는 빗장.
         private bool suppressTabCallback;
-
-        // 레이드 던전일때 파티창이 나와야하므로 던전 선택창을 크기를 줄이는 값
-        private const int LeftTopBgBottomSize = 304;
 
         /// <summary>
         /// 유저가 퀘스트 트래커를 접어 둔 상태인가. <b>쓰는 곳은 접기/펼치기 버튼 하나뿐이다.</b>
@@ -115,22 +114,11 @@ namespace ProjectS.UI
             // 이미 떠 있는 상태에서 바꿔치기해도 화면이 따라오게 한다(게이트가 겹쳐 있는 경우).
             if (IsVisible) Rebuild();
 
-            if (leftTopBg == null || leftBottomBg == null) return;
-
-            Vector2 offSetSize = leftTopBg.offsetMin;
-
-            if (entryMode == EntryMode.Raid)
-            {
-                offSetSize.y = LeftTopBgBottomSize;
-                leftBottomBg.gameObject.SetActive(true);
-            }
-            else
-            {
-                offSetSize.y = 0;
-                leftBottomBg.gameObject.SetActive(false);
-            }
-
-            leftTopBg.offsetMin = offSetSize;
+            // 좌측 목록 크기는 두 모드가 같다(프리팹 배치 그대로). 좌하단 자리만 레이드=파티 영역, 던전=잠금 표시로 바꿔 끼운다.
+            // 코드로 RectTransform을 건드리지 않는 이유: 씬 인스턴스마다 오버라이드가 달라 한쪽 변만 강제하면 씬별로 어긋났다.
+            bool isRaid = entryMode == EntryMode.Raid;
+            if (leftBottomBg != null) leftBottomBg.gameObject.SetActive(isRaid);
+            if (leftBottomLock != null) leftBottomLock.SetActive(!isRaid);
         }
 
         // 버튼 연결은 최초 1회만. BasePopup이 OnInit을 한 번만 호출해 주므로 중복 구독이 쌓이지 않는다.

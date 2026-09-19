@@ -322,7 +322,7 @@ namespace ProjectS.UI
         private static string ClearTimeLabel(float seconds)
         {
             int total = Mathf.Max(0, Mathf.RoundToInt(seconds));
-            return $"{total / 60}분 {total % 60}초";
+            return $"{total / 60}M {total % 60}S";
         }
 
         private static string DifficultyLabel(int difficulty) => difficulty switch

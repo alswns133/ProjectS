@@ -9,8 +9,9 @@ using ProjectS.Data;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 퀘스트 리스트 한 줄. 마커 아이콘(스프라이트: 수락 가능=!, 완료 가능=?) + 제목 + 선택 표시.
-    /// 마커 색은 종류 표시 — 메인=노랑, 반복=하양. 마우스 올리면 선택 이동, 클릭하면 선택+실행.
+    /// 퀘스트 리스트 한 줄. 마커 아이콘(자식 오브젝트 토글: 수락 가능=!, 완료 가능=?) + 제목 + 선택 표시.
+    /// 마커 색은 종류 표시 — 메인=노랑, 반복=하양. 단 완료 가능(반납 대기) 줄은 제목·마커 모두 완료 색으로 칠한다
+    /// (<see cref="SetCompleted"/>). 마우스 올리면 선택 이동, 클릭하면 선택+실행.
     ///
     /// 선택 표시는 두 가지다.
     ///  (1) 앞의 화살표(&gt;) 이미지(<see cref="selectionArrow"/>)를 선택 시에만 켠다.
@@ -20,12 +21,13 @@ namespace ProjectS.UI
     /// </summary>
     public class NpcQuestListRow : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler
     {
-        [Tooltip("마커 아이콘. 스프라이트로 상태(!·?)를, 색으로 종류(메인/반복)를 나타낸다.")]
-        [SerializeField] private Image markerIcon;
-        [Tooltip("수락 가능(!) 스프라이트.")]
-        [SerializeField] private Sprite acceptableSprite;
-        [Tooltip("완료 가능(?) 스프라이트.")]
-        [SerializeField] private Sprite completableSprite;
+        // 마커는 스프라이트 교체가 아니라 자식 오브젝트 두 개를 켜고 끈다.
+        // !와 ? 원본 크기가 달라 한 Image에 번갈아 끼우면 RectTransform 크기가 한쪽에만 맞아 다른 쪽이 찌그러진다.
+        [Tooltip("수락 가능(!) 마커. 수락 가능 상태에서만 켠다. 색으로 종류(메인/반복)를 나타낸다.")]
+        [FormerlySerializedAs("markerIcon")]
+        [SerializeField] private Image acceptableMarker;
+        [Tooltip("완료 가능(?) 마커. 완료 가능 상태에서만 켠다.")]
+        [SerializeField] private Image completableMarker;
         [SerializeField] private TMP_Text titleText;
 
         [Tooltip("선택된 줄 앞에 뜨는 화살표(>) 이미지. 선택 시에만 켠다.")]
@@ -39,7 +41,18 @@ namespace ProjectS.UI
         [SerializeField] private Color mainColor = new Color(1f, 0.85f, 0.2f);   // 메인=노랑
         [SerializeField] private Color repeatColor = Color.white;                // 반복=하양
 
+        [Header("완료 색")]
+        [Tooltip("목표를 채워 반납 대기(완료 가능)인 줄의 제목 색.")]
+        [SerializeField] private Color completedTitleColor = new Color(0.55f, 0.9f, 0.45f);
+        [Tooltip("목표를 채워 반납 대기(완료 가능)인 줄의 마커 색. 완료 상태에선 종류 색 대신 이 색을 쓴다.")]
+        [SerializeField] private Color completedIconColor = new Color(0.55f, 0.9f, 0.45f);
+
         private int index;
+
+        // 완료 해제 시 되돌릴 원래 색. 제목은 프리팹에 칠해 둔 색, 마커는 Bind에서 정한 종류 색이다.
+        private Color defaultTitleColor;
+        private bool hasDefaultTitleColor;
+        private Color typeColor = Color.white;
         private Action<int> onHover;
         private Action<int> onClick;
 
@@ -71,13 +84,42 @@ namespace ProjectS.UI
             this.onHover = onHover;
             this.onClick = onClick;
 
+            typeColor = entry.QuestType == QuestType.Main ? mainColor : repeatColor;
+
             if (titleText != null) titleText.text = entry.Title;
-            if (markerIcon != null)
-            {
-                markerIcon.sprite = MarkerSprite(entry.Status);
-                markerIcon.color = entry.QuestType == QuestType.Main ? mainColor : repeatColor;
-            }
+            // 수락 가능=!, 완료 가능=?. (진행중은 리스트에서 제외되므로 오지 않는다.)
+            bool completable = entry.Status == NpcQuestStatus.Completable;
+            if (acceptableMarker != null) acceptableMarker.gameObject.SetActive(!completable);
+            if (completableMarker != null) completableMarker.gameObject.SetActive(completable);
+
+            SetCompleted(entry.Status == NpcQuestStatus.Completable);
             SetSelected(false);
+        }
+
+        /// <summary>
+        /// 퀘스트 완료(목표 달성, 반납 대기) 표시로 제목·마커 색을 바꾸거나 원래대로 되돌린다.
+        /// <see cref="Bind"/>가 상태에 맞춰 부르므로 보통은 직접 부를 필요가 없다.
+        /// 줄을 다시 만들지 않고 그 자리에서 상태만 바뀔 때(진행 이벤트 수신 등) 쓴다.
+        /// </summary>
+        /// <param name="completed">완료 가능 상태면 true, 아니면 false(제목=프리팹 원래 색, 마커=종류 색)</param>
+        public void SetCompleted(bool completed)
+        {
+            CacheDefaultTitleColor();
+
+            if (titleText != null) titleText.color = completed ? completedTitleColor : defaultTitleColor;
+            // 켜진 쪽만 칠하면 상태가 바뀌어 반대쪽이 켜질 때 옛 색이 남으므로 둘 다 칠한다.
+            Color iconColor = completed ? completedIconColor : typeColor;
+            if (acceptableMarker != null) acceptableMarker.color = iconColor;
+            if (completableMarker != null) completableMarker.color = iconColor;
+        }
+
+        // 행이 비활성 프리팹에서 생성되면 Bind가 Awake보다 먼저 올 수 있어, 첫 사용 시점에 한 번만 잡는다.
+        // 이미 완료색으로 칠한 뒤에 잡으면 원래 색을 잃으므로 반드시 색을 바꾸기 전에 호출한다.
+        private void CacheDefaultTitleColor()
+        {
+            if (hasDefaultTitleColor || titleText == null) return;
+            defaultTitleColor = titleText.color;
+            hasDefaultTitleColor = true;
         }
 
         /// <summary>이 줄이 현재 선택됐는지 표시한다(화살표 토글). 버튼 색은 뷰가 EventSystem 선택으로 처리.</summary>
@@ -86,10 +128,6 @@ namespace ProjectS.UI
         {
             if (selectionArrow != null) selectionArrow.SetActive(selected);
         }
-
-        // 수락 가능=!, 완료 가능=?. (진행중은 리스트에서 제외되므로 오지 않는다.)
-        private Sprite MarkerSprite(NpcQuestStatus status)
-            => status == NpcQuestStatus.Completable ? completableSprite : acceptableSprite;
 
         public void OnPointerEnter(PointerEventData eventData) => onHover?.Invoke(index);
         public void OnPointerClick(PointerEventData eventData) => onClick?.Invoke(index);

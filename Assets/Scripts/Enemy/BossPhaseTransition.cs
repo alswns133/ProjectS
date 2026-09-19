@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Mirror;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -24,7 +24,8 @@ namespace ProjectS.Enemies
     /// </para>
     /// <para>
     /// <b>결과창(clearBoss) 인계</b>: 1페이즈는 <c>IsEndBoss=false</c>로 두고(죽어도 결과창 X — 게다가 전환 때 죽이지 않고
-    /// Destroy로 걷어내 <c>OnDespawn</c>/<c>FireBossDisappeared</c>를 아예 안 탄다), 이 컴포넌트가 다음 페이즈를 스폰하며
+    /// Destroy로 걷어내 <c>OnDespawn</c>/<c>FireBossDisappeared</c>를 아예 안 탄다. 네트워크 보스는 퇴장을
+    /// <c>BossNetSync.OnStopClient</c>가 발행하므로 <c>BossNetSync.RelayPhaseRetire</c>로 따로 막는다), 이 컴포넌트가 다음 페이즈를 스폰하며
     /// <see cref="DungeonResultReporter.SetEndBossSpawn"/>로 <b>최종 페이즈만</b> clearBoss로 등록한다.
     /// HP 바는 <c>BossHpPresenter</c>가 다음 페이즈의 <c>FireBossAppeared</c>로 자동 리바인딩한다(2페이즈가 등장한 뒤
     /// 1페이즈를 걷어내므로 바가 깜빡이지 않는다).
@@ -105,6 +106,9 @@ namespace ProjectS.Enemies
         // 네트워크 시작 시각 여유. 지시가 클라에 닿기 전에 시작 시각이 지나 앞부분이 잘리지 않게 한다(RaidIntroSession과 같은 이유).
         private const double CutsceneStartLead = 0.25;
 
+        // 연출 무적의 안전 만료: 연출이 끝났어야 할 시점에 종료를 못 잡았으면 그로부터 이만큼 뒤에 풀린다.
+        private const float CutsceneEndGrace = 5f;
+
         // 연출이 끝나기를 기다리는 다음 페이즈. 연출 종료(OnCutsceneFinished)에서 전환을 마무리한다.
         private Boss pendingNext;
 
@@ -120,6 +124,14 @@ namespace ProjectS.Enemies
             BossIntroDirector cutscene = BossIntroDirector.Find(gameObject.scene, BossIntroDirector.DirectorRole.PhaseTransition);
             if (cutscene == null)
             {
+                // 진단: 왜 못 찾았는지 — 씬에 있는 디렉터들의 역할·씬을 전부 남긴다(역할 미설정·다른 씬·비활성 구분).
+                var found = new System.Text.StringBuilder();
+                foreach (BossIntroDirector d in FindObjectsByType<BossIntroDirector>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    found.Append($" ['{d.name}' role={d.Role} 씬='{d.gameObject.scene.name}' 활성={d.isActiveAndEnabled}]");
+
+                Debug.LogWarning($"[진단][Phase] 전환 연출 디렉터(Role=PhaseTransition)를 보스 씬 '{gameObject.scene.name}'에서 못 찾아 즉시 전환합니다. " +
+                                 $"발견된 디렉터:{(found.Length > 0 ? found.ToString() : " 없음")}", this);
+
                 CompleteTransition(next);   // 전환 연출이 없는 씬: 예전처럼 즉시 전환
                 return;
             }
@@ -128,6 +140,13 @@ namespace ProjectS.Enemies
             // (연출 시작 시 디렉터가 다시 재우고, 끝나면 2페이즈만 깨운다 — 1페이즈는 걷어낸다.)
             boss.SuspendAI();
             next.SuspendAI();
+
+            // 연출 동안 두 페이즈 모두 피해를 받지 않게 한다. 2페이즈는 1페이즈와 같은 자리에 미리 떠 있어, 하한이 없는
+            // 2페이즈가 연출 중 맞아 죽으면 DeadState가 연출 뒤 ResumeAI에 덮여 "HP 0인데 안 죽는" 보스가 된다(2026-09-18).
+            // 정상 해제는 CompleteTransition. 종료를 못 잡으면 예정 종료(시작 여유 + 연출 길이) + 5초에 만료된다.
+            float immuneSeconds = (float)(CutsceneStartLead + cutscene.Duration) + CutsceneEndGrace;
+            boss.Stats.SetDamageImmune(immuneSeconds);
+            next.Stats.SetDamageImmune(immuneSeconds);
 
             pendingNext = next;
             cutscene.Finished += OnCutsceneFinished;
@@ -166,12 +185,22 @@ namespace ProjectS.Enemies
             // 결과창 트리거(clearBoss)를 최종 페이즈에만 넘긴다. 3페이즈 이상이면 다음 페이즈의 BossPhaseTransition이 이어 처리.
             if (nextPhaseIsFinal) RegisterEndBoss(next);
 
+            // 연출이 끝났으니 2페이즈 무적을 푼다(1페이즈는 곧 걷어내므로 둔다). 연출 없는 즉시 전환 경로에선 원래 없음.
+            if (next.Stats != null) next.Stats.ClearDamageImmune();
+
             Debug.Log($"[진단][Phase] 전환 완료 — '{next.name}' 교전 시작, '{boss.name}' 제거", this);
 
             // 1페이즈는 죽이지 않고 걷어낸다. 사망/소멸(OnDespawn→FireBossDisappeared) 경로를 타지 않아 결과창을 건드리지 않고,
             // 2페이즈가 이미 등장(FireBossAppeared)해 HP 바도 그대로 이어진다.
             // 네트워크면 NetworkServer.Destroy — 로컬 Destroy면 클라에 언스폰이 안 간다.
-            if (IsNetworkedOnServer) NetworkServer.Destroy(gameObject);
+            // ★ 단 네트워크 보스는 OnDespawn이 아니라 BossNetSync.OnStopClient가 퇴장을 발행하므로, Destroy '전에'
+            //   RelayPhaseRetire로 "페이즈 교체"임을 알려 그 발행을 막는다. 안 막으면 원격 클라에서 결과창이 뜬다.
+            if (IsNetworkedOnServer)
+            {
+                if (TryGetComponent(out BossNetSync sync)) sync.RelayPhaseRetire();
+
+                NetworkServer.Destroy(gameObject);
+            }
             else Destroy(gameObject);
         }
 
