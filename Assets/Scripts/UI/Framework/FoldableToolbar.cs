@@ -46,8 +46,8 @@ namespace ProjectS.UI.Framework
             Apply();
         }
 
-        private void OnEnable() => arrowButton.onClick.AddListener(Toggle);
-        private void OnDisable() => arrowButton.onClick.RemoveListener(Toggle);
+        private void OnEnable() => arrowButton?.onClick.AddListener(Toggle);
+        private void OnDisable() => arrowButton?.onClick.RemoveListener(Toggle);
 
         /// <summary>
         /// 툴바를 접거나 펼친다. 연출 진행 중에 다시 호출해도
