@@ -55,6 +55,10 @@ namespace ProjectS.Tutorials
         [SerializeField, Min(0.1f)] private float timeLimit = 7f;
 
         [Header("이벤트")]
+        [Tooltip("비석에 말을 건 순간(대화 시작 전). 비석 주변 안내 끄기 같은 연출을 연결한다. " +
+                 "대화 중 Esc로 취소돼도 되돌리지 않으므로, 다시 켜야 하는 대상은 따로 챙긴다.")]
+        [SerializeField] private UnityEvent onBriefingStarted = new UnityEvent();
+
         [Tooltip("도전 시작(대화가 끝난 시점). 달리기 안내 UI를 나중에 여기 연결한다.")]
         [SerializeField] private UnityEvent onChallengeStarted = new UnityEvent();
 
@@ -140,6 +144,9 @@ namespace ProjectS.Tutorials
         private void BeginBriefing()
         {
             state = TrialState.Briefing;
+
+            // 대화를 건너뛰는 경우(ID 0·매니저 없음)에도 "말을 걸었다"는 사실은 같으므로 분기 전에 발행한다.
+            onBriefingStarted?.Invoke();
 
             DialogueManager dialogue = DialogueManager.Instance;
 
