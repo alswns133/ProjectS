@@ -25,6 +25,23 @@ namespace ProjectS.Managers
 
         public Task ReadyTask { get; private set; }   // ★ 외부가 이걸 await (Bootstrap에서)
 
+        // 로드에 실패한 필수 테이블 이름. 선택 테이블(미등록 허용)은 넣지 않는다.
+        private readonly List<string> failedTables = new();
+
+        /// <summary>
+        /// 필수 테이블 중 로드에 실패한 것이 있는지. <c>PlayerSaveService</c>가 이 값이 참이면 저장을 막는다.
+        /// </summary>
+        /// <remarks>
+        /// 실패한 테이블은 빈 Dictionary로 남고 <see cref="IsReady"/>는 그대로 true가 된다. 그 상태에서 인벤토리 복원은
+        /// "정의 없는 아이템은 건너뜀" 규칙으로 장비를 전부 버리므로, 저장이 돌면 빈 인벤토리가 세이브를 덮어쓴다
+        /// (2026-09-18 Addressables가 빠진 개발 빌드에서 실제로 장비가 소실됨). 게임이 이상해지는 건 막지 못해도
+        /// 세이브만은 지키기 위한 신호다.
+        /// </remarks>
+        public bool HasLoadFailures => failedTables.Count > 0;
+
+        /// <summary>로드에 실패한 필수 테이블 이름 목록(진단 로그용).</summary>
+        public IReadOnlyList<string> FailedTables => failedTables;
+
         // 데이터 접근용 프로퍼티 (필요한 테이블마다 추가)
         public IReadOnlyDictionary<int, SoundTable> SoundDict => GetTable<SoundTable>();
         public IReadOnlyDictionary<int, PlayerStatTable> PlayerStatDict => GetTable<PlayerStatTable>();
@@ -75,7 +92,7 @@ namespace ProjectS.Managers
             // 스킬 성장 테이블(스킬창 K)은 2026-08-26 신설이라 어드레서블 "SkillGrowthTable"이 아직
             // 없을 수 있다. 키가 없으면 LoadAssetAsync가 throw해 이후 등록과 IsReady까지 막으므로,
             // 이 한 줄만 감싸 부팅이 멈추지 않게 한다(어드레서블 등록 후엔 정상 로드).
-            try { await RegisterAsync<SkillGrowthTable>(); }
+            try { await RegisterAsync<SkillGrowthTable>(critical: false); }
             catch (Exception e) { Debug.LogWarning($"[JsonManager] SkillGrowthTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
             await RegisterAsync<ItemData>();
@@ -91,10 +108,14 @@ namespace ProjectS.Managers
 
             // 던전 보상 테이블(결과 화면)은 신설이라 어드레서블 "DungeonRewardTable"이 아직 없을 수 있다.
             // 키가 없으면 LoadAssetAsync가 throw해 부팅이 멈추므로, SkillGrowthTable과 같은 방식으로 감싼다.
-            try { await RegisterAsync<DungeonRewardTable>(); }
+            try { await RegisterAsync<DungeonRewardTable>(critical: false); }
             catch (Exception e) { Debug.LogWarning($"[JsonManager] DungeonRewardTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
             IsReady = true;   // ★ 모든 로딩이 끝난 뒤에야 true
+
+            if (HasLoadFailures)
+                Debug.LogError($"[JsonManager] 필수 테이블 {failedTables.Count}개 로드 실패({string.Join(", ", failedTables)}) — " +
+                               "세이브 덮어쓰기를 막기 위해 이번 실행에서는 저장이 차단됩니다. 빌드의 Addressables 콘텐츠(StreamingAssets/aa)를 확인하세요.");
 
             // 에디터에서 로드된 데이터를 확인하기 위한 디버그 리스트 초기화
 #if UNITY_EDITOR
@@ -103,10 +124,16 @@ namespace ProjectS.Managers
 #endif
         }
 
-        // 제네릭을 활용한 데이터 등록 메서드
-        private async Task RegisterAsync<T>() where T : class, IDataRow
+        // 제네릭을 활용한 데이터 등록 메서드.
+        // critical=false는 "아직 어드레서블 미등록일 수 있는" 선택 테이블 — 실패해도 저장 차단(HasLoadFailures)에 넣지 않는다.
+        private async Task RegisterAsync<T>(bool critical = true) where T : class, IDataRow
         {
             var dict = await LoadDataDictionaryAsync<T>(typeof(T).Name);
+            if (dict == null)
+            {
+                if (critical) failedTables.Add(typeof(T).Name);
+                dict = new Dictionary<int, T>();   // 실패해도 조회가 예외 없이 null을 돌려주게 빈 테이블로 둔다
+            }
             tables[typeof(T)] = dict;
         }
 
@@ -136,7 +163,8 @@ namespace ProjectS.Managers
         public T Get<T>(int index) where T : class, IDataRow
             => GetTable<T>().TryGetValue(index, out T row) ? row : null;
 
-        // Addressables에서 JSON 텍스트를 로드하고, 제네릭 리스트로 파싱한 뒤, 딕셔너리로 변환하는 메서드
+        // Addressables에서 JSON 텍스트를 로드하고, 제네릭 리스트로 파싱한 뒤, 딕셔너리로 변환하는 메서드.
+        // 로드 실패면 null — 호출측(RegisterAsync)이 실패를 기록하고 빈 테이블로 바꾼다.
         private async Task<Dictionary<int, T>> LoadDataDictionaryAsync<T>(string address) where T : class, IDataRow
         {
             var handle = Addressables.LoadAssetAsync<TextAsset>(address);
@@ -146,7 +174,7 @@ namespace ProjectS.Managers
             {
                 Debug.LogError($"[JsonManager] '{address}' 로드 실패");
                 Addressables.Release(handle);              // 실패해도 핸들은 반드시 해제
-                return new Dictionary<int, T>();
+                return null;
             }
 
             List<T> list = JsonConvert.DeserializeObject<List<T>>(asset.text);
