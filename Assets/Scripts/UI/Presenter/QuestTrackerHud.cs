@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
@@ -46,6 +47,10 @@ namespace ProjectS.UI
         [Tooltip("퀘스트 한 개를 표시할 카드 프리팹(QuestTrackerEntry 포함).")]
         [FormerlySerializedAs("entryPrefab")]
         [SerializeField] private QuestTrackerEntry cardPrefab;
+
+        [Header("헤더 개수")]
+        [Tooltip("헤더에 '완료/받은 퀘스트' 개수를 0/10 형태로 적을 텍스트. 비우면 표시하지 않는다.")]
+        [SerializeField] private TMP_Text headerCountText;
 
         [Header("단축키")]
         [Tooltip("트래커를 펼치면서 마우스 모드로 함께 전환하는 키. 다시 누르면 접고 커서를 잠근다.")]
@@ -347,6 +352,26 @@ namespace ProjectS.UI
             }
 
             if (window != null) window.Refresh();
+
+            // 수락·진행·반납·포기·복원이 모두 이 메서드를 거치므로 헤더 개수도 여기서 한 번에 맞춘다.
+            RefreshHeaderCount();
+        }
+
+        // 헤더에 "완료/받은 퀘스트"를 적는다. 분모는 지금 트래커에 올라 있는(받아서 아직 반납하지 않은) 퀘스트 수,
+        // 분자는 그중 목표를 다 채워 반납 대기인 수다. 반납하면 목록에서 빠지므로 분자·분모가 함께 줄어든다.
+        // 분해 연출 중인 카드(completing)도 아직 목록에 있는 퀘스트라 센다 — 빼면 연출 동안 숫자가 튄다.
+        private void RefreshHeaderCount()
+        {
+            if (headerCountText == null) return;
+
+            int completed = 0;
+            foreach (QuestData quest in cards.Keys)
+            {
+                if (quest.IsReadyToTurnIn) completed++;
+            }
+
+            // TMP의 SetText 포맷 오버로드는 문자열을 새로 만들지 않는다(진행 이벤트마다 불려도 GC가 없다).
+            headerCountText.SetText("{0}/{1}", completed, cards.Count);
         }
 
         // 완료 요약 줄로 쓸 퀘스트(수락 순서상 맨 앞의 완료 퀘스트)와 완료 총 개수를 찾는다.
@@ -697,6 +722,9 @@ namespace ProjectS.UI
             // 이번 진행으로 '완료가 아니었다 → 완료'로 넘어간 순간에만 연출을 태운다.
             if (!wasCompleted && quest.IsReadyToTurnIn)
             {
+                // 표시 갱신(ApplyCollapsedView)은 연출이 끝난 뒤로 미뤄지지만, 완료 개수는 지금 바로 올린다.
+                RefreshHeaderCount();
+
                 // 접힘/비대표라 카드가 꺼져 있으면(SetActive false) 소멸 연출을 못 돌린다
                 // (비활성 오브젝트에서 StartCoroutine 불가). 그 경우 연출을 건너뛰고
                 // 바로 완료 처리로 직행해, 경고와 completing 플래그가 남는 것을 막는다.
