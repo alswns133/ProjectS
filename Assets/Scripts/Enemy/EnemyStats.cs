@@ -46,6 +46,11 @@ namespace ProjectS.Enemies
         private int segmentCount;
         private float groggyMax;
         private string nameKey;
+        private string displayName;
+
+        // 관찰자 클라가 서버에서 받은 표시 이름. 비어 있으면 로컬 테이블 이름을 쓴다(싱글/서버).
+        // 레이드에서 관찰자는 서버와 다른 테이블 행을 읽을 수 있어(MaxHp와 같은 이유) 서버 값을 우선한다.
+        private string networkDisplayName;
 
         // 페이즈 전환용 데미지 하한 비율(0~1). 0보다 크면 TakeDamage가 HP를 maxHp*ratio 밑으로 깎지 않아,
         // 보스가 이 지점에서 죽지 않고 멈춘다(BossPhaseTransition이 프리팹을 갈아끼울 틈을 준다). 0이면 기존 동작 그대로.
@@ -53,6 +58,10 @@ namespace ProjectS.Enemies
 
         // 스폰 시 이어받을 HP(페이즈 인계). 0 이상이면 테이블 로딩이 풀피로 리셋해도 이 값으로 다시 맞춘다. 음수면 미설정.
         private int spawnHpOverride = -1;
+
+        // 페이즈 전환 연출 동안의 피해 면역 만료 시각(Time.time). 이 시각 전의 TakeDamage는 무시된다. 0이면 면역 없음.
+        // 코루틴이 아니라 시각 비교인 이유: 연출 Timeline이 다음 페이즈 오브젝트를 껐다 켜 코루틴이 끊길 수 있어서다.
+        private float damageImmuneUntil;
 
         // 스폰한 쪽이 직접 지정한 던전 ID. 0이면 전역 DungeonContext를 쓴다(싱글·일반 던전 경로).
         private int dungeonIdOverride;
@@ -92,6 +101,18 @@ namespace ProjectS.Enemies
         /// <summary>표시용 이름 키(MonsterStatTable.NameKey). 보스 HP 바가 보스 이름으로 쓴다.</summary>
         public string DisplayNameKey => nameKey;
 
+        /// <summary>
+        /// 화면에 보여 줄 이름(MonsterStatTable.Name). 관찰자 클라는 서버가 동기화한 값을 우선한다.
+        /// 비어 있을 수 있으므로 표시측(보스 HP 바)이 <see cref="DisplayNameKey"/> → 오브젝트 이름으로 폴백한다.
+        /// </summary>
+        public string DisplayName => !string.IsNullOrEmpty(networkDisplayName) ? networkDisplayName : displayName;
+
+        /// <summary>
+        /// 관찰자 클라에서 서버가 확정한 표시 이름을 반영한다. <c>BossNetSync</c>가 SyncVar로 받아 부른다.
+        /// </summary>
+        /// <param name="serverDisplayName">서버 테이블의 표시 이름.</param>
+        public void SetNetworkDisplayName(string serverDisplayName) => networkDisplayName = serverDisplayName;
+
         /// <summary>몬스터의 총 AD. 공격 패턴의 계수와 곱해져 피해가 된다.</summary>
         public float AttackPower => attackPower;
 
@@ -114,6 +135,20 @@ namespace ProjectS.Enemies
 
         /// <summary>데미지 하한을 해제한다(0까지 깎이는 기존 동작으로 복귀). 최종 페이즈가 정상 사망하려면 반드시 호출한다.</summary>
         public void ClearDamageFloor() => damageFloorRatio = 0f;
+
+        /// <summary>
+        /// 지정한 시간 동안 피해를 받지 않게 한다. <see cref="BossPhaseTransition"/>이 전환 연출 동안 두 페이즈 모두에 건다.
+        /// </summary>
+        /// <remarks>
+        /// 다음 페이즈는 나가는 페이즈와 같은 자리에 미리 스폰돼 연출 내내 맞을 수 있다. 면역이 없으면 연출 중 들어온
+        /// 타격에 죽어 DeadState에 들어간 채 연출이 끝나고, ResumeAI가 그 상태를 덮어써 "HP 0인데 안 죽는 보스"가 된다.
+        /// 정상 경로는 연출 종료 시 <see cref="ClearDamageImmune"/>로 푼다. <paramref name="maxSeconds"/>는 종료를 못 잡았을 때의 안전 만료다.
+        /// </remarks>
+        /// <param name="maxSeconds">안전 만료까지의 시간(초).</param>
+        public void SetDamageImmune(float maxSeconds) => damageImmuneUntil = Time.time + Mathf.Max(0f, maxSeconds);
+
+        /// <summary>피해 면역을 즉시 해제한다. 페이즈 전환 연출이 끝나 다음 페이즈가 교전을 시작할 때 부른다.</summary>
+        public void ClearDamageImmune() => damageImmuneUntil = 0f;
 
         /// <summary>
         /// 스폰 직후 이어받을 현재 HP를 지정한다(페이즈 인계). 즉시 반영하고, <b>테이블 로딩이 풀피로 리셋해도</b>
@@ -240,6 +275,7 @@ namespace ProjectS.Enemies
             segmentCount = row.SegmentCount;
             groggyMax = row.GroggyMax;
             nameKey = row.NameKey;
+            displayName = row.Name;
             currentHp = maxHp;
 
             // 페이즈 인계로 이어받은 HP가 있으면 방금의 풀피 리셋을 덮는다(스폰 시 SetSpawnHp가 지정).
@@ -258,11 +294,19 @@ namespace ProjectS.Enemies
         public bool TakeDamage(in DamageResult result)
         {
             if (IsDead) return false;                 // 이미 죽었으면 무시(1회 사망 보장)
+            if (Time.time < damageImmuneUntil) return false;   // 페이즈 전환 연출 중(SetDamageImmune) — 그로기도 쌓지 않는다
+
+            int hpBefore = currentHp;
 
             // 페이즈 하한이 걸려 있으면(damageFloorRatio>0) 그 밑으로는 깎지 않는다 → 보스가 하한에서
             // 죽지 않고 멈춰 페이즈 전환 틈이 생긴다. 하한이 0(기본)이면 기존대로 0까지 깎인다.
             int floorHp = damageFloorRatio > 0f ? Mathf.CeilToInt(maxHp * damageFloorRatio) : 0;
             currentHp = Mathf.Max(floorHp, currentHp - result.Amount);
+
+            // 진단: 보스가 죽는 타격의 출처(2026-09-18 "2페이즈가 HP 0인데 안 죽음" 추적). 잡몹은 처치마다 찍히지 않게 보스만.
+            if (isBoss && IsDead)
+                Debug.Log($"[진단][BossDeath] '{name}' 사망 타격 — 피해 {result.Amount}, HP {hpBefore}→{currentHp}/{maxHp}, " +
+                          $"t={Time.time:0.00}\n{System.Environment.StackTrace}", this);
 
             // 피격 피드백: 하이라이트를 잠깐 번쩍인다(사망 타격 포함, "맞았다"를 항상 보여준다).
             hitHighlight?.Flash();

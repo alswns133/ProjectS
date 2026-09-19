@@ -526,6 +526,11 @@ namespace ProjectS.Enemies
         /// </remarks>
         public void ResumeAI()
         {
+            // 진단: 연출 중 죽은 보스를 깨우면 DeadState가 덮여 "HP 0인데 안 죽는" 상태가 된다(2026-09-18 추적).
+            if (Stats.IsDead)
+                Debug.LogWarning($"[진단][ResumeAI] '{name}' 이미 사망(HP {Stats.CurrentHp}/{Stats.MaxHp}) 상태에서 깨움 — " +
+                                 $"현재 상태={StateMachine.Current?.GetType().Name}", this);
+
             aiSuspended = false;
             Movement.EndRootMotionAndLand();
 

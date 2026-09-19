@@ -60,6 +60,17 @@ namespace ProjectS.Effects
         // 새 발사 위치로 잔상이 한 줄 그어지는 것을 막기 위함(선택 사항).
         [SerializeField] private TrailRenderer trail;
 
+        [Header("폭발(범위)")]
+        // 0보다 크면 소멸 순간(벽·적중·사거리 끝) 그 자리에서 범위 판정을 한 번 더 한다(수류탄·폭발탄).
+        // 0이면 기존 직진 투사체 그대로 동작한다.
+        [SerializeField, Min(0f)] private float explosionRadius = 0f;
+
+        // 폭발 연출 프리팹. 벽 충돌 연출과 같은 경로(ProjectileImpactSpawner)로 재생한다. 비우면 연출 없음.
+        [SerializeField] private HitEffect explosionEffect;
+
+        // 폭발 판정 버퍼. 캐스트 버퍼와 같은 NonAlloc 방침.
+        private readonly Collider[] explosionBuffer = new Collider[32];
+
         // 매 프레임 캐스트마다 할당이 생기지 않도록 재사용하는 버퍼(근접 판정과 같은 방침).
         private readonly RaycastHit[] hitBuffer = new RaycastHit[16];
 
@@ -140,14 +151,59 @@ namespace ProjectS.Effects
             Vector3 next = previous + transform.forward * (speed * Time.deltaTime);
             transform.position = next;
 
+            // 폭발은 OnDestroy/OnDisable이 아니라 소멸이 결정되는 이 두 곳에서 직접 부른다.
+            // 풀링이라 OnDestroy는 오지 않고, OnDisable은 씬 전환·풀 정리 때도 와서 엉뚱하게 터지기 때문.
             if (!SweepAndDamage(previous, next))
             {
+                Explode(transform.position);
                 Despawn();
                 return;
             }
 
             if ((next - startPosition).sqrMagnitude >= maxRange * maxRange)
+            {
+                Explode(transform.position);
                 Despawn();
+            }
+        }
+
+        // 소멸 지점에서 범위 판정. explosionRadius가 0이면 아무것도 안 한다.
+        private void Explode(Vector3 center)
+        {
+            if (explosionRadius <= 0f) return;
+
+            // 연출은 보이기 전용 복제본에서도 낸다(구경하는 화면에도 폭발은 보여야 하므로).
+            CombatEvents.FireProjectileBlocked(center, Vector3.up, explosionEffect);
+
+            // 판정은 쏜 쪽 한 곳에서만 한다.
+            if (visualOnly) return;
+
+            // 대상 레이어는 쿼리에 맡긴다. 적 피격 콜라이더가 트리거라 Collide가 빠지면 아무것도 안 맞는다.
+            int count = Physics.OverlapSphereNonAlloc(
+                center,
+                explosionRadius,
+                explosionBuffer,
+                targetMask,
+                QueryTriggerInteraction.Collide);
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider col = explosionBuffer[i];
+                if (!col.TryGetComponent<IDamageable>(out IDamageable target)) continue;
+
+                // 콜라이더가 여러 개인 적의 중복 타격을 막는다.
+                // alreadyHit를 비우지 않고 이어 쓰므로 직격으로 이미 맞은 적은 폭발 피해를 또 받지 않는다.
+                // TODO: 직격+폭발 둘 다 주는 기획이면 여기서 별도 Set을 쓴다.
+                if (!alreadyHit.Add(target)) continue;
+
+                Vector3 point = col.ClosestPoint(center);
+                Vector3 direction = point - center;
+                direction = direction.sqrMagnitude > 0.0001f ? direction.normalized : transform.forward;
+
+                // TODO(선택): 벽 뒤 차폐 — center→point를 obstacleMask로 Raycast해 막히면 continue.
+                // TODO(선택): 거리 감쇠 — 지금은 반경 안이면 균일 피해.
+                ApplyHit(col, target, point, direction);
+            }
         }
 
         // 이번 프레임 이동 구간을 훑어 데미지를 적용한다.
@@ -205,40 +261,51 @@ namespace ProjectS.Effects
                     continue;
                 }
 
-                // 방어 경감은 맞는 쪽 방어도로 계산하므로 적중 대상마다 따로 굴린다.
-                DamageResult result = DamageCalculator.Calculate(in attack, target.Defense, target.IsBoss);
-
                 // 캐스트 시작 지점에 이미 겹쳐 있던 콜라이더는 point가 원점으로 나오므로 근사치로 보정한다.
                 Vector3 point = hit.distance > 0f ? hit.point : hit.collider.ClosestPoint(from);
 
-                // 멀티: 서버 권위 보스·원격 플레이어면 그 자리 적용 대신 통로로 보낸다(근접 타격과 같은 경로).
-                bool showHitFeedback;
-                if (hitRouter != null && hitRouter.TryRoute(hit.collider, in result, skillId, point, direction, out showHitFeedback))
-                {
-                    // 보냈다. 원격 플레이어로 보낸 경우는 그쪽이 적용·이펙트를 정하므로 여기서 손맛을 내지 않는다.
-                }
-                else
-                {
-                    // 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다(근접 판정과 같은 방침).
-                    if (!target.TakeDamage(in result)) continue;
-                    showHitFeedback = true;
-                }
-
-                if (showHitFeedback)
-                {
-                    // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
-                    // 내면 플레이어가 적중시킨 것으로 오인한다.
-                    // 방향은 투사체 진행 방향(direction). 총 스프레이처럼 맞은 부위에서
-                    // 날아온 궤적 방향으로 세워 재생할 이펙트가 쓴다(구독자가 oriented일 때만).
-                    if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey);
-                    else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey);
-
-                    onTargetHit?.Invoke(gaugeGain);
-                }
+                // 씹힌 타격(이미 죽은 적 등)은 관통 수에도 세지 않는다.
+                if (!ApplyHit(hit.collider, target, point, direction)) continue;
 
                 hitCount++;
 
                 if (!canPierce || hitCount >= maxPierceTargets) return false;
+            }
+
+            return true;
+        }
+
+        // 대상 하나에게 적중을 적용한다. 직격(스윕)과 폭발이 같은 규칙(방어 경감·멀티 라우팅·히트 이벤트·
+        // 게이지 회복)을 쓰게 하려고 뺐다 — 두 곳에 따로 두면 멀티 라우팅 같은 규칙이 한쪽만 고쳐지기 쉽다.
+        // 적용(또는 라우팅)했으면 true, 씹힌 타격이면 false.
+        private bool ApplyHit(Collider hitCollider, IDamageable target, Vector3 point, Vector3 direction)
+        {
+            // 방어 경감은 맞는 쪽 방어도로 계산하므로 적중 대상마다 따로 굴린다.
+            DamageResult result = DamageCalculator.Calculate(in attack, target.Defense, target.IsBoss);
+
+            // 멀티: 서버 권위 보스·원격 플레이어면 그 자리 적용 대신 통로로 보낸다(근접 타격과 같은 경로).
+            bool showHitFeedback;
+            if (hitRouter != null && hitRouter.TryRoute(hitCollider, in result, skillId, point, direction, out showHitFeedback))
+            {
+                // 보냈다. 원격 플레이어로 보낸 경우는 그쪽이 적용·이펙트를 정하므로 여기서 손맛을 내지 않는다.
+            }
+            else
+            {
+                // 씹힌 타격(이미 죽은 적 등)은 이펙트도 게이지 회복도 없다(근접 판정과 같은 방침).
+                if (!target.TakeDamage(in result)) return false;
+                showHitFeedback = true;
+            }
+
+            if (showHitFeedback)
+            {
+                // 타격 이펙트는 때린 쪽 기준으로 갈라진다. 몬스터 화살이 플레이어 타격 이펙트를
+                // 내면 플레이어가 적중시킨 것으로 오인한다.
+                // 방향은 직격이면 투사체 진행 방향, 폭발이면 폭심→대상 방향.
+                // 맞은 부위에서 날아온 방향으로 세워 재생할 이펙트가 쓴다(구독자가 oriented일 때만).
+                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey);
+                else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey);
+
+                onTargetHit?.Invoke(gaugeGain);
             }
 
             return true;
@@ -286,6 +353,13 @@ namespace ProjectS.Effects
 
             // 진행 방향 표시. 스윕이 어느 쪽으로 훑는지 보여준다.
             Gizmos.DrawLine(transform.position, transform.position + transform.forward * (hitBoxSize.z * 0.5f + 0.5f));
+
+            // 폭발 반경. 날아가는 동안 "지금 터지면 여기까지 맞는다"를 보여준다.
+            if (explosionRadius > 0f)
+            {
+                Gizmos.color = new Color(1f, 0.5f, 0f);
+                Gizmos.DrawWireSphere(transform.position, explosionRadius);
+            }
         }
     }
 }

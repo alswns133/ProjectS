@@ -1,4 +1,5 @@
 ﻿using System;
+using Mirror;
 using ProjectS.Core;
 using ProjectS.Effects;
 using ProjectS.Events;
@@ -160,7 +161,15 @@ namespace ProjectS.Enemies
 
             // 등장과 짝 — 네트워크 스폰된 보스는 BossNetSync(OnStopClient)가 퇴장을 발행한다. 로컬 스폰만 여기서.
             if (!IsNetworkSpawned)
+            {
                 BossEvents.FireBossDisappeared(this);
+                return;
+            }
+
+            // ★ 네트워크 보스는 서버가 언스폰해야 클라에서 OnStopClient(=퇴장 발행 → HP 바 내림·결과창)가 돈다.
+            //   Despawn의 SetActive(false)는 Mirror가 클라에 전달하지 않아, 이게 없으면 파티원 화면에 보스가 영영 남고
+            //   결과창도 안 뜬다(2026-09-18). 페이즈 교체로 걷어낼 때와 달리 retiredByPhase를 켜지 않으므로 퇴장이 정상 발행된다.
+            if (NetworkServer.active) NetworkServer.Destroy(gameObject);
         }
 
         /// <summary>
@@ -171,8 +180,10 @@ namespace ProjectS.Enemies
         {
             base.OnDied();
 
-            // 씬에 슬로우모션 컨트롤러가 없으면 조용히 넘어간다(연출 없이 사망만 진행).
-            SlowMotionController.Instance?.Play();
+            // 화면이 있는 프로세스(싱글·호스트)에서만 건다. 전용 서버는 화면이 없고, timeScale을 늦추면 서버 시뮬레이션 전체가
+            // 느려진다. 원격 파티원 화면은 이 메서드가 안 도므로(DeadState는 서버에서만) BossNetSync.RpcDie가 따로 건다.
+            bool isDedicatedServer = NetworkServer.active && !NetworkClient.active;
+            if (!isDedicatedServer) SlowMotionController.PlayOrCreate();
         }
 
         /// <summary>
