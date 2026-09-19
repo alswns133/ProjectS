@@ -20,9 +20,12 @@ namespace ProjectS.Cameras
         [Header("줌")]
         [SerializeField] private float zoomSpeed = 50f;
         [SerializeField] private float minDistance = 2f;   // 줌인 한계(너무 붙지 않게)
-        [SerializeField] private float maxDistance = 10f;  // 줌아웃 한계(너무 멀어지지 않게)
+        [SerializeField] private float maxDistance = 5f;  // 줌아웃 한계(너무 멀어지지 않게)
 
         [SerializeField] private float raidMaxDistance = 20; // 레이드 던전 줌아웃 한계
+        [SerializeField] private float dungeonMaxDistance = 10; // 던전 줌아웃 한계
+
+
 
         private float originMaxDistance;   // 원래 줌아웃 한계 보관
 
@@ -119,7 +122,15 @@ namespace ProjectS.Cameras
         {
             if (baseScene == null) return;                    // 현재 없는 null 가드
 
-            maxDistance = baseScene is Raid ? raidMaxDistance : originMaxDistance;  // 'float' 빼고 필드에 대입
+            //maxDistance = baseScene is Raid ? raidMaxDistance : originMaxDistance;  // 'float' 빼고 필드에 대입
+
+            if (baseScene is RaidGather)
+                maxDistance = raidMaxDistance;
+            else if (baseScene is DungeonGather)
+                maxDistance = dungeonMaxDistance;
+            else
+                maxDistance = originMaxDistance;
+
             distance = Mathf.Min(distance, maxDistance);   // 한계가 줄면 현재 줌도 눌러줌
         }
 
