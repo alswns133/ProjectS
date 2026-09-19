@@ -4865,8 +4865,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c05892f8284d0994db41a54a42fa8495, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.Projectile
-  speed: 40
-  maxRange: 30
+  speed: 20
+  maxRange: 10
   hitBoxSize: {x: 0.5, y: 0.5, z: 0.5}
   targetMask:
     serializedVersion: 2
@@ -4876,8 +4876,10 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 16512
   blockedEffect: {fileID: 3830600543145040877, guid: 5d08c15ba5c101342b303e378c0908f9, type: 3}
-  maxPierceTargets: 5
+  maxPierceTargets: 1
   trail: {fileID: 0}
+  explosionRadius: 0
+  explosionEffect: {fileID: 0}
 --- !u!1 &1540588367011230
 GameObject:
   m_ObjectHideFlags: 0
