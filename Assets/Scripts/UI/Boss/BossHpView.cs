@@ -189,6 +189,15 @@ namespace ProjectS.UI
             if (barRoot != null) barRoot.SetActive(true);
         }
 
+        /// <summary>
+        /// 이름만 바꾼다(게이지·연출 상태는 그대로). 등장 뒤 이름이 늦게 확정되는 경우(관찰자가 서버 이름을 나중에 받음)에 쓴다.
+        /// </summary>
+        /// <param name="bossName">표시할 보스 이름.</param>
+        public void SetName(string bossName)
+        {
+            if (nameText != null && nameText.text != bossName) nameText.text = bossName;
+        }
+
         /// <summary>보스 퇴장(사망·이탈) 시 바를 숨긴다.</summary>
         public void Hide()
         {

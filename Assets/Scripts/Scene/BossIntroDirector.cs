@@ -64,9 +64,9 @@ namespace ProjectS.Scenes
         [Tooltip("등장 연출 동안 플레이어 입력을 잠글지. 컷신형 등장이면 켠다.")]
         [SerializeField] private bool lockPlayerInput = true;
 
-        [Tooltip("컷신 안전 해제 시간을 타임라인 길이보다 이만큼 더 길게 잡는 여유(초). " +
-                 "종료 신호(stopped)를 놓쳤을 때만 쓰이는 백스톱이라, 연출을 항상 조금 넘기도록 둔다.")]
-        [SerializeField, Min(0f)] private float cutsceneSafetyMargin = 3f;
+        // 전환 연출 무적의 안전 만료: 연출이 끝났어야 할 시점에 종료(Finish)를 못 잡았으면 그로부터 이만큼 뒤에 풀린다.
+        // (입력 잠금도 Player 쪽에서 같은 기준 — 예정 종료 + 5초 — 으로 스스로 풀린다.)
+        private const float CutsceneEndGrace = 5f;
 
         [Header("트랙 재바인딩")]
         [Tooltip("Timeline 트랙을 이름으로 정확히 지정해 보스의 어느 부분을 꽂을지 짝짓는다. " +
@@ -163,6 +163,9 @@ namespace ProjectS.Scenes
 
         // 컷신으로 입력을 잠근 플레이어. 연출 도중 LocalPlayer.Current가 바뀌어도 같은 대상을 풀기 위해 보관한다.
         private Player cutscenePlayer;
+
+        // 페이즈 전환 연출로 무적을 건 플레이어. 입력 잠금(lockPlayerInput)과 독립이라 따로 보관해 Finish에서 푼다.
+        private Player invinciblePlayer;
 
         // 대기 화면 동안 입력을 잠근 플레이어(owner=this). 대기 뒤에서도 게임은 돌고 있어 먼저 준비된 사람이 움직이지 않게 한다.
         private Player waitLockedPlayer;
@@ -342,7 +345,7 @@ namespace ProjectS.Scenes
 
                 if (Time.time > bossDeadline && !double.IsNaN(startTime))
                 {
-                    Debug.LogWarning("[BossIntroDirector] 시작 시각이 됐지만 보스가 도착하지 않아 연출을 건너뜁니다.", this);
+                    Debug.LogWarning($"{LogTag} 시작 시각이 됐지만 보스가 도착하지 않아 연출을 건너뜁니다.", this);
                     Finish();
                     yield break;
                 }
@@ -374,7 +377,7 @@ namespace ProjectS.Scenes
             if (elapsed >= duration)
             {
                 // 너무 늦게 도착했다(시간 초과로 먼저 시작한 뒤 합류 등). 볼 연출이 없으니 정리만 한다.
-                Debug.Log($"[진단][BossIntro] 연출이 이미 끝난 시각({elapsed:0.00}/{duration:0.00}초)이라 건너뜁니다.", this);
+                Debug.Log($"{LogTag} 연출이 이미 끝난 시각({elapsed:0.00}/{duration:0.00}초)이라 건너뜁니다.", this);
                 Finish();
                 return;
             }
@@ -426,8 +429,18 @@ namespace ProjectS.Scenes
             // 진단: 연출 시작 순간의 위치·상태를 한 줄 남긴다 — 종료 후 기록과 비교해 연출 중 실제로 이동했는지 본다.
             ProjectS.Debugging.BossAnimatorProbe.Attach(boss, 0.1f, "연출 시작");
 
-            Debug.Log($"[진단][BossIntro] 재생 시작 — 보스='{boss.name}', {elapsed:0.00}초 지점부터, " +
-                      $"화면연출={wantPresentation}, 관찰자={IsNetworkObserver(boss)}", this);
+            Debug.Log($"{LogTag} 재생 시작 — 보스='{boss.name}', 다음페이즈={(nextPhaseBoss != null ? nextPhaseBoss.name : "-")}, " +
+                      $"{elapsed:0.00}초 지점부터, 화면연출={wantPresentation}, 관찰자={IsNetworkObserver(boss)}", this);
+        }
+
+        // 진단 로그 머리말: 어떤 연출(등장/전환)이고 어느 컴퓨터(서버/호스트/클라)인지. 클라 로그도 서버 콘솔로 모이므로 구분이 필요하다.
+        private string LogTag
+        {
+            get
+            {
+                string net = NetworkServer.active ? (NetworkClient.active ? "Host" : "Server") : (NetworkClient.active ? "Client" : "Solo");
+                return $"[진단][{(role == DirectorRole.Intro ? "BossIntro" : "Phase")}][{net}]";
+            }
         }
 
         // 이 프로세스 화면에 연출을 붙인다: 대기 화면을 내리고, UI를 끄고, 조작 중인 캐릭터의 입력을 컷신으로 잠근다.
@@ -441,13 +454,22 @@ namespace ProjectS.Scenes
             // 여기서 켜면 같은 프레임에 껐다 켜져 아무것도 안 숨겨진다.
             SetUIHidden(true);
 
-            // 안전 해제 시간을 남은 연출 길이에 맞춘다. 고정값(Player.maxCutsceneDuration=12초)은 20~30초
-            // 연출보다 짧아 도중에 입력이 풀리고 경고가 떴다 — 남은 길이 + 여유로 넘겨 연출을 다 덮는다.
+            // 남은 연출 길이를 예정 종료 시점으로 넘긴다. 종료 신호를 놓치면 Player가 그 시점 + 5초에 스스로 입력을 푼다.
+            // (고정값 Player.maxCutsceneDuration=12초는 20~30초 연출보다 짧아 도중에 입력이 풀리던 문제가 있었다.)
             // ★ 멀티에선 PlayerManager.Player가 숨겨진 마을 캐릭터라, 조작 중인 아바타(LocalPlayer.Current)에 건다.
             if (lockPlayerInput)
             {
                 cutscenePlayer = LocalPlayer.Current;
-                if (cutscenePlayer != null) cutscenePlayer.BeginCutscene((float)remaining + cutsceneSafetyMargin);
+                if (cutscenePlayer != null) cutscenePlayer.BeginCutscene((float)remaining);
+            }
+
+            // 페이즈 전환 연출은 조작이 잠긴 채 보스 옆에 서 있으므로 무적을 건다(등장 연출에는 걸지 않는다).
+            // 입력 잠금 여부와 무관하게 이 화면의 조작 캐릭터에 건다. 푸는 것은 Finish, 못 잡으면 예정 종료 + 5초에 만료.
+            if (role == DirectorRole.PhaseTransition)
+            {
+                invinciblePlayer = LocalPlayer.Current;
+                if (invinciblePlayer != null && invinciblePlayer.Stats != null)
+                    invinciblePlayer.Stats.SetCutsceneInvincible((float)remaining + CutsceneEndGrace);
             }
 
             // 컷신 잠금이 걸린 뒤에 대기 잠금을 푼다 — 순서가 반대면 그 사이 한 프레임 조작이 샌다.
@@ -608,6 +630,12 @@ namespace ProjectS.Scenes
             {
                 cutscenePlayer.EndCutscene();
                 cutscenePlayer = null;
+            }
+
+            if (invinciblePlayer != null)
+            {
+                if (invinciblePlayer.Stats != null) invinciblePlayer.Stats.ClearCutsceneInvincible();
+                invinciblePlayer = null;
             }
 
             // 시작에서 껐던 UI를 되살린다. 디렉터 오브젝트는 안 꺼지므로 이 경로가 확실히 돈다

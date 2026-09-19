@@ -9,7 +9,15 @@ namespace ProjectS.Data
     public class MonsterStatTable : IDataRow
     {
         public int MonsterId;
+
+        /// <summary>내부 식별 키(예: MON_D1_NORMAL_BOSS). 표시용이 아니다 — 다국어가 필요해지면 번역 테이블의 키로 쓴다.</summary>
         public string NameKey;
+
+        /// <summary>
+        /// 화면에 보여 줄 이름(예: 보스 HP 바). ItemData의 Name처럼 표시 문자열을 테이블에 직접 둔다.
+        /// 비어 있으면 표시측이 NameKey → 오브젝트 이름 순으로 폴백하므로, 행을 하나씩 채워 가도 깨지지 않는다.
+        /// </summary>
+        public string Name;
         public int DungeonId;
 
         /// <summary>난이도. 1=노말, 2=하드, 3=매니악.</summary>

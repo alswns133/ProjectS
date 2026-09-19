@@ -178,9 +178,13 @@ namespace ProjectS.Enemies
         public void PlayHitAir() => animator.Play(HitAirState, 0, 0f);
 
         /// <summary>
-        /// 지상 사망 트리거
+        /// 지상 사망 트리거. 네트워크 보스면 관찰자 클라에도 같은 사망 모션을 재생시킨다(<see cref="RelayDie"/>).
         /// </summary>
-        public void PlayDie() => animator.Play(DieState, 0, 0f);
+        public void PlayDie()
+        {
+            animator.Play(DieState, 0, 0f);
+            RelayDie(false);
+        }
 
         /// <summary>
         /// 공중 사망 트리거
@@ -227,9 +231,38 @@ namespace ProjectS.Enemies
         /// </summary>
         public void PlayDieAirContinuing()
         {
+            PlayDieAirFromCurrent();
+            RelayDie(true);
+        }
+
+        /// <summary>
+        /// 서버가 재생한 사망 모션을 관찰자 클라 애니메이터에 재생한다. <see cref="BossNetSync"/>가 서버 지시를 받아 부른다.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="PlayDie"/>를 그대로 부르지 않는 이유: 그쪽은 다시 릴레이를 시도한다(<see cref="ApplyNetworkTrigger"/>와 같은 분리).
+        /// 공중 사망은 이 화면의 현재 공중 피격 진행도에서 이어받는다 — 관찰자도 같은 Hit_Air를 재생 중이라 궤적이 거의 맞는다.
+        /// </remarks>
+        /// <param name="airborne">공중 사망(Die_Air)인지.</param>
+        public void ApplyNetworkDie(bool airborne)
+        {
+            if (airborne) PlayDieAirFromCurrent();
+            else animator.Play(DieState, 0, 0f);
+        }
+
+        // 지금 재생 중인 클립의 진행도를 이어받아 Die_Air로 들어간다(PlayDieAirContinuing과 관찰자 재생이 공유).
+        private void PlayDieAirFromCurrent()
+        {
             float t = animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
             t -= Mathf.Floor(t);
             animator.Play(DieAirState, 0, t);
+        }
+
+        // ★ 사망은 트리거가 아니라 State 직접 재생이라 RelayTrigger에 태우지 않는다. 서버만 도는 DeadState가 재생하므로
+        //   따로 보내지 않으면 관찰자 클라의 보스는 HP 0이 돼도 선 채로 남는다(2026-09-18 "멀티 2페이즈가 안 쓰러짐").
+        //   싱글(로컬 스폰)·잡몹은 netSync가 없거나 서버가 아니라 아무 일도 안 한다.
+        private void RelayDie(bool airborne)
+        {
+            if (netSync != null) netSync.RelayDie(airborne);
         }
 
         /// <summary>

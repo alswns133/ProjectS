@@ -73,6 +73,21 @@ namespace ProjectS.Effects
         }
 
         /// <summary>
+        /// 씬에 컨트롤러가 있으면 그걸로, 없으면 지금 활성 씬에 기본값으로 하나 만들어 슬로우모션을 재생한다.
+        /// 보스 사망처럼 "어느 씬이든 걸려야 하는" 호출부가 쓴다.
+        /// </summary>
+        /// <remarks>
+        /// 컨트롤러가 Dungeon1에만 배치돼 있어 Dungeon2·Raid 보스는 <c>Instance?.Play()</c>가 조용히 무시됐다(2026-09-18).
+        /// 씬마다 손으로 배치하는 대신 없으면 만든다. 값을 씬별로 조정하고 싶으면 그 씬에 직접 배치하면 그쪽이 쓰인다.
+        /// 만든 오브젝트는 활성 씬에 속해 씬과 함께 사라지고, 사라질 때 <see cref="OnDisable"/>이 시간을 원복한다.
+        /// </remarks>
+        public static void PlayOrCreate()
+        {
+            if (Instance == null) new GameObject(nameof(SlowMotionController)).AddComponent<SlowMotionController>();
+            Instance.Play();
+        }
+
+        /// <summary>
         /// 슬로우모션을 처음부터 재생한다. 이미 재생 중이면 다시 처음부터 돈다.
         /// 보스 사망 등 강조하고 싶은 순간에 호출한다.
         /// </summary>

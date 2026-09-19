@@ -130,12 +130,14 @@ namespace ProjectS.Players
 
         // ── 컷신(보스 등장 등) 입력 잠금 ──────────────────────────────────
         [Header("컷신(보스 등장 등)")]
-        // 컷신 종료 신호(EndCutscene)를 놓쳐도 이 시간이 지나면 입력이 스스로 풀린다.
-        // "연출이 끝났는데도 조작이 안 돌아오는" 최악(신호 누락)을 막는 안전장치다.
-        // 이 값은 연출 길이를 모르는 호출(무인자 BeginCutscene)의 하한(=최소 안전 시간)이다.
-        // 실제 안전 시간은 BeginCutscene(safetyDuration)로 타임라인 길이를 넘기면 그 값으로 늘어난다
-        // (BossIntroDirector가 director.duration + 여유를 넘겨, 20~30초 연출에도 중간에 안 풀리게 한다).
+        // 연출 길이를 모르는 호출(무인자 BeginCutscene)이 쓰는 예정 길이. 길이를 아는 호출부(BossIntroDirector)는
+        // BeginCutscene(expectedDuration)로 실제 남은 연출 길이를 넘긴다.
         [SerializeField, Min(0f)] private float maxCutsceneDuration = 12f;
+
+        // 안전장치: 연출이 끝났어야 할 시점(예정 길이)에 종료 신호(EndCutscene)를 못 잡았으면 그로부터 이만큼 뒤에
+        // 입력을 스스로 되살린다. "연출이 끝났는데도 조작이 안 돌아오는" 최악(신호 누락)을 막는다.
+        // 연출 전체 길이를 여유에 섞지 않고 "종료를 놓친 시점 기준"으로 세기 위해 예정 길이와 따로 둔다.
+        private const float CutsceneEndGrace = 5f;
 
         // 마우스 시점 조작까지 함께 얼릴 카메라(선택). 연결하면 컷신 동안 마우스가 회전을 쌓지 못하게 막아
         // 연출이 끝나 평소 카메라로 돌아올 때 화면이 홱 도는 것을 방지한다. 비워 두면 키 입력만 막는다.
@@ -145,9 +147,9 @@ namespace ProjectS.Players
         // 여기서는 상태 플래그와 안전 타이머만 들고 있는다.
         private bool inCutscene;
         private float cutsceneTimer;
-        // 이번 컷신의 실제 안전 해제 시간. BeginCutscene에서 정해진다(무인자=maxCutsceneDuration,
-        // 인자형=연출 길이 기준). Update의 안전 타이머가 이 값과 비교한다.
-        private float cutsceneSafetyLimit;
+        // 이번 컷신의 예정 길이(초). BeginCutscene에서 정해진다(무인자=maxCutsceneDuration, 인자형=넘겨받은 남은 길이).
+        // Update의 안전 타이머는 이 시점을 지나고 CutsceneEndGrace가 더 흐르면 입력을 되살린다.
+        private float cutsceneExpectedDuration;
 
         /// <summary>보스 등장 연출 등으로 전체 입력이 잠긴 컷신 중인지 여부.</summary>
         public bool InCutscene => inCutscene;
@@ -306,22 +308,21 @@ namespace ProjectS.Players
         ///
         /// 씬의 등장 Timeline이 <b>시작 시점</b>에 이 메서드를(Signal/UnityEvent 등으로) 호출하고,
         /// <b>종료 시점</b>에 <see cref="EndCutscene"/>를 호출하도록 배선한다. 종료 신호를 놓쳐도
-        /// <see cref="maxCutsceneDuration"/> 뒤 <see cref="Update"/>의 안전 타이머가 스스로 입력을 되살린다.
+        /// 예정 길이(<see cref="maxCutsceneDuration"/>)가 지난 뒤 5초 안에 <see cref="Update"/>의 안전 타이머가 입력을 되살린다.
         /// 이미 컷신 중에 다시 호출하면 안전 타이머만 리셋한다(연출이 이어질 때 대비).
-        /// 연출 길이를 아는 호출부(<see cref="BeginCutscene(float)"/>)는 그 길이를 넘겨 안전 시간을 맞춘다.
+        /// 연출 길이를 아는 호출부는 <see cref="BeginCutscene(float)"/>로 그 길이를 넘긴다.
         /// </summary>
         public void BeginCutscene() => BeginCutscene(maxCutsceneDuration);
 
         /// <summary>
-        /// 컷신 시작(안전 해제 시간 지정형). <paramref name="safetyDuration"/>은 종료 신호를 놓쳤을 때
-        /// 입력을 강제로 되살리기까지의 시간이다. 연출보다 짧으면 도중에 입력이 풀리므로
-        /// (실제 20~30초 연출에서 기본 12초가 중간에 터지던 문제) 호출부가 타임라인 길이 + 여유를 넘긴다.
-        /// <see cref="maxCutsceneDuration"/>을 하한으로 둬, 너무 짧은 값이 와도 최소 안전 시간은 보장한다.
+        /// 컷신 시작(예정 길이 지정형). 종료 신호를 놓치면 <paramref name="expectedDuration"/>이 지난 시점부터
+        /// 5초(<see cref="CutsceneEndGrace"/>) 뒤에 입력을 강제로 되살린다.
+        /// 여유를 호출부가 길이에 섞어 넘기지 않는다 — "종료를 놓친 시점 기준 5초"가 연출 길이와 무관하게 유지되게 하기 위함이다.
         /// </summary>
-        /// <param name="safetyDuration">이번 컷신의 안전 해제 시간(초). 보통 타임라인 길이 + 여유.</param>
-        public void BeginCutscene(float safetyDuration)
+        /// <param name="expectedDuration">이번 컷신이 끝날 예정 시간(초). 보통 남은 타임라인 길이.</param>
+        public void BeginCutscene(float expectedDuration)
         {
-            cutsceneSafetyLimit = Mathf.Max(maxCutsceneDuration, safetyDuration);
+            cutsceneExpectedDuration = Mathf.Max(0f, expectedDuration);
             cutsceneTimer = 0f;   // (재)호출마다 안전 타이머를 처음부터 다시 센다
             if (inCutscene) return;
 
@@ -454,10 +455,10 @@ namespace ProjectS.Players
             if (inCutscene)
             {
                 cutsceneTimer += Time.unscaledDeltaTime;
-                if (cutsceneTimer >= cutsceneSafetyLimit)
+                if (cutsceneTimer >= cutsceneExpectedDuration + CutsceneEndGrace)
                 {
-                    Debug.LogWarning($"[Player] 컷신 종료 신호(EndCutscene)를 {cutsceneSafetyLimit}초 안에 못 받아 " +
-                                     "안전장치로 입력을 되살립니다. 등장 Timeline의 종료 신호 배선/길이를 확인하세요.", this);
+                    Debug.LogWarning($"[Player] 컷신 예정 종료({cutsceneExpectedDuration:0.00}초) 후 {CutsceneEndGrace:0}초 동안 " +
+                                     "종료 신호(EndCutscene)가 없어 안전장치로 입력을 되살립니다. 등장 Timeline의 종료 신호 배선/길이를 확인하세요.", this);
                     EndCutscene();
                 }
             }
