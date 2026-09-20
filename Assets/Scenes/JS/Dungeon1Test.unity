@@ -20461,6 +20461,71 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7210471230131241780, guid: 85d273f05a6c60e439cbd3c255a7a3c2, type: 3}
   m_PrefabInstance: {fileID: 270376276}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &271676684
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2450288825128707988, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_Name
+      value: Erwin
+      objectReference: {fileID: 0}
+    - target: {fileID: 7282388895643247345, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.9000001
+      objectReference: {fileID: 0}
+    - target: {fileID: 7282388895643247345, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -9.773254
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 144.88
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 5.091
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -87.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8837448458259254446, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 8319ae058bc16fb469e009fa9ff4b583, type: 3}
 --- !u!1001 &272643925
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -26388,7 +26453,7 @@ Transform:
   m_GameObject: {fileID: 343343578}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 144.88, y: 6.991, z: -92.91523}
+  m_LocalPosition: {x: 144.88, y: 6.991, z: -97.37325}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -51956,6 +52021,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -65876,23 +65942,32 @@ MonoBehaviour:
   prewarm: []
   source: 0
   defaultPrefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+  defaultOriented: 0
   effects:
   - key: Attack1
     prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+    oriented: 0
   - key: Attack2
     prefab: {fileID: 6708302881962103724, guid: 41ae6ff099e27684a99b1fd6d23941c7, type: 3}
+    oriented: 0
   - key: Attack3
     prefab: {fileID: 6294996035555364578, guid: 6338021fcfb16ed4080f35e8a2419541, type: 3}
+    oriented: 0
   - key: Run_Attack
     prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+    oriented: 0
   - key: Strong_Attack
     prefab: {fileID: 7620426476709372169, guid: 7fb10e284ee039944a10e5ed898761a4, type: 3}
+    oriented: 0
   - key: Jump_Attack_1
     prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+    oriented: 0
   - key: Jump_Attack_2
     prefab: {fileID: -5827739164191890754, guid: ab80be6143d129b4682122a9768a151d, type: 3}
+    oriented: 0
   - key: Skill4_2
     prefab: {fileID: 2099648373660246879, guid: b192b6cb389965b4aa59515ecb23727e, type: 3}
+    oriented: 0
 --- !u!4 &807700784
 Transform:
   m_ObjectHideFlags: 0
@@ -65923,6 +65998,7 @@ MonoBehaviour:
   prewarm: []
   source: 1
   defaultPrefab: {fileID: -1087211750404857369, guid: 49a5c1d24ccf3c64793c91afbd524f4b, type: 3}
+  defaultOriented: 0
   effects: []
 --- !u!1001 &807978660
 PrefabInstance:
@@ -72985,6 +73061,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -76673,7 +76750,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3386925869625297108, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -5.3152313
+      value: -9.773254
       objectReference: {fileID: 0}
     - target: {fileID: 3591862489331098153, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.x
@@ -76759,13 +76836,29 @@ PrefabInstance:
       propertyPath: m_LocalRotation.z
       value: 0.21891734
       objectReference: {fileID: 0}
+    - target: {fileID: 4623132580661887346, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6444419969119536879, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_Name
       value: Haru
       objectReference: {fileID: 0}
+    - target: {fileID: 6444419969119536879, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6670386625189186592, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6953480705040815348, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: speedLinesParticle
       value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7479418671688176349, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
+      propertyPath: m_Enabled
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7482124753549407708, guid: 409b397e95e1ba6438ed3bb994cfa34a, type: 3}
       propertyPath: m_LocalPosition.x
@@ -93844,6 +93937,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 033e51fcffa4be64aa2f7577d0c67fba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemySpawner
+  spawnNavMeshSampleRadius: 5
 --- !u!4 &1109365564
 Transform:
   m_ObjectHideFlags: 0
@@ -112092,6 +112186,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -122662,7 +122757,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 1
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 493362bea55d243419f00bc1203a9600, type: 2}
   m_BuildHeightMesh: 0
@@ -167906,6 +168001,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -170456,6 +170552,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -177782,6 +177879,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -179346,6 +179444,40 @@ MonoBehaviour:
   - {fileID: 1309024906}
   - {fileID: 2009000977}
   warningIcon: {fileID: 0}
+  sparkFlares: []
+  sparkInterval: 0.12
+  sparkSeconds: 0.08
+  sparkRandomAngle: 15
+  sparkSpinDegrees: 45
+  warningFlare: {fileID: 0}
+  flareSeconds: 0.01
+  warningDelayAfterFlare: 0.02
+  flareStartScale: 0.8
+  flareEndScale: 1
+  flareScaleCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 2.6
+      outSlope: 2.6
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   warningFadeIn: 1
   fastBlinkCount: 2
   fastBlinkOnSeconds: 0.05
@@ -179378,17 +179510,13 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  slamTriggerRatio: 1
-  iconPopScale: 2
-  iconPopDuration: 0.08
-  sparkBurst: {fileID: 0}
-  slamExtraDelay: 1.15
-  bossRoot: {fileID: 1549697459}
-  bossNameText: {fileID: 0}
-  slamStartScale: 2
-  slamDropDistance: 260
-  slamDuration: 0.05
-  slamCurve:
+  morphTriggerRatio: 1
+  morphExtraDelay: 1.15
+  iconBuildUpScale: 1.3
+  iconShakeStart: 0
+  iconShakeEnd: 8
+  iconBuildUpGlitch: 0.45
+  iconBuildUpCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
@@ -179403,8 +179531,8 @@ MonoBehaviour:
     - serializedVersion: 3
       time: 1
       value: 1
-      inSlope: 3.2
-      outSlope: 3.2
+      inSlope: 2.2
+      outSlope: 2.2
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
@@ -179412,9 +179540,120 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  impactHoldSeconds: 0.04
-  impactShakeStrength: 70
-  impactShakeDuration: 0.15
+  warpSeconds: 0.07
+  warpStretch: 2.2
+  warpSquash: 0.25
+  warpJitter: 24
+  warpCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 3
+      outSlope: 3
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  warpGlitch: 1
+  sparkBurst: {fileID: 0}
+  bossRoot: {fileID: 1549697459}
+  bossNameText: {fileID: 0}
+  revealSeconds: 0.22
+  revealCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 3
+      outSlope: 3
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  textCharJitter: 18
+  textGlitchPeak: 1
+  textGlitchSettled: 0.1
+  textGlitchSettleSeconds: 0.6
+  textGlitchCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  textGlitchLook: {fileID: 0}
+  bossLabelText: {fileID: 0}
+  textGrowScale: 1.15
+  textShakeStart: 1.5
+  textShakeEnd: 4
+  textGrowCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   holdSeconds: 1.5
   ashDissolve: {fileID: 1549697460}
   fadeOutSeconds: 0.5
@@ -192277,6 +192516,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -192597,6 +192837,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -192641,6 +192882,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -192698,6 +192940,7 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  isEndBoss: 0
   count: 1
   gizmoColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   spawnEffects:
@@ -192715,7 +192958,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6ef7084cd98204da050738713fc7f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyRoom
-  spawnPoints: []
+  entranceDoors: []
+  exitDoors: []
+  roomIndex: 0
 --- !u!1001 &6640976014720243886
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -193011,6 +193256,7 @@ SceneRoots:
   - {fileID: 318229773}
   - {fileID: 2108457181}
   - {fileID: 942036033}
+  - {fileID: 271676684}
   - {fileID: 1345941773}
   - {fileID: 1406539370}
   - {fileID: 1429629299}
