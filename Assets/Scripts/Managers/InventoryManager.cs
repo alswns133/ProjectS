@@ -514,7 +514,17 @@ namespace ProjectS.Managers
             if (slot == EquipSlot.None) return false;
 
             // 무기는 직업 제한: 검사=검, 거너=총.
-            if (slot == EquipSlot.Weapon && !CanUseWeapon(instance.Equipment.WeaponType)) return false;
+            if (slot == EquipSlot.Weapon && !CanUseWeapon(instance.Equipment.WeaponType))
+            {
+                UIEvents.FireToast("직업에 맞지 않는 무기입니다.");
+                return false;
+            }
+
+            if (!MeetsLevelRequirement(instance))
+            {
+                UIEvents.FireToast("착용 레벨이 높아 착용할 수 없습니다.");
+                return false;
+            }
 
             // 가방에서 빼고(착용은 격자를 차지하지 않음), 기존 착용분이 있으면 가방으로 되돌린다.
             RemoveFromGrid(equipGrid, instance);
@@ -548,11 +558,13 @@ namespace ProjectS.Managers
         {
             if (!equipped.TryGetValue(slot, out EquipmentInstance instance) || instance == null) return false;
 
-            // 대상 셀에 이 부위로 착용 가능한 장비가 있으면 맞바꾼다(무기는 직업 제한도 만족해야 함).
+            // 대상 셀에 이 부위로 착용 가능한 장비가 있으면 맞바꾼다(무기 직업 제한·착용 레벨도 만족해야 함).
+            // 이 분기는 Equip()을 거치지 않으므로, 여기서 같은 조건을 걸지 않으면 드래그 스왑으로 제한을 우회할 수 있다.
             EquipmentInstance target = GetEquipmentAt(targetIndex);
             bool canSwap = target?.Equipment != null
                 && target.Equipment.EquipSlot == slot
-                && (slot != EquipSlot.Weapon || CanUseWeapon(target.Equipment.WeaponType));
+                && (slot != EquipSlot.Weapon || CanUseWeapon(target.Equipment.WeaponType))
+                && MeetsLevelRequirement(target);
 
             if (canSwap)
             {
@@ -589,6 +601,16 @@ namespace ProjectS.Managers
             if (charType == 1) return weapon == WeaponType.Sword;
             if (charType == 2) return weapon == WeaponType.Gun;
             return true;
+        }
+
+        // 착용 레벨 제한 판정의 단일 출처: Equip과 Unequip 스왑이 같은 규칙을 쓰게 한다(CanUseWeapon과 같은 결).
+        // 플레이어가 아직 없으면(스폰 전 복원 등) 막지 않는다 — 판정할 기준 레벨이 없는데 막으면 복원이 깨진다.
+        private static bool MeetsLevelRequirement(EquipmentInstance instance)
+        {
+            Player player = LocalPlayer.Current;   // 멀티 레이드에선 숨겨진 마을 캐릭터가 아니라 조작 중인 아바타
+            if (player == null || instance?.Item == null) return true;
+
+            return instance.Item.Level <= player.Stats.Level;
         }
 
         // 착용 장비 전체를 합산해 플레이어 스탯에 반영한다. 착용/해제(publish:true)와 복원·리프레시(publish:false)에서 호출.
@@ -630,14 +652,21 @@ namespace ProjectS.Managers
 
             int itemId = stack.Item.Index;
             if (consumableCooldowns.TryGetValue(itemId, out float readyAt) && Time.time < readyAt)
+            {
+                UIEvents.FireToast("쿨타임입니다.");
                 return false;   // 아직 쿨다운
+            }
 
             Player player = LocalPlayer.Current;   // 멀티 레이드에선 숨겨진 마을 캐릭터가 아니라 조작 중인 아바타
             if (player == null) return false;
 
             if (player.Stats.IsDead) return false; // 죽은 상태 → 사용 안 함
 
-            if (player.Stats.CurrentHp == player.Stats.MaxHp) return false;   // 체력 만땅 → 사용 안 함
+            if (player.Stats.CurrentHp == player.Stats.MaxHp)
+            {
+                UIEvents.FireToast("더 이상 회복할 체력이 없습니다.");
+                return false;   // 체력 만땅 → 사용 안 함
+            }
 
             ConsumableData data = stack.Consumable;
             if (data.DurationSec > 0f)

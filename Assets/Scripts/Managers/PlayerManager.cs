@@ -38,6 +38,14 @@ namespace ProjectS.Managers
         public Player Player { get; private set; }
 
         /// <summary>
+        /// 캐릭터 프리팹·UI 아트의 단일 출처. 장비창·대화창·HUD가 캐릭터별 일러스트·심볼을 여기서 꺼낸다
+        /// (<see cref="CharacterRoster.GetIllust"/> / <see cref="CharacterRoster.GetSymbol"/>).
+        /// UI마다 스프라이트를 따로 박지 않게 하려는 경로다 — 그림을 바꿀 곳이 로스터 에셋 한 군데로 모인다.
+        /// 부트스트랩 전이거나 인스펙터에 로스터가 안 꽂혔으면 null이다.
+        /// </summary>
+        public CharacterRoster Roster => roster;
+
+        /// <summary>
         /// 현재 캐릭터 타입 ID(검사=1/거너=2). 살아있는 플레이어의 CharacterId를 우선하고,
         /// 스폰 전이거나 플레이어가 없으면 선택 세션(GameSession) 값으로 폴백한다.
         /// HUD 직업 심볼·장비창 심볼처럼 "지금 이 캐릭터가 누구냐"가 필요한 UI의 단일 출처.
@@ -96,9 +104,9 @@ namespace ProjectS.Managers
         // 하드코딩 없이 각 프리팹의 PlayerStats.CharacterId로 찾는다(새 직업 = 프리팹만 추가하면 됨).
         private Player ResolveSelectedPrefab()
         {
-            if (roster == null /*|| roster.Length == 0*/)
+            if (roster == null || roster.Count == 0)
             {
-                Debug.LogError("[PlayerManager] characterPrefabs가 비어 있어 플레이어를 생성할 수 없습니다.", this);
+                Debug.LogError("[PlayerManager] CharacterRoster가 비어 있어 플레이어를 생성할 수 없습니다. 로스터 에셋의 Characters를 채우세요.", this);
                 return null;
             }
 
