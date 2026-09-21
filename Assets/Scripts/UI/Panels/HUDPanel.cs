@@ -5,6 +5,8 @@ using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ProjectS.UI.Framework;
 using ProjectS.Items;
+using ProjectS.Managers;
+using ProjectS.Players;
 
 namespace ProjectS.UI
 {
@@ -211,13 +213,18 @@ namespace ProjectS.UI
             EndHitComboPunch();
         }
 
-        public async void SetSymbol(int charId)
+        /// <summary>
+        /// 직업 심볼을 캐릭터 타입에 맞춰 바꾼다. HudPresenter가 씬 진입·스탯 리프레시 때 호출한다.
+        /// 그림은 <see cref="PlayerManager.Roster"/>에서 꺼낸다 — 상주 UI라 어드레서블 비동기 로드가 필요 없다.
+        /// </summary>
+        /// <param name="charId">캐릭터 타입(1=검사, 2=거너 …)</param>
+        public void SetSymbol(int charId)
         {
             if (classSymbol == null) return;
 
-            Sprite s = await ItemIconLoader.LoadAsync($"Char_Symbol_{charId}");
+            CharacterRoster roster = PlayerManager.Instance != null ? PlayerManager.Instance.Roster : null;
+            Sprite s = roster != null ? roster.GetSymbol(charId) : null;
 
-            if (this == null || classSymbol == null) return;
             classSymbol.sprite = s;
             classSymbol.enabled = s != null;
         }

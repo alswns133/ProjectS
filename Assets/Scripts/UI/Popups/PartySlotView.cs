@@ -1,3 +1,4 @@
+﻿using ProjectS.Managers;
 using System;
 using TMPro;
 using UnityEngine;
@@ -54,8 +55,7 @@ namespace ProjectS.UI
         [SerializeField] private TMP_Text nameText;
 
         [Header("③ 클래스 아이콘")]
-        [Tooltip("인덱스는 CharacterSaveData.characterType과 같고, 해당하는 하나만 켠다.")]
-        [SerializeField] private GameObject[] classIcons;
+        [SerializeField] private Image classIcons;
 
         [Header("④ 파티장 아이콘")]
         [Tooltip("파티장임을 나타내는 유일한 표식. 초대한 쪽이 파티장이며, 파티가 유지되는 동안 바뀌지 않는다.")]
@@ -63,7 +63,7 @@ namespace ProjectS.UI
 
         [Header("⑤ 초상화")]
         [SerializeField] private Image portraitImage;
-        [Tooltip("클래스별 초상화. 인덱스는 classIcons와 같은 characterType이다.")]
+        [Tooltip("클래스별 초상화. 인덱스 순서는 classIcons와 같다(0번=검사, 1번=거너).")]
         [SerializeField] private Sprite[] portraitsByClass;
 
         [Header("⑥ 바이탈 그래프")]
@@ -124,23 +124,33 @@ namespace ProjectS.UI
         // 엉뚱한 직업을 보여주지 않는다(빈 자리가 틀린 정보보다 낫다).
         private void ApplyClass(int characterType)
         {
-            if (classIcons != null)
-            {
-                for (int i = 0; i < classIcons.Length; i++)
-                {
-                    if (classIcons[i] != null) classIcons[i].SetActive(i == characterType);
-                }
-            }
+            // characterType은 1부터 시작(1=검사·2=거너)하므로 배열 인덱스와 맞추려면 -1 한다.
+            // 아이콘과 초상화가 같은 index를 쓰게 한곳에서 계산한다 — 둘이 갈리면 아이콘과 얼굴이 어긋난다.
+            //int index = characterType - 1;
 
-            if (portraitImage == null) return;
+            //if (classIcons != null)
+            //{
+            //    for (int i = 0; i < classIcons.Length; i++)
+            //    {
+            //        if (classIcons[i] != null) classIcons[i].SetActive(i == index);
+            //    }
+            //}
 
-            bool hasPortrait = portraitsByClass != null
-                            && characterType >= 0
-                            && characterType < portraitsByClass.Length
-                            && portraitsByClass[characterType] != null;
+            //if (portraitImage == null) return;
 
-            portraitImage.sprite = hasPortrait ? portraitsByClass[characterType] : null;
-            portraitImage.enabled = hasPortrait;
+            //bool hasPortrait = portraitsByClass != null
+            //                && index >= 0
+            //                && index < portraitsByClass.Length
+            //                && portraitsByClass[index] != null;
+
+            //portraitImage.sprite = hasPortrait ? portraitsByClass[index] : null;
+            //portraitImage.enabled = hasPortrait;
+
+            if (PlayerManager.Instance == null) return;
+            if (PlayerManager.Instance.Roster == null) return;
+
+            if (portraitImage != null) portraitImage.sprite = PlayerManager.Instance.Roster.GetIllust(characterType);
+            if (classIcons != null) classIcons.sprite = PlayerManager.Instance.Roster.GetSymbol(characterType);
         }
 
         private void HandleClicked() => OnClicked?.Invoke();

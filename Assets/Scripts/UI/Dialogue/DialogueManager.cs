@@ -69,7 +69,7 @@ namespace ProjectS.UI
 
         [Header("플레이어 (임시 기본값 — 나중에 세이브 캐릭터로 교체)")]
         [SerializeField] private string playerName = "나";
-        [SerializeField] private Sprite playerPortrait;
+        // 초상화는 여기에 두지 않는다 — CharacterRoster(PlayerManager.Roster)의 캐릭터 일러스트를 쓴다.
 
         [Header("입력 키")]
         [SerializeField] private InputAction nextAction = new InputAction("DialogueNext", InputActionType.Button, "<Keyboard>/space");
@@ -324,7 +324,7 @@ namespace ProjectS.UI
             {
                 // 왼쪽(플레이어)만 표시.
                 ShowName(leftNameText, playerName);
-                SetPortrait(leftPortrait, playerPortrait);
+                SetPortrait(leftPortrait, GetPlayerPortrait());
                 HideName(rightNameText);
                 HidePortrait(rightPortrait);
             }
@@ -346,6 +346,17 @@ namespace ProjectS.UI
                 HideName(leftNameText);
                 HidePortrait(leftPortrait);
             }
+        }
+
+        // 플레이어 초상화는 CharacterRoster의 캐릭터 일러스트를 그대로 쓴다. 씬마다 스프라이트를 박아 두면
+        // 캐릭터가 늘 때 빠뜨릴 씬이 계속 생기기 때문이다(실제로 대화 씬 5개 중 1개만 최신이었다).
+        // 로스터나 PlayerManager가 없으면(대화 씬 단독 재생 등) null을 돌려 SetPortrait가 초상화를 숨긴다.
+        private static Sprite GetPlayerPortrait()
+        {
+            PlayerManager manager = PlayerManager.Instance;
+            if (manager == null || manager.Roster == null) return null;
+
+            return manager.Roster.GetIllust(manager.CurrentCharacterId);
         }
 
         // 이름표를 값과 함께 켠다.
