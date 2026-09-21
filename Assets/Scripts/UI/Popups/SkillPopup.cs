@@ -1,11 +1,13 @@
+﻿using ProjectS.Debugging;
+using ProjectS.Items;
+using ProjectS.Managers;
+using ProjectS.Skills;
+using ProjectS.UI.Framework;
 using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using ProjectS.Items;
-using ProjectS.Skills;
-using ProjectS.UI.Framework;
 
 namespace ProjectS.UI
 {
@@ -31,6 +33,7 @@ namespace ProjectS.UI
         [SerializeField] private GameObject previewMediaRoot;
         [Tooltip("스킬 소개 영상/이미지 자리. 영상 재생은 후속 작업 — 지금은 아이콘 스프라이트만 띄운다.")]
         [SerializeField] private Image previewImage;
+        [SerializeField] private GameObject[] previewIcon;
         [SerializeField] private TMP_Text previewNameText;
         [SerializeField] private TMP_Text previewDescriptionText;
 
@@ -89,6 +92,29 @@ namespace ProjectS.UI
             // 팝업은 재사용되므로 직전 프리뷰가 남지 않게 비우고, Presenter에 새 세션을 알린다.
             ClearPreview();
             OnOpened?.Invoke();
+
+            SetPreviewIcon(PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0);
+        }
+
+        // 캐릭터 타입(1=검사·2=거너)에 맞는 프리뷰 아이콘 하나만 켠다.
+        // 아이콘 등록이 모자라면 조용히 전부 꺼지는 대신 경고를 남긴다 — 원인을 못 찾고 헤매기 쉬운 증상이라서다.
+        private void SetPreviewIcon(int characterType)
+        {
+            if (previewIcon == null || previewIcon.Length == 0) return;
+            if (characterType < 1) return; // 캐릭터 타입의 시작은 1부터 시작하므로 1보다 이하라면 리턴함
+
+            int index = characterType - 1;   // characterType은 1부터 시작하므로 인덱스와 맞춘다
+            if (index >= previewIcon.Length)
+            {
+                DevLog.Warning($"[SkillPopup] 프리뷰 아이콘이 {previewIcon.Length}개뿐인데 캐릭터 타입은 {characterType}입니다. 인스펙터에 아이콘을 추가하세요.", this);
+                return;
+            }
+
+            for (int i = 0; i < previewIcon.Length; i++)
+            {
+                if (previewIcon[i] != null)
+                    previewIcon[i].SetActive(i == index);
+            }
         }
 
         // 슬롯의 ▲/▼/hover 이벤트를 팝업 이벤트(스킬 식별자 인자)로 중계한다.
