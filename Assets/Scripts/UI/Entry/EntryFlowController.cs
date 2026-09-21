@@ -44,6 +44,10 @@ namespace ProjectS.UI
         [Tooltip("슬롯 선택 시 해당 characterType 모델만 켜고 나머지는 끈다. 리그(카메라→RT)는 씬에 이미 있다.")]
         [SerializeField] private ClassModel[] classModels;
 
+        [Header("캐릭터 아트")]
+        [Tooltip("슬롯 초상화를 꺼내 쓰는 캐릭터 로스터(Assets/CharacterRoster). 비면 초상화 칸이 빈 채로 뜬다.")]
+        [SerializeField] private CharacterRoster characterRoster;
+
         [Header("시작 연출 (선택)")]
         [Tooltip("캐릭터 시작 시 로딩 전에 재생할 연출(카메라 회전 + 문 열림). 비우면 바로 로딩한다.")]
         [SerializeField] private CharacterStartTransition startTransition;
@@ -198,7 +202,7 @@ namespace ProjectS.UI
                 if (i < roster.Count)
                 {
                     CharacterSaveData c = roster[i];
-                    slots[i].SetCharacter(i, null, c.name, c.level, TypeName(c.characterType));
+                    slots[i].SetCharacter(i, GetPortrait(c.characterType), c.name, c.level, TypeName(c.characterType));
                 }
                 else
                 {
@@ -206,6 +210,12 @@ namespace ProjectS.UI
                 }
             }
         }
+
+        // 다른 UI(장비창·대화창)는 PlayerManager.Instance.Roster로 일러스트를 꺼내지만, 캐릭터 선택 씬에는
+        // PlayerManager가 없다(부트스트랩 전이라 아직 생성되지 않음). 그래서 이 화면만 로스터 에셋을
+        // 인스펙터로 직접 물린다. 빠지면 초상화가 null로 넘어가 CharacterSlotView가 초상화 칸을 꺼 버린다.
+        private Sprite GetPortrait(int characterType)
+            => characterRoster != null ? characterRoster.GetIllust(characterType) : null;
 
         private void HandleSelected(int index)
         {
