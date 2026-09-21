@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -25,6 +25,7 @@ namespace ProjectS.UI
         [SerializeField] private Button quitButton;
         [SerializeField] private Button optionButton;
         [SerializeField] private TMP_Text versionText;
+        [SerializeField] private Button logoutButton;
 
         /// <summary>슬롯 카드 목록. 인덱스가 곧 슬롯 번호다.</summary>
         public IReadOnlyList<CharacterSlotView> Slots => slots;
@@ -34,6 +35,9 @@ namespace ProjectS.UI
 
         /// <summary>환경설정 버튼.</summary>
         public Button OptionButton => optionButton;
+
+        /// <summary>로그아웃 버튼. 누르면 확인 후 로그인 씬으로 돌아간다(Esc 단축키 대신 쓰는 유일한 경로).</summary>
+        public Button LogoutButton => logoutButton;
 
         /// <summary>모델 프리뷰가 그려지는 RawImage. 페이지마다 rect가 달라 참조로 노출한다.</summary>
         public RawImage ModelViewport => modelViewport;
