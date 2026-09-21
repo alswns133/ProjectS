@@ -1,10 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using ProjectS.Cameras;
 using ProjectS.Data;
 using ProjectS.Managers;
+using ProjectS.Players;
 
 namespace ProjectS.UI
 {
@@ -35,13 +36,17 @@ namespace ProjectS.UI
         [Header("접속할 게임 씬 (Build Settings 등록 필요)")]
         [SerializeField] private string gameSceneName = "Bootstrap";
 
-        [Header("뒤로 (임시)")]
-        [Tooltip("TODO(임시): Esc → 로그아웃 후 이 로그인 씬으로. 정식 뒤로/로그아웃 UX가 정해지면 교체.")]
+        [Header("로그아웃")]
+        [Tooltip("로그아웃 버튼으로 돌아갈 로그인 씬(Esc 단축키는 실수 방지로 제거됨).")]
         [SerializeField] private string loginSceneName = "Login";
 
         [Header("프리뷰 모델 (클래스별, 씬에 배치된 GameObject)")]
         [Tooltip("슬롯 선택 시 해당 characterType 모델만 켜고 나머지는 끈다. 리그(카메라→RT)는 씬에 이미 있다.")]
         [SerializeField] private ClassModel[] classModels;
+
+        [Header("시작 연출 (선택)")]
+        [Tooltip("캐릭터 시작 시 로딩 전에 재생할 연출(카메라 회전 + 문 열림). 비우면 바로 로딩한다.")]
+        [SerializeField] private CharacterStartTransition startTransition;
 
         // characterType(검사=1/거너=2 …)과 씬에 놓인 프리뷰 모델을 짝짓는다. 클래스가 늘면 항목만 추가.
         [System.Serializable]
@@ -59,9 +64,39 @@ namespace ProjectS.UI
         // 클래스 선택 페이지와 이름 입력 페이지에 걸쳐 유지돼야 해서 필드로 둔다.
         private int pendingClassType;
 
+        // 프리뷰 모델은 실플레이 프리팹(Haru/Erwin)을 그대로 배치한 것이라 입력·이동·커서 잠금·시점 조작
+        // 스크립트가 전부 붙어 있다. 그대로 두면 모델이 켜지는 순간 WASD로 걸어다니고, Player.Start()가
+        // 커서를 잠가(Alt 토글로만 풀림) UI 클릭이 막힌다. 보여주기만 하면 되므로 조작 계열만 끈다.
+        // Awake에서 끄는 이유: 모든 Awake가 끝난 뒤 Start가 도므로, 여기서 끄면 Player.Start(커서 잠금)가
+        // 아예 실행되지 않는다. Animator·외형(천/헤어 등) 컴포넌트는 건드리지 않는다.
+        private void Awake()
+        {
+            if (classModels == null) return;
+
+            foreach (ClassModel entry in classModels)
+                if (entry.model != null) DisableGameplay(entry.model);
+        }
+
+        private static void DisableGameplay(GameObject model)
+        {
+            DisableAll<Player>(model);
+            DisableAll<PlayerInputHandler>(model);
+            DisableAll<PlayerMovement>(model);
+            DisableAll<PlayerCombat>(model);
+            DisableAll<CameraRig>(model);
+            DisableAll<CameraPivotController>(model);
+        }
+
+        private static void DisableAll<T>(GameObject root) where T : Behaviour
+        {
+            foreach (T component in root.GetComponentsInChildren<T>(true))
+                component.enabled = false;
+        }
+
         private void OnEnable()
         {
             selectPage.QuitButton.onClick.AddListener(HandleQuit);
+            if (selectPage.LogoutButton != null) selectPage.LogoutButton.onClick.AddListener(HandleLogoutRequested);
 
             foreach (CharacterSlotView slot in selectPage.Slots)
             {
@@ -88,6 +123,7 @@ namespace ProjectS.UI
         private void OnDisable()
         {
             selectPage.QuitButton.onClick.RemoveListener(HandleQuit);
+            if (selectPage.LogoutButton != null) selectPage.LogoutButton.onClick.RemoveListener(HandleLogoutRequested);
 
             foreach (CharacterSlotView slot in selectPage.Slots)
             {
@@ -173,6 +209,8 @@ namespace ProjectS.UI
 
         private void HandleSelected(int index)
         {
+            if (IsTransitionPlaying) return;   // 연출 중 다른 슬롯을 눌러 프리뷰 모델이 바뀌지 않게
+
             selectPage.SetSelectedIndex(index);
 
             if (index >= 0 && index < roster.Count) ShowModel(roster[index].characterType);
@@ -198,11 +236,18 @@ namespace ProjectS.UI
         private void HandleStart(int index)
         {
             if (index < 0 || index >= roster.Count) return;
+            if (IsTransitionPlaying) return;   // 연출 중 다른 슬롯 시작 클릭 무시
 
             // 선택한 세이브를 세션에 담고 게임 씬으로 접속. 이후 PlayerManager/PlayerStats가 여기만 읽는다.
             GameSession.SetSelectedCharacter(roster[index]);
-            SceneManager.LoadScene(gameSceneName);
+
+            if (startTransition != null) startTransition.Play(LoadGameScene);
+            else LoadGameScene();
         }
+
+        private void LoadGameScene() => SceneManager.LoadScene(gameSceneName);
+
+        private bool IsTransitionPlaying => startTransition != null && startTransition.IsPlaying;
 
         // ── 신규 생성 흐름 (선택 → 클래스 → 이름) ────────────────────
 
@@ -331,17 +376,23 @@ namespace ProjectS.UI
             else popupLayer.ShowAlert();
         }
 
-        // TODO(임시): Esc = 로그아웃하고 로그인 씬으로. 팝업이 열려 있으면 그쪽이 Esc(취소)를 먼저 먹으므로 넘긴다.
-        // 지금은 어느 페이지(선택/클래스/생성)에서든 바로 로그인으로 튄다 — 정식 뒤로가기/로그아웃 UX가
-        // 정해지면 이 임시 처리를 교체할 것.
-        private void Update()
+        // 로그아웃 버튼 클릭 → 확인 팝업. 실수로 로그인 씬에 튀는 일이 잦아 Esc 단축키를 없앴으므로,
+        // 버튼도 한 번 확인을 끼워 같은 사고를 막는다. 팝업 미배선(단독 테스트)이면 바로 로그아웃.
+        private void HandleLogoutRequested()
         {
-            if (popupLayer != null && popupLayer.IsAnyOpen) return;
+            if (IsTransitionPlaying) return;   // 시작 연출 중에는 로그아웃으로 끊지 않는다
 
-            Keyboard kb = Keyboard.current;
-            if (kb == null || !kb.escapeKey.wasPressedThisFrame) return;
+            if (popupLayer == null)
+            {
+                LogoutToLogin();
+                return;
+            }
 
-            LogoutToLogin();
+            popupLayer.ShowConfirm(
+                "로그아웃할까요?",
+                "로그인 화면으로 돌아갑니다.",
+                "로그아웃", "취소",
+                confirmed: LogoutToLogin);
         }
 
         private void LogoutToLogin()
