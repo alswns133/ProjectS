@@ -516,7 +516,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &2348876979069718773
 RectTransform:
   m_ObjectHideFlags: 0
@@ -533,7 +533,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 4.600006}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &9131943095822679103
@@ -654,7 +654,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &4326493536234515680
 RectTransform:
   m_ObjectHideFlags: 0
@@ -771,12 +771,12 @@ GameObject:
   - component: {fileID: 9058805658287295908}
   - component: {fileID: 373387359291563397}
   m_Layer: 0
-  m_Name: Portrait
+  m_Name: PortraitRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2723823130894349225
 RectTransform:
   m_ObjectHideFlags: 0
@@ -935,7 +935,7 @@ GameObject:
   - component: {fileID: 6424577781170822997}
   - component: {fileID: 2524230397993233032}
   m_Layer: 0
-  m_Name: Image
+  m_Name: Portrait
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -988,7 +988,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 1f09210bb1429c84fa04bb461276b5ad, type: 3}
+  m_Sprite: {fileID: 0}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1032,8 +1032,8 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2348876979069718773}
   - {fileID: 2765307976649663281}
+  - {fileID: 2348876979069718773}
   - {fileID: 2761395348809671750}
   - {fileID: 7262501410088552925}
   - {fileID: 7447454354461691252}
@@ -1163,9 +1163,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.CharacterSlotView
   cardButton: {fileID: 1587635595467063632}
   selectedFrame: {fileID: 1912725544371808300}
-  portrait: {fileID: 9058805658287295908}
+  portraitRoot: {fileID: 3106471792318490899}
+  portrait: {fileID: 2524230397993233032}
   infoText: {fileID: 6710359535627948782}
   emptyLabel: {fileID: 2950235251714287111}
+  actionArea: {fileID: 5712314178501754586}
   subInfoText: {fileID: 7594790173997158738}
   startButton: {fileID: 5276590638178045450}
   deleteButton: {fileID: 8567806550283244518}
@@ -1236,7 +1238,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2761395348809671750
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1449,7 +1451,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3523745379617118411
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1570,7 +1572,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7262501410088552925
 RectTransform:
   m_ObjectHideFlags: 0

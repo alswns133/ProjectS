@@ -78,7 +78,36 @@ namespace ProjectS.UI
             if (classModels == null) return;
 
             foreach (ClassModel entry in classModels)
-                if (entry.model != null) DisableGameplay(entry.model);
+            {
+                if (entry.model == null) continue;
+
+                // 여기서 걸러 내지 않으면 DisableGameplay가 프리팹 에셋 자체를 수정해 디스크에 저장된다.
+                // 실제로 Haru·Erwin의 Player·InputHandler·Movement·Combat이 꺼진 채 커밋될 뻔했다(2026-09-22).
+                if (!IsSceneModel(entry.model))
+                {
+                    WarnNotSceneModel(entry.model);
+                    continue;
+                }
+
+                DisableGameplay(entry.model);
+            }
+        }
+
+        // 프리뷰 모델은 반드시 "씬에 배치된" 오브젝트여야 한다. 프리팹 에셋(프로젝트 창의 원본)을 물리면
+        // DisableGameplay와 ShowModel이 씬이 아니라 에셋을 고치므로, 화면엔 아무 변화가 없으면서
+        // 실제 게임플레이 캐릭터만 조용히 망가진다. scene.IsValid()가 그 둘을 가르는 유일한 기준이다.
+        //
+        // 이 사고는 EntryFlowController가 씬에서 CharacterSelectUI 프리팹 안으로 옮겨질 때 났다.
+        // 프리팹 에셋은 씬 오브젝트를 참조할 수 없어 Unity가 참조를 비웠고, 그 빈칸이 이름이 같아 보이는
+        // 원본 프리팹으로 채워졌다. 같은 이관을 또 하면 똑같이 재발하므로 런타임에 잡는다.
+        private static bool IsSceneModel(GameObject model) => model != null && model.scene.IsValid();
+
+        private void WarnNotSceneModel(GameObject model)
+        {
+            Debug.LogError(
+                $"[EntryFlowController] classModels에 프리팹 에셋 '{model.name}'이 물려 있다. " +
+                "씬에 배치된 프리뷰 모델을 물려라 — 이대로 두면 프리뷰가 뜨지 않고 에셋이 수정되어 저장된다.",
+                this);
         }
 
         private static void DisableGameplay(GameObject model)
@@ -215,7 +244,7 @@ namespace ProjectS.UI
         // PlayerManager가 없다(부트스트랩 전이라 아직 생성되지 않음). 그래서 이 화면만 로스터 에셋을
         // 인스펙터로 직접 물린다. 빠지면 초상화가 null로 넘어가 CharacterSlotView가 초상화 칸을 꺼 버린다.
         private Sprite GetPortrait(int characterType)
-            => characterRoster != null ? characterRoster.GetIllust(characterType) : null;
+            => characterRoster != null ? characterRoster.GetPortrait(characterType) : null;
 
         private void HandleSelected(int index)
         {
@@ -232,7 +261,11 @@ namespace ProjectS.UI
             if (classModels == null) return;
 
             foreach (ClassModel entry in classModels)
-            { if (entry.model != null) entry.model.SetActive(entry.characterType == characterType); Debug.Log($"{entry.characterType}, {characterType} "); }
+            {
+                if (!IsSceneModel(entry.model)) continue;   // 프리팹 에셋이면 건드리지 않는다(Awake에서 이미 경고)
+
+                entry.model.SetActive(entry.characterType == characterType);
+            }
         }
 
         private void HideAllModels()
@@ -240,7 +273,11 @@ namespace ProjectS.UI
             if (classModels == null) return;
 
             foreach (ClassModel entry in classModels)
-                if (entry.model != null) entry.model.SetActive(false);
+            {
+                if (!IsSceneModel(entry.model)) continue;
+
+                entry.model.SetActive(false);
+            }
         }
 
         private void HandleStart(int index)
