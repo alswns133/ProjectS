@@ -100,17 +100,19 @@ namespace ProjectS.UI
             string name = save != null ? save.name : string.Empty;
             if (levelNameText != null) levelNameText.text = $"Lv. {level:00}  {name}";
 
-            // 직업 심볼·일러스트는 캐릭터 타입으로 어드레서블 로드(캐릭터별 이미지 필요).
-            int charId = PlayerManager.Instance != null 
+            // 직업 심볼·일러스트는 캐릭터 타입으로 로스터에서 꺼낸다(상주하는 코어 UI라 어드레서블이 아닌 직접 참조).
+            int charId = PlayerManager.Instance != null
                 ? PlayerManager.Instance.CurrentCharacterId
                 : (save?.characterType ?? 0);
 
-            if(charId != loadedCharacterId)
-            {
-                loadedCharacterId = charId;
-                LoadCharacterArt(classSymbol, $"Char_Symbol_{charId}");
-                LoadCharacterArt(characterIllust, $"Char_Illust_{charId}");
-            }
+            if (charId == loadedCharacterId) return;
+
+            CharacterRoster roster = PlayerManager.Instance != null ? PlayerManager.Instance.Roster : null;
+            if (roster == null) return;   // 아직 로스터가 없으면 캐싱하지 않고 다음 표시 때 다시 시도한다
+
+            loadedCharacterId = charId;
+            SetArt(classSymbol, roster.GetSymbol(charId));
+            SetArt(characterIllust, roster.GetIllust(charId));
         }
 
         private void RefreshStats()
@@ -135,12 +137,10 @@ namespace ProjectS.UI
             Set(staminaRegenText, Fmt(s.StaminaRegen));
         }
 
-        private async void LoadCharacterArt(Image target, string address)
+        // 캐릭터 아트를 꽂는다. 그림이 없으면 Image를 꺼 빈 칸으로 둔다(직전 캐릭터 그림이 남는 것보다 낫다).
+        private static void SetArt(Image target, Sprite sprite)
         {
             if (target == null) return;
-
-            Sprite sprite = await ItemIconLoader.LoadAsync(address);
-            if (this == null || target == null) return;
 
             target.sprite = sprite;
             target.enabled = sprite != null;

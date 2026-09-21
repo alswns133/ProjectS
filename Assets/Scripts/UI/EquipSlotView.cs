@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -7,6 +7,7 @@ using ProjectS.Enhance;
 using ProjectS.Items;
 using ProjectS.Managers;
 using ProjectS.UI.Framework;
+using ProjectS.Events;
 
 namespace ProjectS.UI
 {
