@@ -208,6 +208,25 @@ namespace ProjectS.NPCs
             OpenHub();                // 인사말은 허브 본문에 뜬다(별도 대화창 아님)
         }
 
+        /// <summary>
+        /// 밖에서(문 개방 연출 등) 이 NPC의 퀘스트 목록을 바로 연다. F키 상호작용과 달리
+        /// 인사말 허브를 건너뛰고 목록부터 띄운다 — 이미 대화가 오간 자리에서 인사말을 또 듣는 건 어색하다.
+        /// 선택·수락·닫기는 이후 기존 흐름(<see cref="SelectQuest"/>, <see cref="CloseInteraction"/>)이 그대로 처리한다.
+        /// 이 NPC가 지금 줄 수 있는 퀘스트가 하나도 없으면 빈 목록 대신 아무것도 열지 않는다.
+        /// </summary>
+        public void OpenQuestListExternally()
+        {
+            if (interacting) return;
+
+            RefreshQuestEntries();
+            if (questEntries.Count == 0) return;
+
+            interacting = true;
+            SetActive(this);          // 뷰가 이 컨트롤러에 붙도록 먼저 알린다
+            FreezeForInteraction();
+            SetScreen(NpcScreen.QuestList);
+        }
+
         // ---- 뷰가 호출하는 공개 메서드 ----
 
         /// <summary>허브: 고유기능 선택. 실제 동작은 <see cref="HubFeatureSelected"/> 구독자가 맡는다(지금은 로그 스텁).</summary>

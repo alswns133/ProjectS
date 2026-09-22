@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using UnityEngine;
 using ProjectS.Data;
+using ProjectS.Enhance;
 using ProjectS.Events;
 using ProjectS.Players;
 
@@ -55,13 +56,26 @@ namespace ProjectS.Managers
             // 처치 이벤트를 받아 Kill 목표를 진행시킨다. 진행 중 퀘스트만 훑으므로(AdvanceTargets)
             // 문서 §5.2의 "이벤트 기반, 진행 중 퀘스트만 검사" 방식과 일치한다.
             CombatEvents.OnEnemyKilled += HandleEnemyKilled;
+
+            // 강화 결과를 받아 Enhance 목표를 진행시킨다(EnhanceEvents 주석이 예고한 구독자가 이것이다).
+            EnhanceEvents.OnEnhanced += HandleEnhanced;
+
+            // 수집 목표는 '지금 가방에 몇 개 있는가'가 곧 진행도라, 가방이 바뀔 때마다 다시 센다.
+            // 획득만 세면 수락 전에 이미 가진 것이 빠지고, 쓰거나 버려도 진행도가 남는다.
+            InventoryEvents.OnInventoryChanged += RefreshCollectObjectives;
+            InventoryEvents.OnItemAdded += HandleItemAdded;
         }
 
         // 실제 인스턴스일 때만 구독했으므로, 파괴 시에도 이 인스턴스에 한해 해제한다(중복 인스턴스 영향 없음).
         private void OnDestroy()
         {
             if (Instance == this)
+            {
                 CombatEvents.OnEnemyKilled -= HandleEnemyKilled;
+                EnhanceEvents.OnEnhanced -= HandleEnhanced;
+                InventoryEvents.OnInventoryChanged -= RefreshCollectObjectives;
+                InventoryEvents.OnItemAdded -= HandleItemAdded;
+            }
         }
 
         // 세이브 복원은 퀘스트 정의(QuestTable)가 필요하므로 JsonManager 로딩을 기다린 뒤 수행한다.
@@ -79,6 +93,15 @@ namespace ProjectS.Managers
 
         // 처치 이벤트 콜백: 죽은 몬스터 ID를 Kill 목표 보고로 넘긴다.
         private void HandleEnemyKilled(int monsterId) => ReportKill(monsterId);
+
+        // 획득 이벤트 콜백: AddItem은 개수와 무관하게 한 번만 발행되므로, 세지 말고 다시 센다.
+        private void HandleItemAdded(ItemData item) => RefreshCollectObjectives();
+
+        // 강화 이벤트 콜백: 실패는 목표 진행으로 치지 않는다(단계가 그대로이므로 '도달'도 없다).
+        private void HandleEnhanced(EnhanceResult result)
+        {
+            if (result.Success) ReportEnhance(result.StepAfter);
+        }
 
         // ---------- 세이브 / 복원 ----------
 
@@ -257,6 +280,15 @@ namespace ProjectS.Managers
             return result;
         }
 
+        /// <summary>
+        /// 이 퀘스트를 이미 완료(반납)했는지. 세이브에 남는 기록이라 껐다 켜도 유지된다.
+        /// 퀘스트 진척으로 열리는 문·연출처럼 "그 일이 있었나"를 물어야 하는 씬 오브젝트가 쓴다
+        /// (<see cref="ProjectS.Scenes.QuestGateDoor"/>). 반복 퀘스트는 완료 등록을 하지 않으므로 항상 false다.
+        /// </summary>
+        /// <param name="questId">확인할 퀘스트 ID</param>
+        /// <returns>완료했으면 true</returns>
+        public bool IsCompleted(int questId) => completedQuestIds.Contains(questId);
+
         /// <summary>진행 중 퀘스트 중 해당 ID를 찾는다(없으면 null).</summary>
         public QuestData FindActive(int questId)
         {
@@ -325,6 +357,9 @@ namespace ProjectS.Managers
 
             quest = new QuestData(definition);
             activeQuests.Add(quest);
+
+            // 수집 퀘스트는 받은 즉시 이미 가진 개수를 반영한다(3/5로 시작하는 식).
+            if (quest.ObjectiveType == ObjectiveType.Collect) RefreshCollectObjectives();
             // TODO(sound): 퀘스트 수락음 — SoundManager.Instance.PlaySFX(<퀘스트 수락 SFX>);
             QuestEvents.FireQuestAccepted(quest);
 
@@ -344,6 +379,10 @@ namespace ProjectS.Managers
         {
             if (quest == null || !quest.IsReadyToTurnIn) return false;
             if (!activeQuests.Remove(quest)) return false;
+
+            // 수집은 '가져다주는' 퀘스트라 반납 시 요구 수량을 회수한다. 진행도를 세는 기준과 같은 가방에서
+            // 빼므로(착용 중 장비는 애초에 세지 않는다) 모자랄 일이 없다.
+            TakeCollectItems(quest);
 
             if (quest.QuestType != QuestType.Repeat)
                 completedQuestIds.Add(quest.QuestId);
@@ -382,9 +421,39 @@ namespace ProjectS.Managers
         /// <param name="monsterId">처치한 몬스터 ID</param>
         public void ReportKill(int monsterId) => AdvanceTargets(ObjectiveType.Kill, monsterId);
 
-        /// <summary>아이템 획득을 보고한다. 대상이 일치하는 Collect 목표를 1 진행시킨다.</summary>
-        /// <param name="itemId">획득한 아이템 ID</param>
-        public void ReportCollect(int itemId) => AdvanceTargets(ObjectiveType.Collect, itemId);
+        /// <summary>
+        /// 수집 목표를 지금 가방 보유량에 맞춘다. 인벤토리 변화·퀘스트 수락 때 자동으로 불리므로
+        /// 보통 직접 부를 일은 없다(외부에서 강제로 다시 세고 싶을 때만).
+        /// </summary>
+        public void ReportCollect() => RefreshCollectObjectives();
+
+        // 진행 중인 수집 퀘스트의 목표를 가방 보유량으로 다시 맞춘다.
+        // 이미 가진 것도 세고(수락 즉시 반영), 쓰거나 버리면 도로 내려간다.
+        private void RefreshCollectObjectives()
+        {
+            InventoryManager inventory = InventoryManager.Instance;
+            if (inventory == null) return;
+
+            bool dirty = false;
+
+            foreach (var quest in activeQuests)
+            {
+                if (quest.ObjectiveType != ObjectiveType.Collect) continue;
+
+                foreach (var objective in quest.Objectives)
+                {
+                    int owned = inventory.GetItemCount(objective.Target.TargetId);
+                    if (!objective.SetCount(owned)) continue;
+
+                    QuestEvents.FireQuestProgressUpdated(quest, objective.CurrentCount, objective.Target.RequiredCount);
+                    dirty = true;
+                }
+            }
+
+            // 수집은 가방 변화에 따라 오르내리므로 마일스톤 저장(SaveNow)을 쓰지 않는다.
+            // 실제 확정은 반납 시점이고, 그때 TurnInQuest가 즉시 저장한다.
+            if (dirty) PlayerSaveService.MarkDirty();
+        }
 
         /// <summary>레벨 도달/지역 도착을 보고한다. 대상이 일치하는 Reach 목표를 진행시킨다.</summary>
         /// <param name="targetId">도달한 레벨 또는 지역 ID</param>
@@ -393,6 +462,53 @@ namespace ProjectS.Managers
         /// <summary>던전/레이드 클리어를 보고한다. 대상이 일치하는 Clear 목표를 1 진행시킨다.</summary>
         /// <param name="dungeonId">클리어한 던전/레이드 ID</param>
         public void ReportClear(int dungeonId) => AdvanceTargets(ObjectiveType.Clear, dungeonId);
+
+        /// <summary>
+        /// 강화 성공을 보고한다. Enhance 목표의 TargetId는 '도달해야 할 강화 단계'이므로
+        /// <b>일치가 아니라 이상(&gt;=)으로 판정</b>한다 — "+1 강화에 성공하라"(TargetId 1)는 +3에서 +4로 올려도
+        /// 만족하고, "+5를 만들어라"(TargetId 5)는 5단계에 닿아야 만족한다.
+        /// </summary>
+        /// <param name="stepAfter">강화 성공 후의 단계</param>
+        public void ReportEnhance(int stepAfter)
+        {
+            foreach (var quest in activeQuests)
+            {
+                if (quest.ObjectiveType != ObjectiveType.Enhance) continue;
+
+                foreach (var objective in quest.Objectives)
+                {
+                    if (objective.IsCompleted) continue;
+                    if (stepAfter < objective.Target.TargetId) continue;   // 요구 단계에 못 미침
+
+                    AdvanceObjective(quest, objective);
+                    break;
+                }
+            }
+        }
+
+        // 수집 퀘스트 반납: 목표 수량만큼 가방에서 회수한다. 수집이 아니면 아무 일도 하지 않는다.
+        private static void TakeCollectItems(QuestData quest)
+        {
+            if (quest.ObjectiveType != ObjectiveType.Collect) return;
+
+            InventoryManager inventory = InventoryManager.Instance;
+            if (inventory == null) return;
+
+            foreach (ObjectiveProgress objective in quest.Objectives)
+                inventory.TakeItems(objective.Target.TargetId, objective.Target.RequiredCount);
+        }
+
+        // 목표 하나를 1 올리고 발행·저장까지 한다. 보고 경로(일치 비교 / 단계 이상 비교)가 갈려도
+        // 진행 후 처리는 같아야 하므로 여기로 모은다.
+        private static void AdvanceObjective(QuestData quest, ObjectiveProgress objective)
+        {
+            objective.Advance(1);
+            QuestEvents.FireQuestProgressUpdated(quest, objective.CurrentCount, objective.Target.RequiredCount);
+
+            // 부분 진행은 dirty로 묶어 오토세이브(②)에 맡기고, 목표 완주는 마일스톤이라 즉시 저장(①).
+            if (objective.IsCompleted) PlayerSaveService.SaveNow();
+            else PlayerSaveService.MarkDirty();
+        }
 
         // 한 사건이 같은 퀘스트를 이중 진행하지 않도록 퀘스트마다 첫 매치 하나만 올리고,
         // 서로 다른 퀘스트는 각각 진행시킨다. 진행 방식은 이벤트 기반이라 진행 중 퀘스트만 훑는다.
@@ -407,12 +523,7 @@ namespace ProjectS.Managers
                     if (objective.IsCompleted) continue;
                     if (objective.Target.TargetId != targetId) continue;
 
-                    objective.Advance(1);
-                    QuestEvents.FireQuestProgressUpdated(quest, objective.CurrentCount, objective.Target.RequiredCount);
-
-                    // 부분 진행은 dirty로 묶어 오토세이브(②)에 맡기고, 목표 완주는 마일스톤이라 즉시 저장(①).
-                    if (objective.IsCompleted) PlayerSaveService.SaveNow();
-                    else PlayerSaveService.MarkDirty();
+                    AdvanceObjective(quest, objective);
                     break;
                 }
             }

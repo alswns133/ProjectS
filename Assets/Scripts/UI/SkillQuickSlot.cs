@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.Events;
@@ -32,10 +33,14 @@ namespace ProjectS.UI
         [SerializeField] private Image icon;
         [Tooltip("SG(소울게이지)가 부족할 때 켤 표시(번개 아이콘 등). 비워두면 표시 안 함.")]
         [SerializeField] private GameObject insufficientGaugeIcon;
-        [Tooltip("SG 부족 시 스킬 아이콘을 흐리게 할 알파값(0~1). 번개 표시와 함께 시각적으로 강조.")]
-        [SerializeField, Range(0f, 1f)] private float insufficientAlpha = 0.4f;
-        [Tooltip("마을 등 스킬을 쓸 수 없는 구역에서 아이콘을 흐리게 할 알파값(0~1). SG 부족보다 더 눌러 사용 불가를 알림.")]
-        [SerializeField, Range(0f, 1f)] private float unusableAlpha = 0.35f;
+        // ★ Color는 채널당 0~1이다. 255 기준 값을 그대로 적으면 1로 잘려 흰색이 되고 어두워지지 않는다
+        //   (#595959 = 0.35, #333333 = 0.2). 인스펙터 컬러 피커로 찍으면 자동으로 0~1로 들어온다.
+        [Tooltip("SG 부족 시 스킬 아이콘에 곱할 색(#595959). 번개 표시와 함께 시각적으로 강조.")]
+        [FormerlySerializedAs("insufficientAlpha")]
+        [SerializeField] private Color insufficientTint = new(0.35f, 0.35f, 0.35f, 1f);
+        [Tooltip("마을 등 스킬을 쓸 수 없는 구역에서 아이콘에 곱할 색(#333333). SG 부족보다 더 어둡게 해 사용 불가를 알림.")]
+        [FormerlySerializedAs("unusableAlpha")]
+        [SerializeField] private Color unusableTint = new(0.2f, 0.2f, 0.2f, 1f);
 
         private int registeredId;
         private float registeredSgCost;   // 등록 스킬의 SG 소모량(부족 표시 비교용)
@@ -203,7 +208,7 @@ namespace ProjectS.UI
             UpdateGaugeIndicator();
         }
 
-        // 아이콘 흐림·SG 부족 표시를 한곳에서 갱신한다. 알파의 주인은 이 함수뿐이라
+        // 아이콘 흐림·SG 부족 표시를 한곳에서 갱신한다. icon.color의 주인은 이 함수뿐이라
         // 마을 흐림과 SG 부족 흐림이 서로 덮어쓰며 싸우지 않는다.
         private void UpdateGaugeIndicator()
         {
@@ -213,14 +218,10 @@ namespace ProjectS.UI
             if (insufficientGaugeIcon != null && insufficientGaugeIcon.activeSelf != insufficient)
                 insufficientGaugeIcon.SetActive(insufficient);
 
-            // 아이콘 알파: 사용 불가 구역 > SG 부족 > 정상 순으로 눌러 표시. RGB는 유지하고 알파만 바꾼다.
+            // 아이콘 색: 사용 불가 구역 > SG 부족 > 정상 순으로 어둡게 눌러 표시한다.
+            // 정상은 흰색(=원본 스프라이트 색)으로 되돌린다.
             if (icon != null)
-            {
-                float alpha = !combatUsable ? unusableAlpha : (insufficient ? insufficientAlpha : 1f);
-                Color c = icon.color;
-                c.a = alpha;
-                icon.color = c;
-            }
+                icon.color = !combatUsable ? unusableTint : (insufficient ? insufficientTint : Color.white);
         }
 
         private async void LoadIcon(string address)

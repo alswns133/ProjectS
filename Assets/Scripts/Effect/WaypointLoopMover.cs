@@ -1,4 +1,6 @@
 using UnityEngine;
+using ProjectS.Managers;
+using ProjectS.Players;
 
 namespace ProjectS.Effects
 {
@@ -14,6 +16,11 @@ namespace ProjectS.Effects
     /// (turnRadius만큼 앞)을 향해 방향을 트는" 방식(pure pursuit)을 쓴다. 이동 방향과 몸 방향이 항상 같아서
     /// 미끄러짐이 없고, 90° 모서리는 둥글게 안쪽을 질러 돌며, 180° 되돌아가기는 작은 원을 그리고 돌아온다.
     /// 대가로 경로선을 정확히 밟지 않고 모서리를 turnRadius 정도 안쪽으로 지나간다.
+    ///
+    /// <b>플레이어가 가까이 오면 제자리에 멈추고, 멀어지면 가던 길을 이어 간다</b>
+    /// (<see cref="stopForPlayer"/>). 지나가는 NPC가 플레이어를 뚫고 걸어가는 것을 막기 위한 연출이다.
+    /// 멈출 거리와 다시 걸을 거리를 따로 두는(<see cref="resumeDistance"/>) 이유는, 하나의 거리만 쓰면
+    /// 경계선 위에서 걷기/멈추기가 매 프레임 뒤집혀 덜덜 떨리기 때문이다.
     ///
     /// <b>자식 Animator에 이동 여부를 bool로 알린다</b>(<see cref="movingBoolName"/>, 기본 isMoving).
     /// 이동 중 true, 대기(waitTime) 중 false라 Walk/Idle 전환 조건으로 쓴다. 파라미터가 없는 Animator와
@@ -52,6 +59,18 @@ namespace ProjectS.Effects
         [Tooltip("켜면 위아래 기울기 없이 수평으로만 돈다. 끄면 경사 구간에서 경사만큼 앞뒤로 기운다.")]
         [SerializeField] private bool keepUpright = true;
 
+        [Header("플레이어 접근 시 정지")]
+        [Tooltip("켜면 플레이어가 가까이 올 때 멈추고 멀어지면 다시 움직인다. " +
+                 "플레이어를 신경 쓰지 않아야 하는 배경 연출(높이 나는 드론, 멀리 지나는 차량)은 끈다.")]
+        [SerializeField] private bool stopForPlayer = true;
+
+        [Tooltip("플레이어가 이 거리 안으로 들어오면 멈춘다(유닛).")]
+        [SerializeField, Min(0f)] private float stopDistance = 2.5f;
+
+        [Tooltip("멈춘 뒤 플레이어가 이 거리 밖으로 나가면 다시 움직인다(유닛). " +
+                 "반드시 멈추는 거리보다 크게 둔다 — 같으면 경계에서 걷기/멈추기가 떨린다.")]
+        [SerializeField, Min(0f)] private float resumeDistance = 3.5f;
+
         [Header("애니메이션")]
         [Tooltip("자식 Animator에 이동 여부를 알릴 bool 파라미터 이름. 이동 중 true, 대기 중 false. " +
                  "이 파라미터가 없는 Animator는 건너뛴다.")]
@@ -64,6 +83,11 @@ namespace ProjectS.Effects
         private Vector3 heading;
 
         private float waitTimer;
+
+        // 지금 플레이어 때문에 멈춰 선 상태인가. 멈춤/재개 거리를 갈라 쓰기 위해 기억한다.
+        private bool stoppedByPlayer;
+
+        private Transform playerTransform;
 
         private Animator[] animators;
         private int movingBoolHash;
@@ -118,6 +142,14 @@ namespace ProjectS.Effects
 
         private void Update()
         {
+            // 플레이어가 가까우면 그 자리에 선다. 대기 타이머보다 먼저 검사해 지점에서 쉬는 중에도 통한다
+            // (여기서 빠져나가면 waitTimer도 같이 멈춰, 플레이어가 지나간 뒤 남은 대기부터 이어 간다).
+            if (IsPlayerBlocking())
+            {
+                ApplyMoving(false);
+                return;
+            }
+
             if (waitTimer > 0f)
             {
                 waitTimer -= Time.deltaTime;
@@ -206,6 +238,46 @@ namespace ProjectS.Effects
             return from;
         }
 
+        // 멈출지 판단한다. 한 번 멈추면 resumeDistance까지 벌어져야 다시 걷는다(히스테리시스).
+        // 거리는 수평이 아니라 3D로 잰다 — 다리 위나 아래층을 지나는 플레이어 때문에 멈추지 않게 하기 위함이다.
+        private bool IsPlayerBlocking()
+        {
+            if (!stopForPlayer)
+            {
+                stoppedByPlayer = false;
+                return false;
+            }
+
+            Transform player = FindPlayer();
+            if (player == null)
+            {
+                stoppedByPlayer = false;
+                return false;
+            }
+
+            float threshold = stoppedByPlayer ? Mathf.Max(resumeDistance, stopDistance) : stopDistance;
+            stoppedByPlayer = (player.position - transform.position).sqrMagnitude <= threshold * threshold;
+            return stoppedByPlayer;
+        }
+
+        // 플레이어 참조는 PlayerManager에서 당겨 온다(CLAUDE.md: 씬 오브젝트는 각자 Find하지 않는다).
+        // 캐시가 꺼져 있으면(스폰 전·다른 씬으로 워프) 버리고 다시 묻는다. 비활성 플레이어까지 거리 계산에
+        // 넣으면 아직 스폰 전인 원점의 플레이어 때문에 NPC가 멈춰 서 있는다.
+        private Transform FindPlayer()
+        {
+            if (playerTransform != null)
+            {
+                if (playerTransform.gameObject.activeInHierarchy) return playerTransform;
+                playerTransform = null;
+            }
+
+            Player player = PlayerManager.Instance != null ? PlayerManager.Instance.Player : null;
+            if (player == null || !player.gameObject.activeInHierarchy) return null;
+
+            playerTransform = player.transform;
+            return playerTransform;
+        }
+
         private void ApplyRotation()
         {
             Vector3 look = heading;
@@ -290,6 +362,20 @@ namespace ProjectS.Effects
                 Gizmos.color = new Color(0f, 1f, 1f, 0.25f);
                 Gizmos.DrawWireSphere(current.position, turnRadius);
             }
+
+            if (stopForPlayer)
+            {
+                Gizmos.color = new Color(1f, 0.5f, 0f, 0.6f);
+                Gizmos.DrawWireSphere(transform.position, stopDistance);
+                Gizmos.color = new Color(1f, 0.5f, 0f, 0.25f);
+                Gizmos.DrawWireSphere(transform.position, Mathf.Max(resumeDistance, stopDistance));
+            }
+        }
+
+        // 재개 거리가 멈춤 거리보다 작으면 경계에서 떨리므로, 인스펙터에서 그렇게 넣는 즉시 되돌린다.
+        private void OnValidate()
+        {
+            if (resumeDistance < stopDistance) resumeDistance = stopDistance;
         }
     }
 }

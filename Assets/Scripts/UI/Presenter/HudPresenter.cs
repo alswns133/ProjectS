@@ -3,6 +3,7 @@ using UnityEngine.Serialization;
 using ProjectS.Events;
 using ProjectS.UI.Framework;
 using ProjectS.Managers;
+using ProjectS.Players;
 
 namespace ProjectS.UI
 {
@@ -75,9 +76,9 @@ namespace ProjectS.UI
         // 타이머를 HUD에 따로 두지 않는 이유: 히트스톱·피격 리셋과 어긋나지 않게 판정 원천(PlayerHitCombo)을 하나로 유지하기 위함.
         private void Update()
         {
-            if (PlayerManager.Instance == null) return;
-
-            var player = PlayerManager.Instance.Player;
+            // 멀티 레이드에선 PlayerManager.Player가 숨겨진 마을 캐릭터(히트가 안 들어와 비율이 영영 0)라,
+            // 조작 중인 아바타를 돌려주는 LocalPlayer.Current를 읽어야 유지 게이지가 실제로 줄어든다.
+            var player = LocalPlayer.Current;
             if (player == null || player.HitCombo == null) return;
 
             view.SetHitComboTimer(player.HitCombo.RemainingRatio);
