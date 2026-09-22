@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using ProjectS.Cameras;
+using ProjectS.Core;
 using ProjectS.Data;
 using ProjectS.Managers;
 using ProjectS.Players;
@@ -52,6 +53,30 @@ namespace ProjectS.UI
         [Tooltip("캐릭터 시작 시 로딩 전에 재생할 연출(카메라 회전 + 문 열림). 비우면 바로 로딩한다.")]
         [SerializeField] private CharacterStartTransition startTransition;
 
+        [Header("진입 연출")]
+        [Tooltip("Firebase 준비 + 로스터 로드가 끝날 때까지 화면을 덮는 베일. 로그인 씬의 베일과 모양을 맞춘다.")]
+        [SerializeField] private EntryVeil veil;
+
+        [Tooltip("Firebase 초기화를 기다릴 최대 시간(초). 넘겨도 계속 진행하고, 실패는 재시도 팝업으로 잡는다.")]
+        [SerializeField, Min(0f)] private float firebaseTimeoutSeconds = 8f;
+
+        [Tooltip("에디터에서만 쓰는 대기 시간(초). 에디터는 Firebase 네이티브 초기화가 처음에 훨씬 느리다.")]
+        [SerializeField, Min(0f)] private float editorFirebaseTimeoutSeconds = 30f;
+
+        // 에디터와 빌드의 대기 시간을 가른다(LoginUI와 같은 이유 — 빌드 값을 에디터에 맞춰 늘리면
+        // 실제 사용자가 연결이 막혔을 때 그만큼 로고 화면에 잡혀 있게 된다).
+        private float FirebaseTimeout =>
+#if UNITY_EDITOR
+            editorFirebaseTimeoutSeconds;
+#else
+            firebaseTimeoutSeconds;
+#endif
+
+        [Header("베일 문구")]
+        [SerializeField] private string connectingMessage = "접속 중...";
+        [SerializeField] private string loadingRosterMessage = "캐릭터 정보를 불러오는 중...";
+        [SerializeField] private string returningToLoginMessage = "로그인 화면으로 돌아갑니다...";
+
         // characterType(검사=1/거너=2 …)과 씬에 놓인 프리뷰 모델을 짝짓는다. 클래스가 늘면 항목만 추가.
         [System.Serializable]
         private struct ClassModel
@@ -68,6 +93,10 @@ namespace ProjectS.UI
         // 클래스 선택 페이지와 이름 입력 페이지에 걸쳐 유지돼야 해서 필드로 둔다.
         private int pendingClassType;
 
+        // 직전 Refresh가 로스터를 못 읽었는지. "진짜 0개"와 "읽기 실패"는 화면상 똑같이 빈칸이라
+        // 구분이 필요하다(실패를 0개로 오해하면 중복 생성·오삭제로 이어진다).
+        private bool rosterLoadFailed;
+
         // 프리뷰 모델은 실플레이 프리팹(Haru/Erwin)을 그대로 배치한 것이라 입력·이동·커서 잠금·시점 조작
         // 스크립트가 전부 붙어 있다. 그대로 두면 모델이 켜지는 순간 WASD로 걸어다니고, Player.Start()가
         // 커서를 잠가(Alt 토글로만 풀림) UI 클릭이 막힌다. 보여주기만 하면 되므로 조작 계열만 끈다.
@@ -75,6 +104,11 @@ namespace ProjectS.UI
         // 아예 실행되지 않는다. Animator·외형(천/헤어 등) 컴포넌트는 건드리지 않는다.
         private void Awake()
         {
+            // 로스터가 다 찰 때까지 덮는다. 씬에서 베일이 꺼진 채 저장돼 있어도 CoverImmediate가 켜 주므로
+            // "켜 두는 것을 기억해야 하는" 배선이 되지 않는다. Start(비동기)가 아니라 Awake여야
+            // 첫 프레임에 빈 슬롯이 비치지 않는다.
+            if (veil != null) veil.CoverImmediate();
+
             if (classModels == null) return;
 
             foreach (ClassModel entry in classModels)
@@ -180,6 +214,13 @@ namespace ProjectS.UI
             }
         }
 
+        // 진입 순서: (덮인 채로) Firebase 준비 → 로스터 로드 → 슬롯 채우기 → 그제야 베일을 걷는다.
+        //
+        // 베일을 걷는 기준을 "씬이 로드됐을 때"가 아니라 "데이터가 다 찼을 때"로 둔 덕분에,
+        // 이 씬은 어디서 들어오든 똑같이 동작한다 —
+        //   · 로그인 씬 경유: ReadyTask가 이미 끝나 있어 로스터만 기다린다(거의 즉시).
+        //   · 인게임 복귀(SessionReboot): 이 씬의 FirebaseManager가 새로 초기화되므로 더 기다렸다 걷힌다.
+        // 진입 경로를 구분하는 분기가 필요 없다는 뜻이다.
         private async void Start()
         {
             GoToSelect();   // 진입 기본 페이지 = 선택 화면(다른 페이지는 꺼둔다)
@@ -189,16 +230,79 @@ namespace ProjectS.UI
             // 매니저가 없으면(로그인 없이 이 씬만 단독 테스트) 빈 슬롯으로 둔다.
             if (FirebaseManager.Instance != null)
             {
-                await FirebaseManager.Instance.ReadyTask;
+                SetVeilMessage(connectingMessage);
+
+                // 타임아웃을 넘겨도 중단하지 않는다 — 어차피 Refresh가 실패로 떨어지고,
+                // 그쪽 재시도 팝업이 사용자에게 선택지를 준다(베일에 갇히는 것만 막으면 된다).
+                bool ready = await AsyncTimeout.Wait(FirebaseManager.Instance.ReadyTask, FirebaseTimeout);
                 if (this == null) return;
+
+                if (!ready)
+                    Debug.LogWarning($"[EntryFlowController] Firebase 초기화가 {FirebaseTimeout}초 안에 끝나지 않았습니다 — 로스터 로드를 그대로 시도합니다.");
             }
 
+            SetVeilMessage(loadingRosterMessage);
+
             await Refresh();
+            if (this == null) return;
+
+            // ★ 성공이든 실패든 반드시 걷는다. 실패 경로에서 빠뜨리면 사용자가 로고 화면에 영영 갇힌다.
+            await RevealAsync();
+            if (this == null) return;
+
+            if (rosterLoadFailed) ShowRosterRetry();
+        }
+
+        // 베일을 걷는다(이미 걷혀 있으면 아무 일도 하지 않는다). 팝업은 반드시 이 뒤에 띄운다 —
+        // 베일 밑에서 열린 팝업은 화면에 보이지 않아 "버튼이 안 먹는다"로만 보인다.
+        private async Task RevealAsync()
+        {
+            if (veil == null) return;
+
+            await veil.HideAsync();
+        }
+
+        private void SetVeilMessage(string message)
+        {
+            if (veil != null) veil.SetMessage(message);
+        }
+
+        // 로스터를 못 읽었을 때의 선택지. 빈 슬롯을 그대로 두면 "캐릭터가 0개"로 착각해
+        // 새로 만들거나(중복 생성) 지울 위험이 있어, 반드시 실패였음을 알리고 재시도를 권한다.
+        private void ShowRosterRetry()
+        {
+            if (popupLayer == null)
+            {
+                Debug.LogWarning("[EntryFlowController] popupLayer 미배선 — 로스터 로드 실패를 알릴 방법이 없습니다.");
+                return;
+            }
+
+            popupLayer.ShowConfirm(
+                "캐릭터 정보를 불러오지 못했어요.",
+                "네트워크 상태를 확인한 뒤 다시 시도해 주세요.",
+                "다시 시도", "로그인 화면",
+                confirmed: RetryRefresh,
+                cancelled: LogoutToLogin);
+        }
+
+        private async void RetryRefresh()
+        {
+            if (veil != null) await veil.CoverAsync(loadingRosterMessage);
+            if (this == null) return;
+
+            await Refresh();
+            if (this == null) return;
+
+            await RevealAsync();
+            if (this == null) return;
+
+            if (rosterLoadFailed) ShowRosterRetry();
         }
 
         // 로스터를 다시 읽어 6칸을 채운다(진입 시·생성/삭제 후 재호출 예정).
         private async Task Refresh()
         {
+            rosterLoadFailed = false;
             roster.Clear();
             selectPage.ClearSelection();
             HideAllModels();   // 갱신 직후엔 선택이 없으니 이전 모델이 남지 않게 전부 끈다
@@ -209,11 +313,12 @@ namespace ProjectS.UI
             if (this == null) return;
 
             // null = 로딩 실패(권한 전파 지연·네트워크). 빈 슬롯(진짜 0개)과 혼동하면 중복 생성·오삭제
-            // 위험이 있어, 실패 시엔 로스터를 확신하지 못한다. 지금은 경고만 남기고 빈칸으로 두되,
-            // 재시도 팝업은 다음 단계에서 붙인다.
+            // 위험이 있어, 실패 시엔 로스터를 확신하지 못한다. 플래그로 올려 두면 호출부가 베일을 걷은 뒤
+            // 재시도 팝업(ShowRosterRetry)을 띄운다.
             if (characters == null)
             {
-                Debug.LogWarning("[EntryFlowController] 캐릭터 로스터 로드 실패. 재시도 흐름은 다음 단계에서 추가.");
+                rosterLoadFailed = true;
+                Debug.LogWarning("[EntryFlowController] 캐릭터 로스터 로드 실패 — 재시도 팝업으로 넘깁니다.");
                 FillSlots();
                 return;
             }
@@ -389,7 +494,13 @@ namespace ProjectS.UI
         // 인덱스가 아니라 세이브 인스턴스를 캡처한다 — 팝업이 열린 사이 목록이 바뀌어도 uniqueId로 정확히 지운다.
         private void HandleDeleteRequested(int index)
         {
-            if (index < 0 || index >= roster.Count) return;
+            // 아래 가드들은 조용히 빠져나가면 안 된다 — 버튼이 안 눌린 것과 구분이 되지 않아
+            // "삭제가 아무 일도 안 한다"로만 보인다(팝업 계층이 꺼져 있던 사고가 그래서 오래 갔다).
+            if (index < 0 || index >= roster.Count)
+            {
+                Debug.LogWarning($"[EntryFlowController] 슬롯 {index}에 대응하는 캐릭터가 로스터에 없다 — 삭제 중단.");
+                return;
+            }
 
             if (popupLayer == null)
             {
@@ -409,6 +520,7 @@ namespace ProjectS.UI
         {
             if (FirebaseManager.Instance == null)
             {
+                Debug.LogError("[EntryFlowController] FirebaseManager가 없다 — 로그인 씬을 거치지 않고 이 씬을 단독 재생했는지 확인.");
                 popupLayer.ShowAlert();
                 return;
             }
@@ -419,8 +531,18 @@ namespace ProjectS.UI
             if (this == null) return;
             popupLayer.SetBusy(false);
 
-            if (ok) await Refresh();
-            else popupLayer.ShowAlert();
+            if (ok)
+            {
+                await Refresh();
+                return;
+            }
+
+            // ShowAlert는 아직 빈 껍데기(AlertPopupView 미연결)라 화면엔 아무것도 뜨지 않는다.
+            // 그 사이 원인을 잃지 않도록 매니저가 남긴 사유를 콘솔로라도 흘린다.
+            string reason = FirebaseManager.Instance.LastDeleteError;
+            Debug.LogError($"[EntryFlowController] '{target.name}' 삭제 실패: " +
+                (string.IsNullOrEmpty(reason) ? "사유 없음(권한 거부 예외 로그를 함께 확인)" : reason));
+            popupLayer.ShowAlert();
         }
 
         // 로그아웃 버튼 클릭 → 확인 팝업. 실수로 로그인 씬에 튀는 일이 잦아 Esc 단축키를 없앴으므로,
@@ -442,11 +564,20 @@ namespace ProjectS.UI
                 confirmed: LogoutToLogin);
         }
 
-        private void LogoutToLogin()
+        // 선택 → 로그인도 반대 방향(로그인 → 선택)과 같은 형식으로 넘긴다 — 베일로 덮은 뒤 비동기 로드.
+        // 동기 LoadScene은 그 프레임을 통째로 멈춰 덮어 놓아도 "딱 끊기는" 느낌이 남고, 비동기로 넘기면
+        // 로딩 동안 베일의 스피너가 계속 돌아 화면이 살아 있다. 도착한 로그인 씬은 자기 베일로 이어받는다.
+        //
+        // async void는 UI 콜백(확인 팝업의 confirmed)에서만 예외적으로 허용한다.
+        private async void LogoutToLogin()
         {
+            if (veil != null) await veil.CoverAsync(returningToLoginMessage);
+            if (this == null) return;
+
             if (FirebaseManager.Instance != null) FirebaseManager.Instance.Logout();
             GameSession.Clear();
-            SceneManager.LoadScene(loginSceneName);
+
+            SceneManager.LoadSceneAsync(loginSceneName);
         }
 
         private void HandleQuit()

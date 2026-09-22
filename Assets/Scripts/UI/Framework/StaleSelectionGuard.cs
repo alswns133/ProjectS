@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using ProjectS.Core;
 
 namespace ProjectS.UI.Framework
 {
@@ -30,7 +31,7 @@ namespace ProjectS.UI.Framework
     ///
     /// 검사는 <c>LateUpdate</c>에서 한다. 그 프레임의 모든 UI 토글이 끝난 뒤라야 "지금 꺼져 있는가"가 확정된다.
     /// </summary>
-    public class StaleSelectionGuard : MonoBehaviour
+    public class StaleSelectionGuard : MonoBehaviour, ISurvivesReboot
     {
         /// <summary>전역 인스턴스. 중복 생성을 막기 위한 것이라 외부에서 쓸 일은 없다.</summary>
         public static StaleSelectionGuard Instance { get; private set; }

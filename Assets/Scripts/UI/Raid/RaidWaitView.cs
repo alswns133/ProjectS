@@ -31,8 +31,18 @@ namespace ProjectS.UI
         [Tooltip("회전시킬 원형 로딩 호(arc). 트랙·구멍은 돌리지 않는다.")]
         [SerializeField] private RectTransform spinnerArc;
 
+        [Tooltip("대기 안내 문구(무엇을 기다리는지). 없어도 동작한다.")]
+        [SerializeField] private TMP_Text messageText;
+
         [Tooltip("준비 현황 텍스트(준비 수/총원).")]
         [SerializeField] private TMP_Text countText;
+
+        [Header("문구")]
+        [Tooltip("대기 중 보여 줄 안내. 숫자만 있으면 무엇을 기다리는지 읽히지 않아 한 줄을 함께 띄운다.")]
+        [SerializeField, TextArea] private string waitingMessage = "파티원이 모두 도착하기를 기다리는 중입니다";
+
+        [Tooltip("현황 표기 형식. {0}=준비된 수, {1}=총원.")]
+        [SerializeField] private string countFormat = "{0} / {1} 준비 완료";
 
         [Tooltip("로딩 호의 회전 속도(도/초).")]
         [SerializeField, Min(0f)] private float spinDegreesPerSecond = 300f;
@@ -68,7 +78,14 @@ namespace ProjectS.UI
         /// <param name="total">접속 중인 파티원 수.</param>
         public void SetCount(int ready, int total)
         {
-            if (countText != null) countText.text = $"{ready}/{total}";
+            if (countText != null) countText.text = string.Format(countFormat, ready, total);
+        }
+
+        /// <summary>안내 문구를 갈아 끼운다. 비우면 인스펙터의 기본 문구를 그대로 쓴다.</summary>
+        /// <param name="message">표시할 문구.</param>
+        public void SetMessage(string message)
+        {
+            if (messageText != null && !string.IsNullOrEmpty(message)) messageText.text = message;
         }
 
         /// <summary>대기를 끝낸다. 예약된 표시를 취소하고 <b>즉시</b> 알파 0으로 숨긴다.</summary>
@@ -83,6 +100,9 @@ namespace ProjectS.UI
         {
             showAt = -1f;
             visible = true;
+
+            // 문구는 띄우는 시점에 채운다. 비활성 프리팹 상태의 값에 기대지 않기 위함이다.
+            if (messageText != null && !string.IsNullOrEmpty(waitingMessage)) messageText.text = waitingMessage;
 
             group.alpha = 1f;
             group.blocksRaycasts = true;   // 대기 중 뒤의 UI가 눌리지 않게 막는다

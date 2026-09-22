@@ -23,6 +23,12 @@ namespace ProjectS.UI
         [Tooltip("가입→자동 로그인 성공 시 이동할 캐릭터 선택 씬 이름. Build Settings에 등록돼 있어야 한다.")]
         [SerializeField] private string characterSelectScene = "CharacterSelect";
 
+        [Header("진입 연출")]
+        [Tooltip("전환을 덮는 베일. 로그인 화면과 같은 씬에 있으므로 LoginUI와 같은 것을 물린다(비워도 동작).")]
+        [SerializeField] private EntryVeil veil;
+
+        [SerializeField] private string enteringMessage = "캐릭터 정보를 불러오는 중...";
+
         private void OnEnable() => signupButton.onClick.AddListener(OnClickSignup);
         private void OnDisable() => signupButton.onClick.RemoveListener(OnClickSignup);
 
@@ -62,6 +68,12 @@ namespace ProjectS.UI
             {
                 passwordField.text = string.Empty;
                 if (confirmField != null) confirmField.text = string.Empty;
+
+                // 로그인 경로와 같은 베일로 덮고 넘어간다 — 캐릭터 선택 씬의 베일이 그대로 이어받아
+                // 로스터 로드가 끝날 때까지 덮고 있으므로, 어느 쪽으로 들어와도 화면이 같게 흐른다.
+                if (veil != null) await veil.CoverAsync(enteringMessage);
+                if (this == null) return;
+
                 GoToCharacterSelect();
             }
             else
