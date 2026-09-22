@@ -3,6 +3,7 @@ using ProjectS.Data;
 using ProjectS.Enemies;
 using ProjectS.Events;
 using ProjectS.Managers;
+using ProjectS.Players;
 using ProjectS.UI;
 using UnityEngine;
 
@@ -85,8 +86,8 @@ namespace ProjectS.Scenes
             // 결과창(Open)이 열리면서 HUD가 비활성화되므로, 그 전에(HUD가 아직 살아 있을 때) 리셋해야
             // SetHitCombo(0)이 반영돼 표시가 꺼진다. 리셋이 쏘는 OnHitComboChanged(0)은 maxCombo에 영향 없다
             // (Max 누적이라 최고값 유지) — 그래서 BuildResult의 콤보 집계도 그대로다.
-            if (PlayerManager.Instance != null && PlayerManager.Instance.Player != null)
-                PlayerManager.Instance.Player.HitCombo.ResetHitCombo();
+            Player player = LocalPlayer.Current;   // 멀티 레이드에선 숨겨진 마을 캐릭터가 아니라 조작 중인 아바타
+            if (player != null) player.HitCombo.ResetHitCombo();
 
             // 보상 행을 한 번만 조회해, 랜덤을 뽑고(1회), 실제로 지급한 뒤, 같은 결과로 화면을 그린다.
             DungeonRewardTable reward = ResolveReward();
