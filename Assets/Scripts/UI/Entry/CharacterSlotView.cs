@@ -38,11 +38,15 @@ namespace ProjectS.UI
         [SerializeField] private Image selectedFrame;
 
         [Header("정보")]
+        [Tooltip("초상화 배경 플레이트. portrait의 부모라, 자식만 켜면 화면에 나오지 않는다.")]
+        [SerializeField] private GameObject portraitRoot;
         [SerializeField] private Image portrait;
         [SerializeField] private TMP_Text infoText;
         [SerializeField] private TMP_Text emptyLabel;
 
         [Header("액션 영역 (높이 고정, 자식만 교체)")]
+        [Tooltip("시작·삭제 버튼을 담은 래퍼. 버튼의 부모라, 버튼만 켜면 화면에 나오지 않는다.")]
+        [SerializeField] private GameObject actionArea;
         [SerializeField] private TMP_Text subInfoText;
         [SerializeField] private Button startButton;
         [SerializeField] private Button deleteButton;
@@ -84,6 +88,10 @@ namespace ProjectS.UI
             Index = index;
             IsEmpty = false;
 
+            // 배경 플레이트는 "캐릭터가 있는 카드인가"로, 초상화 그림은 "아트가 있는가"로 따로 가른다.
+            // 로스터에 초상화가 빠진 캐릭터도 빈 플레이트만 뜨고 카드 배치는 그대로 유지된다.
+            if (portraitRoot != null) portraitRoot.SetActive(true);
+
             portrait.sprite = portraitSprite;
             portrait.gameObject.SetActive(portraitSprite != null);
             portrait.enabled = portraitSprite != null;
@@ -105,6 +113,7 @@ namespace ProjectS.UI
             IsEmpty = true;
             IsSelected = false;
 
+            if (portraitRoot != null) portraitRoot.SetActive(false);
             portrait.gameObject.SetActive(false);
             infoText.gameObject.SetActive(false);
             emptyLabel.gameObject.SetActive(true);
@@ -123,13 +132,18 @@ namespace ProjectS.UI
             ApplySelectionVisual();
         }
 
-        // 액션 영역은 rect가 고정이고 자식 셋만 켜고 끈다. 여기서 SetActive 말고 크기를 건드리면
+        // 액션 영역은 rect가 고정이고 내용만 켜고 끈다. 여기서 SetActive 말고 크기를 건드리면
         // 상위 VerticalLayoutGroup이 리빌드되어 아래 카드들이 밀린다.
+        //
+        // 래퍼(actionArea)까지 함께 토글하는 이유: 버튼은 이 래퍼의 자식이라, 버튼만 켜도 래퍼가
+        // 꺼져 있으면 activeInHierarchy가 false가 되어 화면에 영영 나오지 않는다.
         private void ApplySelectionVisual()
         {
             bool showActions = IsSelected && !IsEmpty;
 
             selectedFrame.gameObject.SetActive(showActions);
+
+            if (actionArea != null) actionArea.SetActive(showActions);
             startButton.gameObject.SetActive(showActions);
             deleteButton.gameObject.SetActive(showActions);
 
