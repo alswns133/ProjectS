@@ -1,4 +1,5 @@
 using UnityEngine;
+using ProjectS.Core;
 
 namespace ProjectS.Managers
 {
@@ -6,7 +7,7 @@ namespace ProjectS.Managers
     /// <see cref="PlayerSaveService"/>의 ②오토세이브·③앱경계 flush를 실제로 굴리는 러너.
     /// 세이브는 놓치면 안 되는 시스템이라, 씬 배치를 잊어도 항상 돌도록 첫 씬 로드 후 자동 생성(DDOL)한다.
     /// </summary>
-    public class AutoSaveTicker : MonoBehaviour
+    public class AutoSaveTicker : MonoBehaviour, ISurvivesReboot
     {
         private float timer;
 

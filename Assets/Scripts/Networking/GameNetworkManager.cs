@@ -47,6 +47,10 @@ namespace ProjectS.Networking
         {
             base.Awake();
 
+            // 포트 지정(-port)은 서버·클라가 같은 값을 써야 하므로 양쪽 모두 여기서 적용한다.
+            // base.Awake가 Transport.active를 채운 뒤라야 적용할 수 있다.
+            ServerAddress.ApplyPortOverride();
+
             // 파티 인스턴스 가시성(인스턴스 안 보스·아바타는 그 파티원에게만). 씬 배치 없이 코드로 붙인다 — 서버 시작 전에 있어야
             // 첫 스폰부터 규칙이 적용된다. 이미 다른 관심 영역 관리가 붙어 있으면 그것을 존중한다.
             if (GetComponent<InterestManagementBase>() == null)
@@ -214,8 +218,15 @@ namespace ProjectS.Networking
             }
 #endif
 
-            if (!string.IsNullOrEmpty(address)) networkAddress = address;
-            Debug.Log($"[Chat/Net] StartClient — {networkAddress} 로 접속 시도(서버가 떠 있어야 성공).");
+            // 호출부가 주소를 지정하지 않으면 실행 인자 → 저장값 → 인스펙터 순으로 고른다.
+            // 인스펙터 기본값은 localhost라, 이 단계가 없으면 다른 PC의 클라가 자기 자신에게 접속한다
+            // (연결이 성립하지 않아 서버에는 인증 요청조차 오지 않는다 — 2026-09-22에 실제로 겪은 증상).
+            networkAddress = !string.IsNullOrEmpty(address)
+                ? address
+                : ServerAddress.Resolve(networkAddress);
+
+            ushort port = Transport.active is PortTransport portTransport ? portTransport.Port : (ushort)0;
+            Debug.Log($"[Chat/Net] StartClient — {networkAddress}:{port} 로 접속 시도(서버가 떠 있어야 성공).");
             StartClient();
         }
 

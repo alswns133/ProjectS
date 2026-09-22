@@ -37,6 +37,23 @@ namespace ProjectS.UI
         }
 
         /// <summary>
+        /// 팝업을 띄우기 전에 이 계층 자체가 살아 있는지 보장한다.
+        ///
+        /// 팝업들은 각자 <c>SetActive(true)</c>로 열리지만, 부모인 이 오브젝트가 꺼져 있으면
+        /// activeInHierarchy가 false로 남아 <b>화면에 영영 나오지 않는다</b>. 실제로 프리팹에
+        /// PopupLayer가 꺼진 채 저장돼 있어 캐릭터 삭제·로그아웃 확인 팝업이 통째로 뜨지 않았다
+        /// (팝업이 안 뜨니 확인 콜백도 안 불려 삭제가 조용히 아무 일도 안 하는 것처럼 보였다).
+        ///
+        /// 에디터에서 누가 다시 꺼도 같은 사고가 재발하므로, 인스펙터 상태에 기대지 않고 여기서 되살린다.
+        /// 꺼져 있던 경우 이 호출로 <c>Awake</c>가 그제야 실행되며 자식들의 초기 상태(팝업 닫힘,
+        /// busyBlocker 꺼짐)가 잡히므로, 반드시 자식을 켜기 <b>전에</b> 불러야 한다.
+        /// </summary>
+        private void EnsureLayerActive()
+        {
+            if (!gameObject.activeSelf) gameObject.SetActive(true);
+        }
+
+        /// <summary>
         /// 예/아니오 확인 팝업을 연다. 삭제 2단계는 확인 콜백에서 이 메서드를 한 번 더 부르면 된다.
         /// </summary>
         /// <param name="message">본문 문구</param>
@@ -48,6 +65,7 @@ namespace ProjectS.UI
         public void ShowConfirm(string message, string subMessage, string confirm, string cancel,
             Action confirmed, Action cancelled = null)
         {
+            EnsureLayerActive();
             confirmPopup.Show(message, subMessage, confirm, cancel, confirmed, cancelled);
             RefreshDimmer();
         }
@@ -65,6 +83,8 @@ namespace ProjectS.UI
         /// <param name="busy">차단할지</param>
         public void SetBusy(bool busy)
         {
+            if (busy) EnsureLayerActive();
+
             busyBlocker.SetActive(busy);
             if (busy) busyBlocker.transform.SetAsLastSibling();
         }

@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using ProjectS.Managers;
 using ProjectS.Scenes;
 using ProjectS.UI;
+using ProjectS.Core;
 
 namespace ProjectS.Debugging
 {
@@ -17,7 +18,7 @@ namespace ProjectS.Debugging
     /// 정식 복귀 동선(마을 게이트 등)이 생기면 이 파일을 지우면 된다.
     /// </para>
     /// </summary>
-    public class DebugReturnToVillageKey : MonoBehaviour
+    public class DebugReturnToVillageKey : MonoBehaviour, ISurvivesReboot
     {
         // 플레이 시작 시 자기 오브젝트를 만들어 붙는다. 씬마다 배치할 필요가 없다.
         // AfterSceneLoad: 첫 씬이 올라온 뒤라 DontDestroyOnLoad 이관이 안전하다.

@@ -82,6 +82,13 @@ namespace ProjectS.Managers
         /// </summary>
         public string LastCreateError { get; private set; }
 
+        /// <summary>
+        /// 마지막 캐릭터 삭제 실패의 '사람이 읽을' 이유(<see cref="LastCreateError"/>와 같은 목적).
+        /// 삭제는 실패해도 화면이 그대로라 원인을 짐작할 단서가 전혀 없어, 호출측이 이 값을 띄운다.
+        /// 삭제 시도마다 초기화되고 실패 경로에서만 채워진다.
+        /// </summary>
+        public string LastDeleteError { get; private set; }
+
         /// <summary>이미 로그인된 세션이 있는지(자동 로그인 스킵 판정용). Firebase가 이전 세션을 유지·복원한다.</summary>
         public bool IsLoggedIn => CurrentUid != null;
 
@@ -506,7 +513,16 @@ namespace ProjectS.Managers
         /// <param name="name">삭제할 캐릭터의 표시 이름. 이름 예약 키(소문자)를 되찾는 데 쓴다.</param>
         public async Task<bool> DeleteCharacter(long uniqueId, string name)
         {
-            if (!IsInitialized || CurrentUid == null) return false;
+            LastDeleteError = null;
+
+            // 이 가드가 조용히 false를 내던 탓에 "확인을 눌러도 아무 일도 안 일어난다"로만 보였다.
+            // 실패 경로는 반드시 이유를 남긴다 — 서버 왕복까지 가지도 못한 경우를 권한 거부와 구분해야 한다.
+            if (!IsInitialized || CurrentUid == null)
+            {
+                LastDeleteError = !IsInitialized ? "서버 연결이 준비되지 않았습니다(초기화 실패)." : "로그인 세션이 없습니다.";
+                Debug.LogWarning($"[Firebase] 캐릭터 삭제 중단: {LastDeleteError}");
+                return false;
+            }
 
             try
             {
@@ -522,10 +538,14 @@ namespace ProjectS.Managers
                     updates[$"CharacterNames/{nameKey}"] = null;
 
                 await databaseReference.UpdateChildrenAsync(updates);
+                // 어떤 노드를 지웠는지 남긴다. 목록에 그대로 남아 있을 때 "쓰기가 안 나갔나(로그 없음) /
+                // 엉뚱한 키를 지웠나(키 대조) / 지웠는데 화면만 안 갱신됐나"를 이 한 줄로 가른다.
+                Debug.Log($"[Firebase] 캐릭터 삭제 완료: {string.Join(", ", updates.Keys)}");
                 return true;
             }
             catch (Exception ex)
             {
+                LastDeleteError = ex.Message;
                 Debug.LogError($"[Firebase] 캐릭터 삭제 예외: {ex}");
                 return false;
             }

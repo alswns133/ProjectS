@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using ProjectS.Skills;
 using ProjectS.Players;
 using ProjectS.Managers;
+using ProjectS.Core;
 
 namespace ProjectS.Debugging
 {
@@ -23,7 +24,7 @@ namespace ProjectS.Debugging
     /// 직접 만들어 해금한다. 완성 ID(>=100)는 <see cref="SkillState.Unlock"/>이 환산 없이 그대로 해금한다.
     /// </para>
     /// </summary>
-    public class DebugSkillUnlockKey : MonoBehaviour
+    public class DebugSkillUnlockKey : MonoBehaviour, ISurvivesReboot
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()

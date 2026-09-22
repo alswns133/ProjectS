@@ -45,6 +45,10 @@ namespace ProjectS.Networking
                 if (owned.gameObject.scene == instance) NetworkServer.Destroy(owned.gameObject);
             }
 
+            // 아바타가 사라졌으므로 관전용 링크도 끊는다. 남겨 두면 다른 파티원의 관전 카메라가
+            // 이미 파괴된 netId를 계속 고른다.
+            if (conn.identity.TryGetComponent(out PlayerPresence presence)) presence.ServerSetAvatar(0);
+
             // ② 본체를 마을(서버 활성 씬)로 되돌린다.
             SceneManager.MoveGameObjectToScene(conn.identity.gameObject, SceneManager.GetActiveScene());
 
