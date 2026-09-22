@@ -10,7 +10,7 @@
     "RequiredLevel": 0,
     "PrerequisiteQuestId": 0,
     "Rewards": [
-      { "Type": "Exp", "TargetId": 0, "Amount": 200, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 400, "IconAddress": "" },
       { "Type": "ClassWeapon", "TargetId": 101001, "Amount": 1, "IconAddress": "" }
     ],
     "IntroDialogueId": 700106,
@@ -101,18 +101,81 @@
     "TrackerText": "소형 인젝터 5개 수집"
   },
   {
+    "QuestId": 502017,
+    "QuestType": "Main",
+    "QuestNpc": "미라",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 301002, "RequiredCount": 3 }
+    ],
+    "RequiredLevel": 8,
+    "PrerequisiteQuestId": 501010,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 1500, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1000, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301003, "Amount": 5, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700802,
+    "TurnInDialogueId": 700812,
+    "Title": "정제 교환 - 중형",
+    "Description": "미라가 중형 인젝터를 대형으로 정제해주겠다고 한다. 세 개를 맡기면 다섯 개로 바꿔준다.",
+    "TrackerText": "중형 인젝터 3개 교환"
+  },
+  {
+    "QuestId": 502018,
+    "QuestType": "Main",
+    "QuestNpc": "미라",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 301003, "RequiredCount": 3 }
+    ],
+    "RequiredLevel": 12,
+    "PrerequisiteQuestId": 502017,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 2500, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1800, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301004, "Amount": 5, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700803,
+    "TurnInDialogueId": 700813,
+    "Title": "정제 교환 - 대형",
+    "Description": "미라가 대형 인젝터를 메가 힐링 젤리로 바꿔주겠다고 한다. 세 개를 맡기면 다섯 개를 준다.",
+    "TrackerText": "대형 인젝터 3개 교환"
+  },
+  {
     "QuestId": 502001,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 900, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 3, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700104,
+    "TurnInDialogueId": 700114,
+    "Title": "노드 주변 정리",
+    "Description": "노드 주변에 캣 워커가 꼬였다. 칼슨이 다섯 기만 정리해 달라고 부탁한다.",
+    "TrackerText": "캣 워커 5마리 처치"
+  },
+  {
+    "QuestId": 502003,
     "QuestType": "Main",
     "QuestNpc": "칼슨",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
       { "TargetId": 1109, "RequiredCount": 1 }
     ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 501001,
+    "RequiredLevel": 4,
+    "PrerequisiteQuestId": 501008,
     "Rewards": [
-      { "Type": "Exp", "TargetId": 0, "Amount": 600, "IconAddress": "" },
-      { "Type": "Gold", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 1800, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1000, "IconAddress": "" },
       { "Type": "Item", "TargetId": 401001, "Amount": 3, "IconAddress": "" }
     ],
     "IntroDialogueId": 700107,
@@ -122,165 +185,297 @@
     "TrackerText": "나인클로 처치 (노말)"
   },
   {
-    "QuestId": 601001,
-    "QuestType": "Repeat",
-    "QuestNpc": "미라",
+    "QuestId": 502002,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 3 }
+      { "TargetId": 1201, "RequiredCount": 10 }
     ],
     "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
+    "PrerequisiteQuestId": 501008,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 500, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 100, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 4500, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1500, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 111005, "Amount": 1, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 15, "IconAddress": "" }
     ],
-    "Title": "외곽 정리",
-    "Description": "균열 외곽을 맴도는 캣 워커 3기를 정리하라.",
-    "TrackerText": "외곽 캣 워커 처치"
+    "IntroDialogueId": 700404,
+    "TurnInDialogueId": 700414,
+    "Title": "하드 구역 정리",
+    "Description": "하드 균열 쪽 캣 워커가 심상치 않게 늘었다. 칼슨이 열 마리를 정리해 달라고 부탁한다.",
+    "TrackerText": "하드 캣 워커 10마리 처치"
   },
   {
-    "QuestId": 601002,
-    "QuestType": "Repeat",
-    "QuestNpc": "미라",
+    "QuestId": 502005,
+    "QuestType": "Main",
+    "QuestNpc": "바로",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1202, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501009,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 3000, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 800, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700405,
+    "TurnInDialogueId": 700415,
+    "Title": "상공 소탕",
+    "Description": "하드 상공에 캣 슈터 다섯 기가 떠 있다. 바로가 처리를 부탁한다.",
+    "TrackerText": "하드 캣 슈터 5기 격추"
+  },
+  {
+    "QuestId": 502006,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Enhance",
+    "ObjectiveTargets": [
+      { "TargetId": 3, "RequiredCount": 1 }
+    ],
+    "RequiredLevel": 7,
+    "PrerequisiteQuestId": 502002,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 3200, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 2000, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 3, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700304,
+    "TurnInDialogueId": 700314,
+    "Title": "무기를 벼려라",
+    "Description": "칼슨에게 받은 매직 웨폰, 아직 갈 길이 남았다. 게롯의 강화대에서 +3까지 끌어올려라.",
+    "TrackerText": "무기 +3 강화"
+  },
+  {
+    "QuestId": 502007,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
     "ObjectiveType": "Collect",
     "ObjectiveTargets": [
-      { "TargetId": 201001, "RequiredCount": 5 }
+      { "TargetId": 401001, "RequiredCount": 10 }
     ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
+    "RequiredLevel": 8,
+    "PrerequisiteQuestId": 502006,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 300, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 203001, "Amount": 2, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 2100, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 211005, "Amount": 1, "IconAddress": "" }
     ],
-    "Title": "장비 수집",
-    "Description": "노말 상의 5개를 모아 오라.",
-    "TrackerText": "노말 상의 수집"
+    "IntroDialogueId": 700305,
+    "TurnInDialogueId": 700315,
+    "Title": "강화석 비축",
+    "Description": "다음 강화를 위해 하급 강화석을 미리 챙겨 둬야 한다. 게롯에게 열 개를 모아다 주자.",
+    "TrackerText": "하급 강화석 10개 수집"
   },
   {
-    "QuestId": 601003,
-    "QuestType": "Repeat",
-    "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
+    "QuestId": 502008,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Collect",
     "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 5 }
+      { "TargetId": 401001, "RequiredCount": 10 }
     ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
+    "RequiredLevel": 8,
+    "PrerequisiteQuestId": 502007,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 400, "IconAddress": "" },
-      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 2, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 2100, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 212005, "Amount": 1, "IconAddress": "" }
     ],
-    "IntroDialogueId": 700104,
-    "TurnInDialogueId": 700114,
-    "Title": "노드 순찰",
-    "Description": "세컨드 노드 주변까지 내려온 캣 워커 5기를 처리해 안전을 확보하라.",
-    "TrackerText": "노드 주변 캣 워커 처치"
+    "IntroDialogueId": 700306,
+    "TurnInDialogueId": 700316,
+    "Title": "여분의 강화석",
+    "Description": "이번엔 하의 쪽을 맞춰야겠다. 하급 강화석을 또 한 번 모아다 주자.",
+    "TrackerText": "하급 강화석 10개 수집"
   },
   {
-    "QuestId": 601004,
-    "QuestType": "Repeat",
-    "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
+    "QuestId": 502009,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Collect",
     "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 3 }
+      { "TargetId": 401001, "RequiredCount": 10 }
     ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
+    "RequiredLevel": 8,
+    "PrerequisiteQuestId": 502008,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 2100, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 214005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700307,
+    "TurnInDialogueId": 700317,
+    "Title": "강화석 마무리",
+    "Description": "이번엔 신발 쪽이다. 하급 강화석을 또 한 번 모아다 주자.",
+    "TrackerText": "하급 강화석 10개 수집"
+  },
+  {
+    "QuestId": 502011,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 401001, "RequiredCount": 10 }
+    ],
+    "RequiredLevel": 8,
+    "PrerequisiteQuestId": 502009,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 2100, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
       { "Type": "Item", "TargetId": 213005, "Amount": 1, "IconAddress": "" }
     ],
-    "IntroDialogueId": 700105,
-    "TurnInDialogueId": 700115,
-    "Title": "캣 슈터 소탕",
-    "Description": "세컨드 노드 어귀까지 내려온 캣 슈터 3기를 쫓아내라.",
-    "TrackerText": "노드 어귀 캣 슈터 처치"
+    "IntroDialogueId": 700308,
+    "TurnInDialogueId": 700318,
+    "Title": "마지막 조각",
+    "Description": "헬멧이 남았다. 하급 강화석을 마지막으로 한 번 더 모아다 주자.",
+    "TrackerText": "하급 강화석 10개 수집"
   },
   {
-    "QuestId": 601005,
-    "QuestType": "Repeat",
-    "QuestNpc": "게롯",
+    "QuestId": 502010,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 3 }
+      { "TargetId": 1209, "RequiredCount": 1 }
     ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
+    "RequiredLevel": 9,
+    "PrerequisiteQuestId": 502011,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 100000, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
-      { "Type": "Item", "TargetId": 401001, "Amount": 60, "IconAddress": "Material_EnhanceStone_Low" },
-      { "Type": "Item", "TargetId": 402001, "Amount": 30, "IconAddress": "Material_EnhanceStone_High" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 2000, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1000, "IconAddress": "" },
+      { "Type": "SkillUnlock", "TargetId": 2, "Amount": 1, "IconAddress": "" }
     ],
-    "IntroDialogueId": 700301,
-    "TurnInDialogueId": 700311,
-    "Title": "손상된 코어 회수",
-    "Description": "캣 슈터에게서 장비 강화에 쓸 손상된 코어를 회수해 오라.",
-    "TrackerText": "캣 슈터에게서 코어 회수"
+    "IntroDialogueId": 700108,
+    "TurnInDialogueId": 700118,
+    "Title": "새로운 힘을 향해",
+    "Description": "칼슨이 몰라보게 강해졌다며 반긴다. 하드 균열의 나인클로를 넘어서면 새 힘이 깨어날 거라고 한다.",
+    "TrackerText": "나인클로 처치 (하드)"
   },
   {
-    "QuestId": 601006,
-    "QuestType": "Repeat",
-    "QuestNpc": "게롯",
-    "ObjectiveType": "Collect",
+    "QuestId": 502012,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
     "ObjectiveTargets": [
-      { "TargetId": 201001, "RequiredCount": 3 }
+      { "TargetId": 1301, "RequiredCount": 15 }
     ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
+    "RequiredLevel": 10,
+    "PrerequisiteQuestId": 502010,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 100000, "IconAddress": "" },
-      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 401001, "Amount": 60, "IconAddress": "Material_EnhanceStone_Low" },
-      { "Type": "Item", "TargetId": 402001, "Amount": 30, "IconAddress": "Material_EnhanceStone_High" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 8000, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 3000, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 111010, "Amount": 1, "IconAddress": "" }
     ],
-    "Title": "정제용 소재",
-    "Description": "쓸 만한 소재가 필요하다. 노말 상의 3벌을 풀어 정제 재료로 쓰게 가져와라.",
-    "TrackerText": "정제용 소재 수집"
+    "IntroDialogueId": 700109,
+    "TurnInDialogueId": 700119,
+    "Title": "매니악 구역 정리",
+    "Description": "매니악 균열 쪽 캣 워커가 떼로 몰려 있다. 칼슨이 열다섯 마리를 정리해 달라고 한다.",
+    "TrackerText": "매니악 캣 워커 15마리 처치"
   },
   {
-    "QuestId": 601007,
-    "QuestType": "Repeat",
-    "QuestNpc": "바로",
-    "ObjectiveType": "Collect",
-    "ObjectiveTargets": [
-      { "TargetId": 203001, "RequiredCount": 4 }
-    ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700401,
-    "TurnInDialogueId": 700411,
-    "Title": "상점 재고 확보",
-    "Description": "가게 진열대가 비었다. 팔 만한 방어구 4점을 모아 오면 값을 쳐주지.",
-    "TrackerText": "판매용 방어구 수집"
-  },
-  {
-    "QuestId": 601008,
-    "QuestType": "Repeat",
+    "QuestId": 502013,
+    "QuestType": "Main",
     "QuestNpc": "바로",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 6 }
+      { "TargetId": 1301, "RequiredCount": 10 },
+      { "TargetId": 1302, "RequiredCount": 5 }
     ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501001,
+    "RequiredLevel": 10,
+    "PrerequisiteQuestId": 502010,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 700, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 1, "IconAddress": "Consumable_Injector_S" },
-      { "Type": "Item", "TargetId": 201005, "Amount": 1, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 9400, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 4000, "IconAddress": "" }
     ],
-    "IntroDialogueId": 700402,
-    "TurnInDialogueId": 700412,
-    "Title": "운송로 청소",
-    "Description": "물건을 실어 나르려면 길이 안전해야 한다. 운송로의 캣 워커 6기를 정리하라.",
-    "TrackerText": "운송로 캣 워커 처치"
+    "IntroDialogueId": 700406,
+    "TurnInDialogueId": 700416,
+    "Title": "매니악 소탕전",
+    "Description": "매니악 균열의 캣 워커와 캣 슈터가 뒤섞여 날뛰고 있다. 바로가 캣 워커 열 마리, 캣 슈터 다섯 기를 한꺼번에 정리해 달라고 부탁한다.",
+    "TrackerText": "매니악 캣 워커 10 · 캣 슈터 5 처치"
+  },
+  {
+    "QuestId": 502019,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1309, "RequiredCount": 1 }
+    ],
+    "RequiredLevel": 11,
+    "PrerequisiteQuestId": 502013,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 6000, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 2500, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700110,
+    "TurnInDialogueId": 700120,
+    "Title": "각성체 나인클로 (매니악)",
+    "Description": "매니악 균열의 나인클로가 완전히 각성했다. 칼슨이 이번엔 끝장을 보라고 한다.",
+    "TrackerText": "나인클로 처치 (매니악)"
+  },
+  {
+    "QuestId": 503001,
+    "QuestType": "Main",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 2101, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 15,
+    "PrerequisiteQuestId": 502019,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 6000, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 3000, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700121,
+    "TurnInDialogueId": 700131,
+    "Title": "수상한 건물",
+    "Description": "던전1 균열 안쪽에서 수상한 건물이 발견됐다. 칼슨이 볼트너클 다섯 기를 정리해 길을 열어 달라고 한다.",
+    "TrackerText": "볼트너클 5마리 처치"
+  },
+  {
+    "QuestId": 502015,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 101001, "RequiredCount": 1 },
+      { "TargetId": 111005, "RequiredCount": 1 }
+    ],
+    "RequiredLevel": 12,
+    "PrerequisiteQuestId": 502013,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 4000, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 2500, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 25, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 7, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700309,
+    "TurnInDialogueId": 700319,
+    "Title": "낡은 무기 반납",
+    "Description": "게롯이 낡은 검을 살펴보자며 노말 Lv1 무기와 매직 Lv5 무기를 가져오라 한다. 녹여서 강화 재료로 돌려주겠다고 한다.",
+    "TrackerText": "노말 무기·매직 무기 반납"
+  },
+  {
+    "QuestId": 502016,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Enhance",
+    "ObjectiveTargets": [
+      { "TargetId": 5, "RequiredCount": 1 }
+    ],
+    "RequiredLevel": 12,
+    "PrerequisiteQuestId": 502015,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 5700, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 3000, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700310,
+    "TurnInDialogueId": 700320,
+    "Title": "10레벨 무기, 한계까지",
+    "Description": "10레벨 무기를 +5까지 끌어올려라. 4강부터는 상급 강화석도 필요하니 미리 챙겨 둬야 한다.",
+    "TrackerText": "무기 +5 강화"
   },
   {
     "QuestId": 601009,
@@ -288,20 +483,21 @@
     "QuestNpc": "게시판",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 4 }
+      { "TargetId": 1301, "RequiredCount": 8 }
     ],
-    "RequiredLevel": 5,
+    "RequiredLevel": 10,
     "PrerequisiteQuestId": 501001,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 350, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 120, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 202005, "Amount": 1, "IconAddress": "" }
+      { "Type": "Gold", "TargetId": 0, "Amount": 3000, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 2, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301002, "Amount": 1, "IconAddress": "" }
     ],
     "IntroDialogueId": 700501,
     "TurnInDialogueId": 700511,
-    "Title": "정비 구역을 지켜라",
-    "Description": "캣 슈터 떼가 정비 구역을 헤집고 있다는 의뢰다. 노드 근처 4기를 처리하라.",
-    "TrackerText": "정비 구역 캣 슈터 처치"
+    "Title": "매니악 구역을 지켜라",
+    "Description": "매니악 구역에 캣 워커가 떼로 들끓고 있다는 의뢰다. 여덟 기를 처리하라.",
+    "TrackerText": "매니악 캣 워커 처치"
   },
   {
     "QuestId": 601010,
@@ -309,19 +505,21 @@
     "QuestNpc": "게시판",
     "ObjectiveType": "Collect",
     "ObjectiveTargets": [
-      { "TargetId": 203001, "RequiredCount": 5 }
+      { "TargetId": 402001, "RequiredCount": 3 }
     ],
-    "RequiredLevel": 5,
+    "RequiredLevel": 10,
     "PrerequisiteQuestId": 501001,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 550, "IconAddress": "" },
-      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" }
+      { "Type": "Gold", "TargetId": 0, "Amount": 3500, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301003, "Amount": 1, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 5, "IconAddress": "" }
     ],
     "IntroDialogueId": 700502,
     "TurnInDialogueId": 700512,
-    "Title": "방어구 납품",
-    "Description": "방어구를 급히 구한다는 의뢰다. 방어구 5점을 모아 게시판에 납품하라.",
-    "TrackerText": "납품용 방어구 수집"
+    "Title": "강화석 납품",
+    "Description": "매니악을 돌면 나오는 상급 강화석이 급히 필요하다는 의뢰다. 세 개를 게시판에 납품하라.",
+    "TrackerText": "상급 강화석 납품"
   },
   {
     "QuestId": 601011,
@@ -329,19 +527,20 @@
     "QuestNpc": "게시판",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 5 }
+      { "TargetId": 1302, "RequiredCount": 5 }
     ],
-    "RequiredLevel": 5,
+    "RequiredLevel": 10,
     "PrerequisiteQuestId": 501001,
     "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 650, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
-      { "Type": "Item", "TargetId": 204005, "Amount": 1, "IconAddress": "" }
+      { "Type": "Gold", "TargetId": 0, "Amount": 3000, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301002, "Amount": 1, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 1, "IconAddress": "" }
     ],
     "IntroDialogueId": 700503,
     "TurnInDialogueId": 700513,
-    "Title": "균열 정찰",
-    "Description": "균열 안쪽 사정을 알고 싶다는 의뢰다. 캣 슈터 5기를 처치하며 정찰하라.",
-    "TrackerText": "캣 슈터 정찰 처치"
+    "Title": "매니악 상공 소탕",
+    "Description": "매니악 상공에 캣 슈터가 다섯 기 떠 있다는 의뢰다. 처치하라.",
+    "TrackerText": "매니악 캣 슈터 처치"
   }
 ]

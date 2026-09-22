@@ -442,7 +442,7 @@ namespace ProjectS.Managers
 
                 foreach (var objective in quest.Objectives)
                 {
-                    int owned = inventory.GetItemCount(objective.Target.TargetId);
+                    int owned = inventory.GetItemCount(ResolveCollectTargetId(objective.Target.TargetId));
                     if (!objective.SetCount(owned)) continue;
 
                     QuestEvents.FireQuestProgressUpdated(quest, objective.CurrentCount, objective.Target.RequiredCount);
@@ -495,7 +495,20 @@ namespace ProjectS.Managers
             if (inventory == null) return;
 
             foreach (ObjectiveProgress objective in quest.Objectives)
-                inventory.TakeItems(objective.Target.TargetId, objective.Target.RequiredCount);
+                inventory.TakeItems(ResolveCollectTargetId(objective.Target.TargetId), objective.Target.RequiredCount);
+        }
+
+        /// <summary>
+        /// Collect 목표의 TargetId를 현재 캐릭터 기준으로 환산한다. 저작은 검(소드) ID로 하고,
+        /// 거너 캐릭터면 같은 종류의 총 ID로 자동 치환한다(<see cref="QuestRewardData.ResolveClassWeaponId"/>
+        /// — ClassWeapon 보상과 같은 함수를 재사용). 무기가 아닌 아이템은 그대로 반환한다.
+        /// </summary>
+        /// <param name="targetId">퀘스트 데이터에 저작된 TargetId(검 ID 기준)</param>
+        /// <returns>현재 캐릭터가 실제로 들고 있을 아이템 ID</returns>
+        private static int ResolveCollectTargetId(int targetId)
+        {
+            int charType = PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0;
+            return QuestRewardData.ResolveClassWeaponId(targetId, charType);
         }
 
         // 목표 하나를 1 올리고 발행·저장까지 한다. 보고 경로(일치 비교 / 단계 이상 비교)가 갈려도
