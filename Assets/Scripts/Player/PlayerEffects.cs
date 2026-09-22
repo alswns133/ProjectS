@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace ProjectS.Players
 {
@@ -13,6 +14,19 @@ namespace ProjectS.Players
     /// </summary>
     public class PlayerEffects : MonoBehaviour
     {
+        /// <summary>
+        /// 지금 보여줄 무기 오브젝트 묶음. 장비의 무기 종류(검·총 = <c>ProjectS.Data.WeaponType</c>)가 아니라
+        /// "연출상 어떤 무기가 손에 보이는가"다.
+        /// ★ 값을 숫자로 고정한 이유: Animation Event에는 enum이 아니라 정수가 그대로 저장된다.
+        ///   멤버를 중간에 끼워 넣어 번호가 밀리면, 이미 저작된 클립들이 조용히 다른 무기를 부른다.
+        /// </summary>
+        public enum WeaponVisual
+        {
+            None = 0,      // 무기 없음
+            Default = 1,   // 기본무기
+            Special = 2,   // 특수무기(스킬 중에만)
+        }
+
         // 키는 클립 Animation Event의 string 인자와 맞춘다.
         // 예: "Attack1", "Skill2_Cast", "Skill2_Blast" — 스킬 하나에 타이밍이 다른
         // 이펙트가 여러 개 붙어도 슬롯만 추가하면 된다(개수 제약 없음).
@@ -40,7 +54,22 @@ namespace ProjectS.Players
             [NonSerialized] public Quaternion originalLocalRotation;
         }
 
+        // 무기도 이펙트와 같은 방식이다 — 프리팹을 새로 만들지 않고, 미리 배치해 둔 자식 오브젝트를 켜고 끈다.
+        [Serializable]
+        private class WeaponSlot
+        {
+            [Tooltip("이 종류일 때 켤 무기 오브젝트들. 요청하지 않은 슬롯은 자동으로 꺼진다.")]
+            [FormerlySerializedAs("obj")]
+            public GameObject[] objects;
+
+            [Tooltip("이 슬롯이 어떤 연출용 무기인지.")]
+            [FormerlySerializedAs("type")]
+            public WeaponVisual visual;
+        }
+
         [SerializeField] private EffectSlot[] effects;
+
+        [SerializeField] private WeaponSlot[] weapons;
 
         // 매 이벤트마다 배열을 뒤지지 않도록 Awake에서 1회 구축하는 조회용 사전.
         private readonly Dictionary<string, EffectSlot> effectMap = new Dictionary<string, EffectSlot>();
@@ -80,6 +109,12 @@ namespace ProjectS.Players
 
                 effectMap.Add(normKey, slot);
             }
+        }
+
+        private void OnEnable()
+        {
+            // 씬 이동 하기전 비활성 후 스폰 위치에 도달하면 다시 활성화 하므로 기본무기로 변경함. 특수 무기는 스킬에서만 나오므로 평상시는 기본무기
+            WeaponChange((int)WeaponVisual.Default);
         }
 
         /// <summary>
@@ -160,6 +195,34 @@ namespace ProjectS.Players
                 if (slot.anchorToWorld && !slot.stopOnInterrupt) continue;
 
                 slot.particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+        }
+
+        /// <summary>
+        /// 손에 보일 무기를 바꾼다. 특수 무기를 쓰는 스킬 클립의 Animation Event가 호출하고,
+        /// 스킬이 끝나는 지점에서 다시 기본으로 되돌리는 이벤트를 함께 걸어야 한다.
+        /// 등록되지 않은 종류를 넘기면 모든 무기가 꺼진다(맨손).
+        /// </summary>
+        /// <param name="index">
+        /// <see cref="WeaponVisual"/>의 정수값. 0 = 무기 없음, 1 = 기본무기, 2 = 특수무기.
+        /// Animation Event가 enum을 못 넘기므로 int로 받는다.
+        /// </param>
+        public void WeaponChange(int index)
+        {
+            if (weapons == null) return;   // 안 쓰는 캐릭터가 있을 수 있으므로 가드
+
+            WeaponVisual requested = (WeaponVisual)index;
+
+            foreach (WeaponSlot weapon in weapons)
+            {
+                if (weapon == null || weapon.objects == null) continue;
+
+                bool on = weapon.visual == requested;   // 요청한 종류만 켜고 나머지는 끈다
+
+                foreach (GameObject obj in weapon.objects)
+                {
+                    if (obj != null) obj.SetActive(on);
+                }
             }
         }
 
