@@ -107,10 +107,12 @@ namespace ProjectS.Scenes
             if (reportOnce && reported) return;
             if (other.GetComponentInParent<Player>() == null) return;   // 몬스터·투사체는 무시
 
-            reported = true;
-
-            // 진행 중 퀘스트에만 반영된다. 해당 목표가 없으면 조용히 무시되므로 여기서 따로 거를 것이 없다.
-            if (QuestManager.Instance != null) QuestManager.Instance.ReportReach(pointId);
+            // 진행 중인 Reach 목표를 실제로 올렸을 때만 "한 번 다 썼다"로 잠근다. 퀘스트를 받기 전에
+            // 스쳐 지나간 경우까지 여기서 잠가 버리면, 나중에 정식으로 퀘스트를 받아도 트리거가 다시는
+            // 안 울려서 그 목표를 영영 못 채운다(2026-09-22 확인된 버그) — reportOnce의 취지("문 열림
+            // 연출 중복 방지")는 유효한 진행이 있을 때만 적용한다.
+            bool advanced = QuestManager.Instance != null && QuestManager.Instance.ReportReach(pointId);
+            if (advanced) reported = true;
 
             onReached?.Invoke();
         }

@@ -455,9 +455,14 @@ namespace ProjectS.Managers
             if (dirty) PlayerSaveService.MarkDirty();
         }
 
-        /// <summary>레벨 도달/지역 도착을 보고한다. 대상이 일치하는 Reach 목표를 진행시킨다.</summary>
+        /// <summary>
+        /// 레벨 도달/지역 도착을 보고한다. 대상이 일치하는 Reach 목표를 진행시킨다.
+        /// 실제로 진행시킨 목표가 있었는지를 반환한다 — <see cref="ProjectS.Scenes.QuestReachTrigger"/>가
+        /// 이 값으로 "한 번 쓰고 잠글지"를 판단한다(받기 전에 지나가서 허탕 친 경우까지 잠기면 안 되므로).
+        /// </summary>
         /// <param name="targetId">도달한 레벨 또는 지역 ID</param>
-        public void ReportReach(int targetId) => AdvanceTargets(ObjectiveType.Reach, targetId);
+        /// <returns>일치하는 진행 중 Reach 목표를 하나라도 진행시켰으면 true</returns>
+        public bool ReportReach(int targetId) => AdvanceTargets(ObjectiveType.Reach, targetId);
 
         /// <summary>던전/레이드 클리어를 보고한다. 대상이 일치하는 Clear 목표를 1 진행시킨다.</summary>
         /// <param name="dungeonId">클리어한 던전/레이드 ID</param>
@@ -525,8 +530,11 @@ namespace ProjectS.Managers
 
         // 한 사건이 같은 퀘스트를 이중 진행하지 않도록 퀘스트마다 첫 매치 하나만 올리고,
         // 서로 다른 퀘스트는 각각 진행시킨다. 진행 방식은 이벤트 기반이라 진행 중 퀘스트만 훑는다.
-        private void AdvanceTargets(ObjectiveType type, int targetId)
+        // 반환값은 호출자가 "실제로 뭔가 진행됐는지"를 알아야 할 때 쓴다(예: QuestReachTrigger의 1회성 잠금).
+        private bool AdvanceTargets(ObjectiveType type, int targetId)
         {
+            bool advanced = false;
+
             foreach (var quest in activeQuests)
             {
                 if (quest.ObjectiveType != type) continue;
@@ -537,9 +545,12 @@ namespace ProjectS.Managers
                     if (objective.Target.TargetId != targetId) continue;
 
                     AdvanceObjective(quest, objective);
+                    advanced = true;
                     break;
                 }
             }
+
+            return advanced;
         }
 
         // ---------- 내부 유틸 ----------
