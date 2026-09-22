@@ -37,7 +37,7 @@ namespace ProjectS.Debugging
     /// 파일 전체가 #if UNITY_EDITOR라 빌드에는 클래스도 자동 생성도 포함되지 않는다.
     /// </para>
     /// </remarks>
-    public class DebugRaidDirectPlay : MonoBehaviour
+    public class DebugRaidDirectPlay : MonoBehaviour, ISurvivesReboot
     {
         // 레이드 던전 ID(ID_NUMBERING §4의 99). 몬스터 스탯 행을 이 던전 기준으로 읽게 한다 — RaidGather.ResolveDungeon과 같은 값.
         private const int RaidDungeonId = 99;

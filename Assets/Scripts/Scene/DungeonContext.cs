@@ -54,6 +54,17 @@ namespace ProjectS.Scenes
             return dungeonId * 100 + Mathf.Abs(baseMonsterId) % 100;
         }
 
+        /// <summary>
+        /// 레이드의 던전 번호(ID 앞자리). docs/ID_NUMBERING.md §4에서 레이드는 <c>99</c> 한 칸을 쓴다.
+        /// </summary>
+        public const int RaidDungeonNumber = 9;
+
+        /// <summary>
+        /// 지금 레이드 안인지. 레이드는 파티 컨텐츠라 사망·실패 처리가 일반 던전과 다르다
+        /// (마을 복귀 대신 파티 전멸 판정 → 재시도 투표). 그 분기의 단일 기준점이다.
+        /// </summary>
+        public static bool IsRaid => DungeonNumber == RaidDungeonNumber;
+
         /// <summary>던전 씬 진입 시 그 던전 ID로 세팅한다.</summary>
         /// <param name="dungeonId">진입한 던전 ID</param>
         public static void SetDungeon(int dungeonId) => CurrentDungeonId = dungeonId;

@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using UnityEngine;
 using UnityEngine.InputSystem;
+using ProjectS.Core;
 
 namespace ProjectS.Debugging
 {
@@ -24,7 +25,7 @@ namespace ProjectS.Debugging
     /// fixedDeltaTime도 함께 스케일해 물리(NavMeshAgent 이동 등)가 같은 비율로 느려지게 한다.
     /// </para>
     /// </summary>
-    public class DebugTimeScaleKey : MonoBehaviour
+    public class DebugTimeScaleKey : MonoBehaviour, ISurvivesReboot
     {
         // 순환할 배속 단계. 0.1배까지 내려가면 발사 궤적을 프레임 단위로 볼 수 있다.
         // 1f가 반드시 포함돼 있어야 \ 복귀와 시작값이 이 배열과 어긋나지 않는다.
