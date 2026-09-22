@@ -107,5 +107,22 @@ namespace ProjectS.Data
             if (CurrentCount >= Target.RequiredCount)
                 IsCompleted = true;
         }
+
+        /// <summary>
+        /// 진행 카운트를 값으로 맞춘다. 수집(Collect) 목표 전용이다 — 진행도가 '지금 가방에 몇 개 있는가'라서
+        /// 올리기만 하는 <see cref="Advance"/>로는 표현할 수 없다(아이템을 쓰거나 버리면 내려가야 한다).
+        /// 그래서 완료 여부도 래치하지 않고 값에서 다시 계산한다.
+        /// </summary>
+        /// <param name="value">새 진행 카운트(0 ~ RequiredCount로 잘린다)</param>
+        /// <returns>값이 실제로 바뀌었으면 true</returns>
+        internal bool SetCount(int value)
+        {
+            int clamped = Mathf.Clamp(value, 0, Target.RequiredCount);
+            if (clamped == CurrentCount) return false;
+
+            CurrentCount = clamped;
+            IsCompleted = CurrentCount >= Target.RequiredCount;
+            return true;
+        }
     }
 }
