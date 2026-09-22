@@ -87,6 +87,10 @@ namespace ProjectS.Networking
         [SyncVar] private float hpRatio = 1f;
         [SyncVar] private float sgRatio = 1f;
 
+        // 레이드 인스턴스에서 이 사람이 조종하는 아바타(netId). 서버가 스폰·이탈 시에만 갱신한다.
+        // 훅이 없는 이유는 HP/SG와 같다 — 읽는 쪽(관전 카메라)이 자기 주기로 확인하면 충분하다.
+        [SyncVar] private uint avatarNetId;
+
         // 로컬에서 마지막으로 계산한 내 비율. PlayerEvents는 cur/max로 오므로 여기서 비율로 접어 둔다.
         private float localHpRatio = 1f;
         private float localSgRatio = 1f;
@@ -127,6 +131,16 @@ namespace ProjectS.Networking
 
         /// <summary>SG(자원) 비율(0~1). <see cref="HpRatio"/>와 같은 취지.</summary>
         public float SgRatio => sgRatio;
+
+        /// <summary>
+        /// 이 사람이 지금 조종 중인 레이드 아바타의 netId. 인스턴스 밖이면 0.
+        /// </summary>
+        /// <remarks>
+        /// 관전 카메라가 "저 파티원의 몸"을 찾는 유일한 연결고리다. 아바타의 소유권(<c>isOwned</c>)은
+        /// <b>자기 것만</b> 알 수 있어서, 클라에서 "이 아바타가 누구 것인가"를 역으로 알 방법이 없다.
+        /// 그래서 서버가 스폰하면서 이쪽에 netId를 심어 복제한다.
+        /// </remarks>
+        public uint AvatarNetId => avatarNetId;
 
         // ── 생명주기: 목록 등록/해제 ──────────────────────────────────
 
@@ -202,6 +216,13 @@ namespace ProjectS.Networking
         /// ⑥ 초대 수신 허용/거부를 서버에 반영한다. 팝업 드롭다운(OnAcceptInvitesChanged)이 넘긴 값을
         /// <see cref="NetworkPartyMemberSource"/>가 이 Command로 올린다.
         /// </summary>
+        /// <summary>
+        /// 서버가 이 사람의 레이드 아바타 링크를 갱신한다. 스폰 직후 netId를, 인스턴스를 떠날 때 0을 넣는다.
+        /// </summary>
+        /// <param name="netIdOfAvatar">아바타의 netId. 0이면 인스턴스 밖.</param>
+        [Server]
+        public void ServerSetAvatar(uint netIdOfAvatar) => avatarNetId = netIdOfAvatar;
+
         /// <param name="accepts">초대를 받는 상태로 둘지</param>
         [Command]
         public void CmdSetAcceptsInvites(bool accepts)

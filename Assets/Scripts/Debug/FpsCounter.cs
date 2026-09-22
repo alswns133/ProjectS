@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
+using ProjectS.Core;
 
 namespace ProjectS.Debugging
 {
@@ -17,7 +18,7 @@ namespace ProjectS.Debugging
     /// F1로 표시를 켜고 끈다. 기본값은 <see cref="startVisible"/>로 정한다.
     /// </para>
     /// </summary>
-    public class FpsCounter : MonoBehaviour
+    public class FpsCounter : MonoBehaviour, ISurvivesReboot
     {
         /// <summary>중복 생성 방지 및 외부 토글용 싱글톤 참조.</summary>
         public static FpsCounter Instance { get; private set; }

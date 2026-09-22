@@ -42,6 +42,8 @@ namespace ProjectS.EditorTools
         private const float SpinnerSize = 96f;
         private const float RingThickness = 10f;
         private const float CountFontSize = 40f;
+        private const float MessageFontSize = 26f;
+        private const float MessageToSpinnerGap = 40f;
         private const float SpinnerToCountGap = 28f;
 
         private static readonly Color BackgroundColor = Color.black;
@@ -116,7 +118,7 @@ namespace ProjectS.EditorTools
             Fill(background.rectTransform);
 
             RectTransform center = CreateRect(root.transform, "Center");
-            Centered(center, Vector2.zero, new Vector2(SpinnerSize * 3f, SpinnerSize + SpinnerToCountGap + CountFontSize * 1.5f));
+            Centered(center, Vector2.zero, new Vector2(900f, SpinnerSize + SpinnerToCountGap + CountFontSize * 1.5f + MessageToSpinnerGap + MessageFontSize * 1.5f));
 
             Sprite circle = AssetDatabase.GetBuiltinExtraResource<Sprite>(CircleSpritePath);
 
@@ -139,13 +141,20 @@ namespace ProjectS.EditorTools
             Centered(hole.rectTransform, Vector2.zero,
                      new Vector2(SpinnerSize - RingThickness * 2f, SpinnerSize - RingThickness * 2f));
 
-            TextMeshProUGUI count = CreateText(center, "Count", "0/0", CountFontSize);
+            TextMeshProUGUI count = CreateText(center, "Count", "0 / 0 준비 완료", CountFontSize);
             Centered(count.rectTransform,
                      new Vector2(0f, -(SpinnerSize + SpinnerToCountGap) * 0.5f),
-                     new Vector2(SpinnerSize * 3f, CountFontSize * 1.5f));
+                     new Vector2(900f, CountFontSize * 1.5f));
+
+            // 숫자만 있으면 "무엇을 기다리는지"가 읽히지 않는다. 진입 화면(EntryVeil)과 같은 형식으로
+            // 안내 한 줄을 스피너 위에 둔다 — 문구 자체는 View의 인스펙터 값이 채운다.
+            TextMeshProUGUI message = CreateText(center, "Message", "파티원이 모두 도착하기를 기다리는 중입니다", MessageFontSize);
+            Centered(message.rectTransform,
+                     new Vector2(0f, (SpinnerToCountGap + CountFontSize) * 0.5f + SpinnerSize * 0.5f + MessageToSpinnerGap),
+                     new Vector2(900f, MessageFontSize * 1.5f));
 
             RaidWaitView view = root.AddComponent<RaidWaitView>();
-            Wire(view, ("spinnerArc", arc.rectTransform), ("countText", count));
+            Wire(view, ("spinnerArc", arc.rectTransform), ("countText", count), ("messageText", message));
 
             RaidWaitPresenter presenter = root.AddComponent<RaidWaitPresenter>();
             Wire(presenter, ("view", view));
