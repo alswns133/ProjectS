@@ -20,6 +20,8 @@ namespace ProjectS.Players
 
         [Tooltip("직업 심볼 아이콘. HUD와 장비창 헤더가 쓴다.")]
         public Sprite symbol;
+
+        public Sprite portrait;
     }
 
     /// <summary>
@@ -48,6 +50,8 @@ namespace ProjectS.Players
         /// <summary>characterType에 맞는 직업 심볼(HUD·장비창 헤더). 없으면 null.</summary>
         /// <param name="characterType">캐릭터 타입(1=검사, 2=거너 …)</param>
         public Sprite GetSymbol(int characterType) => Find(characterType)?.symbol;
+
+        public Sprite GetPortrait(int characterType) => Find(characterType)?.portrait;
 
         /// <summary>배열 순서 그대로 index번째 프리팹. 부트스트랩 임시 선택용이라 characterType과 무관하다.</summary>
         /// <param name="index">배열 인덱스(0부터)</param>
