@@ -1,7 +1,9 @@
 ﻿using ProjectS.Managers;
+using ProjectS.Players;
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace ProjectS.UI
@@ -55,16 +57,17 @@ namespace ProjectS.UI
         [SerializeField] private TMP_Text nameText;
 
         [Header("③ 클래스 아이콘")]
-        [SerializeField] private Image classIcons;
+        [Tooltip("직업 심볼. 스프라이트는 CharacterRoster에서 characterType으로 꺼내 꽂는다(여기서 지정하지 않는다).")]
+        [FormerlySerializedAs("classIcons")]
+        [SerializeField] private Image classSymbol;
 
         [Header("④ 파티장 아이콘")]
         [Tooltip("파티장임을 나타내는 유일한 표식. 초대한 쪽이 파티장이며, 파티가 유지되는 동안 바뀌지 않는다.")]
         [SerializeField] private GameObject leaderIcon;
 
         [Header("⑤ 초상화")]
+        [Tooltip("파티원 초상화. 스프라이트는 CharacterRoster의 캐릭터 일러스트를 쓴다(여기서 지정하지 않는다).")]
         [SerializeField] private Image portraitImage;
-        [Tooltip("클래스별 초상화. 인덱스 순서는 classIcons와 같다(0번=검사, 1번=거너).")]
-        [SerializeField] private Sprite[] portraitsByClass;
 
         [Header("⑥ 바이탈 그래프")]
         [Tooltip("연출용 파형. HpEcgBar 머티리얼을 붙여 두면 스스로 흐른다.")]
@@ -120,37 +123,25 @@ namespace ProjectS.UI
             ApplyClass(member.CharacterType);
         }
 
-        // ③ 아이콘과 ⑤ 초상화는 같은 characterType으로 함께 고른다. 범위를 벗어나면 둘 다 비워
-        // 엉뚱한 직업을 보여주지 않는다(빈 자리가 틀린 정보보다 낫다).
+        // ③ 직업 심볼과 ⑤ 초상화를 같은 characterType으로 함께 고른다(출처는 CharacterRoster 하나).
+        // 못 찾으면 둘 다 비워 엉뚱한 직업을 보여주지 않는다 — 빈 자리가 틀린 정보보다 낫다.
         private void ApplyClass(int characterType)
         {
-            // characterType은 1부터 시작(1=검사·2=거너)하므로 배열 인덱스와 맞추려면 -1 한다.
-            // 아이콘과 초상화가 같은 index를 쓰게 한곳에서 계산한다 — 둘이 갈리면 아이콘과 얼굴이 어긋난다.
-            //int index = characterType - 1;
+            CharacterRoster roster = PlayerManager.Instance != null ? PlayerManager.Instance.Roster : null;
 
-            //if (classIcons != null)
-            //{
-            //    for (int i = 0; i < classIcons.Length; i++)
-            //    {
-            //        if (classIcons[i] != null) classIcons[i].SetActive(i == index);
-            //    }
-            //}
+            SetArt(portraitImage, roster != null ? roster.GetIllust(characterType) : null);
+            SetArt(classSymbol, roster != null ? roster.GetSymbol(characterType) : null);
+        }
 
-            //if (portraitImage == null) return;
+        // 그림이 없으면 Image를 꺼 빈 칸으로 둔다. 슬롯은 파티원이 바뀌어도 재사용되므로, 끄지 않으면
+        // 직전 파티원의 얼굴이 남거나(로스터 조회 실패) sprite 없는 흰 사각형이 그려진다.
+        // characterType 0(세이브를 못 읽은 프레즌스)이 실제로 로스터에 없는 값으로 들어온다.
+        private static void SetArt(Image target, Sprite sprite)
+        {
+            if (target == null) return;
 
-            //bool hasPortrait = portraitsByClass != null
-            //                && index >= 0
-            //                && index < portraitsByClass.Length
-            //                && portraitsByClass[index] != null;
-
-            //portraitImage.sprite = hasPortrait ? portraitsByClass[index] : null;
-            //portraitImage.enabled = hasPortrait;
-
-            if (PlayerManager.Instance == null) return;
-            if (PlayerManager.Instance.Roster == null) return;
-
-            if (portraitImage != null) portraitImage.sprite = PlayerManager.Instance.Roster.GetIllust(characterType);
-            if (classIcons != null) classIcons.sprite = PlayerManager.Instance.Roster.GetSymbol(characterType);
+            target.sprite = sprite;
+            target.enabled = sprite != null;
         }
 
         private void HandleClicked() => OnClicked?.Invoke();

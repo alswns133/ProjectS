@@ -86,6 +86,26 @@ MonoBehaviour:
     lightModel: 2
     debugMode: 0
     debugOpacity: 0.496
+--- !u!114 &-4937233238913187032
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b00045f12942b46c698459096c89274e, type: 3}
+  m_Name: FullScreenPassRendererFeature
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.FullScreenPassRendererFeature
+  m_Active: 1
+  injectionPoint: 600
+  fetchColorBuffer: 1
+  requirements: 4
+  passMaterial: {fileID: 2100000, guid: 7a0f6b50809f8994a828b90c87e3739b, type: 2}
+  passIndex: 0
+  bindDepthStencilAttachment: 0
+  m_Version: 1
 --- !u!114 &-2971727128263017632
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -149,7 +169,8 @@ MonoBehaviour:
   m_RendererFeatures:
   - {fileID: -5543827131766105473}
   - {fileID: -7415308818087781693}
-  m_RendererFeatureMap: 7f9ae89a985e10b3c35a0efeea871799
+  - {fileID: -4937233238913187032}
+  m_RendererFeatureMap: 7f9ae89a985e10b3c35a0efeea8717992803541d876c7bbb
   m_UseNativeRenderPass: 0
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -228,3 +249,23 @@ MonoBehaviour:
     lightModel: 0
     debugMode: 0
     debugOpacity: 1
+--- !u!114 &3055114769817151880
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b00045f12942b46c698459096c89274e, type: 3}
+  m_Name: FullScreenPassRendererFeature
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.FullScreenPassRendererFeature
+  m_Active: 1
+  injectionPoint: 600
+  fetchColorBuffer: 1
+  requirements: 4
+  passMaterial: {fileID: 2100000, guid: 7a0f6b50809f8994a828b90c87e3739b, type: 2}
+  passIndex: 0
+  bindDepthStencilAttachment: 0
+  m_Version: 1
