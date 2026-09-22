@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using ProjectS.Core;
 
 namespace ProjectS.Debugging
 {
@@ -12,7 +13,7 @@ namespace ProjectS.Debugging
     /// <remarks>
     /// 빈 GameObject에 붙여 부트스트랩 씬에 둔다(DontDestroyOnLoad). 확인 끝나면 오브젝트째 지운다.
     /// </remarks>
-    public class OnScreenLog : MonoBehaviour
+    public class OnScreenLog : MonoBehaviour, ISurvivesReboot
     {
         [Tooltip("버퍼에 유지할 최대 줄 수(스크롤 가능하니 넉넉히).")]
         [SerializeField] private int maxLines = 300;

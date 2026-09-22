@@ -424,6 +424,30 @@ namespace ProjectS.Networking
         // 그 파티(partyId) 오브젝트만 그 씬으로 옮긴다. 지금은 서버 측 로드·이동까지만 — 클라 로드(Stage 2)·
         // 관심관리(Stage 3)·씬별 물리(Stage 4)·GameSceneManager 통합(Stage 5)·언로드(Stage 6)는 뒤에 붙인다.
 
+        /// <summary>
+        /// 호스트만을 위한 클라 진입 처리. 씬 로드를 건너뛰는 대신 <c>RaidGather.Enter</c>가 채워 주던
+        /// 장부를 여기서 채운다.
+        /// </summary>
+        /// <remarks>
+        /// <b>왜 필요한가(2026-09-22).</b> 원격 클라는 서버가 보낸 SceneMessage로 자기 레이드 씬을 로드하면서
+        /// <c>RaidGather.Enter</c>가 돌아 던전 컨텍스트를 받는다. 호스트는 서버 씬을 그대로 쓰므로 그 지시를
+        /// 건너뛰고, 따라서 컨텍스트가 마을(0)로 남는다.
+        ///
+        /// <para>부활 기회는 여기서 주지 않는다 — <c>OwnerGate.OnStartClient</c>가 내 아바타가 뜨는 순간
+        /// 이미 주고 있고(같은 호스트 문제를 그쪽에서 먼저 막아 뒀다), 두 곳에서 주면 어느 쪽이 실제로
+        /// 효력을 냈는지 추적이 어려워진다. HUD도 마을에서 이미 떠 있어 건드리지 않는다.</para>
+        /// </remarks>
+        /// <param name="dungeonId">이번에 들어가는 던전 ID(2자리).</param>
+        [Server]
+        private static void HostEnterInstanceLocally(int dungeonId)
+        {
+            if (!NetworkClient.active) return;   // 전용 서버는 볼 화면이 없다
+
+            DungeonContext.SetDungeon(dungeonId);
+
+            Debug.Log($"[진단][Instance] 호스트 진입 처리 — 던전 컨텍스트 {dungeonId}");
+        }
+
         /// <summary>이 파티를 파티 전용 던전 인스턴스로 입장시킨다(서버 권위). 멤버의 ConfirmDepart가 부른다.</summary>
         [Server]
         private void ServerEnterDungeonForMyParty()
@@ -477,6 +501,10 @@ namespace ProjectS.Networking
 
             RaidIntroSession.Open(pid, instance, introMembers);
 
+            // 전멸 판정·재시도 투표 세션도 같은 멤버 목록으로 함께 연다. 입장 시점이 "이 인스턴스에 누가 있는가"가
+            // 가장 정확한 순간이라, 실패가 난 뒤에 뒤늦게 모으지 않는다(이탈자는 세션이 매 프레임 걸러 낸다).
+            RaidFailSession.Open(pid, instance, introMembers);
+
             // TODO(Stage 2): 이 파티 두 커넥션에만 클라 additive 로드를 지시한다.
             //   foreach 파티원 conn: conn.Send(new SceneMessage { sceneName = sceneName, sceneOperation = SceneOperation.LoadAdditive });
             //   그 뒤 클라의 로컬 캐릭터/DungeonContext 세팅(PartyDungeonId SyncVar 이용) + GameSceneManager 통합(Stage 5).
@@ -489,7 +517,12 @@ namespace ProjectS.Networking
 
                 if (conn == null) continue;
 
-                if (conn == NetworkServer.localConnection) continue;  // 호스트는 서버 씬을 공유 → 다시 로드 금지
+                // 호스트는 서버 씬을 공유 → 다시 로드 금지. 대신 클라 진입 장부는 여기서 채운다(아래 참조).
+                if (conn == NetworkServer.localConnection)
+                {
+                    HostEnterInstanceLocally(dungeonId);
+                    continue;
+                }
 
                 conn.Send(new SceneMessage
                 {
@@ -533,6 +566,11 @@ namespace ProjectS.Networking
                 GameObject avatar = Instantiate(prefabs.gameObject, spawnPos, baseRot);
                 SceneManager.MoveGameObjectToScene(avatar, instance);
                 NetworkServer.Spawn(avatar, conn);
+
+                // 프레즌스에 아바타 링크를 심는다. 클라는 남의 아바타 소유권을 알 수 없어서,
+                // 관전 카메라가 "저 파티원의 몸"을 찾으려면 이 링크가 있어야 한다.
+                if (avatar.TryGetComponent(out NetworkIdentity avatarIdentity))
+                    p.ServerSetAvatar(avatarIdentity.netId);
                 i++;
             }
 

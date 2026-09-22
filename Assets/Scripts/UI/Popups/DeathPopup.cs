@@ -76,6 +76,9 @@ namespace ProjectS.UI
         [SerializeField, TextArea] private string returningMessage = "마을로 돌아갑니다.";
         [SerializeField, TextArea] private string autoReturnMessage = "부활 기회를 모두 사용했습니다.\n마을로 돌아갑니다.";
 
+        [Tooltip("레이드에서 부활 기회를 다 썼을 때. 마을로 보내지 않고 파티의 결과를 기다린다.")]
+        [SerializeField, TextArea] private string raidDownMessage = "부활 기회를 모두 사용했습니다.\n파티가 전멸하면 레이드가 실패합니다.";
+
         [Header("설정")]
         [Tooltip("부활 버튼을 누른 뒤 실제로 살아나기까지의 시간(초).\n" +
                  "죽은 자리에서 곧바로 되살아나지 않게 두는 간격이다. 0으로 두면 즉시 부활한다.")]
@@ -132,14 +135,37 @@ namespace ProjectS.UI
             // 마우스로 버튼을 누르려면 커서를 풀어야 한다(플레이 중엔 커서가 잠겨 숨겨져 있음).
             SetCursorFree(true);
 
+            // 레이드는 파티 컨텐츠라 개인이 마을로 빠지는 선택지를 두지 않는다(2026-09-22 확정).
+            // 파티 전체가 전멸해야 실패가 확정되고, 그때 재시도 투표 / 마을 복귀를 파티 단위로 고른다.
+            // DungeonContext가 아니라 RaidFailFlow를 보는 이유는 호스트 때문이다 — 호스트는 씬 로드 지시를
+            // 건너뛰어 RaidGather.Enter가 돌지 않아 컨텍스트가 마을(0)로 남는다(RaidFailFlow.IsRaidRun 주석 참조).
+            bool raid = RaidFailFlow.IsRaidRun;
+
             if (ReviveBudget.CanRevive)
             {
-                ShowChoice();
+                ShowChoice(raid);
+                return;
+            }
+
+            if (raid)
+            {
+                EnterRaidDown();
                 return;
             }
 
             HideChoice(autoReturnMessage);
             BeginCountdown(Pending.Return, returnDelay);
+        }
+
+        // 레이드에서 더 이상 일어설 수 없는 상태. 마을로 보내지 않고 파티의 결과를 기다리며,
+        // 서버에는 다운을 보고한다 — 파티원 전원의 이 보고가 모이는 순간이 곧 레이드 실패다.
+        private void EnterRaidDown()
+        {
+            HideChoice(raidDownMessage);
+
+            if (countdownText != null) countdownText.gameObject.SetActive(false);
+
+            RaidFailFlow.ReportDown(true);
         }
 
         // 닫힐 때(부활/마을 복귀 모두) 커서를 다시 잠가 플레이 조작으로 복귀시킨다.
@@ -220,6 +246,10 @@ namespace ProjectS.UI
 
             if (player != null) player.Revive();
             else Debug.LogWarning($"{name}: Player를 찾지 못해 부활하지 못했다.", this);
+
+            // 레이드에서는 다운 해제를 서버에 알린다. 안 알리면 이 사람이 살아났는데도 다운으로 남아,
+            // 남은 파티원이 쓰러지는 순간 전멸로 오판된다.
+            if (RaidFailFlow.IsRaidRun) RaidFailFlow.ReportDown(false);
         }
 
         private void ReturnToVillage()
@@ -243,11 +273,12 @@ namespace ProjectS.UI
             PartyInstanceExit.ReturnToVillage();
         }
 
-        private void ShowChoice()
+        // raid면 마을 복귀 버튼을 감춘다 — 파티원을 두고 혼자 나가는 선택지를 아예 주지 않기 위함이다.
+        private void ShowChoice(bool raid = false)
         {
             if (choiceGroup != null) choiceGroup.SetActive(true);
             if (reviveButton != null) reviveButton.gameObject.SetActive(true);
-            if (returnToVillageButton != null) returnToVillageButton.gameObject.SetActive(true);
+            if (returnToVillageButton != null) returnToVillageButton.gameObject.SetActive(!raid);
             if (countdownText != null) countdownText.gameObject.SetActive(false);
             if (messageText != null) messageText.text = chooseMessage;
         }

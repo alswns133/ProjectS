@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using ProjectS.Managers;
 using UnityEngine;
+using ProjectS.Core;
 
 namespace ProjectS.Logging
 {
@@ -12,7 +13,7 @@ namespace ProjectS.Logging
     /// 씬 배치를 잊어도 동작하도록 첫 씬 로드 뒤 자동 생성된다.
     /// </summary>
     [DefaultExecutionOrder(-1000)]
-    public class LogManager : MonoBehaviour
+    public class LogManager : MonoBehaviour, ISurvivesReboot
     {
         internal const string TaggedConsolePrefix = "[ProjectS.GameLog] ";
 
