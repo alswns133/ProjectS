@@ -781,6 +781,62 @@ namespace ProjectS.Managers
             }
         }
 
+        // ---------- 퀘스트 연동 ----------
+
+        /// <summary>
+        /// 가방에 있는 해당 아이템의 총 개수(스택 합 + 미장착 장비 수). 수집 퀘스트 진행도의 출처다.
+        /// <b>착용 중인 장비는 세지 않는다</b> — 반납 때 회수할 수 있는 것만 세어야 진행도와 회수가 어긋나지 않는다.
+        /// </summary>
+        /// <param name="itemId">셀 아이템 ID</param>
+        /// <returns>가방 보유 개수</returns>
+        public int GetItemCount(int itemId)
+        {
+            int total = GetConsumableCount(itemId);
+
+            foreach (EquipmentInstance instance in equipGrid)
+            {
+                if (instance != null && instance.Item != null && instance.Item.Index == itemId) total++;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// 아이템을 가방에서 회수한다(수집 퀘스트 반납 등). 스택을 먼저 비우고 모자라면 미장착 장비를 없앤다.
+        /// 보유량보다 많이 요구하면 있는 만큼만 회수하고 그 수를 돌려준다.
+        /// </summary>
+        /// <param name="itemId">회수할 아이템 ID</param>
+        /// <param name="count">회수할 개수</param>
+        /// <returns>실제로 회수한 개수</returns>
+        public int TakeItems(int itemId, int count)
+        {
+            if (count <= 0) return 0;
+
+            int taken = Mathf.Min(count, GetItemCount(itemId));
+            if (taken <= 0) return 0;
+
+            int remaining = taken;
+
+            int fromStacks = Mathf.Min(remaining, GetConsumableCount(itemId));
+            if (fromStacks > 0)
+            {
+                ConsumeItem(itemId, fromStacks);
+                remaining -= fromStacks;
+            }
+
+            for (int i = 0; i < equipGrid.Length && remaining > 0; i++)
+            {
+                EquipmentInstance instance = equipGrid[i];
+                if (instance == null || instance.Item == null || instance.Item.Index != itemId) continue;
+
+                equipGrid[i] = null;
+                remaining--;
+            }
+
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();   // 커밋: 반납으로 아이템이 사라지는 것은 비가역 변화
+            return taken;
+        }
+
         // ---------- 격자 헬퍼 ----------
 
         // 격자에서 빈칸을 뺀 목록을 만든다(강화·기존 순회 호환용). 자주 안 불리므로 매번 생성해도 무방.

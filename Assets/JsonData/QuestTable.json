@@ -3,283 +3,21 @@
     "QuestId": 501001,
     "QuestType": "Main",
     "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
+    "ObjectiveType": "Reach",
     "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 1 }
+      { "TargetId": 101, "RequiredCount": 1 }
     ],
     "RequiredLevel": 0,
     "PrerequisiteQuestId": 0,
     "Rewards": [
-      { "Type": "Exp", "TargetId": 0, "Amount": 200, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 200, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 101001, "Amount": 1, "IconAddress": "" }
     ],
-    "IntroDialogueId": 700101,
-    "TurnInDialogueId": 700111,
-    "Title": "첫 임무",
-    "Description": "마을 앞 슬라임을 처치해 실력을 증명하라.",
-    "TrackerText": "마을 앞 슬라임 처치"
-  },
-  {
-    "QuestId": 501002,
-    "QuestType": "Main",
-    "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 3 },
-      { "TargetId": 1102, "RequiredCount": 2 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 501001,
-    "Rewards": [
-      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" },
-      { "Type": "Gold", "TargetId": 0, "Amount": 500, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 300, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700102,
-    "TurnInDialogueId": 700112,
-    "Title": "몬스터 소탕",
-    "Description": "던전1의 몬스터를 처치해 마을의 위협을 줄여라.",
-    "TrackerText": "던전1 몬스터 처치"
-  },
-  {
-    "QuestId": 501003,
-    "QuestType": "Main",
-    "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 5 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 501002,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 1000, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 800, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700103,
-    "TurnInDialogueId": 700113,
-    "Title": "각성으로 가는 길",
-    "Description": "더 강한 적을 물리치고 새로운 힘을 각성하라.",
-    "TrackerText": "던전1 원거리 몬스터 처치"
-  },
-  {
-    "QuestId": 601001,
-    "QuestType": "Repeat",
-    "QuestNpc": "미라",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 3 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 500, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 100, "IconAddress": "" }
-    ],
-    "Title": "슬라임 퇴치",
-    "Description": "들판의 슬라임 3마리를 처치하라.",
-    "TrackerText": "들판의 슬라임 처치"
-  },
-  {
-    "QuestId": 601002,
-    "QuestType": "Repeat",
-    "QuestNpc": "미라",
-    "ObjectiveType": "Collect",
-    "ObjectiveTargets": [
-      { "TargetId": 201001, "RequiredCount": 5 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 300, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 203001, "Amount": 2, "IconAddress": "" }
-    ],
-    "Title": "장비 수집",
-    "Description": "노말 상의 5개를 모아 오라.",
-    "TrackerText": "노말 상의 수집"
-  },
-  {
-    "QuestId": 601003,
-    "QuestType": "Repeat",
-    "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 5 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 400, "IconAddress": "" },
-      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 2, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700104,
-    "TurnInDialogueId": 700114,
-    "Title": "마을 순찰",
-    "Description": "마을 주변 슬라임 5마리를 처치해 안전을 확보하라."
-  },
-  {
-    "QuestId": 601004,
-    "QuestType": "Repeat",
-    "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 3 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
-      { "Type": "Item", "TargetId": 213005, "Amount": 1, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700105,
-    "TurnInDialogueId": 700115,
-    "Title": "들개 소탕",
-    "Description": "마을을 위협하는 들개 3마리를 쫓아내라."
-  },
-  {
-    "QuestId": 601005,
-    "QuestType": "Repeat",
-    "QuestNpc": "게롯",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 3 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 100000, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
-      { "Type": "Item", "TargetId": 401001, "Amount": 60, "IconAddress": "Material_EnhanceStone_Low" },
-      { "Type": "Item", "TargetId": 402001, "Amount": 30, "IconAddress": "Material_EnhanceStone_High" }
-    ],
-    "IntroDialogueId": 700301,
-    "TurnInDialogueId": 700311,
-    "Title": "강화로의 불씨",
-    "Description": "던전의 몬스터에게서 강화로에 쓸 마정석 코어를 회수해 오라.",
-    "TrackerText": "던전 몬스터에게서 코어 회수"
-  },
-  {
-    "QuestId": 601006,
-    "QuestType": "Repeat",
-    "QuestNpc": "게롯",
-    "ObjectiveType": "Collect",
-    "ObjectiveTargets": [
-      { "TargetId": 201001, "RequiredCount": 3 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 100000, "IconAddress": "" },
-      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 401001, "Amount": 60, "IconAddress": "Material_EnhanceStone_Low" },
-      { "Type": "Item", "TargetId": 402001, "Amount": 30, "IconAddress": "Material_EnhanceStone_High" }
-    ],
-    "Title": "담금질 재료",
-    "Description": "질 좋은 금속이 필요하다. 노말 상의 3벌을 풀어 담금질 재료로 쓰게 가져와라.",
-    "TrackerText": "담금질용 금속 수집"
-  },
-  {
-    "QuestId": 601007,
-    "QuestType": "Repeat",
-    "QuestNpc": "바로",
-    "ObjectiveType": "Collect",
-    "ObjectiveTargets": [
-      { "TargetId": 203001, "RequiredCount": 4 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700401,
-    "TurnInDialogueId": 700411,
-    "Title": "상점 재고 확보",
-    "Description": "가게 진열대가 비었다. 팔 만한 방어구 4점을 모아 오면 값을 쳐주지.",
-    "TrackerText": "판매용 방어구 수집"
-  },
-  {
-    "QuestId": 601008,
-    "QuestType": "Repeat",
-    "QuestNpc": "바로",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 6 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 700, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 1, "IconAddress": "Consumable_Injector_S" },
-      { "Type": "Item", "TargetId": 201005, "Amount": 1, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700402,
-    "TurnInDialogueId": 700412,
-    "Title": "교역로 청소",
-    "Description": "물건을 실어 나르려면 길이 안전해야 한다. 교역로의 슬라임 6마리를 정리해라.",
-    "TrackerText": "교역로 슬라임 처치"
-  },
-  {
-    "QuestId": 601009,
-    "QuestType": "Repeat",
-    "QuestNpc": "게시판",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 4 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 350, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 120, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 202005, "Amount": 1, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700501,
-    "TurnInDialogueId": 700511,
-    "Title": "밭을 지켜라",
-    "Description": "들개 떼가 밭을 망치고 있다는 의뢰다. 마을 근처 들개 4마리를 처치하라.",
-    "TrackerText": "밭 근처 들개 처치"
-  },
-  {
-    "QuestId": 601010,
-    "QuestType": "Repeat",
-    "QuestNpc": "게시판",
-    "ObjectiveType": "Collect",
-    "ObjectiveTargets": [
-      { "TargetId": 203001, "RequiredCount": 5 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 550, "IconAddress": "" },
-      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700502,
-    "TurnInDialogueId": 700512,
-    "Title": "방어구 납품",
-    "Description": "방어구를 급히 구한다는 의뢰다. 방어구 5점을 모아 게시판에 납품하라.",
-    "TrackerText": "납품용 방어구 수집"
-  },
-  {
-    "QuestId": 601011,
-    "QuestType": "Repeat",
-    "QuestNpc": "게시판",
-    "ObjectiveType": "Kill",
-    "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 5 }
-    ],
-    "RequiredLevel": 0,
-    "PrerequisiteQuestId": 0,
-    "Rewards": [
-      { "Type": "Gold", "TargetId": 0, "Amount": 650, "IconAddress": "" },
-      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
-      { "Type": "Item", "TargetId": 204005, "Amount": 1, "IconAddress": "" }
-    ],
-    "IntroDialogueId": 700503,
-    "TurnInDialogueId": 700513,
-    "Title": "던전 정찰",
-    "Description": "던전 안쪽 사정을 알고 싶다는 의뢰다. 던전 몬스터 5마리를 처치하고 상태를 확인하라.",
-    "TrackerText": "던전 몬스터 정찰 처치"
+    "IntroDialogueId": 700106,
+    "TurnInDialogueId": 700116,
+    "Title": "격리선 게이트로",
+    "Description": "칼슨의 지시대로 격리선 게이트 앞까지 이동하라. 통제를 풀어 주겠다고 했다.",
+    "TrackerText": "격리선 게이트 앞으로 이동"
   },
   {
     "QuestId": 501004,
@@ -301,63 +39,309 @@
     "Description": "쓸모가 없어진 로봇 4개를 없애라."
   },
   {
-    "QuestId": 501005,
+    "QuestId": 501008,
     "QuestType": "Main",
-    "QuestNpc": "칼슨",
-    "ObjectiveType": "Kill",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Enhance",
     "ObjectiveTargets": [
-      { "TargetId": 1101, "RequiredCount": 8 }
+      { "TargetId": 1, "RequiredCount": 1 }
     ],
-    "RequiredLevel": 5,
-    "PrerequisiteQuestId": 0,
+    "RequiredLevel": 3,
+    "PrerequisiteQuestId": 502001,
     "Rewards": [
-      { "Type": "SkillUnlock", "TargetId": 2, "Amount": 1, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 500, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 1800, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 3, "IconAddress": "" }
     ],
-    "IntroDialogueId": 0,
-    "TurnInDialogueId": 0,
-    "Title": "두 번째 각성",
-    "Description": "수련이 무르익었다. 던전의 몬스터 8마리를 처치해 두 번째 스킬을 각성하라.",
-    "TrackerText": "던전 몬스터 8 처치 (Lv.10)"
+    "IntroDialogueId": 700303,
+    "TurnInDialogueId": 700313,
+    "Title": "손에 익은 무기",
+    "Description": "회수한 코어를 먹여 장비를 한 단계 끌어올려라. 게롯이 강화대를 열어 두었다.",
+    "TrackerText": "장비 +1 강화"
   },
   {
-    "QuestId": 501006,
+    "QuestId": 501009,
     "QuestType": "Main",
-    "QuestNpc": "칼슨",
+    "QuestNpc": "바로",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
-      { "TargetId": 1102, "RequiredCount": 10 }
+      { "TargetId": 1102, "RequiredCount": 5 }
     ],
-    "RequiredLevel": 6,
-    "PrerequisiteQuestId": 501005,
+    "RequiredLevel": 4,
+    "PrerequisiteQuestId": 501008,
     "Rewards": [
-      { "Type": "SkillUnlock", "TargetId": 3, "Amount": 1, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 1500, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 900, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 2, "IconAddress": "" }
     ],
-    "IntroDialogueId": 0,
-    "TurnInDialogueId": 0,
-    "Title": "세 번째 각성",
-    "Description": "한 단계 더. 더 강한 몬스터 10마리를 처치해 세 번째 스킬을 각성하라.",
-    "TrackerText": "강한 몬스터 10 처치 (Lv.20)"
+    "IntroDialogueId": 700403,
+    "TurnInDialogueId": 700413,
+    "Title": "조달로 확보",
+    "Description": "상공의 캣 슈터가 장비 운송을 막고 있다. 다섯 기를 떨어뜨려 조달로를 열어라.",
+    "TrackerText": "캣 슈터 5기 격추"
   },
   {
-    "QuestId": 501007,
+    "QuestId": 501010,
+    "QuestType": "Main",
+    "QuestNpc": "미라",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 301001, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 4,
+    "PrerequisiteQuestId": 501008,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 700, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301002, "Amount": 2, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700801,
+    "TurnInDialogueId": 700811,
+    "Title": "잡화점 재고",
+    "Description": "균열에서 회수되는 소형 인젝터가 동났다. 다섯 개를 모아 미라에게 넘겨라.",
+    "TrackerText": "소형 인젝터 5개 수집"
+  },
+  {
+    "QuestId": 502001,
     "QuestType": "Main",
     "QuestNpc": "칼슨",
     "ObjectiveType": "Kill",
     "ObjectiveTargets": [
       { "TargetId": 1109, "RequiredCount": 1 }
     ],
-    "RequiredLevel": 7,
-    "PrerequisiteQuestId": 501006,
+    "RequiredLevel": 0,
+    "PrerequisiteQuestId": 501001,
     "Rewards": [
-      { "Type": "SkillUnlock", "TargetId": 4, "Amount": 1, "IconAddress": "" },
-      { "Type": "Exp", "TargetId": 0, "Amount": 3000, "IconAddress": "" }
+      { "Type": "Exp", "TargetId": 0, "Amount": 600, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 1200, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 3, "IconAddress": "" }
     ],
-    "IntroDialogueId": 0,
-    "TurnInDialogueId": 0,
-    "Title": "각성기 개방",
-    "Description": "진정한 힘을 시험할 때다. 던전의 보스를 쓰러뜨리고 각성기를 개방하라.",
-    "TrackerText": "던전 보스 처치 (Lv.30)"
+    "IntroDialogueId": 700107,
+    "TurnInDialogueId": 700117,
+    "Title": "각성체 나인클로",
+    "Description": "사이버싸이코 균열을 장악한 각성체 나인클로를 파괴하고 공동체 분출을 멎게 하라.",
+    "TrackerText": "나인클로 처치 (노말)"
+  },
+  {
+    "QuestId": 601001,
+    "QuestType": "Repeat",
+    "QuestNpc": "미라",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 3 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 500, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 100, "IconAddress": "" }
+    ],
+    "Title": "외곽 정리",
+    "Description": "균열 외곽을 맴도는 캣 워커 3기를 정리하라.",
+    "TrackerText": "외곽 캣 워커 처치"
+  },
+  {
+    "QuestId": 601002,
+    "QuestType": "Repeat",
+    "QuestNpc": "미라",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 201001, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 300, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 203001, "Amount": 2, "IconAddress": "" }
+    ],
+    "Title": "장비 수집",
+    "Description": "노말 상의 5개를 모아 오라.",
+    "TrackerText": "노말 상의 수집"
+  },
+  {
+    "QuestId": 601003,
+    "QuestType": "Repeat",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 400, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 2, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700104,
+    "TurnInDialogueId": 700114,
+    "Title": "노드 순찰",
+    "Description": "세컨드 노드 주변까지 내려온 캣 워커 5기를 처리해 안전을 확보하라.",
+    "TrackerText": "노드 주변 캣 워커 처치"
+  },
+  {
+    "QuestId": 601004,
+    "QuestType": "Repeat",
+    "QuestNpc": "칼슨",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1102, "RequiredCount": 3 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Item", "TargetId": 213005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700105,
+    "TurnInDialogueId": 700115,
+    "Title": "캣 슈터 소탕",
+    "Description": "세컨드 노드 어귀까지 내려온 캣 슈터 3기를 쫓아내라.",
+    "TrackerText": "노드 어귀 캣 슈터 처치"
+  },
+  {
+    "QuestId": 601005,
+    "QuestType": "Repeat",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1102, "RequiredCount": 3 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 100000, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 60, "IconAddress": "Material_EnhanceStone_Low" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 30, "IconAddress": "Material_EnhanceStone_High" }
+    ],
+    "IntroDialogueId": 700301,
+    "TurnInDialogueId": 700311,
+    "Title": "손상된 코어 회수",
+    "Description": "캣 슈터에게서 장비 강화에 쓸 손상된 코어를 회수해 오라.",
+    "TrackerText": "캣 슈터에게서 코어 회수"
+  },
+  {
+    "QuestId": 601006,
+    "QuestType": "Repeat",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 201001, "RequiredCount": 3 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 100000, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 401001, "Amount": 60, "IconAddress": "Material_EnhanceStone_Low" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 30, "IconAddress": "Material_EnhanceStone_High" }
+    ],
+    "Title": "정제용 소재",
+    "Description": "쓸 만한 소재가 필요하다. 노말 상의 3벌을 풀어 정제 재료로 쓰게 가져와라.",
+    "TrackerText": "정제용 소재 수집"
+  },
+  {
+    "QuestId": 601007,
+    "QuestType": "Repeat",
+    "QuestNpc": "바로",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 203001, "RequiredCount": 4 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 600, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 150, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700401,
+    "TurnInDialogueId": 700411,
+    "Title": "상점 재고 확보",
+    "Description": "가게 진열대가 비었다. 팔 만한 방어구 4점을 모아 오면 값을 쳐주지.",
+    "TrackerText": "판매용 방어구 수집"
+  },
+  {
+    "QuestId": 601008,
+    "QuestType": "Repeat",
+    "QuestNpc": "바로",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 6 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 700, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301001, "Amount": 1, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Item", "TargetId": 201005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700402,
+    "TurnInDialogueId": 700412,
+    "Title": "운송로 청소",
+    "Description": "물건을 실어 나르려면 길이 안전해야 한다. 운송로의 캣 워커 6기를 정리하라.",
+    "TrackerText": "운송로 캣 워커 처치"
+  },
+  {
+    "QuestId": 601009,
+    "QuestType": "Repeat",
+    "QuestNpc": "게시판",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1101, "RequiredCount": 4 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 350, "IconAddress": "" },
+      { "Type": "Exp", "TargetId": 0, "Amount": 120, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 202005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700501,
+    "TurnInDialogueId": 700511,
+    "Title": "정비 구역을 지켜라",
+    "Description": "캣 슈터 떼가 정비 구역을 헤집고 있다는 의뢰다. 노드 근처 4기를 처리하라.",
+    "TrackerText": "정비 구역 캣 슈터 처치"
+  },
+  {
+    "QuestId": 601010,
+    "QuestType": "Repeat",
+    "QuestNpc": "게시판",
+    "ObjectiveType": "Collect",
+    "ObjectiveTargets": [
+      { "TargetId": 203001, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 550, "IconAddress": "" },
+      { "Type": "ClassWeapon", "TargetId": 101005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700502,
+    "TurnInDialogueId": 700512,
+    "Title": "방어구 납품",
+    "Description": "방어구를 급히 구한다는 의뢰다. 방어구 5점을 모아 게시판에 납품하라.",
+    "TrackerText": "납품용 방어구 수집"
+  },
+  {
+    "QuestId": 601011,
+    "QuestType": "Repeat",
+    "QuestNpc": "게시판",
+    "ObjectiveType": "Kill",
+    "ObjectiveTargets": [
+      { "TargetId": 1102, "RequiredCount": 5 }
+    ],
+    "RequiredLevel": 5,
+    "PrerequisiteQuestId": 501001,
+    "Rewards": [
+      { "Type": "Gold", "TargetId": 0, "Amount": 650, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 301001, "Amount": 2, "IconAddress": "Consumable_Injector_S" },
+      { "Type": "Item", "TargetId": 204005, "Amount": 1, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700503,
+    "TurnInDialogueId": 700513,
+    "Title": "균열 정찰",
+    "Description": "균열 안쪽 사정을 알고 싶다는 의뢰다. 캣 슈터 5기를 처치하며 정찰하라.",
+    "TrackerText": "캣 슈터 정찰 처치"
   }
 ]
