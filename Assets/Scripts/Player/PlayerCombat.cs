@@ -945,19 +945,27 @@ namespace ProjectS.Players
             //  - 이펙트(OnEffect)와 같은 표기: "Haru_Skill_3", "Haru_Skill_3_1"
             // OnEffect는 게이트 없이 "Skill_N_M"을 쓰는데, 같은 클립의 OnProjectileFrame/OnHitFrame에
             // 그 표기를 그대로 적으면 조용히 막히던 함정을 없애기 위함이다(한 클립의 이벤트 인자 표기를 통일).
-            string skill = $"Skill{currentSkillNumber}";
-            string skillUnderbar = $"Skill_{currentSkillNumber}";
-
             string name = player != null ? player.Stats.CharacterName : null;
-            if (!string.IsNullOrEmpty(name)
-                && (MatchesSkillPrefix(key, $"{name}_{skill}") || MatchesSkillPrefix(key, $"{name}_{skillUnderbar}")))
+            if (string.IsNullOrEmpty(name))
             {
-                return true;
+                Debug.LogWarning($"[PlayerCombat] CharacterName이 비어 스킬 히트 '{key}'를 막았습니다. " +
+                                 "PlayerStatTable 행(CharacterName 컬럼)과 로딩 상태를 확인하세요.", this);
+                return false;
             }
 
-            // TODO: 이관 폴백. 접두사를 아직 달지 않은 키("Skill1_1")도 통과시킨다.
-            // 모든 클립 이벤트·슬롯 키를 "{캐릭터이름}_Skill…"로 옮기고 나면 이 두 줄을 지운다.
-            return MatchesSkillPrefix(key, skill) || MatchesSkillPrefix(key, skillUnderbar);
+            // 접두사가 다르면(없거나 다른 캐릭터 이름) 번호와 무관하게 키 저작 실수다.
+            // 게이트는 원래 조용히 false를 돌려주므로, 이 경우만은 경고를 남겨 "히트가 조용히 안 들어가는"
+            // 증상을 콘솔에서 바로 찾게 한다. 번호만 다른 경우(이전 스킬의 늦은 이벤트 등)는 정상 차단이라 경고하지 않는다.
+            string prefix = name + "_";
+            if (!key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                Debug.LogWarning($"[PlayerCombat] 스킬 히트 키 '{key}'에 캐릭터 접두사 '{prefix}'가 없어 막았습니다. " +
+                                 $"클립 이벤트 인자와 슬롯 키를 '{prefix}Skill…'로 맞추세요.", this);
+                return false;
+            }
+
+            return MatchesSkillPrefix(key, $"{prefix}Skill{currentSkillNumber}")
+                || MatchesSkillPrefix(key, $"{prefix}Skill_{currentSkillNumber}");
         }
 
         // key가 정확히 prefix이거나 "prefix_"로 시작하는지. 언더바 경계를 요구해
