@@ -208732,7 +208732,7 @@ MonoBehaviour:
   introSlotRight: {fileID: 2217140683336384996}
   introSlotLeft: {fileID: 1706726542149344153}
   introPanel: {fileID: 7323064823447895515}
-  videoArea: {fileID: 1720736219282029820}
+  introVideo: {fileID: 8874720904879794644}
   fallbackImage: {fileID: 7259420703623795646}
   infoText: {fileID: 2824770320742422491}
   backgroundButton: {fileID: 5486734989911900404}
@@ -209286,7 +209286,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Texture: {fileID: 0}
+  m_Texture: {fileID: 8400000, guid: c84248b427bd0234390f905ce4128b51, type: 2}
   m_UVRect:
     serializedVersion: 2
     x: 0
@@ -212311,10 +212311,10 @@ RectTransform:
   - {fileID: 7052868826322705354}
   m_Father: {fileID: 7323064823447895515}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: -40}
-  m_SizeDelta: {x: -80, y: 440}
+  m_SizeDelta: {x: -80, y: -280}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!4 &2918536813170230616
 Transform:
@@ -212585,6 +212585,8 @@ MonoBehaviour:
   popupLayer: {fileID: 6654804305811959245}
   warriorIntro: "\uAC80\uC0AC \xB7 \uADFC\uC811 3\uB2E8 \uCF64\uBCF4"
   gunnerIntro: "\uAC70\uB108 \xB7 \uC6D0\uAC70\uB9AC \uC0AC\uACA9"
+  warriorVideoAddress: ClassVideo_1
+  gunnerVideoAddress: ClassVideo_2
   gameSceneName: Bootstrap
   loginSceneName: Login
   classModels:
@@ -237694,6 +237696,8 @@ GameObject:
   - component: {fileID: 2905914583624052349}
   - component: {fileID: 6671124010009503434}
   - component: {fileID: 1720736219282029820}
+  - component: {fileID: 8874720904879794643}
+  - component: {fileID: 8874720904879794644}
   m_Layer: 0
   m_Name: VideoArea
   m_TagString: Untagged
@@ -237701,6 +237705,56 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!328 &8874720904879794643
+VideoPlayer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8874720904879794642}
+  m_Enabled: 1
+  m_VideoClip: {fileID: 0}
+  m_TargetCameraAlpha: 1
+  m_TargetCamera3DLayout: 0
+  m_TargetCamera: {fileID: 0}
+  m_TargetTexture: {fileID: 0}
+  m_TimeReference: 0
+  m_TargetMaterialRenderer: {fileID: 0}
+  m_TargetMaterialProperty: <noninit>
+  m_RenderMode: 2
+  m_AspectRatio: 2
+  m_DataSource: 0
+  m_TimeUpdateMode: 2
+  m_PlaybackSpeed: 1
+  m_AudioOutputMode: 2
+  m_TargetAudioSources:
+  - {fileID: 0}
+  m_DirectAudioVolumes:
+  - 1
+  m_Url: 
+  m_EnabledAudioTracks: 01
+  m_DirectAudioMutes: 00
+  m_ControlledAudioTrackCount: 1
+  m_PlayOnAwake: 1
+  m_SkipOnDrop: 1
+  m_Looping: 0
+  m_WaitForFirstFrame: 1
+  m_FrameReadyEventEnabled: 0
+  m_VideoShaders: []
+--- !u!114 &8874720904879794644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8874720904879794642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1847514859460a849a8bb1b4be48f9a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.Framework.AddressableVideoView
+  loop: 1
+  playAudio: 0
 --- !u!1 &8875147643899961583
 GameObject:
   m_ObjectHideFlags: 0

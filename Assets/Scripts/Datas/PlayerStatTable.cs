@@ -27,10 +27,19 @@ namespace ProjectS.Data
         /// </summary>
         public string SkillSetPrefix;
 
+        /// <summary>
+        /// 캐릭터 이름("Haru", "Erwin"). 스킬 Animation Event 키의 접두사로 쓴다("Haru_Skill3_1").
+        /// PlayerCombat의 스킬 히트 게이트가 "{CharacterName}_Skill{n}"으로 비교하므로, 코드에 캐릭터 이름을
+        /// 하드코딩하지 않고 캐릭터를 추가할 때 이 컬럼만 채우면 된다.
+        /// SkillSetPrefix("SW")와 따로 두는 이유: 그쪽은 SkillTable 행 NameKey 체계이고, 이쪽은 클립/프리팹
+        /// 저작자가 쓰는 이름 체계라 서로 바뀌는 시점과 주체가 다르다.
+        /// </summary>
+        public string CharacterName;
+
         int IDataRow.Index => CharacterId;
 
         /// <summary>
-        /// 접두사가 없으면 이 캐릭터의 스킬을 하나도 찾을 수 없어 스킬이 전부 막히므로 행을 탈락시킨다.
+        /// 접두사나 캐릭터 이름이 없으면 이 캐릭터의 스킬을 찾지 못하거나 스킬 히트가 전부 막히므로 행을 탈락시킨다.
         /// 치명타 값은 데이터 입력 실수를 방어하기 위해 안전 범위로 보정한다.
         /// </summary>
         /// <param name="error">탈락 사유(통과 시 null)</param>
@@ -40,6 +49,12 @@ namespace ProjectS.Data
             if (string.IsNullOrWhiteSpace(SkillSetPrefix))
             {
                 error = $"CharacterId {CharacterId}: SkillSetPrefix가 비어있음 (제외됨)";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(CharacterName))
+            {
+                error = $"CharacterId {CharacterId}: CharacterName이 비어있음 (제외됨)";
                 return false;
             }
 

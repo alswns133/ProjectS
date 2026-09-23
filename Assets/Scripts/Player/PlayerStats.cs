@@ -96,6 +96,12 @@ namespace ProjectS.Players
         /// </summary>
         public string SkillSetPrefix { get; private set; }
 
+        /// <summary>
+        /// 캐릭터 이름("Haru", "Erwin"). 스킬 Animation Event 키 접두사("Haru_Skill3_1")로
+        /// PlayerCombat의 스킬 히트 게이트가 읽는다. 테이블 로딩 전에는 비어 있다.
+        /// </summary>
+        public string CharacterName { get; private set; }
+
         /// <summary>현재 레벨에서 다음 레벨까지 필요한 경험치(PlayerLevelTable에서 읽는다).</summary>
         public int RequiredExp { get; private set; }
 
@@ -310,6 +316,7 @@ namespace ProjectS.Players
             critChance = row.CritChance;
             critDamage = row.CritDamage;
             SkillSetPrefix = row.SkillSetPrefix;
+            CharacterName = row.CharacterName;
         }
 
         // 레벨별 성장 수치. 레벨이 바뀔 때마다 다시 호출된다.
