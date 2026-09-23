@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using ProjectS.Effects;
 using ProjectS.Events;
+using ProjectS.Settings;
 
 namespace ProjectS.UI
 {
@@ -52,6 +53,10 @@ namespace ProjectS.UI
 
         private void OnDamageDealt(Vector3 worldPos, int amount, DamageTextKind kind)
         {
+            // 옵션 [데미지 숫자 표시]. 발행하는 전투 쪽이 아니라 여기서 막아야 몬스터·플레이어 피격이
+            // 한 곳에서 같이 꺼진다. 이미 떠 있는 숫자는 수명대로 사라지게 둔다.
+            if (!GameSettings.Current.ShowDamageNumbers) return;
+
             Vector2 jitter = UnityEngine.Random.insideUnitCircle * spawnJitter;
             Vector3 position = worldPos + new Vector3(jitter.x, 0f, jitter.y);
 
