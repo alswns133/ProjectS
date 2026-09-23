@@ -5258,6 +5258,8 @@ MonoBehaviour:
     count: 50
   - prefab: {fileID: 8895988964119889886, guid: ceb9fec33e9612e4d8ed2c0f26260a12, type: 3}
     count: 10
+  - prefab: {fileID: 1281350595300125786, guid: d963d0b1a9a305d4891b0f1c955a75ce, type: 3}
+    count: 5
 --- !u!4 &1189774347
 Transform:
   m_ObjectHideFlags: 0
@@ -7923,6 +7925,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6603135066172736103, guid: c4a6f83c5b2bc034a9b01a6d0e3df8b0, type: 3}
+      propertyPath: projectileSpawner
+      value: 
+      objectReference: {fileID: 1189774346}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -8029,53 +8035,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4136167610539933175, guid: 3f6dc9a05b4f3ff49bdfa03736ccbbb5, type: 3}
   m_PrefabInstance: {fileID: 1744280329}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1745252327
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1745252329}
-  - component: {fileID: 1745252328}
-  m_Layer: 0
-  m_Name: Skill3
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1745252328
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1745252327}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 146caf6d0b75e694288780fa42690b54, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.ProjectileSpawner
-  prewarm:
-  - prefab: {fileID: 1281350595300125786, guid: d963d0b1a9a305d4891b0f1c955a75ce, type: 3}
-    count: 1
---- !u!4 &1745252329
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1745252327}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
 --- !u!1 &1759076398
 GameObject:
   m_ObjectHideFlags: 0
@@ -8415,7 +8374,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectSpawner
   prewarm: []
   source: 0
-  defaultPrefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+  defaultPrefab: {fileID: 0}
   defaultOriented: 1
   effects:
   - key: Attack3
@@ -8447,6 +8406,18 @@ MonoBehaviour:
     oriented: 1
   - key: Skill4
     prefab: {fileID: 7060482750422249467, guid: 2a43b35071629a641a95da996d5bbffd, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_1
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_2
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_3
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_4
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
     oriented: 1
 --- !u!1 &1911749227
 GameObject:
@@ -13856,7 +13827,6 @@ SceneRoots:
   - {fileID: 743036487}
   - {fileID: 1324435259}
   - {fileID: 137076138}
-  - {fileID: 1745252329}
   - {fileID: 1189774347}
   - {fileID: 1119560218}
   - {fileID: 1607893021}
