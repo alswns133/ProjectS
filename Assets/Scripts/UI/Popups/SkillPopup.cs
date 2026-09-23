@@ -31,8 +31,10 @@ namespace ProjectS.UI
         [Header("프리뷰 (우측)")]
         [Tooltip("소개 영상/이미지 영역 루트. 패시브 스킬엔 소개 영상을 띄우지 않으므로 이 영역만 끈다(비우면 previewImage 오브젝트로 폴백). 이름·설명은 패시브도 표시.")]
         [SerializeField] private GameObject previewMediaRoot;
-        [Tooltip("스킬 소개 영상/이미지 자리. 영상 재생은 후속 작업 — 지금은 아이콘 스프라이트만 띄운다.")]
+        [Tooltip("영상이 없거나 로드에 실패했을 때 대신 띄우는 스킬 아이콘 이미지.")]
         [SerializeField] private Image previewImage;
+        [Tooltip("스킬 소개 영상(RawImage + VideoPlayer + AddressableVideoView). 비우면 아이콘만 띄운다.")]
+        [SerializeField] private AddressableVideoView previewVideo;
         [SerializeField] private GameObject[] previewIcon;
         [SerializeField] private TMP_Text previewNameText;
         [SerializeField] private TMP_Text previewDescriptionText;
@@ -89,11 +91,25 @@ namespace ProjectS.UI
 
         protected override void OnShow()
         {
+            // 창을 열자마자 슬롯 ▲/▼를 클릭할 수 있어야 하므로 마우스 모드로 전환한다.
+            PlayerManager.Instance?.Player?.SetCursorMode(true);
+
             // 팝업은 재사용되므로 직전 프리뷰가 남지 않게 비우고, Presenter에 새 세션을 알린다.
             ClearPreview();
             OnOpened?.Invoke();
 
             SetPreviewIcon(PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0);
+        }
+
+        protected override void OnHide()
+        {
+            // 영상 클립은 스킬창을 열어 둔 동안만 필요하다 — 닫으면 메모리에서 내린다.
+            if (previewVideo != null) previewVideo.Stop();
+
+            // 인벤·장비창이 아직 열려 있으면 마우스 모드를 유지한다(공존 팝업이라 하나만 닫혀도 잠그면 안 됨).
+            UIManager ui = UIManager.Instance;
+            if (ui != null && !ui.IsPopupOpen<InventoryPopup>() && !ui.IsPopupOpen<EquipmentPopup>())
+                PlayerManager.Instance?.Player?.SetCursorMode(false);
         }
 
         // 캐릭터 타입(1=검사·2=거너)에 맞는 프리뷰 아이콘 하나만 켠다.
@@ -192,13 +208,18 @@ namespace ProjectS.UI
             if (previewNameText != null) previewNameText.text = info.Name;
             if (previewDescriptionText != null) previewDescriptionText.text = info.Description;
 
-            // 소개 영상 이미지는 액티브 전용. 패시브면 영역을 끄고 로드하지 않는다.
+            // 이전 스킬 영상은 어느 경우든 먼저 내린다(패시브로 옮겨 가도 뒤에서 계속 돌지 않게).
+            if (previewVideo != null) previewVideo.Stop();
+
+            // 소개 영상은 액티브 전용. 패시브면 영역을 끄고 로드하지 않는다.
             SetMediaActive(info.IsActive);
             if (!info.IsActive) return;
 
-            // 소개 영상 자리 — 지금은 아이콘 스프라이트를 이미지로 띄운다(주소가 있으면).
-            string address = string.IsNullOrEmpty(info.PreviewMediaAddress) ? info.IconAddress : info.PreviewMediaAddress;
-            LoadPreviewImage(address);
+            // 영상 주소가 있으면 영상, 없거나 로드에 실패하면 아이콘으로 대신한다.
+            if (!string.IsNullOrEmpty(info.PreviewMediaAddress) && previewVideo != null)
+                LoadPreviewVideo(info.PreviewMediaAddress, info.IconAddress);
+            else
+                LoadPreviewImage(info.IconAddress);
         }
 
         // 소개 영상 이미지 영역만 켜고 끈다(패시브=off). 루트 미지정 시 previewImage 오브젝트로 폴백.
@@ -214,6 +235,7 @@ namespace ProjectS.UI
         // 프리뷰를 비운다(재오픈 시 직전 스킬이 남지 않게).
         private void ClearPreview()
         {
+            if (previewVideo != null) previewVideo.Stop();
             previewAddress = null;
             if (previewNameText != null) previewNameText.text = "스킬 이름";
             if (previewDescriptionText != null) previewDescriptionText.text = "스킬 설명";
@@ -242,6 +264,20 @@ namespace ProjectS.UI
 
             previewImage.sprite = sprite;
             previewImage.enabled = sprite != null;
+        }
+
+        // 영상 로드·재생은 AddressableVideoView가 맡는다. 영상 주소가 미등록이거나 로드에 실패하면
+        // (외부 에셋 미동기화 PC 포함) 아이콘으로 대신한다.
+        private void LoadPreviewVideo(string address, string fallbackIconAddress)
+        {
+            previewAddress = address;
+            if (previewImage != null)
+            {
+                previewImage.sprite = null;
+                previewImage.enabled = false;
+            }
+
+            previewVideo.Play(address, () => LoadPreviewImage(fallbackIconAddress));
         }
     }
 }

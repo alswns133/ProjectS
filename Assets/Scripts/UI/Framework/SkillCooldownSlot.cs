@@ -44,6 +44,18 @@ namespace ProjectS.UI.Framework
             routine = runner.StartCoroutine(CooldownRoutine(duration));
         }
 
+        /// <summary>
+        /// 진행 중인 카운트다운을 멈추고 쿨타임 없음 상태로 되돌린다(마을 진입 시 쿨타임 초기화).
+        /// </summary>
+        public void Clear()
+        {
+            if (routine != null && runner != null)
+                runner.StopCoroutine(routine);
+
+            routine = null;
+            SetIdle();
+        }
+
         private IEnumerator CooldownRoutine(float duration)
         {
             float remaining = duration;
