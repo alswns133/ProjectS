@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace ProjectS.UI
@@ -23,6 +23,18 @@ namespace ProjectS.UI
 
         [Tooltip("화살표 버튼 한 번에 도는 각도.")]
         [SerializeField] private float stepAngle = 30f;
+
+        // target은 씬 오브젝트(CharacterStage/ModelRoot)라 프리팹 에셋에는 저장되지 않는다.
+        // 프리팹에서 꽂으려다 비워둔 채 넘어가면 Rotate()의 null 가드에 걸려 버튼도 드래그도
+        // 에러 하나 없이 조용히 죽는다(실제로 원인 추적에 시간이 걸렸다). 그래서 여기서 먼저 알린다.
+        private void Awake()
+        {
+            if (target == null)
+            {
+                Debug.LogWarning($"[ModelViewportRotator] '{name}'의 Target이 비어 있어 회전이 동작하지 않습니다. " +
+                                 "씬에서 CharacterStage/ModelRoot를 꽂아 주세요(프리팹에서는 꽂히지 않습니다).", this);
+            }
+        }
 
         /// <summary>드래그로 모델을 돌린다. EventSystem이 호출한다.</summary>
         /// <param name="eventData">드래그 정보</param>
