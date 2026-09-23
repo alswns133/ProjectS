@@ -5,7 +5,10 @@ using UnityEngine.Serialization;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.AddressableAssets;
 using System.Threading.Tasks;
+using ProjectS.Core;
+using ProjectS.Events;
 using ProjectS.Scenes;
+using ProjectS.Settings;
 
 namespace ProjectS.Managers
 {
@@ -32,6 +35,11 @@ namespace ProjectS.Managers
         private const string BGM_VOLUME_PARAM = "BGMVolume";
         private const string SFX_VOLUME_PARAM = "SFXVolume";
 
+        // 옵션 창 볼륨 분리(2026-09-23 TH 추가). 믹서에서 그룹 이름 = 노출 파라미터 이름 규칙을 기존과 맞췄다.
+        private const string MASTER_VOLUME_PARAM = "MasterVolume";
+        private const string AMBIENT_VOLUME_PARAM = "AmbientVolume";
+        private const string VOICE_VOLUME_PARAM = "VoiceVolume";
+
         // AudioMixer에서 사실상 무음으로 취급되는 dB (SetXxxVolume(0)과 동일한 값)
         private const float MUTE_DB = -80f;
 
@@ -51,6 +59,8 @@ namespace ProjectS.Managers
 
         private AudioMixerGroup bgmGroup;
         private AudioMixerGroup sfxGroup;
+        private AudioMixerGroup ambientGroup;
+        private AudioMixerGroup voiceGroup;
 
         // BGM은 보통 1개만 재생되므로 전용 소스 하나만 둠
         private AudioSource bgmSource;
@@ -89,6 +99,8 @@ namespace ProjectS.Managers
             // 믹서 그룹은 한 번만 찾아서 캐싱 (FindMatchingGroups는 비용이 있음)
             bgmGroup = audioMixer.FindMatchingGroups(BGM_VOLUME_PARAM)[0];
             sfxGroup = audioMixer.FindMatchingGroups(SFX_VOLUME_PARAM)[0];
+            ambientGroup = FindGroupOrFallback(AMBIENT_VOLUME_PARAM);
+            voiceGroup = FindGroupOrFallback(VOICE_VOLUME_PARAM);
 
             // BGM 소스 생성 (2D 사운드)
             bgmSource = CreateAudioSource("BGM_Source", bgmGroup);
@@ -100,6 +112,37 @@ namespace ProjectS.Managers
                 CreateSfxSource();
             }
         }
+
+        // 저장된 옵션 볼륨을 적용한다. Awake가 아니라 Start인 이유: AudioMixer.SetFloat는
+        // Awake 시점에 호출하면 믹서가 아직 초기화 전이라 값이 무시되는 경우가 있다.
+        private void Start()
+        {
+            if (Instance != this) return;   // Awake에서 파괴 예약된 중복 인스턴스
+            ApplyVolumes(GameSettings.Current);
+        }
+
+        private void OnEnable() => SettingsEvents.OnChanged += ApplyVolumes;
+        private void OnDisable() => SettingsEvents.OnChanged -= ApplyVolumes;
+
+        // 믹서에 그룹이 없으면(다른 브랜치의 옛 믹서 등) 효과음 그룹으로 흘려보낸다.
+        // 소리가 통째로 안 나는 것보다 효과음 볼륨을 따라가는 편이 원인을 찾기 쉽다.
+        private AudioMixerGroup FindGroupOrFallback(string groupName)
+        {
+            AudioMixerGroup[] groups = audioMixer.FindMatchingGroups(groupName);
+            if (groups.Length > 0) return groups[0];
+
+            Debug.LogWarning($"[SoundManager] 믹서에 '{groupName}' 그룹이 없어 SFX 그룹으로 대신 출력합니다.");
+            return sfxGroup;
+        }
+
+        // SoundTable.SoundType(→ Category)에 따라 출력 믹서 그룹을 고른다. 옵션의 채널별 볼륨이 먹히는 근거.
+        private AudioMixerGroup GetGroup(SoundCategory category) => category switch
+        {
+            SoundCategory.BGM => bgmGroup,
+            SoundCategory.Ambient => ambientGroup,
+            SoundCategory.Voice => voiceGroup,
+            _ => sfxGroup,
+        };
 
         // AudioSource 생성 헬퍼
         private AudioSource CreateAudioSource(string name, AudioMixerGroup group)
@@ -269,6 +312,8 @@ namespace ProjectS.Managers
             AudioSource source = GetAvailableSfxSource();
             source.transform.position = Vector3.zero;
             source.spatialBlend = 0f;        // 2D
+            // 풀 소스는 종류를 가리지 않고 재사용되므로 재생할 때마다 출력 그룹을 다시 지정한다
+            source.outputAudioMixerGroup = GetGroup(table.Category);
             source.clip = clip;
             source.loop = table.Loop;
             source.volume = table.Volume;
@@ -296,6 +341,7 @@ namespace ProjectS.Managers
             AudioSource source = GetAvailableSfxSource();
             source.transform.position = position;
             source.spatialBlend = 1f;        // 1 = 완전 3D
+            source.outputAudioMixerGroup = GetGroup(table.Category);
             source.clip = clip;
             source.loop = table.Loop;
             source.volume = table.Volume;
@@ -313,13 +359,39 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
+        /// 옵션 설정의 다섯 채널 볼륨을 믹서에 한 번에 반영한다.
+        /// <see cref="SettingsEvents.OnChanged"/>(옵션 미리보기/확정/리셋)와 시작 시 Start에서 호출된다.
+        /// </summary>
+        /// <param name="settings">반영할 설정</param>
+        public void ApplyVolumes(GameSettings settings)
+        {
+            if (settings == null) return;
+
+            // 옵션 음소거는 "볼륨 0"으로 적용한다(볼륨 값 자체는 설정에 남아 음소거 해제 시 복원된다).
+            audioMixer.SetFloat(MASTER_VOLUME_PARAM, ToDb(Effective(settings.MasterVolume, settings.MasterMuted)));
+            SetBgmVolume(Effective(settings.BgmVolume, settings.BgmMuted));
+            audioMixer.SetFloat(AMBIENT_VOLUME_PARAM, ToDb(Effective(settings.AmbientVolume, settings.AmbientMuted)));
+            SetSfxVolume(Effective(settings.SfxVolume, settings.SfxMuted));
+            audioMixer.SetFloat(VOICE_VOLUME_PARAM, ToDb(Effective(settings.VoiceVolume, settings.VoiceMuted)));
+        }
+
+        private static int Effective(int volume, bool muted) => muted ? 0 : volume;
+
+        // 0~100 슬라이더 값을 dB로. 사람 귀는 로그 스케일이라 선형으로 넣으면 절반 지점부터 거의 안 들린다.
+        // 0은 Log10(0) = -∞를 피하려고 0.0001(= -80dB, 사실상 무음)로 막는다.
+        private static float ToDb(int volume)
+        {
+            float linear = Mathf.Max(0.0001f, volume / 100f);
+            return 20f * Mathf.Log10(linear);
+        }
+
+        /// <summary>
         /// bgm 볼륨 조절 (Mixer dB 변환)
         /// </summary>
         /// <param name="volume">볼륨 (0~100, 슬라이더 값 기준)</param>
         public void SetBgmVolume(int volume)
         {
-            float linear = Mathf.Max(0.0001f, volume / 100f);
-            float db = 20f * Mathf.Log10(linear);
+            float db = ToDb(volume);
 
             // 뮤트 중 볼륨 변경은 복원값에만 반영. 믹서에 바로 쓰면 뮤트가 풀려버림 (2026-07-20 TH 수정)
             if (IsBgmMuted)
@@ -337,8 +409,7 @@ namespace ProjectS.Managers
         /// <param name="volume">볼륨 (0~100, 슬라이더 값 기준)</param>
         public void SetSfxVolume(int volume)
         {
-            float linear = Mathf.Max(0.0001f, volume / 100f);
-            float db = 20f * Mathf.Log10(linear);
+            float db = ToDb(volume);
 
             // 뮤트 중 볼륨 변경은 복원값에만 반영. 믹서에 바로 쓰면 뮤트가 풀려버림 (2026-07-20 TH 수정)
             if (IsSfxMuted)

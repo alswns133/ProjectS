@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using ProjectS.Settings;
 
 // 현재 하이어라키 윈도우에 배치된 모든 게임오브젝트의 Update가 호출
 // 그 이후 모든 게임 오브젝트의 LateUpdate가 호출
@@ -74,11 +75,20 @@ public class CameraPivotController : MonoBehaviour
         {
             // 현재 마우스가 이동한 델타값
             Vector2 delta = Mouse.current.delta.ReadValue();
-            yaw += delta.x * sensitivity;
+
+            // 옵션의 감도는 인스펙터 sensitivity(기획 기본 감도)에 곱하는 배율이다. 기본 감도를 옵션이
+            // 덮어쓰지 않게 해야 기획이 인스펙터에서 튜닝한 값이 "배율 1.0"의 의미로 유지된다.
+            // 옵션 창이 떠 있는 동안엔 커서가 풀려 이 블록 자체가 돌지 않으므로 미리보기는 필요 없고,
+            // 확정된 값(Current)을 매 프레임 읽기만 하면 구독 없이 창을 닫는 즉시 반영된다.
+            GameSettings settings = GameSettings.Current;
+            float scaled = sensitivity * settings.MouseSensitivity;
+            float invert = settings.InvertY ? -1f : 1f;
+
+            yaw += delta.x * scaled;
 
             // 상하 회전을 min/maxPitch로 제한한다. 제한이 없으면 ±90도를 넘는 순간
             // 카메라가 뒤집혀(롤 반전) 화면이 반전된 것처럼 보인다.
-            pitch = Mathf.Clamp(pitch - delta.y * sensitivity, minPitch, maxPitch);
+            pitch = Mathf.Clamp(pitch - delta.y * scaled * invert, minPitch, maxPitch);
         }
 
         if (IsOrbiting) UpdateOrbit();

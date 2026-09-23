@@ -132,8 +132,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
-  m_Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_Material: {fileID: 2100000, guid: 4582dd4c9d5319e4e9afe1b7b935bc9a, type: 2}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.98039216}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -167,7 +167,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &8882870498535518072
 RectTransform:
   m_ObjectHideFlags: 0
@@ -185,7 +185,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -3, y: -3}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7972301688648785051
 CanvasRenderer:
@@ -292,15 +292,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: 0.0
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: c1479d263c7dc8e4cb13f3ccbedb9cf1, type: 2}
+  m_sharedMaterial: {fileID: -1168762762408906373, guid: c1479d263c7dc8e4cb13f3ccbedb9cf1, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4292532954
+  m_fontColor: {r: 0.85660374, g: 0.85660374, b: 0.85660374, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -317,8 +317,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 25
-  m_fontSizeBase: 25
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -421,7 +421,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 0.78431374}
+  m_Color: {r: 0, g: 0.015302523, b: 0.13962269, a: 0.98039216}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -433,7 +433,7 @@ MonoBehaviour:
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
-  m_FillAmount: 0.742
+  m_FillAmount: 0.935
   m_FillClockwise: 0
   m_FillOrigin: 2
   m_UseSpriteMesh: 0
@@ -489,7 +489,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: -2.000001, y: -2.000001}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8302447008791992038
 CanvasRenderer:
@@ -555,6 +555,7 @@ GameObject:
   - component: {fileID: 3948376863849600343}
   - component: {fileID: 8375706329767714726}
   - component: {fileID: 4427904482292167614}
+  - component: {fileID: 5892986583185239723}
   m_Layer: 5
   m_Name: SkillSlot
   m_TagString: Untagged
@@ -577,10 +578,10 @@ RectTransform:
   - {fileID: 1791551696683835872}
   - {fileID: 6042843223061539540}
   - {fileID: 3933566927620625957}
+  - {fileID: 6502632558660076582}
   - {fileID: 8753380904445525593}
   - {fileID: 3904112878559014228}
   - {fileID: 537340201066804265}
-  - {fileID: 6502632558660076582}
   - {fileID: 4792974425330299282}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -693,6 +694,23 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &5892986583185239723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5199676090164564010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e75f4a268515aba419e1532e0559dcb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.SkillQuickSlot
+  slotNumber: 1
+  icon: {fileID: 6627651630267775074}
+  insufficientGaugeIcon: {fileID: 5542933687828541402}
+  insufficientTint: {r: 0.199, g: 0.199, b: 0.199, a: 1}
+  unusableTint: {r: 0.2, g: 0.2, b: 0.2, a: 1}
 --- !u!1 &5542933687828541402
 GameObject:
   m_ObjectHideFlags: 0
@@ -750,8 +768,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
-  m_Color: {r: 0.5320754, g: 0.5320754, b: 0.5320754, a: 1}
+  m_Material: {fileID: 2100000, guid: ed166d1641d7e18439018f8f52d5018b, type: 2}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -835,8 +853,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 1
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: f10d73e56254441478fe61b35d7172ec, type: 2}
-  m_sharedMaterial: {fileID: -6978629919081935323, guid: f10d73e56254441478fe61b35d7172ec, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 4e6948ed3453a644bbdb120fea2175f2, type: 2}
+  m_sharedMaterial: {fileID: 2501288383417359614, guid: 4e6948ed3453a644bbdb120fea2175f2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

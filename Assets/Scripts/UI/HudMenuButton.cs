@@ -23,6 +23,7 @@ namespace ProjectS.UI
             Equipment,  // 장비창(P)
             Skill,      // 스킬창(K)
             Quest,      // 퀘스트 트래커(J) — 팝업이 아니라 트래커 펼침+마우스모드 토글
+            Options,    // 옵션창. 인스펙터 직렬화 값이 밀리지 않게 항상 끝에 추가한다.
         }
 
         [Tooltip("이 아이콘이 여는 창. None이면 눌러도 아무 동작 안 함(미정 슬롯).")]
@@ -47,6 +48,7 @@ namespace ProjectS.UI
                 case Target.Inventory: PopupToggle.Toggle(PopupToggle.PopupKind.Inventory); break;
                 case Target.Equipment: PopupToggle.Toggle(PopupToggle.PopupKind.Equipment); break;
                 case Target.Skill:     PopupToggle.Toggle(PopupToggle.PopupKind.Skill); break;
+                case Target.Options:   PopupToggle.Toggle(PopupToggle.PopupKind.Options); break;
 
                 // 퀘스트는 팝업이 아니라 트래커 펼침+마우스모드 토글이라 별도 경로를 탄다.
                 case Target.Quest:

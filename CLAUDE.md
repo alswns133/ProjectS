@@ -186,6 +186,11 @@ JSON 테이블과 어드레서블의 적용 범위 기준입니다. 개발 중�
 
 - `SoundManager`는 BGM/SFX 재생, AudioMixer 볼륨 제어, 클립 캐싱, Addressables Release를 담당합니다.
 - 사운드 메타데이터는 `SoundTable`에서 가져오며, 코드에서는 가능하면 `SoundID` 상수를 사용합니다.
+- **`SoundTable.SoundType`은 믹서 라우팅 기준입니다 (2026-09-23, 옵션 채널별 볼륨).** 값은 `BGM`/`SFX`/`Ambient`/`Voice`
+  (`SoundCategory`, 대소문자 무시)이며, 재생 시 해당 믹서 그룹으로 나가 옵션의 채널 슬라이더를 따릅니다.
+  오타는 로딩 시 경고 후 SFX로 처리되니, 새 행을 넣을 때 콘솔 경고를 확인하세요.
+- 유저 옵션(그래픽·사운드·게임)은 `ProjectS.Settings.GameSettings`(PlayerPrefs JSON)가 원천이고,
+  변경은 `SettingsEvents.OnChanged`로 알립니다. 새 옵션 항목은 필드 + `Sanitize` 범위 보정 + 적용 지점을 함께 추가합니다.
 - SFX는 AudioSource 풀을 사용해 반복 생성 비용을 줄입니다.
 - 씬 전환 시 씬 단위로 로드한 사운드는 `ReleaseAllClips()`로 정리합니다.
 
