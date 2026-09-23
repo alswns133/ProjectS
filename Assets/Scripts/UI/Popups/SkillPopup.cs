@@ -89,11 +89,22 @@ namespace ProjectS.UI
 
         protected override void OnShow()
         {
+            // 창을 열자마자 슬롯 ▲/▼를 클릭할 수 있어야 하므로 마우스 모드로 전환한다.
+            PlayerManager.Instance?.Player?.SetCursorMode(true);
+
             // 팝업은 재사용되므로 직전 프리뷰가 남지 않게 비우고, Presenter에 새 세션을 알린다.
             ClearPreview();
             OnOpened?.Invoke();
 
             SetPreviewIcon(PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0);
+        }
+
+        protected override void OnHide()
+        {
+            // 인벤·장비창이 아직 열려 있으면 마우스 모드를 유지한다(공존 팝업이라 하나만 닫혀도 잠그면 안 됨).
+            UIManager ui = UIManager.Instance;
+            if (ui != null && !ui.IsPopupOpen<InventoryPopup>() && !ui.IsPopupOpen<EquipmentPopup>())
+                PlayerManager.Instance?.Player?.SetCursorMode(false);
         }
 
         // 캐릭터 타입(1=검사·2=거너)에 맞는 프리뷰 아이콘 하나만 켠다.

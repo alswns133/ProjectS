@@ -71,6 +71,9 @@ namespace ProjectS.UI
 
         protected override void OnShow()
         {
+            // 창을 열자마자 아이템을 클릭/드래그할 수 있어야 하므로 마우스 모드로 전환한다(Alt 없이 바로 조작).
+            PlayerManager.Instance?.Player?.SetCursorMode(true);
+
             // 열려 있는 동안 아이템 변화(획득·사용·이동)를 즉시 반영하고, 골드 표시를 실제 보유량으로 맞춘다.
             InventoryEvents.OnItemAdded += HandleItemsChanged;
             InventoryEvents.OnItemRemoved += HandleItemsChanged;
@@ -99,6 +102,11 @@ namespace ProjectS.UI
 
             // 툴팁은 여기서 무조건 닫지 않는다 — 그러면 인벤을 닫을 때 장비창에서 띄운 툴팁까지 사라진다.
             // 대신 슬롯의 OnDisable이 "자기가 주인인 툴팁만" 닫는다(InventoryItemSlot.OnDisable → ItemTooltip.Hide(this)).
+
+            // 장비·스킬창이 아직 열려 있으면 마우스 모드를 유지한다(공존 팝업이라 하나만 닫혀도 잠그면 안 됨).
+            UIManager ui = UIManager.Instance;
+            if (ui != null && !ui.IsPopupOpen<EquipmentPopup>() && !ui.IsPopupOpen<SkillPopup>())
+                PlayerManager.Instance?.Player?.SetCursorMode(false);
         }
 
         // 탭을 바꾸고, 선택 표시를 갱신하고, 선택 탭을 저장한 뒤 그리드를 다시 채운다.
