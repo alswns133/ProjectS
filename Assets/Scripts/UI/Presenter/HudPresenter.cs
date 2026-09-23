@@ -34,7 +34,12 @@ namespace ProjectS.UI
             PlayerEvents.FireStatsRefreshRequested();
 
             if (PlayerManager.Instance != null)
-                view.SetSymbol(PlayerManager.Instance.CurrentCharacterId);
+            {
+                int chatid = PlayerManager.Instance.CurrentCharacterId;
+                view.SetSymbol(chatid);
+                view.SetLevelColor(chatid);
+            }
+
         }
 
         protected override void Unsubscribe()

@@ -10,6 +10,14 @@ using ProjectS.Players;
 
 namespace ProjectS.UI
 {
+    [System.Serializable]
+    public class LevelColor
+    {
+        public int charaterId;
+        public Color decorColor = new(0, 0, 0, 0);
+        public Color decorPatternColor = new(0, 0, 0, 0);
+        public Color decorFrameColor = new(0, 0, 0, 0);
+    }
     public class HUDPanel : BasePanel
     {
         [Header("HP")]
@@ -29,6 +37,10 @@ namespace ProjectS.UI
 
         [Header("레벨")]
         [SerializeField] private TextMeshProUGUI levelText;
+        [SerializeField] private Image decor;
+        [SerializeField] private Image decorPattern;
+        [SerializeField] private Image decorFrame;
+        [SerializeField] private LevelColor[] levelColor;
 
         // {0}에 레벨 숫자가 들어간다.
         private const string levelFormat = "{0}";
@@ -227,6 +239,24 @@ namespace ProjectS.UI
 
             classSymbol.sprite = s;
             classSymbol.enabled = s != null;
+        }
+
+        public void SetLevelColor(int charId)
+        {
+            if (decor == null || decorFrame == null|| decorPattern == null) return;
+
+            if (levelColor == null) return;
+
+            foreach(var v in levelColor)
+            {
+                if(v.charaterId == charId)
+                {
+                    decor.color = v.decorColor;
+                    decorFrame.color = v.decorFrameColor;
+                    decorPattern.color = v.decorPatternColor;
+                    return;
+                }
+            }
         }
 
         /// <summary>
