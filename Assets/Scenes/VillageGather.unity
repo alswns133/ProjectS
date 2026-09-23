@@ -239201,7 +239201,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1025097891266438, guid: 2712df0a2d59f474e9f28310d2230dfa, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1025097891266438, guid: 2712df0a2d59f474e9f28310d2230dfa, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -239397,15 +239397,15 @@ MonoBehaviour:
   - {fileID: 1083307123}
   openObjects:
   - {fileID: 1092994917}
-  questId: 0
-  pointId: 0
-  cutscene: {fileID: 0}
+  questId: 503016
+  pointId: 102
+  cutscene: {fileID: 550557644}
   onOpened:
     m_PersistentCalls:
       m_Calls: []
-  dialogueId: 0
-  speakerName: 
-  speakerPortrait: {fileID: 0}
+  dialogueId: 700137
+  speakerName: "\uCE7C\uC2A8"
+  speakerPortrait: {fileID: 21300000, guid: 6885c75bc182ef34abc30fcb85a878ff, type: 3}
   dialogueDelay: 0.5
   turnInOnArrive: 1
   questGiver: {fileID: 0}
@@ -450410,7 +450410,19 @@ MonoBehaviour:
   reportOnce: 1
   onReached:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1112519639}
+        m_TargetAssemblyTypeName: ProjectS.Scenes.QuestGateDoor, Assembly-CSharp
+        m_MethodName: OpenNow
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   registerAsWaypoint: 1
   gizmoColor: {r: 1, g: 0.85, b: 0.2, a: 0.25}
 --- !u!65 &2118829514
