@@ -34,6 +34,11 @@ namespace ProjectS.UI
         [SerializeField, TextArea] private string warriorIntro = "검사 · 근접 3단 콤보";
         [SerializeField, TextArea] private string gunnerIntro = "거너 · 원거리 사격";
 
+        [Header("클래스 소개 영상 (VideoClip 어드레서블 주소)")]
+        [Tooltip("미등록이거나 로드에 실패하면 소개 패널에 대체 이미지가 뜬다.")]
+        [SerializeField] private string warriorVideoAddress = "ClassVideo_1";
+        [SerializeField] private string gunnerVideoAddress = "ClassVideo_2";
+
         [Header("접속할 게임 씬 (Build Settings 등록 필요)")]
         [SerializeField] private string gameSceneName = "Bootstrap";
 
@@ -422,8 +427,9 @@ namespace ProjectS.UI
             //pendingClassType = ClassToType(classIndex);
             pendingClassType = classIndex;
 
-            string intro = classIndex == ClassSelectPageView.ClassWarrior ? warriorIntro : gunnerIntro;
-            classSelectPage.ShowIntro(classIndex, intro);
+            bool warrior = classIndex == ClassSelectPageView.ClassWarrior;
+            string intro = warrior ? warriorIntro : gunnerIntro;
+            classSelectPage.ShowIntro(classIndex, intro, warrior ? warriorVideoAddress : gunnerVideoAddress);
             ShowModel(pendingClassType);
         }
 

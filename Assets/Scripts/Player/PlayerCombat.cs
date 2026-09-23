@@ -293,6 +293,19 @@ namespace ProjectS.Players
             return Mathf.Max(0f, skillReadyTime[n] - Time.time);
         }
 
+        /// <summary>
+        /// 스킬 1~4와 우클릭 강공격의 쿨타임을 모두 즉시 끝낸다. 마을 진입 시 <see cref="Player.EnterVillage"/>가
+        /// 호출한다(기획: 마을에 오면 쿨타임 초기화). 데이터만 지우므로 HUD 카운트다운은
+        /// <see cref="PlayerEvents.FireSkillCooldownsReset"/>로 따로 정리해야 한다.
+        /// </summary>
+        public void ResetCooldowns()
+        {
+            for (int i = 0; i < skillReadyTime.Length; i++)
+                skillReadyTime[i] = 0f;
+
+            strongAttackReadyTime = 0f;
+        }
+
         /// <summary>n번 스킬의 게이지(SG) 소모량. 범위를 벗어나거나 행이 없으면 0을 돌려준다.</summary>
         public float GetSkillGaugeCost(int n)
         {
@@ -925,15 +938,26 @@ namespace ProjectS.Players
         {
             if (currentSkillNumber <= 0 || string.IsNullOrEmpty(key)) return false;
 
+            // 스킬 키는 캐릭터 이름을 접두사로 단다("Haru_Skill3_1"). 이름은 PlayerStatTable.CharacterName에서
+            // 오므로, 캐릭터를 추가해도 이 게이트는 고칠 필요 없이 테이블 행만 채우면 된다.
             // 애님 이벤트 키의 두 표기를 모두 허용한다.
-            //  - 투사체/히트박스 기존 표기: "Skill3", "Skill3_1"
-            //  - 이펙트(OnEffect)와 같은 표기: "Skill_3", "Skill_3_1"
+            //  - 투사체/히트박스 기존 표기: "Haru_Skill3", "Haru_Skill3_1"
+            //  - 이펙트(OnEffect)와 같은 표기: "Haru_Skill_3", "Haru_Skill_3_1"
             // OnEffect는 게이트 없이 "Skill_N_M"을 쓰는데, 같은 클립의 OnProjectileFrame/OnHitFrame에
             // 그 표기를 그대로 적으면 조용히 막히던 함정을 없애기 위함이다(한 클립의 이벤트 인자 표기를 통일).
-            return MatchesSkillPrefix(key, $"Haru_Skill{currentSkillNumber}")
-                || MatchesSkillPrefix(key, $"Haru_Skill_{currentSkillNumber}")||
-                MatchesSkillPrefix(key, $"Erwin_Skill{currentSkillNumber}")
-                || MatchesSkillPrefix(key, $"Erwin_Skill_{currentSkillNumber}");
+            string skill = $"Skill{currentSkillNumber}";
+            string skillUnderbar = $"Skill_{currentSkillNumber}";
+
+            string name = player != null ? player.Stats.CharacterName : null;
+            if (!string.IsNullOrEmpty(name)
+                && (MatchesSkillPrefix(key, $"{name}_{skill}") || MatchesSkillPrefix(key, $"{name}_{skillUnderbar}")))
+            {
+                return true;
+            }
+
+            // TODO: 이관 폴백. 접두사를 아직 달지 않은 키("Skill1_1")도 통과시킨다.
+            // 모든 클립 이벤트·슬롯 키를 "{캐릭터이름}_Skill…"로 옮기고 나면 이 두 줄을 지운다.
+            return MatchesSkillPrefix(key, skill) || MatchesSkillPrefix(key, skillUnderbar);
         }
 
         // key가 정확히 prefix이거나 "prefix_"로 시작하는지. 언더바 경계를 요구해

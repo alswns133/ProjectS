@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ProjectS.UI.Framework;
+using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -79,7 +80,9 @@ namespace ProjectS.UI
         [SerializeField] private RectTransform introSlotLeft;
 
         [SerializeField] private RectTransform introPanel;
-        [SerializeField] private RawImage videoArea;
+        [Tooltip("클래스 소개 영상(RawImage + VideoPlayer + AddressableVideoView). 비우면 대체 이미지만 띄운다.")]
+        [SerializeField] private AddressableVideoView introVideo;
+        [Tooltip("영상 주소가 없거나 로드에 실패했을 때(외부 에셋 미동기화 PC 포함) 대신 띄우는 이미지.")]
         [SerializeField] private Image fallbackImage;
         [SerializeField] private TMP_Text infoText;
 
@@ -135,8 +138,8 @@ namespace ProjectS.UI
         /// </summary>
         /// <param name="index">클래스 인덱스(<see cref="ClassWarrior"/> / <see cref="ClassGunner"/>)</param>
         /// <param name="info">소개 패널에 띄울 텍스트(이름·이명·나이·무기·시작 위치)</param>
-        /// <param name="video">소개 영상 텍스처. null이면 대체 이미지를 보여준다</param>
-        public void ShowIntro(int index, string info, Texture video = null)
+        /// <param name="videoAddress">소개 영상(VideoClip) 어드레서블 주소. 비었거나 로드 실패면 대체 이미지를 보여준다</param>
+        public void ShowIntro(int index, string info, string videoAddress = null)
         {
             if (SelectedIndex == index) return;
 
@@ -148,10 +151,9 @@ namespace ProjectS.UI
 
             infoText.text = info;
 
-            bool hasVideo = video != null;
-            videoArea.texture = video;
-            videoArea.enabled = hasVideo;
-            fallbackImage.gameObject.SetActive(!hasVideo);
+            // 영상을 띄울 수 있을 때는 대체 이미지를 숨겨 두고, 불가능하다고 판정되면 그때 켠다.
+            bool tryVideo = introVideo != null && !string.IsNullOrEmpty(videoAddress);
+            fallbackImage.gameObject.SetActive(!tryVideo);
 
             // 껐다 켜면서 반대편 슬롯으로 옮긴다. 활성화 시 Animator가 기본 상태부터 다시 돌아
             // 등장 연출이 재생된다(이동 연출 없이 그 자리에서 켜지는 모양).
@@ -164,6 +166,11 @@ namespace ProjectS.UI
                 introSlotLeft.gameObject.SetActive(true);
 
             introPanel.gameObject.SetActive(true);
+
+            // 영상은 패널을 다시 켠 "뒤에" 건다 — 위의 껐다 켜기에서 영상 위젯의 OnDisable이 재생을 끊고,
+            // 꺼진 VideoPlayer는 Prepare도 못 하기 때문이다. 이전 클래스 영상은 그 OnDisable에서 이미 내려갔다.
+            if (tryVideo)
+                introVideo.Play(videoAddress, () => fallbackImage.gameObject.SetActive(true));
 
             if (warriorSelected)
             {
@@ -187,6 +194,7 @@ namespace ProjectS.UI
             warriorCanvasGroup.alpha = 1f;
             gunnerCanvasGroup.alpha = 1f;
 
+            // 패널을 끄면 영상 위젯의 OnDisable이 재생을 멈추고 클립을 메모리에서 내린다.
             introPanel.gameObject.SetActive(false);
             selectButton.interactable = false;
 
