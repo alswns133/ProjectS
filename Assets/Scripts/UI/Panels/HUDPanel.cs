@@ -340,6 +340,15 @@ namespace ProjectS.UI
         }
 
         /// <summary>
+        /// 모든 스킬 슬롯의 쿨타임 표시를 즉시 걷어낸다. HUDPresenter가 OnSkillCooldownsReset을 받아 호출한다.
+        /// </summary>
+        public void ClearSkillCooldowns()
+        {
+            foreach (SkillCooldownSlot slot in skillSlots)
+                slot?.Clear();
+        }
+
+        /// <summary>
         /// 히트 콤보 표시를 갱신한다. 히트 수 계산·리셋은 PlayerHitCombo가 하고, 여기선 표시만 한다.
         /// 증가는 LateUpdate에서 튕김으로, 0(리셋)은 페이드 아웃 후 오브젝트째 숨기는 것으로 표현한다.
         /// </summary>

@@ -60,6 +60,12 @@ namespace ProjectS.Events
         public static event Action<int, float> OnSkillUsed;
 
         /// <summary>
+        /// 스킬 쿨타임 전체 초기화(마을 진입 시). OnSkillUsed로 시작된 UI 카운트다운은 자체 타이머라
+        /// 게임 쪽 쿨타임을 지워도 저절로 멈추지 않으므로, 이 신호로 표시를 즉시 걷어낸다.
+        /// </summary>
+        public static event Action OnSkillCooldownsReset;
+
+        /// <summary>
         /// 플레이어 사망. 구독자(상태머신·UI·사운드·게임매니저 등)가 각자 반응한다.
         /// </summary>
         public static event Action OnPlayerDied;
@@ -156,6 +162,12 @@ namespace ProjectS.Events
             => OnSkillUsed?.Invoke(skillNumber, cooldown);
 
         /// <summary>
+        /// 스킬 쿨타임 전체 초기화 이벤트 발행. PlayerCombat.ResetCooldowns 직후 호출한다.
+        /// </summary>
+        public static void FireSkillCooldownsReset()
+            => OnSkillCooldownsReset?.Invoke();
+
+        /// <summary>
         /// 플레이어 사망 이벤트 발행. HP가 0에 도달한 순간 1회 호출된다.
         /// </summary>
         public static void FirePlayerDied()
@@ -200,6 +212,7 @@ namespace ProjectS.Events
             OnStatsRefreshRequested = null;
             OnCombatStatsChanged = null;
             OnSkillUsed = null;
+            OnSkillCooldownsReset = null;
             OnPlayerDied = null;
             OnCursorModeChanged = null;
             OnCombatZoneChanged = null;

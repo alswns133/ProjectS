@@ -274,6 +274,11 @@ namespace ProjectS.Players
             Combat.CancelAction();
             UnlockMovement();
 
+            // 마을에 오면 스킬 쿨타임을 초기화한다(기획). HUD는 사용 시점에 받은 시간으로 자체 코루틴을
+            // 돌리므로, 데이터만 지우면 화면의 카운트다운이 남는다 → 이벤트로 함께 정리한다.
+            Combat.ResetCooldowns();
+            PlayerEvents.FireSkillCooldownsReset();
+
             // HUD 스킬 슬롯이 마을에선 아이콘을 흐리게 표시하도록 알린다(스킬 사용 불가 안내).
             PlayerEvents.FireCombatZoneChanged(combatEnabled);
         }

@@ -56,6 +56,9 @@ namespace ProjectS.UI
 
         protected override void OnShow()
         {
+            // 창을 열자마자 슬롯을 드래그로 착용/해제할 수 있어야 하므로 마우스 모드로 전환한다.
+            PlayerManager.Instance?.Player?.SetCursorMode(true);
+
             InventoryEvents.OnItemEquipped += HandleEquipChanged;
             InventoryEvents.OnItemUnequipped += HandleEquipChanged;
             PlayerEvents.OnCombatStatsChanged += RefreshStats;
@@ -70,6 +73,11 @@ namespace ProjectS.UI
             InventoryEvents.OnItemUnequipped -= HandleEquipChanged;
             PlayerEvents.OnCombatStatsChanged -= RefreshStats;
             EnhanceEvents.OnEnhanced -= HandleEnhanced;
+
+            // 인벤·스킬창이 아직 열려 있으면 마우스 모드를 유지한다(공존 팝업이라 하나만 닫혀도 잠그면 안 됨).
+            UIManager ui = UIManager.Instance;
+            if (ui != null && !ui.IsPopupOpen<InventoryPopup>() && !ui.IsPopupOpen<SkillPopup>())
+                PlayerManager.Instance?.Player?.SetCursorMode(false);
         }
 
         private void HandleEquipChanged(ItemData _) => RefreshAll();
