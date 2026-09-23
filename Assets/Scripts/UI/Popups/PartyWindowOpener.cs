@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using ProjectS.Managers;
+using ProjectS.NPCs;
 using ProjectS.Scenes;
 
 namespace ProjectS.UI
@@ -24,6 +25,9 @@ namespace ProjectS.UI
     /// <para>
     /// <b>글자를 입력하는 중에는 단축키를 먹지 않는다.</b> 채팅이나 검색창에 'Tab'이 들어가는 순간
     /// 창이 튀어나오면, 이름을 치다가 화면이 바뀌는 꼴이 된다.
+    /// </para>
+    /// <para>
+    /// <b>퀘스트 대화·NPC 상호작용 중에도 <c>Tab</c>이 먹지 않는다.</b>
     /// </para>
     /// </remarks>
     public class PartyWindowOpener : MonoBehaviour
@@ -99,6 +103,7 @@ namespace ProjectS.UI
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null || !keyboard[toggleKey].wasPressedThisFrame) return;
             if (IsTyping()) return;
+            if (IsInConversation()) return;
             if (villageOnly && DungeonContext.CurrentDungeonId != 0) return;
 
             ToggleRoster();
@@ -158,6 +163,14 @@ namespace ProjectS.UI
 
             invitePopupShown = true;
             UIManager.Instance.ShowPopup<PartyInviteAcceptPopup>();
+        }
+
+        // 퀘스트 대화·NPC 상호작용 중에는 Tab을 먹지 않는다. 대화창 위로 결성창이 겹쳐 뜨면
+        // 대화 진행 입력과 창 조작이 엉킨다. 대화(DialogueManager)는 튜토리얼처럼 NPC 없이도 재생되므로 둘 다 본다.
+        private static bool IsInConversation()
+        {
+            return NpcInteractionController.Active != null
+                || (DialogueManager.Instance != null && DialogueManager.Instance.IsPlaying);
         }
 
         // 입력 필드에 포커스가 있으면 게임플레이 단축키를 삼킨다.
