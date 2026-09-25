@@ -26706,7 +26706,7 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\uB098\uC778\uD074\uB85C"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 819507a38fa816a489de88dad2de2ce9, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 6b1638aa58612c04ea4c59436e760efb, type: 2}
   m_sharedMaterial: {fileID: -6419728470944652023, guid: 819507a38fa816a489de88dad2de2ce9, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
@@ -26773,7 +26773,7 @@ MonoBehaviour:
   m_margin: {x: 0, y: 0, z: 0, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
-  m_hasFontAssetChanged: 0
+  m_hasFontAssetChanged: 1
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
 --- !u!222 &308621764
@@ -85951,9 +85951,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.SlowMotionController
   slowScale: 0.15
-  rampDownDuration: 0.25
-  holdDuration: 0.15
-  rampUpDuration: 0.9
+  rampDownDuration: 0.15
+  holdDuration: 2.5
+  rampUpDuration: 0.5
 --- !u!4 &945083533
 Transform:
   m_ObjectHideFlags: 0
@@ -177891,35 +177891,128 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectSpawner
   prewarm: []
   source: 0
-  defaultPrefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
-  defaultOriented: 1
+  defaultPrefab: {fileID: 0}
+  defaultOriented: 0
   effects:
-  - key: Attack3
+  - key: Erwin_Attack1
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Erwin_Attack2
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Erwin_Attack3
     prefab: {fileID: 9180208090679346414, guid: cf5fbacd839a42d47a75366699a62f77, type: 3}
     oriented: 1
-  - key: Strong_Attack
+  - key: Erwin_Jump
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Run_Attack_L
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Run_Attack_R
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Strong_Attack_L
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Strong_Attack_R
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Erwin_Strong_Attack
     prefab: {fileID: 9180208090679346414, guid: cf5fbacd839a42d47a75366699a62f77, type: 3}
     oriented: 0
-  - key: Skill1
+  - key: Erwin_Skill1
     prefab: {fileID: 9152707511363254258, guid: 8ed3ed545929b574a9900c1af530163d, type: 3}
     oriented: 1
-  - key: Skill2_1
+  - key: Erwin_Skill2_1
     prefab: {fileID: -249828314088307114, guid: 8ae728b24b2b4c24db1ff0a376e03280, type: 3}
     oriented: 0
-  - key: Skill2_2
+  - key: Erwin_Skill2_2
     prefab: {fileID: 9021110144489769043, guid: 9b9d24e5958b0e642a7ef2a3bf97abc7, type: 3}
     oriented: 0
-  - key: Skill3
+  - key: Erwin_Skill3
     prefab: {fileID: 9021110144489769043, guid: 9b9d24e5958b0e642a7ef2a3bf97abc7, type: 3}
     oriented: 1
-  - key: Skill3_1
+  - key: Erwin_Skill3_1
     prefab: {fileID: 9180208090679346414, guid: cf5fbacd839a42d47a75366699a62f77, type: 3}
     oriented: 1
-  - key: Skill3_1_L
+  - key: Erwin_Skill3_1_S
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Erwin_Skill3_1_L
     prefab: {fileID: 9152707511363254258, guid: 8ed3ed545929b574a9900c1af530163d, type: 3}
     oriented: 1
-  - key: Skill3_2_L
+  - key: Erwin_Skill3_2_S
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Erwin_Skill3_2_L
     prefab: {fileID: 9152707511363254258, guid: 8ed3ed545929b574a9900c1af530163d, type: 3}
+    oriented: 1
+  - key: Erwin_Skill3_3
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Erwin_Skill3_4
+    prefab: {fileID: 7573296259704894331, guid: 7d8dae985800af54e808b97fdfce456e, type: 3}
+    oriented: 1
+  - key: Haru_Attack1
+    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+    oriented: 1
+  - key: Haru_Attack2
+    prefab: {fileID: 6708302881962103724, guid: 41ae6ff099e27684a99b1fd6d23941c7, type: 3}
+    oriented: 1
+  - key: Haru_Attack3
+    prefab: {fileID: 6294996035555364578, guid: 6338021fcfb16ed4080f35e8a2419541, type: 3}
+    oriented: 1
+  - key: Haru_Run_Attack
+    prefab: {fileID: 119694807382381907, guid: 909f78f930d3e664c87eeccf0fb1b6a5, type: 3}
+    oriented: 1
+  - key: Haru_Strong_Attack
+    prefab: {fileID: 7620426476709372169, guid: 7fb10e284ee039944a10e5ed898761a4, type: 3}
+    oriented: 1
+  - key: Haru_Jump_Attack_1
+    prefab: {fileID: -5827739164191890754, guid: ab80be6143d129b4682122a9768a151d, type: 3}
+    oriented: 1
+  - key: Haru_Jump_Attack_2
+    prefab: {fileID: -5827739164191890754, guid: ab80be6143d129b4682122a9768a151d, type: 3}
+    oriented: 1
+  - key: Haru_Skill1_1
+    prefab: {fileID: 8070746417339813370, guid: f7dd0966716d6fa4eb7ee44c5a388869, type: 3}
+    oriented: 1
+  - key: Haru_Skill1_2
+    prefab: {fileID: 8070746417339813370, guid: f7dd0966716d6fa4eb7ee44c5a388869, type: 3}
+    oriented: 1
+  - key: Haru_Skill1_3
+    prefab: {fileID: 5063496770333894464, guid: 5a200871c2df7a246971e69b2923134e, type: 3}
+    oriented: 1
+  - key: Haru_Skill2_1
+    prefab: {fileID: 8137242649032781911, guid: a5c6ea8b23601ac44b95a60146d658cc, type: 3}
+    oriented: 1
+  - key: Haru_Skill2_2
+    prefab: {fileID: 8137242649032781911, guid: a5c6ea8b23601ac44b95a60146d658cc, type: 3}
+    oriented: 1
+  - key: Haru_Skill2_3
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_1
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_2
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_3
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_4
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill3_4
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill4_1
+    prefab: {fileID: -5354421033045152211, guid: 7870bcf84f7e00e4ea14ecd854af087a, type: 3}
+    oriented: 1
+  - key: Haru_Skill4_2
+    prefab: {fileID: 4943269322198624749, guid: 45b7564c76e2cda41a9d3c468c808f54, type: 3}
     oriented: 1
 --- !u!1001 &1902269738
 PrefabInstance:
@@ -205978,8 +206071,8 @@ SceneRoots:
   - {fileID: 131304786}
   - {fileID: 1189774347}
   - {fileID: 761723762}
-  - {fileID: 1119560218}
   - {fileID: 1901975243}
+  - {fileID: 1119560218}
   - {fileID: 1425662901}
   - {fileID: 1109365564}
   - {fileID: 503215501}

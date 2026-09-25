@@ -64,6 +64,10 @@ namespace ProjectS.Scenes
         [Tooltip("등장 연출 동안 플레이어 입력을 잠글지. 컷신형 등장이면 켠다.")]
         [SerializeField] private bool lockPlayerInput = true;
 
+        [Tooltip("연출 동안 플레이어 캐릭터를 감출지. 보스만 비추는 컷신이면 켠다. " +
+                 "오브젝트를 끄지 않고 메시 렌더러만 꺼(PlayerBodyVisibility) 카메라·입력·네트워크 동기화는 그대로 둔다.")]
+        [SerializeField] private bool hidePlayerDuringCutscene;
+
         // 전환 연출 무적의 안전 만료: 연출이 끝났어야 할 시점에 종료(Finish)를 못 잡았으면 그로부터 이만큼 뒤에 풀린다.
         // (입력 잠금도 Player 쪽에서 같은 기준 — 예정 종료 + 5초 — 으로 스스로 풀린다.)
         private const float CutsceneEndGrace = 5f;
@@ -86,6 +90,11 @@ namespace ProjectS.Scenes
 
         [Tooltip("싱글에서 대기 화면을 띄우기까지의 지연(초). 보통 곧바로 준비되므로, 그 전에 끝나면 화면을 아예 띄우지 않는다.")]
         [SerializeField, Min(0f)] private float soloWaitShowDelay = 0.3f;
+
+        [Tooltip("연출이 시작될 때 보스가 있어야 할 위치·방향. Timeline 애니메이션 트랙의 Track Offset과 같은 값으로 맞춘다. " +
+         "비우면 보스가 연출 시작 순간 서 있던 자리(1페이즈가 HP 임계에 닿은 임의의 지점)에서 그대로 재생된다.")]
+        [SerializeField] private GameObject startPoint;
+
 
         [Tooltip("연출 끝나고 보스가 있어야할 위치")]
         [SerializeField] private GameObject endPoint;
@@ -136,6 +145,19 @@ namespace ProjectS.Scenes
         /// <summary>이 디렉터의 역할.</summary>
         public DirectorRole Role => role;
 
+
+        /// <summary>
+        /// 연출 시작 위치·회전. 판정 권한이 있는 쪽(서버·싱글)이 연출 직전 보스를 여기로 놓는다. 미지정이면 null.
+        /// </summary>
+        /// <remarks>
+        /// ★ <b>왜 Timeline의 Track Offset으로 안 되는가</b>: 보스 루트에 Animator와 함께 붙은
+        /// <c>EnemyMovement</c>가 <c>OnAnimatorMove</c>를 구현해 루트모션을 가로채고
+        /// (<c>transform.position += animator.deltaPosition</c> — 현재 위치 기준 상대 누적),
+        /// <c>deltaRotation</c>은 아예 쓰지 않는다. 그래서 트랙 오프셋의 절대 위치·회전이 transform에
+        /// 도달하지 못한다. <b>트랙 오프셋 값을 바꾸면 이 지점도 같이 맞춰야 한다.</b>
+        /// </remarks>
+        public Transform StartPoint => startPoint != null ? startPoint.transform : null;
+
         /// <summary>
         /// 연출이 끝나고 뒷정리까지 마친 순간 1회 발행(자연 종료·강제 종료·중단 모두). 페이즈 전환이 "연출 뒤 실제 전환"을 여기서 한다.
         /// </summary>
@@ -166,6 +188,9 @@ namespace ProjectS.Scenes
 
         // 페이즈 전환 연출로 무적을 건 플레이어. 입력 잠금(lockPlayerInput)과 독립이라 따로 보관해 Finish에서 푼다.
         private Player invinciblePlayer;
+
+        // 이번 연출로 감춘 플레이어 본체들. 끝나면 정확히 이들만 되돌린다(우리가 안 감춘 캐릭터는 건드리지 않기 위함).
+        private readonly List<PlayerBodyVisibility> hiddenBodies = new();
 
         // 대기 화면 동안 입력을 잠근 플레이어(owner=this). 대기 뒤에서도 게임은 돌고 있어 먼저 준비된 사람이 움직이지 않게 한다.
         private Player waitLockedPlayer;
@@ -472,8 +497,57 @@ namespace ProjectS.Scenes
                     invinciblePlayer.Stats.SetCutsceneInvincible((float)remaining + CutsceneEndGrace);
             }
 
+            // 보스만 비추는 컷신에서 캐릭터가 화면에 남지 않게 감춘다. 종료 신호를 놓쳐도
+            // PlayerBodyVisibility의 안전 타이머가 예정 종료 + 5초에 스스로 되돌린다.
+            if (hidePlayerDuringCutscene) HidePlayers((float)remaining + CutsceneEndGrace);
+
             // 컷신 잠금이 걸린 뒤에 대기 잠금을 푼다 — 순서가 반대면 그 사이 한 프레임 조작이 샌다.
             ReleaseWaitLock();
+        }
+
+        /// <summary>
+        /// 이 화면에 보이는 플레이어 본체를 감춘다(오브젝트는 끄지 않고 메시 렌더러만).
+        /// </summary>
+        /// <remarks>
+        /// ★ 조작 캐릭터는 씬과 무관하게 무조건 포함한다 — 싱글은 PlayerManager가 DontDestroyOnLoad로 들고 있어
+        /// 보스 씬에 속하지 않는다. 씬 필터만 쓰면 멀티 아바타만 감춰지고 싱글은 그대로 보이는 함정이 생긴다.
+        /// 파티 레이드는 같은 인스턴스 씬의 다른 파티원 아바타도 함께 감춘다 — 남의 캐릭터가 서 있어도 똑같이 어색하므로.
+        /// </remarks>
+        private void HidePlayers(float safetySeconds)
+        {
+            HideBody(LocalPlayer.Current, safetySeconds);
+
+            foreach (Player other in FindObjectsByType<Player>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                if (other != null && other.gameObject.scene == gameObject.scene) HideBody(other, safetySeconds);
+        }
+
+        // 한 캐릭터를 감추고 목록에 남긴다.
+        // ★ PlayerBodyVisibility가 없으면 감출 수단이 없다 — 조용히 넘기면 "왜 이 캐릭터만 보이지"를 한참 찾게 되므로 경고를 남긴다
+        //   (실제로 Erwin 프리팹에 컴포넌트가 없어 연출 중 캐릭터가 그대로 보였다, 2026-09-25).
+        private void HideBody(Player player, float safetySeconds)
+        {
+            if (player == null) return;
+
+            if (!player.TryGetComponent(out PlayerBodyVisibility body))
+            {
+                Debug.LogWarning($"{LogTag} '{player.name}'에 PlayerBodyVisibility가 없어 연출 중에도 그대로 보입니다. " +
+                                 "캐릭터 프리팹 루트(Animator와 같은 오브젝트)에 그 컴포넌트를 추가하세요.", player);
+                return;
+            }
+
+            if (hiddenBodies.Contains(body)) return;   // 조작 캐릭터가 씬 검색에도 걸리는 중복 방지
+
+            body.BeginCutsceneHide(safetySeconds);
+            hiddenBodies.Add(body);
+        }
+
+        // 감췄던 본체를 되돌린다. 모든 종료 경로(Finish)가 거친다.
+        private void ShowPlayers()
+        {
+            foreach (PlayerBodyVisibility body in hiddenBodies)
+                if (body != null) body.EndCutsceneHide();
+
+            hiddenBodies.Clear();
         }
 
         // ── 준비 대기 ────────────────────────────────────────────
@@ -640,6 +714,8 @@ namespace ProjectS.Scenes
                 if (invinciblePlayer.Stats != null) invinciblePlayer.Stats.ClearCutsceneInvincible();
                 invinciblePlayer = null;
             }
+
+            ShowPlayers();
 
             // 시작에서 껐던 UI를 되살린다. 디렉터 오브젝트는 안 꺼지므로 이 경로가 확실히 돈다
             // (UI 오브젝트 위에 붙은 시그널 Receiver가 함께 꺼져 못 켜지던 함정을 피하는 이유).
