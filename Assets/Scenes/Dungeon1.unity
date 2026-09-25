@@ -14273,7 +14273,7 @@ MonoBehaviour:
       m_Calls: []
   m_text: BOSS
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 819507a38fa816a489de88dad2de2ce9, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 6b1638aa58612c04ea4c59436e760efb, type: 2}
   m_sharedMaterial: {fileID: -6419728470944652023, guid: 819507a38fa816a489de88dad2de2ce9, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
@@ -14340,7 +14340,7 @@ MonoBehaviour:
   m_margin: {x: 0, y: 0, z: 0, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
-  m_hasFontAssetChanged: 0
+  m_hasFontAssetChanged: 1
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
 --- !u!222 &159600366
@@ -23305,6 +23305,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Scenes.BossIntroDirector
   director: {fileID: 268638153}
   lockPlayerInput: 1
+  hidePlayerDuringCutscene: 0
   trackBindings:
   - trackName: Boss Animation Track
     target: 0
@@ -23316,6 +23317,7 @@ MonoBehaviour:
   autoStartWhenSolo: 1
   soloWaitTimeout: 20
   soloWaitShowDelay: 0.3
+  startPoint: {fileID: 0}
   endPoint: {fileID: 0}
   role: 0
 --- !u!1 &269213400
