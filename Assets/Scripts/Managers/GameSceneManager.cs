@@ -99,7 +99,8 @@ namespace ProjectS.Managers
             loading = true;
             string next = typeof(T).Name;   // T의 타입 이름 = 씬 이름 = 어드레서블 키로 사용
 
-            UIManager.Instance.ShowLoading();
+            // 씬 이름을 같이 넘겨 그 씬의 로딩 일러스트로 갈아끼운다(후보가 여러 장이면 LoadingPanel이 랜덤 선택).
+            UIManager.Instance.ShowLoading(next);
 
             float displayProgress = 0f;   // 화면에 보여줄 보정 진행도(실제값을 부드럽게 따라감)
 

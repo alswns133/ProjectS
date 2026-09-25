@@ -338,8 +338,19 @@ namespace ProjectS.Managers
             DevLog.Log("[UIManager] Back");
         }
 
-        public void ShowLoading()
-        => loadingPanel.Show();
+        /// <summary>
+        /// 로딩 화면을 띄운다.
+        /// </summary>
+        /// <param name="sceneName">
+        /// 진입할 씬 이름(BaseScene 파생 클래스 이름). 그 씬에 맞는 로딩 일러스트를 고르는 데 쓴다.
+        /// 목적지가 아직 정해지지 않은 부팅 직후(Bootstrap)처럼 이름을 줄 수 없으면 생략한다 → 기본 이미지.
+        /// </param>
+        public void ShowLoading(string sceneName = null)
+        {
+            // Show()보다 먼저 갈아끼워야 이전 씬의 그림이 한 프레임 비치지 않는다.
+            loadingPanel.SetSceneArt(sceneName);
+            loadingPanel.Show();
+        }
 
         public void HideLoading()
             => loadingPanel.Hide();
