@@ -87,6 +87,18 @@ namespace ProjectS.UI
         // 분해되던 카드가 도중에 위로 점프하거나 숨겨져 연출이 끊긴다.
         private readonly HashSet<QuestData> completing = new();
 
+        // 반납돼 cards에서는 빠졌지만 분해 연출이 끝나길 기다리며 화면에 남아 있는 카드.
+        // 연출 도중 트래커가 꺼지면(NPC 상호작용이 HUD를 숨김 등) 코루틴이 죽어 파괴 콜백이 오지 않는데,
+        // cards에 없으니 PruneStaleCards도 못 찾는다 → 그 고아 카드를 치우기 위해 따로 든다(값 = 연출 시작 시각).
+        private readonly Dictionary<QuestTrackerEntry, float> dyingCards = new();
+
+        // 분해 연출이 이 시간을 넘기면 콜백이 끊긴 것으로 보고 강제로 지운다(연출 길이보다 넉넉히).
+        private const float DyingCardTimeout = 3f;
+
+        // 고아 카드 점검 주기(초). 카드 수가 적어 가볍지만 매 프레임 돌 이유는 없다.
+        private const float OrphanSweepInterval = 0.5f;
+        private float nextOrphanSweep;
+
         // 본문이 접혀 있는(제목 줄만 남은) 퀘스트. 여닫기 버튼이 토글하고 표시 갱신이 이 집합을 읽는다.
         // 카드가 아니라 여기에 두는 이유: 표시 갱신(ApplyCollapsedView)이 매번 SetCompact를 다시 부르므로
         // 카드가 스스로 기억하면 갱신 때마다 초기화된다. 기본값은 '펼침'이고,
@@ -168,6 +180,14 @@ namespace ProjectS.UI
 
             toggleAction.started -= OnToggleShortcut;
             toggleAction.Disable();
+
+            // 분해 연출 중에 꺼지면 코루틴이 멈춰 DestroyCard가 영영 불리지 않는다. 문 개방 반납(QuestGateDoor)처럼
+            // 반납 직후 NPC 목록이 열리며 HUD가 숨겨지는 경우다. 연출은 포기하고 여기서 바로 지운다.
+            foreach (QuestTrackerEntry card in dyingCards.Keys)
+            {
+                if (card != null) Destroy(card.gameObject);
+            }
+            dyingCards.Clear();
         }
 
         // ---------- 나침반(방향/거리) ----------
@@ -176,6 +196,12 @@ namespace ProjectS.UI
         // 여기서는 회전·거리 갱신만 한다(가벼움). 목표 해석은 QuestNavResolver가, 표시는 카드의 QuestCompassEntry가 맡는다.
         private void LateUpdate()
         {
+            if (Time.unscaledTime >= nextOrphanSweep)
+            {
+                nextOrphanSweep = Time.unscaledTime + OrphanSweepInterval;
+                SweepOrphanCards();
+            }
+
             if (cards.Count == 0) return;
 
             Transform playerTransform = ResolvePlayerTransform();
@@ -669,6 +695,32 @@ namespace ProjectS.UI
             if (window != null) window.Refresh();
         }
 
+        // content 아래에 남아 있지만 어떤 퀘스트에도 묶이지 않은 카드를 지운다. 반납 후 분해 연출의 콜백이
+        // 끊기면(연출 도중 카드/트래커 비활성 등) 카드가 cards에서는 빠졌는데 화면에는 남는 '고아'가 된다.
+        // 이벤트 경로마다 막는 것만으로는 새는 경로를 다 못 막아, 화면 상태를 직접 대조하는 최종 안전망으로 둔다.
+        private void SweepOrphanCards()
+        {
+            if (content == null) return;
+
+            for (int i = content.childCount - 1; i >= 0; i--)
+            {
+                if (!content.GetChild(i).TryGetComponent(out QuestTrackerEntry card)) continue;
+                if (cards.ContainsValue(card)) continue;
+
+                if (dyingCards.TryGetValue(card, out float since))
+                {
+                    if (Time.unscaledTime - since < DyingCardTimeout) continue;   // 아직 연출 중
+                    DevLog.Warning($"[QuestTracker] 분해 연출 콜백이 오지 않은 카드를 강제로 지웁니다: {card.name}");
+                }
+                else
+                {
+                    DevLog.Warning($"[QuestTracker] 퀘스트에 묶이지 않은 고아 카드를 지웁니다: {card.name}");
+                }
+
+                DestroyCard(card);
+            }
+        }
+
         // 다음 프레임(=레이아웃/TMP 준비 완료)에 카드 높이를 다시 재고 창을 갱신한다.
         // 씬 전환처럼 '켜지는 프레임에 카드를 한꺼번에 만드는' 경우의 0 높이 문제를 해결하기 위함이다.
         private IEnumerator RemeasureNextFrame()
@@ -808,7 +860,17 @@ namespace ProjectS.UI
                 // 완료 연출이 아직 돌고 있었다면 끊고 처음부터 다시 태운다.
                 // 그대로 두면 중복 실행 가드에 막혀 콜백이 오지 않아 카드가 영영 안 지워진다.
                 if (card.IsPlayingFx) card.ResetDisintegrate();
-                card.PlayDisintegrate(() => DestroyCard(card));
+
+                // 꺼진 카드는 코루틴을 못 돌려 콜백이 오지 않으므로 연출 없이 바로 지운다.
+                if (card.gameObject.activeInHierarchy)
+                {
+                    dyingCards[card] = Time.unscaledTime;
+                    card.PlayDisintegrate(() => DestroyCard(card));
+                }
+                else
+                {
+                    DestroyCard(card);
+                }
             }
 
             // 남은 카드들의 정렬과 완료 요약(+N)은 기다리지 않고 지금 갱신한다.
@@ -861,6 +923,7 @@ namespace ProjectS.UI
         {
             if (card == null) return;
 
+            dyingCards.Remove(card);
             card.HeightChanged -= OnCardHeightChanged;
 
             // Destroy는 프레임 끝에 처리돼, 그대로 두면 사라진 카드의 자리가 한 프레임 남는다.
