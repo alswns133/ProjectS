@@ -63,6 +63,17 @@ namespace ProjectS.UI
         private HexFragmentSpawner spawner;
         private Coroutine routine;
 
+        // 지금 오버레이에 떠 있는 스윕 라이트. 오버레이는 카드 밖(부모가 다름)이라, 연출이 끝나기 전에
+        // 카드가 꺼지거나 파괴되면 루틴 끝의 Destroy가 실행되지 않아 빛만 화면에 남는다 → 따로 쥐고 치운다.
+        private RectTransform activeSweep;
+
+        // 연출 도중 카드가 꺼지거나(HUD 숨김) 파괴되면(반납 카드 정리) 코루틴이 멈추므로 남은 빛을 여기서 치운다.
+        private void OnDisable()
+        {
+            routine = null;
+            ClearSweep();
+        }
+
         /// <summary>카드가 완전히 지워지기까지 걸리는 시간(초). 호출부가 후속 처리 타이밍을 맞추는 데 쓴다.</summary>
         public float Duration => eraseDelay + eraseDuration;
 
@@ -78,6 +89,7 @@ namespace ProjectS.UI
             if (visual == null) return;
 
             if (routine != null) StopCoroutine(routine);
+            ClearSweep();   // 끊긴 이전 재생의 빛이 남지 않게
 
             // 등장은 '완전히 지워진 상태'에서 시작해야 한다. 분해는 그 반대.
             if (visualMask != null)
@@ -104,6 +116,7 @@ namespace ProjectS.UI
             int step = reverse ? -1 : 1;
 
             RectTransform sweep = SpawnSweep(area);
+            activeSweep = sweep;
             Graphic sweepGraphic = sweep != null ? sweep.GetComponent<Graphic>() : null;
             Color sweepColor = sweepGraphic != null ? sweepGraphic.color : Color.white;
             Vector2 sweepStart = sweep != null ? sweep.anchoredPosition : Vector2.zero;
@@ -153,9 +166,16 @@ namespace ProjectS.UI
 
             if (visualMask != null)
                 visualMask.padding = reverse ? Vector4.zero : new Vector4(area.width, 0f, 0f, 0f);
-            if (sweep != null) Destroy(sweep.gameObject);
+            ClearSweep();
 
             routine = null;
+        }
+
+        // 떠 있는 스윕 라이트를 파괴한다(정상 종료·재시작·중단 공통).
+        private void ClearSweep()
+        {
+            if (activeSweep != null) Destroy(activeSweep.gameObject);
+            activeSweep = null;
         }
 
         // 경계가 이 칸의 중심을 지났는지. 분해는 경계가 오른쪽으로, 등장은 왼쪽으로 움직여 판정이 반대다.
