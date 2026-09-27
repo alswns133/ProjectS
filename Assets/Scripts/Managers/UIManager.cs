@@ -347,5 +347,12 @@ namespace ProjectS.Managers
         public void SetLoadingProgress(float progress)
             => loadingPanel.SetProgress(progress);
 
+        /// <summary>
+        /// 로딩 화면에 이동할 목적지를 띄운다. 씬 이름으로 목적지 표를 찾아 이름·구역 코드를 표시한다.
+        /// </summary>
+        /// <param name="sceneName">로드할 씬 이름(씬 클래스 이름)</param>
+        public void SetLoadingDestination(string sceneName)
+            => loadingPanel.SetDestination(sceneName);
+
     }
 }

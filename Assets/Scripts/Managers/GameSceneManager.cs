@@ -100,6 +100,7 @@ namespace ProjectS.Managers
             string next = typeof(T).Name;   // T의 타입 이름 = 씬 이름 = 어드레서블 키로 사용
 
             UIManager.Instance.ShowLoading();
+            UIManager.Instance.SetLoadingDestination(next);
 
             float displayProgress = 0f;   // 화면에 보여줄 보정 진행도(실제값을 부드럽게 따라감)
 

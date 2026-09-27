@@ -63,6 +63,11 @@ namespace ProjectS.UI
         private HexFragmentSpawner spawner;
         private Coroutine routine;
 
+        // 지금 오버레이에 띄워 둔 스윕 라이트. 오버레이는 카드 밖(HUD 최상위)이라 카드가 꺼지거나 파괴돼도
+        // 같이 사라지지 않는다. 루틴 끝에서만 치우면, 연출이 도중에 끊길 때(연속 완료로 Play 재호출,
+        // 반납·접힘으로 카드 비활성/파괴) 빛이 반투명한 채 트래커 옆에 영영 남는다 — 그래서 참조를 쥐고 끊기는 모든 경로에서 치운다.
+        private RectTransform activeSweep;
+
         /// <summary>카드가 완전히 지워지기까지 걸리는 시간(초). 호출부가 후속 처리 타이밍을 맞추는 데 쓴다.</summary>
         public float Duration => eraseDelay + eraseDuration;
 
@@ -78,6 +83,7 @@ namespace ProjectS.UI
             if (visual == null) return;
 
             if (routine != null) StopCoroutine(routine);
+            ClearSweep();   // 끊긴 이전 연출의 빛을 남기지 않는다
 
             // 등장은 '완전히 지워진 상태'에서 시작해야 한다. 분해는 그 반대.
             if (visualMask != null)
@@ -89,7 +95,29 @@ namespace ProjectS.UI
         /// <summary>소거를 되돌려 카드를 원래대로 보이게 한다. 재생 전과 테스트 반복에 쓴다.</summary>
         public void ResetVisual()
         {
+            if (routine != null)
+            {
+                StopCoroutine(routine);
+                routine = null;
+            }
+
+            ClearSweep();
             if (visualMask != null) visualMask.padding = Vector4.zero;
+        }
+
+        // 비활성화되면 코루틴이 Unity에 의해 멈추므로 루틴 끝의 정리가 돌지 않는다. 여기서 대신 치운다.
+        private void OnDisable()
+        {
+            routine = null;
+            ClearSweep();
+        }
+
+        private void OnDestroy() => ClearSweep();
+
+        private void ClearSweep()
+        {
+            if (activeSweep != null) Destroy(activeSweep.gameObject);
+            activeSweep = null;
         }
 
         private IEnumerator PlayRoutine(bool reverse)
@@ -104,6 +132,7 @@ namespace ProjectS.UI
             int step = reverse ? -1 : 1;
 
             RectTransform sweep = SpawnSweep(area);
+            activeSweep = sweep;
             Graphic sweepGraphic = sweep != null ? sweep.GetComponent<Graphic>() : null;
             Color sweepColor = sweepGraphic != null ? sweepGraphic.color : Color.white;
             Vector2 sweepStart = sweep != null ? sweep.anchoredPosition : Vector2.zero;
@@ -153,7 +182,7 @@ namespace ProjectS.UI
 
             if (visualMask != null)
                 visualMask.padding = reverse ? Vector4.zero : new Vector4(area.width, 0f, 0f, 0f);
-            if (sweep != null) Destroy(sweep.gameObject);
+            ClearSweep();
 
             routine = null;
         }
