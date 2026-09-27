@@ -14,7 +14,7 @@ namespace ProjectS.Players
         [Tooltip("네트워크 컴포넌트가 붙은 캐릭터 프리팹.")]
         public Player character;
 
-        [Tooltip("캐릭터 일러스트. 장비창 전신 그림과 대화창 초상화가 같이 쓴다.")]
+        [Tooltip("캐릭터 일러스트. 대화창 초상화가 쓰고, statusPortrait가 비어 있으면 장비창도 이걸 쓴다.")]
         [FormerlySerializedAs("sprite")]
         public Sprite illust;
 
@@ -22,6 +22,9 @@ namespace ProjectS.Players
         public Sprite symbol;
 
         public Sprite portrait;
+
+        [Tooltip("스테이터스(장비)창 전용 캐릭터 그림. 비워 두면 illust로 대체한다.")]
+        public Sprite statusPortrait;
     }
 
     /// <summary>
@@ -52,6 +55,19 @@ namespace ProjectS.Players
         public Sprite GetSymbol(int characterType) => Find(characterType)?.symbol;
 
         public Sprite GetPortrait(int characterType) => Find(characterType)?.portrait;
+
+        /// <summary>
+        /// characterType에 맞는 스테이터스(장비)창 그림. 칸이 비어 있으면 <see cref="GetIllust"/>로 대체해,
+        /// 아트가 아직 안 들어온 캐릭터도 장비창이 빈 그림으로 뜨지 않게 한다. 캐릭터 자체가 없으면 null.
+        /// </summary>
+        /// <param name="characterType">캐릭터 타입(1=검사, 2=거너 …)</param>
+        public Sprite GetStatusPortrait(int characterType)
+        {
+            PlayerType t = Find(characterType);
+            if (t == null) return null;
+
+            return t.statusPortrait != null ? t.statusPortrait : t.illust;
+        }
 
         /// <summary>배열 순서 그대로 index번째 프리팹. 부트스트랩 임시 선택용이라 characterType과 무관하다.</summary>
         /// <param name="index">배열 인덱스(0부터)</param>
