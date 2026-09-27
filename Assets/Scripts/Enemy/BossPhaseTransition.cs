@@ -141,6 +141,19 @@ namespace ProjectS.Enemies
             boss.SuspendAI();
             next.SuspendAI();
 
+            // 연출 시작 자리로 두 페이즈를 겹쳐 놓는다. 안 하면 1페이즈가 HP 임계에 닿은 임의의 지점에서,
+            // 플레이어를 보던 각도 그대로 연출이 재생된다(Timeline Track Offset은 EnemyMovement.OnAnimatorMove가
+            // 루트모션을 가로채 transform에 닿지 않는다 — 회전은 아예 적용되지 않는다).
+            // ★ 반드시 SuspendAI 뒤에 — SuspendAI가 NavMeshAgent를 꺼야 transform 대입이 다음 프레임에 덮이지 않는다.
+            // ★ 관찰자 클라에서는 이 컴포넌트가 BossServerAuthority로 꺼져 있으므로 서버에서만 놓이고,
+            //   각 클라에는 NetworkTransform으로 복제된다.
+            Transform start = cutscene.StartPoint;
+            if (start != null)
+            {
+                boss.transform.SetPositionAndRotation(start.position, start.rotation);
+                next.transform.SetPositionAndRotation(start.position, start.rotation);
+            }
+
             // 연출 동안 두 페이즈 모두 피해를 받지 않게 한다. 2페이즈는 1페이즈와 같은 자리에 미리 떠 있어, 하한이 없는
             // 2페이즈가 연출 중 맞아 죽으면 DeadState가 연출 뒤 ResumeAI에 덮여 "HP 0인데 안 죽는" 보스가 된다(2026-09-18).
             // 정상 해제는 CompleteTransition. 종료를 못 잡으면 예정 종료(시작 여유 + 연출 길이) + 5초에 만료된다.

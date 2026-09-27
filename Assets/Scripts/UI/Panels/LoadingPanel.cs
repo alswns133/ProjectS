@@ -54,11 +54,29 @@ namespace ProjectS.UI
         [Header("팁")]
         [SerializeField] private TMP_Text tip;
 
-        [Tooltip("표시할 팁 문구. 켜질 때마다 하나를 무작위로 고른다.")]
-        [SerializeField, TextArea] private string[] tips =
+        // 아래 기본 문구는 '이 필드를 아직 한 번도 직렬화한 적 없는' 오브젝트에만 들어간다.
+        // 씬에 저장된 뒤에는 여기를 고쳐도 반영되지 않으니, 운영 중 문구 수정은 인스펙터에서 한다.
+        // "TIP" 머리말은 옆의 TipChip이 따로 그리므로 여기엔 본문만 적는다.
+        [Tooltip("표시할 팁 본문. 켜질 때마다 직전과 다른 것을 무작위로 고른다.
+" +
+                 "<color=#30BAD4>강조</color> 같은 TMP 태그를 쓸 수 있다(여는 태그의 닫는 '>'를 빠뜨리지 말 것).")]
+        [SerializeField, TextArea(2, 4)] private string[] tips =
         {
-            "전투 지역에서는 장비 착용 중 브로치와 소켓 아이템을 바꿀 수 없습니다. 안전 지역에서 바꿔 주세요.",
-            "강공격과 스킬 시전 중에는 약한 공격에 경직되지 않습니다.",
+            "마우스 좌클릭을 <color=#30BAD4>꾹 누르고 있으면 공격이 연속으로 이어집니다.</color> 연타하지 않아도 콤보가 끊기지 않습니다.",
+            "<color=#30BAD4>우클릭 강공격은 스킬 게이지를 크게 채웁니다.</color> 평타만 치는 것보다 스킬이 훨씬 빨리 돌아옵니다.",
+            "<color=#30BAD4>강공격과 스킬을 쓰는 동안은 웬만한 공격에 밀리지 않습니다.</color> 다만 강한 일격에는 자세가 무너지니 큰 기술은 피하세요.",
+            "<color=#30BAD4>각성기는 시전하는 내내 무적</color>입니다. 피할 수 없는 공격이 날아온다면 각성기로 받아치세요.",
+            "<color=#30BAD4>구르는 동안에는 무적</color>입니다. 적의 공격이 닿기 직전에 맞춰 굴러보세요.",
+            "<color=#30BAD4>구르기는 이동 키를 누른 방향으로 굴러갑니다.</color> 방향 입력 없이는 구르지 않으니 피할 쪽을 함께 눌러주세요.",
+            "구르기는 스태미나를 소모합니다. <color=#30BAD4>스태미나는 시간이 지나면 저절로 회복</color>되니 연속 회피 뒤에는 한 박자 쉬어가세요.",
+            "공중에서 한 번 더 <color=#30BAD4>Shift를 누르면 공중 대시</color>로 거리를 벌릴 수 있습니다. 착지 전까지 한 번만 쓸 수 있습니다.",
+            "이동 키를 <color=#30BAD4>두 번 연달아 누르면 달리기</color>로 바뀝니다. 이동을 완전히 멈추면 다시 걷기부터 시작합니다.",
+            "스킬창에서 익힌 스킬을 <color=#30BAD4>HUD 슬롯으로 끌어다 놓으면 단축키로 등록</color>됩니다. 1~5번 키로 바로 발동하세요.",
+            "물약은 <color=#30BAD4>Q·E 퀵슬롯에 등록</color>해두면 전투 중에도 곧바로 마실 수 있습니다. 던전에 들어가기 전에 채워두세요.",
+            "<color=#30BAD4>F키로 NPC와 대화</color>해 퀘스트를 받고 보상을 수령할 수 있습니다.",
+            "J키를 눌러 퀘스트 항목을 확인할 수 있습니다.",
+            "파티는 던전 입구에서 결성 가능합니다.",
+            "던전의 클리어가 어렵다면 강화를 이용해봅시다.",
         };
 
         [Header("목적지")]
@@ -72,13 +90,16 @@ namespace ProjectS.UI
         [SerializeField] private string defaultTitle = "시스템 동기화";
         [SerializeField] private string defaultCode = "BOOT SEQUENCE";
 
+        // 한글 명칭은 세계관 설정집 기준 지역 이름이다(2026-09-26 확정). 마을=세컨드 노드, 레이드=퍼스트 노드는
+        // 설정집·대화/퀘스트 텍스트에 이미 쓰이는 이름이고, 튜토리얼·던전1·던전2는 이때 새로 정했다.
         [Tooltip("씬별 한글 명칭 표. 새 씬을 로딩으로 이동시키려면 여기에 행을 추가한다.")]
         [SerializeField] private Destination[] destinations =
         {
-            new Destination { sceneName = "VillageGather", koreanName = "마을", code = "SECTOR 00 · SAFE ZONE" },
-            new Destination { sceneName = "DungeonGather", koreanName = "던전", code = "SECTOR 07 · LOWER CITY" },
-            new Destination { sceneName = "RaidGather", koreanName = "레이드", code = "SECTOR 13 · CORE FACILITY" },
-            new Destination { sceneName = "Tutorial", koreanName = "훈련 구역", code = "SECTOR 01 · SIMULATION" },
+            new Destination { sceneName = "Tutorial", koreanName = "귀환자 수용동", code = "SECTOR 01 · SIMULATION" },
+            new Destination { sceneName = "VillageGather", koreanName = "세컨드 노드", code = "SECTOR 00 · SAFE ZONE" },
+            new Destination { sceneName = "Dungeon1", koreanName = "침식 구역", code = "SECTOR 07" },
+            new Destination { sceneName = "Dungeon2", koreanName = "어센션 코어", code = "SECTOR 08" },
+            new Destination { sceneName = "Raid", koreanName = "퍼스트 노드", code = "SECTOR 13 · CORE FACILITY" },
         };
 
         [Header("진행 바 · 상태")]
@@ -112,6 +133,9 @@ namespace ProjectS.UI
         private int shownPackets = -1;
         private float nextDataTime;
 
+        // 직전에 보여준 팁. 로딩이 연달아 뜰 때 같은 문구가 반복되지 않게 한 칸만 기억한다.
+        private int lastTipIndex = -1;
+
         protected override void OnInit()
         {
             if (loadingSlider == null) loadingSlider = GetComponentInChildren<Slider>();
@@ -125,12 +149,28 @@ namespace ProjectS.UI
             shownPackets = -1;
             nextDataTime = 0f;
 
-            if (tips != null && tips.Length > 0) SetTIPText(tips[UnityEngine.Random.Range(0, tips.Length)]);
+            if (tips != null && tips.Length > 0)
+            {
+                lastTipIndex = PickNextIndex(tips.Length, lastTipIndex);
+                SetTIPText(tips[lastTipIndex]);
+            }
 
             // 이전 로딩의 목적지가 남지 않게 초기화한다(부팅 직후처럼 목적지를 안 넘기는 경로가 있음).
             ShowDestination(defaultTitle, defaultCode);
 
             SetProgress(0f);
+        }
+
+        /// <summary>
+        /// 직전에 고른 것을 피해 다음 인덱스를 고른다. 순수 랜덤이면 같은 것이 연달아 나오는 게 체감상 잦아서다.
+        /// </summary>
+        private static int PickNextIndex(int count, int last)
+        {
+            if (count <= 1) return 0;
+
+            int index = UnityEngine.Random.Range(0, count);
+            if (index == last) index = (index + 1) % count;
+            return index;
         }
 
         private void Update()

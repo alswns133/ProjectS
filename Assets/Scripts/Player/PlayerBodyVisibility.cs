@@ -66,8 +66,16 @@ namespace ProjectS.Players
         // IsActionInterrupted의 false→true 엣지를 스스로 감지해 그 프레임에 복구한다.
         private bool wasInterrupted;
 
-        // 감추기 시작한 시각. maxHiddenTime 초과 판정에만 쓴다.
+        // 감추기 시작한 시각. hiddenTimeout 초과 판정에만 쓴다.
         private float hiddenSince;
+
+        // 이번 감춤에 적용할 안전 타임아웃(초). 기본은 maxHiddenTime이고, 길이를 아는 호출부(컷신)가 따로 지정한다.
+        // 각성기(6초)에 맞춘 기본값으로 20초가 넘는 페이즈 전환 연출을 감추면, 연출 도중 안전장치가 몸을 되살린다.
+        private float hiddenTimeout;
+
+        // 컷신이 건 감춤인지. 켜져 있으면 OnShowBody(Animation Event)가 풀지 못한다.
+        // 각성기 도중 페이즈 전환이 겹치면 각성기 클립의 OnShowBody가 연출 한가운데서 몸을 되살리던 문제를 막는다.
+        private bool cutsceneHold;
 
         private void Awake()
         {
@@ -95,9 +103,10 @@ namespace ProjectS.Players
 
             // 구르기·피격·사망으로 각성기가 끊긴 그 프레임에 되돌린다.
             // 이게 없으면 연출 도중 캔슬했을 때 몸이 사라진 채로 조작하게 된다.
+            // 단 컷신이 잡고 있는 동안은 예외 — 연출 중 피격·사망으로 캐릭터가 도로 나타나면 안 된다.
             bool interrupted = player != null && player.IsActionInterrupted;
 
-            if (interrupted && !wasInterrupted)
+            if (interrupted && !wasInterrupted && !cutsceneHold)
             {
                 wasInterrupted = true;
                 OnShowBody();
@@ -106,10 +115,12 @@ namespace ProjectS.Players
 
             wasInterrupted = interrupted;
 
-            // 복구 신호를 놓친 경우의 최후 방어선.
-            if (Time.time - hiddenSince >= maxHiddenTime)
+            // 복구 신호를 놓친 경우의 최후 방어선. 컷신 잠금도 여기서는 푼다 —
+            // 플레이어가 영영 안 보이는 상태로 남는 것이 가장 치명적이라 안전장치가 항상 이겨야 한다.
+            if (Time.time - hiddenSince >= hiddenTimeout)
             {
-                Debug.LogWarning($"Body stayed hidden for {maxHiddenTime}s. Restoring by safety timeout — check the OnShowBody Animation Event.", this);
+                Debug.LogWarning($"Body stayed hidden for {hiddenTimeout}s. Restoring by safety timeout — check the OnShowBody Animation Event.", this);
+                cutsceneHold = false;
                 OnShowBody();
             }
         }
@@ -119,6 +130,8 @@ namespace ProjectS.Players
             // 감춘 상태로 비활성화되면 Update가 돌지 않아 안전장치도 멈춘다.
             // 다음에 다시 켤 때 투명한 채로 등장하지 않도록 여기서 즉시 되돌린다
             // (씬 전환·풀 반환처럼 플레이어가 잠시 꺼지는 경로가 실제로 있다).
+            // 컷신 잠금도 함께 푼다 — 여기서 못 풀면 다시 켤 때 감춰진 채로 남는다.
+            cutsceneHold = false;
             if (IsHidden) OnShowBody();
         }
 
@@ -127,12 +140,49 @@ namespace ProjectS.Players
         /// 트레일·검기 같은 파티클/VFX는 대상이 아니므로 그대로 재생된다.
         /// 이미 감춰진 상태에서 다시 불러도 안전하며, 안전 타이머만 새로 시작한다.
         /// </summary>
-        public void OnHideBody()
+        public void OnHideBody() => HideBodyFor(maxHiddenTime);
+
+        /// <summary>
+        /// 본체를 감추되 이번 감춤의 안전 타임아웃을 직접 지정한다. 컷신처럼 각성기보다 긴 연출이 쓴다 —
+        /// 기본 <see cref="maxHiddenTime"/>(6초)로 감추면 20초가 넘는 연출 도중 안전장치가 몸을 되살린다.
+        /// </summary>
+        /// <param name="safetySeconds">복구 신호를 못 잡았을 때 강제로 되돌리기까지의 시간(초).</param>
+        public void HideBodyFor(float safetySeconds)
         {
             // 다른 이펙트 이벤트와 같은 게이트: 구르기·피격·사망으로 끊겼으면
             // 블렌드 아웃 중 뒤늦게 도착한 이벤트로 몸이 사라지는 것을 막는다.
             if (player != null && player.IsActionInterrupted) return;
 
+            Hide(safetySeconds);
+        }
+
+        /// <summary>
+        /// <b>컷신이 거는 감춤.</b> 연출이 끝날 때까지 <see cref="OnShowBody"/>로 풀리지 않는다.
+        /// </summary>
+        /// <remarks>
+        /// ★ Animation Event보다 우선해야 하는 이유: 각성기 도중 페이즈 전환이 시작되면, 각성기 클립이
+        /// 블렌드 아웃하며 <c>OnShowBody</c> 이벤트를 뒤늦게 발화시켜 <b>연출 한가운데서 몸이 다시 보인다</b>
+        /// (2026-09-25 실제 사고). 동작을 취소해도(<c>Combat.CancelAction</c>) 클립의 남은 이벤트는 그대로 온다.
+        /// 구르기·피격 중이어도 감춘다 — 연출 중엔 조작이 잠겨 있어 그 게이트가 의미 없다.
+        /// 해제는 <see cref="EndCutsceneHide"/>뿐이며, 놓쳐도 안전 타임아웃이 되돌린다.
+        /// </remarks>
+        /// <param name="safetySeconds">복구 신호를 못 잡았을 때 강제로 되돌리기까지의 시간(초).</param>
+        public void BeginCutsceneHide(float safetySeconds)
+        {
+            cutsceneHold = true;
+            Hide(safetySeconds);
+        }
+
+        /// <summary>컷신 감춤을 풀고 본체를 되돌린다. 연출 종료(<c>BossIntroDirector.Finish</c>)가 호출한다.</summary>
+        public void EndCutsceneHide()
+        {
+            cutsceneHold = false;
+            OnShowBody();
+        }
+
+        // 실제 감추기. 게이트를 통과한 뒤의 공통 본문.
+        private void Hide(float safetySeconds)
+        {
             if (bodyRenderers == null) return;
 
             // 이미 감춰져 있으면 상태를 다시 찍지 않는다. 덮어쓰면 "감춰진 상태"가 원본으로
@@ -141,6 +191,7 @@ namespace ProjectS.Players
 
             IsHidden = true;
             hiddenSince = Time.time;
+            hiddenTimeout = Mathf.Max(0.1f, safetySeconds);
             wasInterrupted = player != null && player.IsActionInterrupted;
 
             for (int i = 0; i < bodyRenderers.Length; i++)
@@ -170,6 +221,10 @@ namespace ProjectS.Players
             // 감춘 적이 없으면 되돌릴 원본이 없다. 그대로 진행하면 기본값(false)이 들어가
             // 멀쩡한 렌더러를 꺼 버리므로 여기서 끊는다.
             if (!IsHidden) return;
+
+            // 컷신이 잡고 있는 동안엔 Animation Event로 풀리지 않는다(각성기 클립의 뒤늦은 OnShowBody 차단).
+            // 푸는 길은 EndCutsceneHide와 Update의 안전 타임아웃뿐이다.
+            if (cutsceneHold) return;
 
             IsHidden = false;
 

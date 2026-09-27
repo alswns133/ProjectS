@@ -916,7 +916,10 @@ namespace ProjectS.Players
 
             // 정규화 키로 비교한다 → 언더바 표기 차이(Attack_1 vs Attack1, Strong_Attack vs StrongAttack)를 흡수.
             // 비교 대상 리터럴은 정규화형(언더바 없음)으로 적는다.
-            string nk = AnimationEventKey.Normalize(key);
+            // 캐릭터 접두사("Erwin_Attack1")는 비교 전에 떼어낸다 — 히트 이펙트를 캐릭터별로 가르려면
+            // 슬롯 키가 서로 달라야 하는데(HitEffectSpawner가 키 하나로 이펙트를 찾는다), 접두사가 붙은 채
+            // 비교하면 StartsWith가 전부 빗나가 히트가 통째로 막힌다(2026-09-25 어윈 평타 투사체 미발사).
+            string nk = AnimationEventKey.Normalize(StripCharacterPrefix(key));
             return currentAction switch
             {
                 CombatAction.Combo => comboStep switch
@@ -966,6 +969,30 @@ namespace ProjectS.Players
 
             return MatchesSkillPrefix(key, $"{prefix}Skill{currentSkillNumber}")
                 || MatchesSkillPrefix(key, $"{prefix}Skill_{currentSkillNumber}");
+        }
+
+        /// <summary>
+        /// 키 앞의 캐릭터 이름 접두사("Erwin_")를 떼어낸다. 없으면 원본을 그대로 돌려준다.
+        /// </summary>
+        /// <remarks>
+        /// 스킬은 접두사를 <b>요구</b>하지만(<see cref="IsCurrentSkillKey"/>), 평타·강공격·달리기공격·점프공격은
+        /// "Attack1" 같은 무접두사 키로 비교한다. 히트 이펙트를 캐릭터별로 가르려면 슬롯 키가 달라야 해서
+        /// 접두사를 붙이게 되는데, 그때 이 게이트가 막지 않도록 비교 직전에만 벗긴다.
+        /// 접두사가 없는 키(하루의 "Attack1" 등)는 그대로 통과하므로, 캐릭터마다 따로 이관해도 된다.
+        /// </remarks>
+        /// <param name="key">애니메이션 이벤트가 넘긴 슬롯 키.</param>
+        /// <returns>접두사를 뗀 키. CharacterName을 아직 못 읽었으면 원본.</returns>
+        private string StripCharacterPrefix(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return key;
+
+            // 테이블 로딩 전이면 이름이 비어 있다. 그때는 원본을 그대로 써서
+            // 기존(무접두사) 키의 동작이 바뀌지 않게 한다.
+            string name = player != null && player.Stats != null ? player.Stats.CharacterName : null;
+            if (string.IsNullOrEmpty(name)) return key;
+
+            string prefix = name + "_";
+            return key.StartsWith(prefix, StringComparison.Ordinal) ? key.Substring(prefix.Length) : key;
         }
 
         // key가 정확히 prefix이거나 "prefix_"로 시작하는지. 언더바 경계를 요구해

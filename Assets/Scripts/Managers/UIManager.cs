@@ -338,8 +338,12 @@ namespace ProjectS.Managers
             DevLog.Log("[UIManager] Back");
         }
 
+        /// <summary>
+        /// 로딩 화면을 띄운다. 목적지는 켜질 때 기본 표기로 초기화되므로,
+        /// 목적지를 아는 호출자는 이어서 <see cref="SetLoadingDestination"/>을 부른다.
+        /// </summary>
         public void ShowLoading()
-        => loadingPanel.Show();
+            => loadingPanel.Show();
 
         public void HideLoading()
             => loadingPanel.Hide();
