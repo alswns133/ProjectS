@@ -63,10 +63,16 @@ namespace ProjectS.UI
         private HexFragmentSpawner spawner;
         private Coroutine routine;
 
-        // 지금 오버레이에 띄워 둔 스윕 라이트. 오버레이는 카드 밖(HUD 최상위)이라 카드가 꺼지거나 파괴돼도
-        // 같이 사라지지 않는다. 루틴 끝에서만 치우면, 연출이 도중에 끊길 때(연속 완료로 Play 재호출,
-        // 반납·접힘으로 카드 비활성/파괴) 빛이 반투명한 채 트래커 옆에 영영 남는다 — 그래서 참조를 쥐고 끊기는 모든 경로에서 치운다.
+        // 지금 오버레이에 떠 있는 스윕 라이트. 오버레이는 카드 밖(부모가 다름)이라, 연출이 끝나기 전에
+        // 카드가 꺼지거나 파괴되면 루틴 끝의 Destroy가 실행되지 않아 빛만 화면에 남는다 → 따로 쥐고 치운다.
         private RectTransform activeSweep;
+
+        // 연출 도중 카드가 꺼지거나(HUD 숨김) 파괴되면(반납 카드 정리) 코루틴이 멈추므로 남은 빛을 여기서 치운다.
+        private void OnDisable()
+        {
+            routine = null;
+            ClearSweep();
+        }
 
         /// <summary>카드가 완전히 지워지기까지 걸리는 시간(초). 호출부가 후속 처리 타이밍을 맞추는 데 쓴다.</summary>
         public float Duration => eraseDelay + eraseDuration;
@@ -83,7 +89,7 @@ namespace ProjectS.UI
             if (visual == null) return;
 
             if (routine != null) StopCoroutine(routine);
-            ClearSweep();   // 끊긴 이전 연출의 빛을 남기지 않는다
+            ClearSweep();   // 끊긴 이전 재생의 빛이 남지 않게
 
             // 등장은 '완전히 지워진 상태'에서 시작해야 한다. 분해는 그 반대.
             if (visualMask != null)
@@ -95,29 +101,7 @@ namespace ProjectS.UI
         /// <summary>소거를 되돌려 카드를 원래대로 보이게 한다. 재생 전과 테스트 반복에 쓴다.</summary>
         public void ResetVisual()
         {
-            if (routine != null)
-            {
-                StopCoroutine(routine);
-                routine = null;
-            }
-
-            ClearSweep();
             if (visualMask != null) visualMask.padding = Vector4.zero;
-        }
-
-        // 비활성화되면 코루틴이 Unity에 의해 멈추므로 루틴 끝의 정리가 돌지 않는다. 여기서 대신 치운다.
-        private void OnDisable()
-        {
-            routine = null;
-            ClearSweep();
-        }
-
-        private void OnDestroy() => ClearSweep();
-
-        private void ClearSweep()
-        {
-            if (activeSweep != null) Destroy(activeSweep.gameObject);
-            activeSweep = null;
         }
 
         private IEnumerator PlayRoutine(bool reverse)
@@ -185,6 +169,13 @@ namespace ProjectS.UI
             ClearSweep();
 
             routine = null;
+        }
+
+        // 떠 있는 스윕 라이트를 파괴한다(정상 종료·재시작·중단 공통).
+        private void ClearSweep()
+        {
+            if (activeSweep != null) Destroy(activeSweep.gameObject);
+            activeSweep = null;
         }
 
         // 경계가 이 칸의 중심을 지났는지. 분해는 경계가 오른쪽으로, 등장은 왼쪽으로 움직여 판정이 반대다.
