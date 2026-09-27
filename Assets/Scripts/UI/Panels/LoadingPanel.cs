@@ -45,6 +45,9 @@ namespace ProjectS.UI
 
             [Tooltip("명칭 아래 작은 영문 구역 코드(선택). 예: SECTOR 07 · LOWER CITY")]
             public string code;
+
+            [Tooltip("이 씬의 로딩 일러스트 후보(선택). 2장 이상이면 진입할 때마다 직전과 다른 것을 무작위로 고른다. 비우면 일러스트 자리를 숨긴다.")]
+            public Sprite[] illustrations;
         }
 
         [Header("예전 구성 (선택)")]
@@ -101,6 +104,13 @@ namespace ProjectS.UI
             new Destination { sceneName = "Raid", koreanName = "퍼스트 노드", code = "SECTOR 13 · CORE FACILITY" },
         };
 
+        [Header("일러스트")]
+        [Tooltip("목적지 오른쪽 빈자리의 일러스트 틀. 목적지 표에 그림이 없는 씬(부팅 직후 포함)에서는 통째로 숨긴다.")]
+        [SerializeField] private GameObject illustrationFrame;
+
+        [Tooltip("일러스트를 그리는 Image. preserveAspect로 16:9 원본 비율을 지킨다.")]
+        [SerializeField] private Image illustration;
+
         [Header("진행 바 · 상태")]
         [SerializeField] private LoadingBarView bar;
         [SerializeField] private TMP_Text statusText;
@@ -135,6 +145,9 @@ namespace ProjectS.UI
         // 직전에 보여준 팁. 로딩이 연달아 뜰 때 같은 문구가 반복되지 않게 한 칸만 기억한다.
         private int lastTipIndex = -1;
 
+        // 씬별로 직전에 보여준 일러스트. 후보가 2장뿐이라 순수 랜덤이면 같은 그림이 연달아 나오는 게 체감상 잦다.
+        private readonly Dictionary<string, int> lastIllustrationIndex = new();
+
         protected override void OnInit()
         {
             if (loadingSlider == null) loadingSlider = GetComponentInChildren<Slider>();
@@ -156,6 +169,7 @@ namespace ProjectS.UI
 
             // 이전 로딩의 목적지가 남지 않게 초기화한다(부팅 직후처럼 목적지를 안 넘기는 경로가 있음).
             ShowDestination(defaultTitle, defaultCode);
+            ShowIllustration(null, null);
 
             SetProgress(0f);
         }
@@ -206,12 +220,14 @@ namespace ProjectS.UI
             {
                 if (d.sceneName != sceneName) continue;
                 ShowDestination(d.koreanName, d.code);
+                ShowIllustration(d.sceneName, d.illustrations);
                 return;
             }
 
             Debug.LogWarning($"[LoadingPanel] 목적지 표에 '{sceneName}'이 없어 기본 표기를 띄웁니다. " +
                              "LoadingPanel의 destinations에 한글 명칭 행을 추가하세요.", this);
             ShowDestination(defaultTitle, defaultCode);
+            ShowIllustration(null, null);
         }
 
         /// <summary>팁 본문을 바꾼다.</summary>
@@ -224,6 +240,22 @@ namespace ProjectS.UI
         {
             if (destinationTitle != null) destinationTitle.text = koreanName;
             if (destinationCode != null) destinationCode.text = code;
+        }
+
+        /// <summary>
+        /// 씬의 일러스트 후보 중 직전과 다른 한 장을 띄운다. 후보가 없으면 틀째 숨긴다 —
+        /// 빈 틀만 남으면 그림이 로드되다 만 것처럼 보이기 때문이다.
+        /// </summary>
+        private void ShowIllustration(string sceneName, Sprite[] candidates)
+        {
+            bool has = illustration != null && candidates != null && candidates.Length > 0;
+            if (illustrationFrame != null) illustrationFrame.SetActive(has);
+            if (!has) return;
+
+            int last = lastIllustrationIndex.TryGetValue(sceneName, out int shown) ? shown : -1;
+            int index = PickNextIndex(candidates.Length, last);
+            lastIllustrationIndex[sceneName] = index;
+            illustration.sprite = candidates[index];
         }
 
 #if UNITY_EDITOR
