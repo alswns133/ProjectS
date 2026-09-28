@@ -1899,7 +1899,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uD504\uB808\uC784 \uC81C\uD55C"
+  m_text: "\uB370\uBBF8\uC9C0 \uD45C\uC2DC"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1e433d936e04d424da59962961c704f9, type: 2}
   m_sharedMaterial: {fileID: 5543183432002764984, guid: 1e433d936e04d424da59962961c704f9, type: 2}
@@ -11734,6 +11734,8 @@ MonoBehaviour:
   hpTrail: {fileID: 0}
   groggyFill: {fileID: 1826365768}
   groggyLockIcon: {fileID: 0}
+  bossIcon: {fileID: 0}
+  groggyIconColor: {r: 0.45, g: 0.45, b: 0.45, a: 1}
   segmentPalette:
   - {r: 0.62, g: 0.2, b: 0.85, a: 1}
   - {r: 0.95, g: 0.78, b: 0.2, a: 1}
@@ -11747,6 +11749,10 @@ MonoBehaviour:
   drainSpeed: 0.57
   segmentCountFormat: X {0}
   hpValueFormat: '{0}/{1}'
+  timeLimitText: {fileID: 0}
+  timeLimitFormat: '{0:00}:{1:00}'
+  timeLimitWarningSeconds: 60
+  timeLimitWarningColor: {r: 1, g: 0.3, b: 0.3, a: 1}
 --- !u!114 &390054524
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18469,6 +18475,8 @@ MonoBehaviour:
   hpTrail: {fileID: 1004742536}
   groggyFill: {fileID: 497807336}
   groggyLockIcon: {fileID: 1658427381}
+  bossIcon: {fileID: 0}
+  groggyIconColor: {r: 0.45, g: 0.45, b: 0.45, a: 1}
   segmentPalette:
   - {r: 0.62, g: 0.2, b: 0.85, a: 1}
   - {r: 0.95, g: 0.78, b: 0.2, a: 1}
@@ -18482,6 +18490,10 @@ MonoBehaviour:
   drainSpeed: 0.25
   segmentCountFormat: X {0}
   hpValueFormat: '{0}/{1}'
+  timeLimitText: {fileID: 0}
+  timeLimitFormat: '{0:00}:{1:00}'
+  timeLimitWarningSeconds: 60
+  timeLimitWarningColor: {r: 1, g: 0.3, b: 0.3, a: 1}
 --- !u!1 &684939107
 GameObject:
   m_ObjectHideFlags: 0
@@ -19524,7 +19536,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 212224614}
   m_HandleRect: {fileID: 212224613}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -21408,7 +21420,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uD574\uC0C1\uB3C4"
+  m_text: "\uD68C\uC804 \uBC18\uC804"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1e433d936e04d424da59962961c704f9, type: 2}
   m_sharedMaterial: {fileID: 5543183432002764984, guid: 1e433d936e04d424da59962961c704f9, type: 2}
@@ -30136,6 +30148,10 @@ MonoBehaviour:
   sgText: {fileID: 877507191}
   expBar: {fileID: 0}
   levelText: {fileID: 1530180536}
+  decor: {fileID: 0}
+  decorPattern: {fileID: 0}
+  decorFrame: {fileID: 0}
+  levelColor: []
   stamina:
     image: {fileID: 0}
     lerpSpeed: 1
@@ -34218,7 +34234,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uD654\uBA74\uBAA8\uB4DC"
+  m_text: "\uB9C8\uC6B0\uC2A4 \uAC10\uB3C4"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1e433d936e04d424da59962961c704f9, type: 2}
   m_sharedMaterial: {fileID: 5543183432002764984, guid: 1e433d936e04d424da59962961c704f9, type: 2}
@@ -45891,8 +45907,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: 18.500006, y: 0}
-  m_SizeDelta: {x: -162.99998, y: 25}
+  m_AnchoredPosition: {x: 28.500004, y: 0}
+  m_SizeDelta: {x: -183, y: 25}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1661647684
 MonoBehaviour:
@@ -58899,6 +58915,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7054218703988463456, guid: ae7c1806b51893549b2baa0fb4a1ae5f, type: 3}
       propertyPath: m_AnchorMax.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7511684167577857403, guid: ae7c1806b51893549b2baa0fb4a1ae5f, type: 3}
+      propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7641540992744474929, guid: ae7c1806b51893549b2baa0fb4a1ae5f, type: 3}

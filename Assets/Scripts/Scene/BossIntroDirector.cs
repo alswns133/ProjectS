@@ -724,6 +724,11 @@ namespace ProjectS.Scenes
             EndWait();
             presented = false;
 
+            // 등장 연출이 끝났으니 레이드 제한 시간을 흐르게 한다. 타이머는 판정 권한이 있는 쪽(서버·싱글)에만 있어
+            // 순수 클라에서는 아무 일도 없고, 서버는 RaidIntroSession.End도 같은 신호를 보낸다(중복은 무시된다).
+            // 비활성화 경로(씬 이탈)에서는 시작하지 않는다 — 내려가는 씬의 타이머를 깨울 이유가 없다.
+            if (role == DirectorRole.Intro && isActiveAndEnabled) RaidTimeLimit.BeginIn(gameObject.scene);
+
             // 마지막에 알린다 — 구독자(BossPhaseTransition)가 1페이즈를 걷어내기 전에 위 뒷정리(2페이즈 깨우기)가 끝나 있어야 한다.
             System.Action finishedHandlers = Finished;
             Finished = null;

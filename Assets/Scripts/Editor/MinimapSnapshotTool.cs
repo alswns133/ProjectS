@@ -55,6 +55,9 @@ namespace ProjectS.EditorTools
         private float glowStrength = 1.4f;
         private int glowSpread = 4;
 
+        // 글로우용 축소 텍스처의 짧은 변 하한(px). 이보다 작게 줄이지 않는다(BuildGlow 참조).
+        private const int MinGlowSize = 32;
+
         // 측정 결과(XZ 범위 + 카메라 배치용 Y 범위). size를 수동으로 고쳐도 Y는 이 값을 쓴다.
         private Vector2 center;
         private Vector2 size = new Vector2(100f, 100f);
@@ -207,6 +210,12 @@ namespace ProjectS.EditorTools
             int texW = Mathf.Clamp(Mathf.RoundToInt(size.x * pixelsPerMeter), 8, 8192);
             int texH = Mathf.Clamp(Mathf.RoundToInt(size.y * pixelsPerMeter), 8, 8192);
 
+            // 안개는 캡처 동안만 끈다. 카메라가 맵 최고점 위에서 내려다보므로 지면까지 거리가 수십 m를 넘어,
+            // 안개가 켜져 있으면 형체가 전부 안개색으로 덮인다. 도식 스타일은 R값을 알파로 쓰기 때문에
+            // 안개색의 R이 0이면(마을: 끝 40m, 남색) 그 부분이 통째로 투명해져, 제일 높은 물체 하나만 흰 점으로 남았다.
+            bool prevFog = RenderSettings.fog;
+            RenderSettings.fog = false;
+
             Texture2D readback = null;
             try
             {
@@ -233,6 +242,9 @@ namespace ProjectS.EditorTools
             finally
             {
                 if (readback != null) Object.DestroyImmediate(readback);
+
+                // 씬 설정이므로 렌더 중 예외가 나도 반드시 원래대로 돌린다(안 돌리면 씬이 dirty로 남는다).
+                RenderSettings.fog = prevFog;
             }
         }
 
@@ -244,7 +256,13 @@ namespace ProjectS.EditorTools
             try
             {
                 if (!TrySubmit(cam, rt)) return null;
-                return Readback(rt, flipVertical);
+                Texture2D color = Readback(rt, flipVertical);
+
+                // 배경이 불투명하면 알파를 따로 만들 필요가 없다.
+                if (background.a >= 1f) return color;
+
+                ApplyCoverageAlpha(cam, rt, color);
+                return color;
             }
             finally
             {
@@ -252,6 +270,42 @@ namespace ProjectS.EditorTools
                 Object.DestroyImmediate(go);
                 rt.Release();
                 Object.DestroyImmediate(rt);
+            }
+        }
+
+        // 사실적 캡처의 알파를 "형체가 있는 곳 = 불투명, 빈 곳 = 배경 알파"로 다시 채운다.
+        // 렌더 결과의 알파를 믿지 않는 이유: URP는 HDR 중간 버퍼(알파 없는 포맷)를 거쳐 최종 타깃으로 복사하면서
+        // 알파를 1로 채우는 경우가 많아, 배경색 알파를 0으로 줘도 PNG가 통째로 불투명하게 저장됐다.
+        // 그래서 도식 모드와 같은 흰 실루엣을 한 번 더 찍어 그 밝기를 알파 마스크로 쓴다(파이프라인 설정과 무관).
+        private void ApplyCoverageAlpha(Camera cam, RenderTexture rt, Texture2D color)
+        {
+            Dictionary<Renderer, Material[]> overrides = OverrideMaterialsWithFlatWhite(out Material flatWhite);
+            Texture2D mask = null;
+            try
+            {
+                cam.backgroundColor = Color.black;
+                if (!TrySubmit(cam, rt)) return;
+                mask = Readback(rt, flipVertical);
+
+                Color[] c = color.GetPixels();
+                Color[] m = mask.GetPixels();
+                for (int i = 0; i < c.Length; i++)
+                {
+                    // 형체 = 흰색(1), 빈 곳 = 검정(0). 가장자리 중간값은 그대로 보간해 경계가 계단지지 않게 한다.
+                    c[i].a = Mathf.Lerp(background.a, 1f, m[i].r);
+                }
+
+                color.SetPixels(c);
+                color.Apply();
+            }
+            finally
+            {
+                RenderTexture.active = null;
+                if (mask != null) Object.DestroyImmediate(mask);
+
+                // 씬 오브젝트 재질은 반드시 원상복구한다(렌더 중 예외가 나도 finally에서).
+                RestoreMaterials(overrides);
+                if (flatWhite != null) Object.DestroyImmediate(flatWhite);
             }
         }
 
@@ -303,6 +357,10 @@ namespace ProjectS.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = bg;
             cam.cullingMask = includeLayers;
+
+            // 오클루전 데이터는 플레이 시점(지면 높이) 기준으로 베이크되므로, 위에서 내려다보는 이 카메라에는 맞지 않는다.
+            // 켜 두면 나중에 오클루전을 베이크했을 때 스냅샷에서 건물이 듬성듬성 빠진다.
+            cam.useOcclusionCulling = false;
             cam.nearClipPlane = 0.01f;
             cam.farClipPlane = (boundsMaxY - boundsMinY) + margin * 2f;
             return cam;
@@ -375,6 +433,10 @@ namespace ProjectS.EditorTools
 
             for (int i = 0; i < spread; i++)
             {
+                // 짧은 변이 너무 작아지면 멈춘다. 528x1024를 8번 줄이면 2x4px가 되어, 다시 키울 때 형체 하나가
+                // 화면 1/4을 덮는 거대한 번짐이 된다. 형체 윤곽을 따라가는 글로우가 남을 만큼만 줄인다.
+                if (Mathf.Min(cw, ch) / 2 < MinGlowSize) break;
+
                 cw = Mathf.Max(2, cw / 2);
                 ch = Mathf.Max(2, ch / 2);
                 RenderTexture small = new RenderTexture(cw, ch, 0, RenderTextureFormat.ARGB32) { filterMode = FilterMode.Bilinear };

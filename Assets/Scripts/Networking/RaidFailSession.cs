@@ -125,6 +125,17 @@ namespace ProjectS.Networking
             agreed.Add(memberNetId);
         }
 
+        /// <summary>
+        /// 제한 시간 초과로 실패를 확정한다. 살아 있는 파티원이 있어도 전멸과 똑같이 재시도 투표로 넘어간다
+        /// (2026-09-28 사용자 확정: 시간 초과 = 레이드 실패). <c>RaidTimeLimit</c>이 부른다.
+        /// </summary>
+        public void FailByTimeout()
+        {
+            if (!NetworkServer.active || phase != Phase.Fighting) return;
+
+            Fail("시간 초과");
+        }
+
         private void Update()
         {
             if (!NetworkServer.active || phase == Phase.Resolved) return;
@@ -146,7 +157,7 @@ namespace ProjectS.Networking
 
             if (phase == Phase.Fighting)
             {
-                if (down.Count >= expected.Count) Fail();
+                if (down.Count >= expected.Count) Fail($"{expected.Count}명 전멸");
                 return;
             }
 
@@ -156,17 +167,21 @@ namespace ProjectS.Networking
             else if (NetworkTime.time >= voteDeadline) Cancel("시간이 지나 재시도가 취소됐습니다.");
         }
 
-        // 파티 전멸 → 실패 확정. 투표를 열고 전원에게 알린다.
-        private void Fail()
+        // 파티 전멸·시간 초과 → 실패 확정. 투표를 열고 전원에게 알린다.
+        private void Fail(string reason)
         {
             phase = Phase.Voting;
             voteDeadline = NetworkTime.time + VoteSeconds;
+
+            // 판이 끝났으니 제한 시간을 그 자리에 고정한다(시간 초과로 온 경우엔 이미 멈춰 있어 무시된다).
+            // 안 멈추면 투표 중에 시간이 다 돼 실패가 한 번 더 들어온다.
+            Scenes.RaidTimeLimit.StopIn(instance);
 
             foreach (uint id in expected)
                 if (TryGetMember(id, out PartyManager pm, out NetworkConnectionToClient conn))
                     pm.TargetRaidFailed(conn, expected.Count, VoteSeconds);
 
-            Debug.Log($"[진단][RaidFail] 레이드 실패 — 파티 {partyId}, {expected.Count}명 전멸. 재시도 투표 시작({VoteSeconds:0}초)", this);
+            Debug.Log($"[진단][RaidFail] 레이드 실패({reason}) — 파티 {partyId}, {expected.Count}명. 재시도 투표 시작({VoteSeconds:0}초)", this);
         }
 
         // 전원 동의 → 재시도. 실행은 인스턴스와 함께 사라지지 않는 PartyManager에 넘긴다.

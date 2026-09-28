@@ -24,6 +24,8 @@ namespace ProjectS.UI
             Skill,      // 스킬창(K)
             Quest,      // 퀘스트 트래커(J) — 팝업이 아니라 트래커 펼침+마우스모드 토글
             Options,    // 옵션창. 인스펙터 직렬화 값이 밀리지 않게 항상 끝에 추가한다.
+            Party,      // 파티 결성창(Tab) — 팝업 토글이 아니라 PartyWindowOpener를 탄다
+            Encyclopedia, // 도감창(O) — 창 미구현. 지금은 눌러도 경고만 남긴다
         }
 
         [Tooltip("이 아이콘이 여는 창. None이면 눌러도 아무 동작 안 함(미정 슬롯).")]
@@ -33,6 +35,10 @@ namespace ProjectS.UI
         [SerializeField] private QuestTrackerHud questTracker;
 
         private Button button;
+
+        // target이 Party일 때 부를 파티 창 입구. HUDMenu는 프리팹이라 씬 오브젝트(Bootstrap의 파티 소스에 붙은
+        // PartyWindowOpener)를 인스펙터로 물릴 수 없어, 처음 누를 때 찾아 캐싱한다. 세션 리부트로 파괴되면 다시 찾는다.
+        private PartyWindowOpener partyWindowOpener;
 
         private void Awake() => button = GetComponent<Button>();
 
@@ -44,7 +50,7 @@ namespace ProjectS.UI
         {
             switch (target)
             {
-                // 팝업 3종은 핫키와 같은 매핑(강화창 예외 포함)을 공유하도록 PopupToggle에 위임한다.
+                // 팝업들은 핫키와 같은 매핑(강화창 예외 포함)을 공유하도록 PopupToggle에 위임한다.
                 case Target.Inventory: PopupToggle.Toggle(PopupToggle.PopupKind.Inventory); break;
                 case Target.Equipment: PopupToggle.Toggle(PopupToggle.PopupKind.Equipment); break;
                 case Target.Skill:     PopupToggle.Toggle(PopupToggle.PopupKind.Skill); break;
@@ -55,6 +61,19 @@ namespace ProjectS.UI
                     if (questTracker != null) questTracker.ToggleWithCursor();
                     else Debug.LogWarning("[HudMenuButton] Quest 대상인데 questTracker가 연결되지 않음", this);
                     break;
+
+                // 파티 결성창은 Tab과 같은 입구(PartyWindowOpener)를 탄다 — 대화 중·던전 안 차단 규칙을 공유하기 위함.
+                case Target.Party:
+                    if (partyWindowOpener == null) partyWindowOpener = FindAnyObjectByType<PartyWindowOpener>();
+                    if (partyWindowOpener != null) partyWindowOpener.RequestToggle();
+                    else Debug.LogWarning("[HudMenuButton] Party 대상인데 씬에 PartyWindowOpener가 없음", this);
+                    break;
+
+                // 도감창은 아직 없다. 창이 생기면 PopupToggle.PopupKind에 추가하고 위 팝업들처럼 위임한다.
+                case Target.Encyclopedia:
+                    Debug.LogWarning("[HudMenuButton] 도감창이 아직 구현되지 않음", this);
+                    break;
+
                 case Target.None: break;   // 미정 슬롯: 무동작
             }
         }

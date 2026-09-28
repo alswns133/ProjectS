@@ -164,6 +164,9 @@ namespace ProjectS.Enemies
             pendingNext = next;
             cutscene.Finished += OnCutsceneFinished;
 
+            // 조작할 수 없는 연출 동안은 레이드 제한 시간을 멈춘다(2026-09-28 사용자 확정). 재개는 CompleteTransition.
+            RaidTimeLimit.PauseIn(gameObject.scene);
+
             if (IsNetworkedOnServer)
             {
                 // 서버도 재생해 보스를 실제로 연출대로 움직인다(화면 연출은 각 파티원 클라가 붙인다).
@@ -200,6 +203,9 @@ namespace ProjectS.Enemies
 
             // 연출이 끝났으니 2페이즈 무적을 푼다(1페이즈는 곧 걷어내므로 둔다). 연출 없는 즉시 전환 경로에선 원래 없음.
             if (next.Stats != null) next.Stats.ClearDamageImmune();
+
+            // 연출 동안 멈췄던 제한 시간을 다시 흐르게 한다. 연출 없는 즉시 전환 경로에선 멈춘 적이 없어 무시된다.
+            RaidTimeLimit.ResumeIn(gameObject.scene);
 
             Debug.Log($"[진단][Phase] 전환 완료 — '{next.name}' 교전 시작, '{boss.name}' 제거", this);
 
