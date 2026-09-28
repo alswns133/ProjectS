@@ -35,6 +35,16 @@ namespace ProjectS.Data
         /// <summary>일러스트 스프라이트 어드레서블 주소. 비어 있으면 일러스트 대신 자리표시를 보여 준다.</summary>
         public string IllustAddress;
 
+        /// <summary>
+        /// 2페이즈 일러스트 스프라이트 어드레서블 주소(선택). 페이즈에 따라 모습이 바뀌는 보스처럼
+        /// "같은 몬스터의 두 모드"를 한 도감 항목에서 보여 주기 위한 칸이다. 비어 있으면 페이즈가 하나인 몬스터로 보고
+        /// 상세 화면의 페이즈 전환 버튼을 숨긴다. 카드 초상은 항상 <see cref="IllustAddress"/>(1페이즈)를 쓴다.
+        /// </summary>
+        public string Phase2IllustAddress;
+
+        /// <summary>2페이즈 일러스트가 있는 항목인가(상세 화면의 페이즈 전환 버튼 표시 기준).</summary>
+        public bool HasPhase2 => !string.IsNullOrEmpty(Phase2IllustAddress);
+
         int IDataRow.Index => MonsterId;
 
         /// <summary>
@@ -62,6 +72,7 @@ namespace ProjectS.Data
             Area ??= string.Empty;
             Description ??= string.Empty;
             IllustAddress ??= string.Empty;
+            Phase2IllustAddress ??= string.Empty;
 
             error = null;
             return true;
