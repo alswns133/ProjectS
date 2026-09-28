@@ -1,4 +1,5 @@
-﻿using ProjectS.Managers;
+﻿using ProjectS.Core;
+using ProjectS.Managers;
 using ProjectS.UI;
 using ProjectS.Players;
 using UnityEngine;
@@ -27,6 +28,7 @@ namespace ProjectS.Scenes
             DungeonContext.ClearDungeon();
 
             UIManager.Instance.ShowPanel<HUDPanel>();
+            SoundManager.Instance.PlayBgm(SoundID.BGM_Tutorial);
 
             // 최초 진입(Undone)이면 진행중으로 넘긴다. 상태 전이 자체는 Firebase 유무와 무관하게 항상 하고,
             // 저장만 매니저가 있을 때 시도한다(로그인 없이 씬 직접 테스트해도 진행 상태가 정상적으로 흐르게).

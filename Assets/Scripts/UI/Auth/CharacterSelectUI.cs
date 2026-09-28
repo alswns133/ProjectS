@@ -56,6 +56,19 @@ namespace ProjectS.UI
                 retryButton.gameObject.SetActive(false);
             }
             Refresh();
+            PlayCharacterSelectBgm();
+        }
+
+        // 캐릭터 선택 BGM. 자동 로그인이면 로그인 씬을 거의 거치지 않고 넘어오므로 사운드 테이블이
+        // 아직 로딩 중일 수 있어 준비를 기다린 뒤 재생한다. Esc로 돌아왔다 다시 켜져도 같은 곡이면 무시된다.
+        private async void PlayCharacterSelectBgm()
+        {
+            if (JsonManager.Instance == null || SoundManager.Instance == null) return;
+
+            await JsonManager.Instance.ReadyTask;
+            if (this == null) return;   // 기다리는 동안 게임 씬으로 넘어갔으면 틀지 않는다
+
+            SoundManager.Instance.PlayBgm(SoundID.BGM_CharacterSelect);
         }
 
         private void OnDisable()
