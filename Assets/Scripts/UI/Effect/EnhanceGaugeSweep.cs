@@ -6,22 +6,22 @@ using ProjectS.Enhance;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 강화창 원형 게이지의 채움을 소유하고 연출로 움직인다.
-    /// 평상시엔 현 단계 성공률 자리에 머물고(6강이면 45%), 강화를 지르면 거기서 출발해
-    /// 12시(=1.0)를 향해 쓸어올라간다. <b>성공하면 끝에 도달하고, 실패하면 닿을 듯하다
-    /// 힘을 잃으며 되돌아온다.</b>
+    /// 강화창 원형 게이지(GaugeF)의 채움을 소유하고 연출로 움직인다.
+    /// 평상시엔 비어 있고(0), 강화를 지르면 12시(=1.0)를 향해 쓸어올라간다.
+    /// <b>성공하면 끝에 도달하고, 실패하면 닿을 듯하다 힘을 잃으며 0으로 되돌아온다.</b>
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>이 게이지는 성공률 "표시 위젯"이 아니라 연출축이다.</b> 성공률은 출발 높이를 정할 뿐이고,
+    /// <b>이 게이지는 성공률 "표시 위젯"이 아니라 연출축이다.</b> 예상 성공률은 뒤에 깔린 GaugeB가
+    /// 따로 보여 준다(<see cref="EnhancePopup"/>가 직접 채운다, 2026-09-28 분리). 예전엔 이 게이지가 평상시
+    /// 성공률 자리에 머물며 두 역할을 겸해, 강화 게이지와 예상 확률이 한 링에 섞여 보였다.
     /// 게이지 높이가 곧 담금질 열과 불똥 세기가 된다(<see cref="RadialFlowGaugeFx"/>가
     /// fillAmount를 미러링해 <c>_Heat</c>을 만든다). 그래서 열·불똥에 별도 배선이 없다 —
     /// 여기서 채움을 움직이면 나머지가 따라온다.
     /// </para>
     /// <para>
     /// <b>fillAmount의 주인은 이 컴포넌트 하나뿐이어야 한다.</b> 다른 곳에서 같이 세팅하면
-    /// 연출 중 값이 튀거나 평상시 위치가 어긋난다. 성공률은 <see cref="EnhancePopup.OnTargetChanged"/>로
-    /// 받아 <see cref="SetRate"/>에 넣는 경로 하나만 쓴다.
+    /// 연출 중 값이 튀거나 평상시 위치가 어긋난다. GaugeB(예상 확률)는 별도 Image라 이 규칙과 무관하다.
     /// </para>
     /// <para>
     /// <b>전체 길이가 <see cref="EnhancePopup.PlayResult"/>의 대기 시간(1.2초)을 넘으면 안 된다.</b>
@@ -36,7 +36,7 @@ namespace ProjectS.UI
     {
         private enum Phase
         {
-            Idle,       // 평상시 — 현 단계 성공률 자리
+            Idle,       // 평상시 — 비어 있음(0). 성공 직후엔 다음 대상 갱신 전까지 1.0에 머문다
             Rise,       // 출발 → 정점. 달아오르며 차오른다
             Reach,      // 성공: 정점 → 1.0 도달 후 유지
             Stall,      // 실패: 정점에서 멈칫 ("닿을 듯한" 구간)
@@ -78,13 +78,9 @@ namespace ProjectS.UI
         private Phase phase = Phase.Idle;
         private float timer;
 
-        // 평상시 자리(= 현 단계 성공률). 실패 후 여기로 되돌아온다.
-        private float restRate;
-        // 평상시 천장 색 경계(= 자비 전 기본 성공률). 게이지가 정착한 평상시(Idle)에만 이 값으로 노랑을 보이고,
-        // 스윕·되돌아가는 애니메이션(비Idle) 동안에는 전부 파랑(=1)으로 덮는다.
-        // 기본 1 = 전부 파랑(천장 없음) — 대상 선택 전 안전한 초기값.
-        private float restBaseRate = 1f;
-        // 이번 스윕이 출발한 높이. 연출 도중 성공률이 갱신돼도 궤적이 튀지 않게 따로 들고 있다.
+        // 평상시 자리. 실패 후 여기로 되돌아온다. 성공률은 GaugeB 몫이라 이 게이지는 비워 둔다.
+        private const float RestFill = 0f;
+        // 이번 스윕이 출발한 높이.
         private float startFill;
         private bool success;
 
@@ -112,6 +108,11 @@ namespace ProjectS.UI
         {
             image = GetComponent<Image>();
             fx = GetComponent<RadialFlowGaugeFx>();
+
+            // 천장(자비) 노랑 구간은 성공률을 이 게이지에 얹던 시절의 표시다. 성공률이 GaugeB로 옮겨 가
+            // 여기선 쓰지 않으므로 전부 밑색으로 고정한다.
+            if (fx != null) fx.SetBaseFill(1f);
+
             if (popup == null) popup = GetComponentInParent<EnhancePopup>();
 
             if (popup == null)
@@ -132,7 +133,7 @@ namespace ProjectS.UI
             // 연출 도중 창이 닫히면 OnResultPlayFinished가 오지 않는다.
             // 다시 열렸을 때 게이지가 정점에 얼어붙어 있지 않도록 평상시 자리로 되돌린다.
             SetPhase(Phase.Idle);
-            Apply(restRate);
+            Apply(RestFill);
 
             debugWasOn = false;
             debugEnhancing = false;
@@ -147,39 +148,18 @@ namespace ProjectS.UI
             popup.OnOpened -= HandleOpened;
         }
 
+        // 대상 갱신(강화 결과 반영 포함) 시 평상시 자리로 되돌린다. 성공 연출 뒤 1.0에 머물던 게이지를
+        // 여기서 비운다 — Presenter가 PlayResult가 끝난 뒤 SetTarget을 부르므로 "해냈다"는 그 전까지 화면에 남는다.
+        // 연출 중이면 건드리지 않는다(궤적이 끊긴다). 스윕은 끝나면 스스로 제자리로 돌아온다.
         private void HandleTargetChanged(EnhanceInfo info)
         {
-            // MAX 단계는 더 강화할 수 없으므로 게이지를 가득 채워 둔다.
-            SetRate(info.IsMax ? 1f : info.SuccessRate);
-
-            // 천장(자비) 구간 색 분기 기준(자비 전 기본 성공률). 기본율까지 파랑, 그 위 실효율까지 노랑.
-            // MAX는 전부 파랑(가득 참·천장 개념 없음).
-            restBaseRate = info.IsMax ? 1f : info.BaseSuccessRate;
-
-            // 정착한 평상시(Idle)면 즉시 노랑을 반영한다. 스윕/되돌아가는 애니메이션 중이면 자리만 기억하고
-            // 반영은 정착 순간(SetPhase(Idle))에 한다.
-            if (phase == Phase.Idle && fx != null) fx.SetBaseFill(restBaseRate);
+            if (phase == Phase.Idle) Apply(RestFill);
         }
 
-        // 팝업이 빈 화면(대상 미선택)으로 열리면 게이지도 0으로 되돌린다.
-        // 코어에 장비가 없으면 성공률 자체가 없으므로 이전 대상의 성공률 자리에 남아 있지 않게 한다
-        // (Presenter도 같은 OnOpened로 target=null을 만든다 — 둘이 같은 신호로 초기화된다).
+        // 팝업이 빈 화면(대상 미선택)으로 열리면 게이지도 비운다.
         private void HandleOpened()
         {
-            SetRate(0f);
-            restBaseRate = 1f;   // 빈 상태 — 천장 노랑 구간 없음
-            if (phase == Phase.Idle && fx != null) fx.SetBaseFill(restBaseRate);
-        }
-
-        /// <summary>
-        /// 평상시 게이지 위치를 설정한다(현 단계 성공률). 연출 중에는 자리만 기억해두고
-        /// 연출이 끝난 뒤에 반영한다 — 도중에 갈아치우면 궤적이 끊긴다.
-        /// </summary>
-        /// <param name="rate">0~1 성공률</param>
-        public void SetRate(float rate)
-        {
-            restRate = Mathf.Clamp01(rate);
-            if (phase == Phase.Idle) Apply(restRate);
+            if (phase == Phase.Idle) Apply(RestFill);
         }
 
         private void HandleResultPlay(EnhanceResult result)
@@ -248,12 +228,12 @@ namespace ProjectS.UI
                 {
                     float t = Mathf.Clamp01(timer / fallDuration);
                     // ease-in — 처음엔 버티다가 점점 빨리 떨어진다(= 힘을 잃는 느낌).
-                    Apply(Mathf.Lerp(peak, restRate, t * t));
+                    Apply(Mathf.Lerp(peak, RestFill, t * t));
 
                     if (t >= 1f)
                     {
                         SetPhase(Phase.Idle);
-                        Apply(restRate);
+                        Apply(RestFill);
                     }
                     break;
                 }
@@ -275,7 +255,7 @@ namespace ProjectS.UI
             else
             {
                 if (fx != null) fx.SetHeatActive(false);
-                Apply(restRate);
+                Apply(RestFill);
             }
         }
 
@@ -295,13 +275,6 @@ namespace ProjectS.UI
             if (fx == null) return;
 
             fx.SetHeatActive(next != Phase.Idle);
-
-            // 연출(비Idle) 동안엔 전부 파랑으로 덮는다. Idle로 정착할 때 노랑을 켜는 건 여기서 하지 않고,
-            // 뒤이어 오는 대상 갱신(HandleTargetChanged)이 "최종 정착한 성공률" 기준으로 반영한다.
-            // ★ 성공 시 게이지는 1.0에 잠깐 머문다(Reach→Idle, hold). 그 순간은 Idle이지만 아직 정착 전이라,
-            //   여기서 노랑을 켜면 fill=1.0/옛 기준이 맞물려 꼭대기에 노랑이 뜬다(성공인데 노랑이 새는 버그).
-            //   그래서 Idle 진입에선 baseFill을 건드리지 않고, 연출 시작(비Idle)에서만 파랑으로 눌러 둔다.
-            if (next != Phase.Idle) fx.SetBaseFill(1f);
         }
 
         private void Apply(float fill)

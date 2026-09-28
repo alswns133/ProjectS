@@ -21,6 +21,7 @@ namespace ProjectS.UI
     ///   해상도를 바꾸고 결과를 확인하려고 창을 닫아야 하는 불편을 피하기 위함이다.
     /// 하단 [캐릭터 선택] 버튼은 <see cref="ReturnToSelectButton"/>, [게임 종료]는 <see cref="QuitGameButton"/>을
     /// 버튼 오브젝트에 직접 붙여 쓴다 — 저장·세션 정리 순서를 그 컴포넌트들이 이미 책임지고 있어서다.
+    /// 던전·레이드 안에서는 [캐릭터 선택] 버튼이 스스로 [포기](마을 복귀)로 바뀐다(<see cref="ReturnToSelectButton"/> 참고).
     /// </remarks>
     public class OptionsPopup : BasePopup
     {
