@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Events;
+using ProjectS.Players;
 
 namespace ProjectS.UI
 {
@@ -138,8 +139,10 @@ namespace ProjectS.UI
             RectTransform rect = GetFromPool(type, binding.prefab);
             markers.Add(target, new Marker { rect = rect, type = type, rotate = binding.rotateWithEntity });
 
-            // 플레이어는 미니맵의 중심 기준점이 된다. 등록되는 순간 기준으로 잡는다.
-            if (type == MinimapMarkerType.Player) playerTarget = target;
+            // 플레이어는 미니맵의 중심 기준점이 된다. 등록되는 순간 기준으로 잡되, 이미 기준이 있으면 덮지 않는다 —
+            // 멀티에선 파티원 아바타도 Player 마커라, 나중에 스폰된 파티원이 중심을 빼앗으면 안 된다.
+            // 내 캐릭터로의 교정은 Update의 PromoteLocalPlayer가 맡는다.
+            if (type == MinimapMarkerType.Player && playerTarget == null) playerTarget = target;
         }
 
         /// <summary>대상의 마커를 제거하고 풀로 돌려보낸다.</summary>
@@ -166,6 +169,8 @@ namespace ProjectS.UI
         private void Update()
         {
             if (markerArea == null) return;
+
+            PromoteLocalPlayer();
 
             // 중심 기준점: 플레이어가 있으면 그 위치, 없으면 맵 중심으로 폴백.
             Vector3 center = playerTarget != null
@@ -239,12 +244,25 @@ namespace ProjectS.UI
         // 마커가 나타낼 방향(월드 yaw, 도 단위)을 고른다.
         // 플레이어 마커는 옵션에 따라 캐릭터가 실제 바라보는 방향 대신 카메라 조준(마우스) 방향을 쓴다.
         // 카메라의 pitch는 무시되고 yaw만 뽑히므로, 미니맵 평면 위 조준 방향이 그대로 나온다.
+        // ★ 카메라 조준은 '내 캐릭터'(= 중심 기준점)에만 쓴다. 멀티에서 파티원 마커까지 Player 타입이라 이 조건이 없으면
+        //   파티원 아이콘이 내 마우스 방향을 그대로 따라 돌았다(2026-09-28). 파티원은 자기 트랜스폼(NT로 동기화된 방향)을 따른다.
         private float GetMarkerYaw(Transform target, Marker marker)
         {
-            if (marker.type == MinimapMarkerType.Player && playerFacesCameraAim && TryCacheAimCamera())
+            if (marker.type == MinimapMarkerType.Player && target == playerTarget && playerFacesCameraAim && TryCacheAimCamera())
                 return aimCamera.eulerAngles.y;
 
             return target.eulerAngles.y;
+        }
+
+        // 중심 기준점을 '내 캐릭터'로 맞춘다. 싱글은 마커가 하나라 등록 순간 이미 맞고, 멀티는 내 아바타가 파티원보다
+        // 늦게 등록될 수 있어 매 프레임 확인한다(참조 비교 몇 번이라 비용은 무시할 수준).
+        private void PromoteLocalPlayer()
+        {
+            Player local = LocalPlayer.Current;
+            if (local == null) return;
+
+            Transform localTransform = local.transform;
+            if (localTransform != playerTarget && markers.ContainsKey(localTransform)) playerTarget = localTransform;
         }
 
         // 메인 카메라 Transform을 캐싱한다. 파괴/미존재면 false. PlayerMovement.TryCacheMainCamera와 같은 패턴.

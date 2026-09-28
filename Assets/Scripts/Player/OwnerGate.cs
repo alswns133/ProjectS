@@ -38,6 +38,31 @@ public class OwnerGate : NetworkBehaviour
         cc = GetComponent<CharacterController>();
     }
 
+    /// <summary>
+    /// 서버가 가진 <b>원격 클라 소유 아바타</b>(서버 쪽 사본)의 조작 컴포넌트를 끈다.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>왜 여기서도 끄나.</b> 조작 컴포넌트 끄기는 <see cref="OnStartClient"/>에 있는데, 전용 서버는 클라가 아니라
+    /// 그게 아예 안 불린다. 그러면 서버 사본의 <c>Player</c>/<c>PlayerMovement</c>가 켜진 채 매 프레임 <c>controller.Move</c>(중력)를
+    /// 부르고, Auto Sync Transforms가 꺼져 있어 그 Move가 NetworkTransform이 넣은 위치를 이전 내부 위치로 덮어쓴다.
+    /// 결과로 서버 사본이 실제 위치를 못 따라가, 보스 판정(서버)이 "멀리 있는데 맞고 가까이 있는데 안 맞는" 어긋남이 났다(2026-09-28).</para>
+    /// <para><b>CharacterController는 켜 둔다.</b> 보스 히트박스(OverlapBox)가 잡는 유일한 몸통 콜라이더라, 끄면 서버가
+    /// 이 플레이어를 아예 못 맞힌다. Move를 부르는 쪽(PlayerMovement)만 꺼지면 NT가 준 위치 그대로 판정된다.</para>
+    /// <para>호스트 자신의 아바타(서버=오너)는 여기서 건드리지 않는다 — 호스트가 직접 조작하는 캐릭터다.</para>
+    /// </remarks>
+    public override void OnStartServer()
+    {
+        base.OnStartServer();
+
+        if (connectionToClient == null || connectionToClient == NetworkServer.localConnection) return;
+
+        foreach (var b in ownerOnly)
+        {
+            if (b)
+                b.enabled = false;
+        }
+    }
+
     public override void OnStartClient()
     {
         base.OnStartClient();
@@ -82,7 +107,9 @@ public class OwnerGate : NetworkBehaviour
                 b.enabled = false;
         }
 
-        if (cc) cc.enabled = false;
+        // 순수 관찰자 클라에서만 끈다. 호스트는 서버이기도 해서, 여기서 끄면 호스트가 돌리는 보스가 원격 플레이어의
+        // 몸통을 못 맞힌다(OnStartServer 설명 참고). 관찰자 클라는 판정을 안 하므로 꺼서 내 캐릭터와 부딪히지 않게 한다.
+        if (cc && !isServer) cc.enabled = false;
 
         // NetworkAnimator는 파라미터·State만 동기화하고, 컨트롤러 교체(마을→던전)는 동기화하지 않는다.
         // 관찰자 클라에서 이 아바타가 마을 컨트롤러인 채면 넘어온 던전 로코모션이 엉뚱한 클립에 매핑돼 안 나온다.

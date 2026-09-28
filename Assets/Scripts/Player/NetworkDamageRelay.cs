@@ -92,7 +92,20 @@ namespace ProjectS.Players
             // TODO(B3 검증): 사거리·시야·쿨다운을 서버가 검증해야 원거리/속도핵을 막는다(지금은 히트 신뢰).
 
             DamageResult result = BuildServerDamage(skillId, bossStats, fallbackAmount, fallbackGroggy);
-            bossStats.TakeDamage(in result);
+
+            // 실제로 들어간 타격만 때린 사람에게 돌려준다(페이즈 전환 무적·이미 사망이면 텍스트도 없어야 한다).
+            if (bossStats.TakeDamage(in result))
+                TargetBossHitConfirmed(bossNetId, result.Amount, result.IsCritical);
+        }
+
+        // 서버 → 때린 사람. 서버가 굴린 최종 피해·치명타로 데미지 텍스트를 띄운다.
+        // 텍스트는 EnemyStats.TakeDamage 안에서만 발행되는데 원격 클라는 그 적용을 서버에 맡기므로, 이 회신이 없으면
+        // 때린 사람 화면에 숫자가 영영 안 뜬다. 다른 파티원에겐 보내지 않는다(내 딜만 표시 — 남의 딜까지 띄우려면 ClientRpc로 바꾼다).
+        [TargetRpc]
+        private void TargetBossHitConfirmed(uint bossNetId, int amount, bool critical)
+        {
+            if (!NetworkClient.spawned.TryGetValue(bossNetId, out NetworkIdentity bossIdentity)) return;
+            if (bossIdentity.TryGetComponent(out EnemyStats bossStats)) bossStats.PlayHitFeedback(amount, critical);
         }
 
         // 서버가 공격자 권위 스탯으로 데미지를 계산한다. 권위 스탯/스킬행이 없으면 클라 폴백값을 쓴다.
