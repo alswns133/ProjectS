@@ -284,15 +284,27 @@ namespace ProjectS.EditorTools
             new NameRule { From = "Skill 4", To = "Skill04", Reason = "2자리 제로패딩" },
             // 그냥 두면 FXOverlay가 된다. 프로젝트가 이미 Fx 표기로 굳어 있다(FxRoot, QuestFxLayer, BossIntroFx).
             new NameRule { From = "FX_Overlay", To = "FxOverlay", Reason = "프로젝트 Fx 표기에 맞춤" },
+            // TMP가 만드는 기본 이름. 그냥 두면 괄호가 남은 Text(TMP)가 된다.
+            new NameRule { From = "Text (TMP)", To = "Text", Reason = "TMP 기본 이름 정리" },
         };
 
         private static readonly Regex NumberedSuffix = new Regex(@"^(?<base>.*?)\s*\((?<n>\d+)\)$");
         private static readonly Regex NumericOnly = new Regex(@"^\d+$");
 
-        private void RenamePass(Transform root, bool apply, StringBuilder log, string scopeLabel)
+        /// <summary>
+        /// 이름 표기 통일 패스. 창 툴과 <see cref="UiNamingBatch"/>(배치 모드)가 함께 쓴다.
+        /// <paramref name="include"/>로 대상 노드를 좁힐 수 있다 — 씬에서는 프리팹 내부 노드를 에셋 쪽에 맡기려고 쓴다.
+        /// RectTransform이 없는 노드(캐릭터 본·라이트 등)는 항상 제외한다. 본 이름은 모션 클립의 커브 경로라
+        /// 첫 글자만 대문자로 바뀌어도(hand_l → HandL) 모션이 조용히 멈춘다.
+        /// </summary>
+        /// <returns>변경(또는 변경 예정) 건수.</returns>
+        internal static int RenamePass(Transform root, bool apply, StringBuilder log, string scopeLabel,
+                                       Func<Transform, bool> include = null)
         {
             // 판정을 "바뀌기 전 이름"으로 하기 위해 먼저 전부 스냅샷한다.
-            List<Transform> nodes = Walk(root).ToList();
+            List<Transform> nodes = Walk(root)
+                .Where(t => t is RectTransform && (include == null || include(t)))
+                .ToList();
             var originalName = nodes.ToDictionary(t => t, t => t.name);
             var plan = new List<(Transform t, string from, string to, string why)>();
             var renamed = new Dictionary<Transform, string>();
@@ -320,7 +332,8 @@ namespace ProjectS.EditorTools
             // (b) 형제 반복 요소 번호 매기기: Base / Base (1) / Base (2) → Base00, Base01, Base02
             foreach (Transform parent in nodes)
             {
-                List<Transform> children = Enumerable.Range(0, parent.childCount).Select(parent.GetChild).ToList();
+                List<Transform> children = Enumerable.Range(0, parent.childCount).Select(parent.GetChild)
+                    .Where(originalName.ContainsKey).ToList();
                 if (children.Count < 2) continue;
 
                 var groups = new Dictionary<string, List<Transform>>();
@@ -337,8 +350,11 @@ namespace ProjectS.EditorTools
 
                     // 프리팹 인스턴스는 프리팹 에셋 이름을 기준 이름으로 삼는다.
                     // "SkillCard (1)"과 "ActiveSkillCard"가 같은 프리팹인데 따로 놀던 문제를 여기서 흡수한다.
+                    // 단 Unity 복제 꼬리표("(1)")가 붙었거나 이미 프리팹 이름인 것만이다. ConfirmButton/CancelButton처럼
+                    // 사람이 역할로 지은 이름까지 DefaultButton00/01로 덮으면 무엇이 무엇인지 알 수 없게 된다.
                     string prefabBase = PrefabBaseName(c);
-                    if (prefabBase != null && !KeepOwnBaseName.Any(rx => rx.IsMatch(baseName)))
+                    if (prefabBase != null && (m.Success || baseName == prefabBase || IsNumberedAs(baseName, prefabBase))
+                        && !KeepOwnBaseName.Any(rx => rx.IsMatch(baseName)))
                     {
                         if (prefabBase != baseName) hasNumbered.Add(prefabBase);
                         baseName = prefabBase;
@@ -373,9 +389,12 @@ namespace ProjectS.EditorTools
             // (c) 이름이 숫자뿐인 형제 묶음(예: Dot 밑의 1,2,3,4,5)은 부모 이름을 붙여 의미를 준다.
             foreach (Transform parent in nodes)
             {
-                List<Transform> children = Enumerable.Range(0, parent.childCount).Select(parent.GetChild).ToList();
+                List<Transform> children = Enumerable.Range(0, parent.childCount).Select(parent.GetChild)
+                    .Where(originalName.ContainsKey).ToList();
                 if (children.Count < 2) continue;
                 if (!children.All(c => NumericOnly.IsMatch(nameNow(c)))) continue;
+                // 부모도 숫자뿐이면(예: 1234 밑의 1~4) 붙여봐야 123400 같은 무의미한 이름이 된다. 사람이 지을 몫.
+                if (NumericOnly.IsMatch(nameNow(parent))) continue;
 
                 for (int i = 0; i < children.Count; i++)
                     UpsertPlan(plan, renamed, children[i], originalName[children[i]],
@@ -387,6 +406,7 @@ namespace ProjectS.EditorTools
             {
                 string cur = nameNow(t);
                 if (Untouchable.Contains(cur) || cur.Length == 0) continue;
+                if (cur.StartsWith("TMP SubMesh", StringComparison.Ordinal)) continue;   // TMP가 폰트 폴백마다 자동 생성
                 if (cur.IndexOf(' ') < 0 && cur.IndexOf('_') < 0 && !char.IsLower(cur[0])) continue;
 
                 string want = Pascalize(cur);
@@ -394,8 +414,17 @@ namespace ProjectS.EditorTools
                 UpsertPlan(plan, renamed, t, originalName[t], want, "공백·언더바 제거 / 첫 글자 대문자");
             }
 
+            // (e) 애니메이션 클립이 커브 경로로 쓰는 이름은 바꾸지 않는다 (바뀌면 에러 없이 모션만 멈춘다).
+            HashSet<string> animated = AnimatedPathNames();
+            List<(Transform t, string from, string to, string why)> blocked =
+                plan.Where(p => animated.Contains(p.from)).ToList();
+            plan.RemoveAll(p => animated.Contains(p.from));
+            foreach (var b in blocked) renamed.Remove(b.t);
+
             // ── 리포트
             log.AppendLine($"═══ 1. 이름 표기 통일 ({scopeLabel}) — {plan.Count}건 ═══");
+            foreach (var b in blocked)
+                log.AppendLine($"  [보호] {Path(root, b.t)}  '{b.from}' — 애니메이션 커브 경로에 쓰여 그대로 둠 (클립과 함께 수동 변경)");
             foreach (var p in plan.OrderBy(p => Path(root, p.t), StringComparer.Ordinal))
                 log.AppendLine($"  {Path(root, p.t)}\n      {p.from}  →  {p.to}   ({p.why})");
 
@@ -403,19 +432,43 @@ namespace ProjectS.EditorTools
             foreach (Transform parent in nodes)
             {
                 List<string> dup = Enumerable.Range(0, parent.childCount)
-                    .Select(parent.GetChild).Select(c => nameNow(c))
+                    .Select(parent.GetChild).Where(originalName.ContainsKey).Select(c => nameNow(c))
                     .GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
                 if (dup.Count > 0)
                     log.AppendLine($"  [경고] {Path(root, parent)} 아래 이름 중복: {string.Join(", ", dup)}");
             }
 
-            if (!apply) return;
+            if (!apply) return plan.Count;
             foreach (var p in plan)
             {
                 Undo.RecordObject(p.t.gameObject, UndoLabel);
                 p.t.name = p.to;
                 EditorUtility.SetDirty(p.t.gameObject);
             }
+            return plan.Count;
+        }
+
+        private static HashSet<string> animatedPathNames;
+
+        /// <summary>
+        /// 프로젝트의 모든 .anim이 커브 경로("Parent/Child")로 참조하는 오브젝트 이름 집합.
+        /// 클립 바인딩은 이름 문자열로만 연결되므로, 여기 든 이름을 바꾸면 해당 모션이 조용히 끊긴다.
+        /// </summary>
+        private static HashSet<string> AnimatedPathNames()
+        {
+            if (animatedPathNames != null) return animatedPathNames;
+            animatedPathNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string file in System.IO.Directory.EnumerateFiles("Assets", "*.anim", System.IO.SearchOption.AllDirectories))
+            {
+                foreach (string line in System.IO.File.ReadLines(file))
+                {
+                    string trimmed = line.TrimStart();
+                    if (!trimmed.StartsWith("path: ", StringComparison.Ordinal)) continue;
+                    foreach (string seg in trimmed.Substring(6).Split('/'))
+                        if (seg.Length > 0) animatedPathNames.Add(seg);
+                }
+            }
+            return animatedPathNames;
         }
 
         private static void UpsertPlan(List<(Transform t, string from, string to, string why)> plan,
@@ -427,6 +480,11 @@ namespace ProjectS.EditorTools
             else plan.Add((t, from, to, why));
             renamed[t] = to;
         }
+
+        /// <summary>이미 이 툴의 번호 표기를 따르는 이름인가("PassiveSkillCard00" ↔ 프리팹 "PassiveSkillCard").</summary>
+        private static bool IsNumberedAs(string name, string prefabBase) =>
+            name.Length == prefabBase.Length + 2 && name.StartsWith(prefabBase, StringComparison.Ordinal)
+            && char.IsDigit(name[name.Length - 2]) && char.IsDigit(name[name.Length - 1]);
 
         /// <summary>프리팹 인스턴스의 루트면 원본 프리팹 이름, 아니면 null.</summary>
         private static string PrefabBaseName(Transform t)
@@ -446,7 +504,11 @@ namespace ProjectS.EditorTools
             string[] parts = s.Split(new[] { ' ', '_' }, StringSplitOptions.RemoveEmptyEntries);
             var sb = new StringBuilder();
             foreach (string p in parts)
+            {
+                // "BG Top" → BackgroundTop. 배경 약어는 단어 단위에서도 Background로 편다(명시 규칙과 같은 기준).
+                if (p == "BG" || p == "Bg") { sb.Append("Background"); continue; }
                 sb.Append(char.ToUpperInvariant(p[0])).Append(p.Substring(1));
+            }
             return sb.ToString();
         }
 

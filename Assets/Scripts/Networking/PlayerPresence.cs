@@ -176,11 +176,18 @@ namespace ProjectS.Networking
 
             CharacterSaveData save = GameSession.SelectedCharacter;
 
+            // 직업은 세이브가 아니라 PlayerManager.CurrentCharacterId(살아 있는 플레이어 우선 → 세션 폴백)에서 읽는다.
+            // 캐릭터 선택을 거치지 않은 테스트 플레이는 세이브가 없어 0이 올라가고, 그러면 결성창 카드의
+            // 초상화·직업 아이콘이 로스터 조회에 실패해 비어 버린다.
+            int type = PlayerManager.Instance != null
+                ? PlayerManager.Instance.CurrentCharacterId
+                : (save != null ? save.characterType : 0);
+
             // 초대 수신 허용 초기값은 캐릭터 세이브에서 읽는다(세이브 없으면=오프라인 테스트는 기본 허용).
             CmdRegisterPresence(
                 save != null ? save.name : "Player",
                 save != null ? save.level : 1,
-                save != null ? save.characterType : 0,
+                type,
                 accepts: save == null || save.acceptsPartyInvites);
 
             // 내 HP/SG 변화를 파티원에게 흘리려 로컬 플레이어에서만 구독한다(원격 복제본은 구독하지 않는다 —

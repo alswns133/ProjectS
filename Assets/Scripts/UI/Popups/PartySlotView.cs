@@ -129,7 +129,7 @@ namespace ProjectS.UI
         {
             CharacterRoster roster = PlayerManager.Instance != null ? PlayerManager.Instance.Roster : null;
 
-            SetArt(portraitImage, roster != null ? roster.GetIllust(characterType) : null);
+            SetArt(portraitImage, roster != null ? roster.GetPortrait(characterType) : null);
             SetArt(classSymbol, roster != null ? roster.GetSymbol(characterType) : null);
         }
 

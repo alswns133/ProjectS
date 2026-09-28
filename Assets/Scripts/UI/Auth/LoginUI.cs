@@ -39,6 +39,9 @@ namespace ProjectS.UI
         [Tooltip("로그인/회원가입 UI 루트(선택). 물리면 판정이 끝날 때까지 꺼 두어 베일 뒤에서도 완전히 잠긴다.")]
         [SerializeField] private GameObject formRoot;
 
+        [Tooltip("중앙 퍼포먼스 게이지(선택). 비우면 게이지 연출 없이 기존 흐름 그대로 동작한다.")]
+        [SerializeField] private LoginGaugeView gauge;
+
         [Tooltip("Firebase 초기화를 기다릴 최대 시간(초). 넘기면 베일을 걷고 수동 로그인을 받는다.")]
         [SerializeField, Min(0f)] private float authTimeoutSeconds = 8f;
 
@@ -157,6 +160,7 @@ namespace ProjectS.UI
             // 중복 클릭 방지: 요청 중에는 버튼을 잠근다.
             loginButton.interactable = false;
             SetMessage("로그인 중...");
+            if (gauge != null) gauge.BeginAuth();
 
             LoginResult result = await FirebaseManager.Instance.Login(email, password);
             if (this == null) return;
@@ -164,8 +168,19 @@ namespace ProjectS.UI
             loginButton.interactable = true;
             SetMessage(DescribeResult(result));
 
+            if (result != LoginResult.Success && gauge != null) gauge.ShowIdle();
+
             if (result == LoginResult.Success)
             {
+                // 게이지 잠금을 끝까지 보여 준 뒤 베일로 덮는다 — 승인 연출이 베일에 가려 잘리지 않게.
+                // 버튼을 다시 잠가 연출 중 재클릭으로 두 번째 로그인이 나가지 않게 한다.
+                if (gauge != null)
+                {
+                    loginButton.interactable = false;
+                    await gauge.PlayGrantedAsync();
+                    if (this == null) return;
+                }
+
                 // 자동 로그인 선택 저장(다음 실행 때 이 값으로 스킵 여부 결정).
                 PlayerPrefs.SetInt(AutoLoginKey, (autoLoginToggle != null && autoLoginToggle.isOn) ? 1 : 0);
                 PlayerPrefs.Save();

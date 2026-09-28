@@ -1,80 +1,68 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using TMPro;
 using ProjectS.UI.Framework;
 
 namespace ProjectS.UI
 {
+    /// <summary>
+    /// 씬 전환 로딩 화면. 왼쪽 위에 목적지(이름·구역 코드·흐르는 0/1 데이터), 아래쪽에 화면을 가로지르는
+    /// 일자형 진행 바와 상태 문구·퍼센트·패킷 수, 맨 아래에 팁을 둔다. 로그인 화면과 같은 언어(단일 파랑·반투명·육각 타일)로 이어지게 했다.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>진행률은 일자형 바 하나로만 보인다.</b> 원형 게이지(PerformanceGauge)는 결과 화면·로그인에서 이미 쓰고 있어
+    /// 로딩까지 재활용하면 같은 물건이 반복돼 일자형으로 정했다(<see cref="LoadingBarView"/>).
+    /// 예전 슬라이더(<see cref="loadingSlider"/>)는 씬에 남아 있어도 되도록 선택 참조로 두었다.
+    /// </para>
+    /// <para>
+    /// <b>상태 문구는 실제 로딩 단계가 아니라 진행률 구간에 따라 바뀌는 연출</b>이다. 로딩 루프(<c>GameSceneManager</c>)는
+    /// 단계 이름을 모르고 진행률만 알기 때문이다.
+    /// </para>
+    /// <para>
+    /// <b>목적지</b>는 <c>GameSceneManager</c>가 로드할 씬 이름(= 씬 클래스 이름)을 <see cref="SetDestination"/>으로 넘기면
+    /// <see cref="destinations"/> 표(인스펙터)에서 <b>한글 명칭</b>을 찾아 띄운다. 씬 이름(영문 클래스명)은 화면에 내보내지 않는다 —
+    /// 제목 텍스트는 한글 폰트 하나로 찍는데, 영문이 섞이면 그 폰트로 표기가 어긋나기 때문이다.
+    /// 표에 없는 씬이면 기본 한글 표기(<see cref="defaultTitle"/>)를 띄우고 경고를 남긴다.
+    /// 기획 텍스트라 행이 늘어나면 JSON 테이블로 옮길 대상이다(데이터 운영 방침).
+    /// </para>
+    /// </remarks>
     public class LoadingPanel : BasePanel
     {
-        /// <summary>
-        /// 씬 하나에 대응하는 로딩 일러스트 묶음.
-        /// <c>sceneName</c>은 <c>BaseScene</c> 파생 클래스 이름(= 씬 파일명 = RequestSceneChange의 T)과
-        /// 같아야 조회된다. 이름이 어긋나면 그림이 조용히 기본값으로 떨어지므로 오타 시 경고를 남긴다.
-        /// </summary>
+        /// <summary>씬 이름 → 로딩 화면에 띄울 한글 명칭.</summary>
         [Serializable]
-        private class SceneLoadingArt
+        public struct Destination
         {
-            [Tooltip("씬 클래스명과 동일하게: VillageGather / Dungeon1 / Dungeon2 / Raid / Tutorial")]
+            [Tooltip("씬 클래스 이름(= 씬 이름). 예: VillageGather. 화면에는 나가지 않고 찾는 열쇠로만 쓴다.")]
             public string sceneName;
 
-            [Tooltip("이 씬의 로딩 일러스트 후보. 2장 이상이면 진입할 때마다 그 안에서 랜덤으로 고른다.")]
-            public Sprite[] images;
+            [Tooltip("로딩 화면에 크게 보일 한글 명칭. 한글만 쓴다(영문 알파벳이 섞이면 인스펙터에 경고).")]
+            [FormerlySerializedAs("title")]
+            public string koreanName;
 
-            [Tooltip("로딩 화면 상단에 띄울 지역 이름(예: 세컨드 노드). 비우면 코드의 기본 이름을 쓴다.")]
-            public string regionName;
+            [Tooltip("명칭 아래 작은 영문 구역 코드(선택). 예: SECTOR 07 · LOWER CITY")]
+            public string code;
+
+            [Tooltip("이 씬의 로딩 일러스트 후보(선택). 2장 이상이면 진입할 때마다 직전과 다른 것을 무작위로 고른다. 비우면 일러스트 자리를 숨긴다.")]
+            public Sprite[] illustrations;
         }
 
-        // TIP 머리말과 본문 크기 태그. 문구마다 이 래퍼를 되풀이해 적으면 닫는 '>'를 빠뜨리는 식의
-        // 태그 오타가 나기 쉽고(그러면 태그가 글자 그대로 화면에 찍힌다), 표기를 바꿀 때 전부 손봐야 한다.
-        // 그래서 래퍼는 코드가 한곳에서 씌우고, 인스펙터의 tips에는 본문만 적는다.
-        private const string TipPrefix = "<size=125%>TIP</size> <size=75%>";
-        private const string TipSuffix = "</size>";
-
-        // 씬별 지역 이름의 기본값(세계관 설정집 기준, 2026-09-26 확정).
-        // 마을=세컨드 노드, 레이드=퍼스트 노드는 설정집과 대화/퀘스트 텍스트에 이미 쓰이는 이름이고,
-        // 나머지 셋은 설정집에 개별 지명이 없어 이번에 정한 것이다.
-        // 인스펙터의 Region Name을 채우면 그쪽이 이긴다 — 여기는 인스펙터가 빈 칸일 때의 폴백이다.
-        private static readonly Dictionary<string, string> DefaultRegionNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "Tutorial",       "귀환자 수용동" },
-            { "VillageGather",  "세컨드 노드" },
-            { "Dungeon1",       "침식 구역" },
-            { "Dungeon2",       "어센션 코어" },
-            { "Raid",           "퍼스트 노드" },
-        };
-
-        [Header("References")]
+        [Header("예전 구성 (선택)")]
+        [Tooltip("예전 하단 진행 바. 새 구성에선 쓰지 않으며, 남아 있으면 같이 갱신만 한다.")]
         [SerializeField] private Slider loadingSlider;
+
+        [Header("팁")]
         [SerializeField] private TMP_Text tip;
 
-        // ★ Bootstrap 씬에서는 화면을 실제로 덮는 일러스트 자리가 'Background'가 아니라 'Im'이다
-        //   ('Background'는 그 뒤에 깔린 검은 판). UGUI는 자식 순서대로 그리는데 Im이 Background보다
-        //   뒤에 있어, Background에 그림을 넣으면 Im의 옛 이미지에 가려진다 → 반드시 Im을 연결할 것.
-        [Tooltip("로딩 화면을 덮는 일러스트 이미지. Bootstrap 씬에서는 'Im'을 연결한다.\n" +
-                 "비워두면 자식 'Background'를 찾지만, 그쪽은 Im에 가려 보이지 않는다.")]
-        [SerializeField] private Image background;
-
-        [Tooltip("로딩 화면 상단의 지역 이름 텍스트. 비워두면 자식 'MapText'를 자동으로 찾는다.")]
-        [SerializeField] private TMP_Text mapText;
-
-        [Header("Scene Art")]
-        [Tooltip("씬별 로딩 일러스트. 씬 이름으로 조회한다.")]
-        [SerializeField] private SceneLoadingArt[] sceneArts;
-
-        [Tooltip("씬 이름을 못 찾았을 때(부트스트랩 최초 로딩, 목록에 없는 씬) 쓸 그림. 비워두면 검은 화면.")]
-        [SerializeField] private Sprite defaultImage;
-
-        [Header("Tips")]
         // 아래 기본 문구는 '이 필드를 아직 한 번도 직렬화한 적 없는' 오브젝트에만 들어간다.
-        // 인스펙터에서 한 번이라도 손대면 그 값이 씬에 저장되므로, 이후 여기를 고쳐도 반영되지 않는다.
-        // → 운영 중 문구 수정은 인스펙터에서 한다.
-        [Tooltip("로딩 중 표시할 팁 본문. 'TIP' 머리말과 크기 태그는 코드가 붙이므로 본문만 적는다.\n" +
-                 "<color=#30BAD4>강조</color> 같은 TMP 태그는 그대로 쓸 수 있다(여는 태그의 닫는 '>'를 빠뜨리지 말 것).")]
-        [SerializeField, TextArea(2, 4)]
-        private string[] tips =
+        // 씬에 저장된 뒤에는 여기를 고쳐도 반영되지 않으니, 운영 중 문구 수정은 인스펙터에서 한다.
+        // "TIP" 머리말은 옆의 TipChip이 따로 그리므로 여기엔 본문만 적는다.
+        [Tooltip("표시할 팁 본문. 켜질 때마다 직전과 다른 것을 무작위로 고른다.\n" +
+                 "<color=#30BAD4>강조</color> 같은 TMP 태그를 쓸 수 있다(여는 태그의 닫는 '>'를 빠뜨리지 말 것).")]
+        [SerializeField, TextArea(2, 4)] private string[] tips =
         {
             "마우스 좌클릭을 <color=#30BAD4>꾹 누르고 있으면 공격이 연속으로 이어집니다.</color> 연타하지 않아도 콤보가 끊기지 않습니다.",
             "<color=#30BAD4>우클릭 강공격은 스킬 게이지를 크게 채웁니다.</color> 평타만 치는 것보다 스킬이 훨씬 빨리 돌아옵니다.",
@@ -88,70 +76,107 @@ namespace ProjectS.UI
             "스킬창에서 익힌 스킬을 <color=#30BAD4>HUD 슬롯으로 끌어다 놓으면 단축키로 등록</color>됩니다. 1~5번 키로 바로 발동하세요.",
             "물약은 <color=#30BAD4>Q·E 퀵슬롯에 등록</color>해두면 전투 중에도 곧바로 마실 수 있습니다. 던전에 들어가기 전에 채워두세요.",
             "<color=#30BAD4>F키로 NPC와 대화</color>해 퀘스트를 받고 보상을 수령할 수 있습니다.",
+            "J키를 눌러 퀘스트 항목을 확인할 수 있습니다.",
+            "파티는 던전 입구에서 결성 가능합니다.",
+            "던전의 클리어가 어렵다면 강화를 이용해봅시다.",
         };
 
-        // 씬별로 직전에 고른 인덱스. 후보가 2장뿐이라 순수 랜덤이면 같은 그림이 연달아 나오는 게 체감상 잦아,
-        // 한 칸만 기억해 두고 직전과 다른 쪽을 고른다.
-        private readonly Dictionary<string, int> lastPickedIndex = new Dictionary<string, int>();
+        [Header("목적지")]
+        [SerializeField] private TMP_Text destinationTitle;
+        [SerializeField] private TMP_Text destinationCode;
+
+        [Tooltip("목적지 아래 흐르는 0/1 데이터(선택).")]
+        [SerializeField] private TMP_Text dataStream;
+
+        [Tooltip("목적지를 모를 때(부팅 직후, 표에 없는 씬) 띄울 한글 표기. 켜질 때마다 이걸로 초기화한 뒤 목적지가 오면 덮어쓴다.")]
+        [SerializeField] private string defaultTitle = "시스템 동기화";
+        [SerializeField] private string defaultCode = "BOOT SEQUENCE";
+
+        // 한글 명칭은 세계관 설정집 기준 지역 이름이다(2026-09-26 확정). 마을=세컨드 노드, 레이드=퍼스트 노드는
+        // 설정집·대화/퀘스트 텍스트에 이미 쓰이는 이름이고, 튜토리얼·던전1·던전2는 이때 새로 정했다.
+        [Tooltip("씬별 한글 명칭 표. 새 씬을 로딩으로 이동시키려면 여기에 행을 추가한다.")]
+        [SerializeField] private Destination[] destinations =
+        {
+            new Destination { sceneName = "Tutorial", koreanName = "귀환자 수용동", code = "SECTOR 01 · SIMULATION" },
+            new Destination { sceneName = "VillageGather", koreanName = "세컨드 노드", code = "SECTOR 00 · SAFE ZONE" },
+            new Destination { sceneName = "Dungeon1", koreanName = "침식 구역", code = "SECTOR 07" },
+            new Destination { sceneName = "Dungeon2", koreanName = "어센션 코어", code = "SECTOR 08" },
+            new Destination { sceneName = "Raid", koreanName = "퍼스트 노드", code = "SECTOR 13 · CORE FACILITY" },
+        };
+
+        [Header("일러스트")]
+        [Tooltip("목적지 오른쪽 빈자리의 일러스트 틀. 목적지 표에 그림이 없는 씬(부팅 직후 포함)에서는 통째로 숨긴다.")]
+        [SerializeField] private GameObject illustrationFrame;
+
+        [Tooltip("일러스트를 그리는 Image. preserveAspect로 16:9 원본 비율을 지킨다.")]
+        [SerializeField] private Image illustration;
+
+        [Header("진행 바 · 상태")]
+        [SerializeField] private LoadingBarView bar;
+        [SerializeField] private TMP_Text statusText;
+
+        [Tooltip("받은 패킷 수 표기(선택). 진행률 × 전체 개수.")]
+        [SerializeField] private TMP_Text packetText;
+
+        [SerializeField, Min(1)] private int packetTotal = 40;
+
+        [Tooltip("진행률 구간별 상태 문구. 마지막 문구는 100%일 때만 나온다.")]
+        [SerializeField] private string[] statusSteps =
+        {
+            "지형 데이터 수신 중",
+            "개체 신호 동기화 중",
+            "텍스처 복호화 중",
+            "경로 좌표 검증 중",
+            "구역 진입 준비 완료",
+        };
+
+        [Header("기타")]
+        [SerializeField] private TMP_Text versionText;
+
+        [Tooltip("0/1 데이터를 새로 쓰는 간격(초).")]
+        [SerializeField, Min(0.02f)] private float dataRefreshInterval = 0.12f;
+
+        private readonly List<int> scratchIndices = new();
+        private float progress;
+        private int shownStep = -1;
+        private int shownPackets = -1;
+        private float nextDataTime;
 
         // 직전에 보여준 팁. 로딩이 연달아 뜰 때 같은 문구가 반복되지 않게 한 칸만 기억한다.
         private int lastTipIndex = -1;
 
-        protected override void OnInit() 
+        // 씬별로 직전에 보여준 일러스트. 후보가 2장뿐이라 순수 랜덤이면 같은 그림이 연달아 나오는 게 체감상 잦다.
+        private readonly Dictionary<string, int> lastIllustrationIndex = new();
+
+        protected override void OnInit()
         {
-            loadingSlider = GetComponentInChildren<Slider>();
-            //tip = transform.Find("Im/BottomBarIm").GetComponentInChildren<TMP_Text>();
-
-            EnsureBackground();
-        }
-
-        /// <summary>
-        /// 인스펙터 연결을 깜빡해도 굴러가게 자식 'Background'/'MapText'를 찾아둔다
-        /// (계층 이름 규약: LoadingPanel > Background, LoadingPanel > MapText).
-        /// OnInit(최초 Show)보다 SetSceneArt가 먼저 오는 경우가 있어 양쪽에서 호출한다.
-        /// </summary>
-        private void EnsureBackground()
-        {
-            if (background == null)
-            {
-                Transform found = transform.Find("Background");
-                if (found != null) background = found.GetComponent<Image>();
-            }
-
-            if (mapText == null)
-            {
-                Transform found = transform.Find("MapText");
-                if (found != null) mapText = found.GetComponent<TMP_Text>();
-            }
+            if (loadingSlider == null) loadingSlider = GetComponentInChildren<Slider>();
+            if (versionText != null) versionText.text = $"v{Application.version}";
         }
 
         protected override void OnShow()
         {
-            SetTIPText(BuildTipText());
+            progress = 0f;
+            shownStep = -1;
+            shownPackets = -1;
+            nextDataTime = 0f;
+
+            if (tips != null && tips.Length > 0)
+            {
+                lastTipIndex = PickNextIndex(tips.Length, lastTipIndex);
+                SetTIPText(tips[lastTipIndex]);
+            }
+
+            // 이전 로딩의 목적지가 남지 않게 초기화한다(부팅 직후처럼 목적지를 안 넘기는 경로가 있음).
+            ShowDestination(defaultTitle, defaultCode);
+            ShowIllustration(null, null);
+
+            SetProgress(0f);
         }
 
         /// <summary>
-        /// 이번 로딩에 띄울 팁 한 줄을 만든다. 후보 중 직전과 다른 것을 골라 TIP 래퍼를 씌운다.
-        /// 후보가 비어 있으면 머리말만 덩그러니 남지 않도록 빈 문자열을 돌려준다.
+        /// 직전에 고른 것을 피해 다음 인덱스를 고른다. 순수 랜덤이면 같은 것이 연달아 나오는 게 체감상 잦아서다.
         /// </summary>
-        private string BuildTipText()
-        {
-            if (tips == null || tips.Length == 0) return string.Empty;
-
-            lastTipIndex = PickNextIndex(tips.Length, lastTipIndex);
-
-            string body = tips[lastTipIndex];
-            if (string.IsNullOrWhiteSpace(body)) return string.Empty;
-
-            return TipPrefix + body + TipSuffix;
-        }
-
-        /// <summary>
-        /// 직전에 고른 것을 피해 다음 인덱스를 고른다.
-        /// 후보가 두셋뿐일 때 순수 랜덤이면 같은 것이 연달아 나오는 게 체감상 잦아서, 한 칸을 기억해 걸러낸다.
-        /// </summary>
-        /// <param name="count">후보 개수</param>
-        /// <param name="last">직전에 고른 인덱스(없으면 -1)</param>
         private static int PickNextIndex(int count, int last)
         {
             if (count <= 1) return 0;
@@ -161,105 +186,125 @@ namespace ProjectS.UI
             return index;
         }
 
+        private void Update()
+        {
+            // 로딩 중 timeScale과 무관하게 흐르도록 실제 시간 기준.
+            if (dataStream == null || Time.unscaledTime < nextDataTime) return;
+
+            nextDataTime = Time.unscaledTime + dataRefreshInterval;
+            dataStream.text = HoloInfoText.BuildBody(28, 3, scratchIndices);
+        }
+
+        /// <summary>
+        /// 진행률(0~1)을 게이지·상태 문구·패킷 수에 반영한다. 로딩 루프가 매 프레임 부른다.
+        /// </summary>
         public void SetProgress(float ratio)
-            => loadingSlider.value = ratio;
-
-        public void SetTIPText(string tipText) => tip.text = tipText;
-
-        /// <summary>
-        /// 다음에 들어갈 씬에 맞는 로딩 일러스트로 배경을 갈아끼운다.
-        /// <see cref="ProjectS.Managers.UIManager.ShowLoading(string)"/>이 패널을 켜기 직전에 호출한다 —
-        /// Show 이후에 바꾸면 이전 씬의 그림이 한 프레임 비친다.
-        /// </summary>
-        /// <param name="sceneName">진입할 씬 이름(BaseScene 파생 클래스 이름). 비어 있으면 기본 그림.</param>
-        public void SetSceneArt(string sceneName)
         {
-            EnsureBackground();
+            progress = Mathf.Clamp01(ratio);
 
-            if (background != null)
-            {
-                Sprite picked = PickSprite(sceneName);
-                background.sprite = picked;
+            if (loadingSlider != null) loadingSlider.value = progress;
+            if (bar != null) bar.SetProgress(progress);
 
-                // 배경 Image의 기본 색이 검정이라, 흰색으로 돌리지 않으면 스프라이트가 곱해져 까맣게 나온다.
-                background.color = (picked != null) ? Color.white : Color.black;
-            }
-
-            ApplyRegionName(sceneName);
+            UpdateStatus();
+            UpdatePackets();
         }
 
         /// <summary>
-        /// 로딩 화면 상단에 이번 씬의 지역 이름을 띄운다.
-        /// 이름을 못 찾으면(목적지가 아직 없는 부팅 직후 등) 비운다 — 직전 씬 이름이 남아 있는 것보다 낫다.
+        /// 이동할 씬을 알린다. 목적지 표에서 한글 명칭·구역 코드를 찾아 띄운다.
+        /// 표에 없는 씬이면 씬 이름(영문 클래스명)을 노출하지 않고 기본 한글 표기를 띄운 뒤 경고를 남긴다.
         /// </summary>
-        private void ApplyRegionName(string sceneName)
+        /// <param name="sceneName">로드할 씬 이름(씬 클래스 이름)</param>
+        public void SetDestination(string sceneName)
         {
-            if (mapText == null) return;
+            foreach (Destination d in destinations)
+            {
+                if (d.sceneName != sceneName) continue;
+                ShowDestination(d.koreanName, d.code);
+                ShowIllustration(d.sceneName, d.illustrations);
+                return;
+            }
 
-            mapText.text = ResolveRegionName(sceneName) ?? string.Empty;
+            Debug.LogWarning($"[LoadingPanel] 목적지 표에 '{sceneName}'이 없어 기본 표기를 띄웁니다. " +
+                             "LoadingPanel의 destinations에 한글 명칭 행을 추가하세요.", this);
+            ShowDestination(defaultTitle, defaultCode);
+            ShowIllustration(null, null);
+        }
+
+        /// <summary>팁 본문을 바꾼다.</summary>
+        public void SetTIPText(string tipText)
+        {
+            if (tip != null) tip.text = tipText;
+        }
+
+        private void ShowDestination(string koreanName, string code)
+        {
+            if (destinationTitle != null) destinationTitle.text = koreanName;
+            if (destinationCode != null) destinationCode.text = code;
         }
 
         /// <summary>
-        /// 이 씬의 지역 이름을 정한다. 인스펙터의 Region Name이 먼저이고, 비어 있으면
-        /// <see cref="DefaultRegionNames"/>의 기본 이름을 쓴다. 둘 다 없으면 null.
+        /// 씬의 일러스트 후보 중 직전과 다른 한 장을 띄운다. 후보가 없으면 틀째 숨긴다 —
+        /// 빈 틀만 남으면 그림이 로드되다 만 것처럼 보이기 때문이다.
         /// </summary>
-        private string ResolveRegionName(string sceneName)
+        private void ShowIllustration(string sceneName, Sprite[] candidates)
         {
-            SceneLoadingArt art = FindArt(sceneName);
-            if (art != null && !string.IsNullOrWhiteSpace(art.regionName)) return art.regionName.Trim();
+            bool has = illustration != null && candidates != null && candidates.Length > 0;
+            if (illustrationFrame != null) illustrationFrame.SetActive(has);
+            if (!has) return;
 
-            if (!string.IsNullOrEmpty(sceneName) && DefaultRegionNames.TryGetValue(sceneName, out string fallback))
-                return fallback;
-
-            return null;
+            int last = lastIllustrationIndex.TryGetValue(sceneName, out int shown) ? shown : -1;
+            int index = PickNextIndex(candidates.Length, last);
+            lastIllustrationIndex[sceneName] = index;
+            illustration.sprite = candidates[index];
         }
 
-        /// <summary>
-        /// 씬 이름에 해당하는 등록 항목을 찾는다. 없으면 null.
-        /// 인스펙터에 손으로 치는 문자열이라 앞뒤 공백·대소문자는 흡수한다(오타로 통째로 안 나오는 걸 줄임).
-        /// </summary>
-        private SceneLoadingArt FindArt(string sceneName)
+#if UNITY_EDITOR
+        // 명칭 칸에 영문 알파벳이 섞이면 바로 알린다. 제목은 한글 폰트 하나로 찍어서, 영문이 섞이면 표기가 어긋난다.
+        private void OnValidate()
         {
-            if (string.IsNullOrEmpty(sceneName) || sceneArts == null) return null;
+            if (ContainsLatinLetter(defaultTitle))
+                Debug.LogWarning($"[LoadingPanel] 기본 표기 '{defaultTitle}'에 영문이 있습니다. 한글로만 적어 주세요.", this);
 
-            for (int i = 0; i < sceneArts.Length; i++)
+            if (destinations == null) return;
+            foreach (Destination d in destinations)
             {
-                SceneLoadingArt art = sceneArts[i];
-                if (art != null && string.Equals(art.sceneName?.Trim(), sceneName, StringComparison.OrdinalIgnoreCase))
-                    return art;
+                if (ContainsLatinLetter(d.koreanName))
+                    Debug.LogWarning($"[LoadingPanel] '{d.sceneName}'의 명칭 '{d.koreanName}'에 영문이 있습니다. 한글로만 적어 주세요.", this);
             }
-
-            return null;
         }
 
-        /// <summary>
-        /// 씬 이름으로 후보를 찾아 한 장 고른다. 후보가 여러 장이면 직전과 다른 것을 우선한다.
-        /// </summary>
-        private Sprite PickSprite(string sceneName)
+        private static bool ContainsLatinLetter(string value)
         {
-            SceneLoadingArt art = FindArt(sceneName);
-            if (art == null)
-            {
-                // 씬 이름 오타/미등록은 여기로 떨어진다. 화면이 검게만 나오면 이 경고부터 확인할 것.
-                // (부팅 직후처럼 목적지 이름이 아예 없는 호출은 경고 없이 기본 이미지로 간다.)
-                if (!string.IsNullOrEmpty(sceneName))
-                    Debug.LogWarning($"[LoadingPanel] 씬 '{sceneName}'에 등록된 로딩 이미지가 없다. Scene Arts 목록의 Scene Name 표기를 확인할 것.");
+            if (string.IsNullOrEmpty(value)) return false;
+            foreach (char c in value)
+                if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) return true;
+            return false;
+        }
+#endif
 
-                return defaultImage;
-            }
+        // 100% 전까지는 마지막 문구("준비 완료")를 아껴 둔다 — 99%에서 완료라고 적혀 있으면 거짓말이 된다.
+        private void UpdateStatus()
+        {
+            if (statusText == null || statusSteps == null || statusSteps.Length == 0) return;
 
-            Sprite[] images = art.images;
-            if (images == null || images.Length == 0)
-            {
-                Debug.LogWarning($"[LoadingPanel] '{sceneName}'의 로딩 이미지가 비어 있어 기본 이미지를 쓴다.");
-                return defaultImage;
-            }
+            int last = statusSteps.Length - 1;
+            int step = progress >= 1f ? last : Mathf.Min(Mathf.Max(0, last - 1), Mathf.FloorToInt(progress * last));
+            if (step == shownStep) return;
 
-            int last = lastPickedIndex.TryGetValue(sceneName, out int stored) ? stored : -1;
-            int index = PickNextIndex(images.Length, last);
+            shownStep = step;
+            // 진행 중에만 끝에 커서가 깜빡이는 느낌을 준다(완료 문구엔 없음).
+            statusText.text = step == last ? statusSteps[step] : statusSteps[step] + "_";
+        }
 
-            lastPickedIndex[sceneName] = index;
-            return images[index];
+        private void UpdatePackets()
+        {
+            if (packetText == null) return;
+
+            int packets = Mathf.FloorToInt(progress * packetTotal);
+            if (packets == shownPackets) return;
+
+            shownPackets = packets;
+            packetText.text = $"{packets} / {packetTotal} PKT";
         }
     }
 }
