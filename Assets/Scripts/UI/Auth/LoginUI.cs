@@ -96,6 +96,8 @@ namespace ProjectS.UI
         // Firebase가 이전 세션을 유지·복원하므로, 초기화(ReadyTask)를 기다린 뒤 CurrentUid를 확인한다.
         private async void Start()
         {
+            PlayTitleBgm();
+
             // 토글 초기값 복원(기본 false = 해제).
             bool autoLogin = PlayerPrefs.GetInt(AutoLoginKey, 0) == 1;
             if (autoLoginToggle != null) autoLoginToggle.isOn = autoLogin;
@@ -200,6 +202,18 @@ namespace ProjectS.UI
         // 활성화를 보류한 로드가 떠 있는 동안에는 다른 씬 로드가 그 뒤에 줄을 선다. 지금은 로그인과
         // 회원가입이 같은 씬의 패널이라 문제가 없지만, 이 씬에서 다른 씬으로 나가는 경로가 생기면
         // 그때는 이 프리로드를 먼저 활성화해 정리해야 한다.
+        // 타이틀 BGM. 사운드 테이블(JsonManager)은 이 씬에서 막 로드를 시작한 참이라 준비를 기다린 뒤 재생한다.
+        // Firebase 판정 대기와 따로 흐르게 Start에서 분리했다(판정이 길어져도 음악은 바로 나오게).
+        private async void PlayTitleBgm()
+        {
+            if (JsonManager.Instance == null || SoundManager.Instance == null) return;
+
+            await JsonManager.Instance.ReadyTask;
+            if (this == null) return;   // 기다리는 동안 자동 로그인으로 씬이 넘어갔으면 타이틀 곡을 틀지 않는다
+
+            SoundManager.Instance.PlayBgm(SoundID.BGM_Title);
+        }
+
         private void BeginPreload()
         {
             if (preload != null || string.IsNullOrEmpty(characterSelectScene)) return;
