@@ -63,6 +63,10 @@ namespace ProjectS.UI
         [SerializeField] private Image groggyFill;
         // 특수 패턴(레이드 기믹)으로 그로기가 잠겼을 때 켜는 자물쇠 표시.
         [SerializeField] private GameObject groggyLockIcon;
+        // BossIcon 하위 Icon. 무력화(그로기 게이지 0) 동안 groggyIconColor로 칠하고, 풀리면 원색으로 되돌린다.
+        [SerializeField] private Image bossIcon;
+        // 무력화 중 아이콘 색. Image.color는 스프라이트에 곱해지므로 "흐려진 회색 톤"으로 보인다.
+        [SerializeField] private Color groggyIconColor = new Color(0.45f, 0.45f, 0.45f, 1f);
 
         [Header("색상 규칙")]
         // 남은 줄 수에 따라 순환하는 바 색. index = (남은 줄 수 - 1) % 길이. 비우면 singleBarColor를 쓴다.
@@ -131,6 +135,10 @@ namespace ProjectS.UI
         // 보스 바가 둘 이상 뜨는 순간 서로의 _Fill을 덮어쓴다. UI는 MaterialPropertyBlock을 못 쓰므로 사본이 정석.
         private Material trackMaterial;
 
+        // 아이콘의 저작 원색. 무력화가 풀릴 때 되돌릴 기준이라 Awake에서 한 번만 잡는다
+        // (SetGroggy 시점에 읽으면 이미 회색으로 칠해진 값을 원색으로 오인할 수 있다).
+        private Color bossIconOriginalColor = Color.white;
+
         private static readonly int FillId = Shader.PropertyToID("_Fill");
         private static readonly int GhostFillId = Shader.PropertyToID("_GhostFill");
         private static readonly int FillColorId = Shader.PropertyToID("_FillColor");
@@ -146,6 +154,8 @@ namespace ProjectS.UI
             // 씬에서 바 계층을 다시 만들다 참조가 풀린 사고가 있었다(2026-09-26 Bootstrap) — 조용히 죽지 않게 알린다.
             if (barRoot == null)
                 Debug.LogWarning($"[BossHpView] {name}: barRoot가 비어 있어 보스 HP 바가 표시되지 않는다. 인스펙터에서 연결하라.", this);
+
+            if (bossIcon != null) bossIconOriginalColor = bossIcon.color;
 
             if (track == null) return;
 
@@ -349,13 +359,19 @@ namespace ProjectS.UI
             }
         }
 
-        /// <summary>그로기 게이지와 잠금(자물쇠) 표시 갱신.</summary>
+        /// <summary>
+        /// 그로기 게이지·잠금(자물쇠)·보스 아이콘 색 갱신.
+        /// 무력화 여부는 따로 받지 않고 비율 0으로 판정한다 — 게이지가 0이 되는 순간 무력화에 들어가고,
+        /// 무력화가 끝나야 <c>EnemyGroggy.Refill</c>로 다시 차므로 "0 = 무력화 중"이 성립한다.
+        /// 관찰자(클라이언트)도 동기화된 비율로 같은 이벤트를 받으므로 별도 동기화가 필요 없다.
+        /// </summary>
         /// <param name="ratio">남은 그로기 비율(0~1).</param>
         /// <param name="locked">특수 패턴으로 잠겼는지 여부.</param>
         public void SetGroggy(float ratio, bool locked)
         {
             if (groggyFill != null) groggyFill.fillAmount = Mathf.Clamp01(ratio);
             if (groggyLockIcon != null) groggyLockIcon.SetActive(locked);
+            if (bossIcon != null) bossIcon.color = ratio <= 0f ? groggyIconColor : bossIconOriginalColor;
         }
 
         private void Update()
