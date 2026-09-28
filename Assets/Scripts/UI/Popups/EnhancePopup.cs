@@ -34,9 +34,10 @@ namespace ProjectS.UI
 
         [Header("확률")]
         [SerializeField] private TMP_Text rateText;
-        // 성공률 게이지(세그먼트 링)는 팝업이 직접 값을 넣지 않는다. 게이지 채움은 EnhanceGaugeSweep이
-        // OnTargetChanged로 성공률을 받아 소유하고, SegmentGaugeView가 그 fillAmount를 미러링한다.
-        // (씬에서 SegmentGaugeView.sourceFill = GaugeF의 Image로 배선) — rateText만 숫자로 표기한다.
+
+        [Tooltip("예상 성공률 게이지(GaugeB, Filled Image). 현 단계 성공률(자비 보너스 포함)만큼 채운다.\n" +
+                 "강화 연출 게이지(GaugeF)와는 별개다 — GaugeF의 채움은 EnhanceGaugeSweep이 소유하므로 여기서 건드리지 않는다.")]
+        [SerializeField] private Image rateGauge;
 
         [Header("비용")]
         [SerializeField] private TMP_Text costText;
@@ -152,7 +153,9 @@ namespace ProjectS.UI
             if (coreEnhanceText != null) coreEnhanceText.text = info.CurrentStep > 0 ? $"+{info.CurrentStep}" : string.Empty;
 
             if (rateText != null) rateText.text = info.IsMax ? "MAX" : $"{info.SuccessRate * 100f:0}%";
-            // 게이지는 OnTargetChanged → EnhanceGaugeSweep 경로로만 움직인다(여기서 직접 세팅하면 궤적이 두 갈래).
+            // 예상 확률은 GaugeB에 직접 넣는다. MAX는 더 강화할 수 없으므로 가득 채운다.
+            // 강화 연출 게이지(GaugeF)는 OnTargetChanged → EnhanceGaugeSweep 경로로만 움직인다.
+            SetRateGauge(info.IsMax ? 1f : info.SuccessRate);
 
             if (costText != null) costText.text = info.IsMax ? "-" : info.ZenyCost.ToString("N0");
             if (enhanceButton != null) enhanceButton.interactable = !info.IsMax;
@@ -226,6 +229,7 @@ namespace ProjectS.UI
             if (nextLevelText != null) nextLevelText.text = "+0";
             if (coreEnhanceText != null) coreEnhanceText.text = string.Empty;   // 빈 슬롯 — 강화 배지 숨김
             if (rateText != null) rateText.text = "0%";
+            SetRateGauge(0f);
             if (costText != null) costText.text = "0";
             if (enhanceButton != null) enhanceButton.interactable = false;
 
@@ -277,6 +281,11 @@ namespace ProjectS.UI
             yield return new WaitForSecondsRealtime(1.2f);
 
             OnResultPlayFinished?.Invoke();
+        }
+
+        private void SetRateGauge(float rate)
+        {
+            if (rateGauge != null) rateGauge.fillAmount = Mathf.Clamp01(rate);
         }
 
         // 주 스탯 한 줄 프리뷰. 옵션 프리뷰가 늘어나면 여러 줄로 확장한다.
