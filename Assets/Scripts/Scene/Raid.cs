@@ -1,3 +1,6 @@
+using ProjectS.Core;
+using ProjectS.Managers;
+
 namespace ProjectS.Scenes
 {
     /// <summary>
@@ -11,5 +14,10 @@ namespace ProjectS.Scenes
     public class Raid : RaidGather
     {
         protected override int DungeonNumber => 9;
+
+        protected override void OnRaidEnter()
+        {
+            SoundManager.Instance.PlayBgm(SoundID.BGM_Raid);
+        }
     }
 }

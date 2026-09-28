@@ -1,4 +1,5 @@
-﻿using ProjectS.Events;
+﻿using ProjectS.Core;
+using ProjectS.Events;
 using ProjectS.Managers;
 using ProjectS.Networking;
 using ProjectS.Players;
@@ -24,6 +25,7 @@ namespace ProjectS.Scenes
             DungeonContext.ClearDungeon();
 
             UIManager.Instance.ShowPanel<HUDPanel>();
+            SoundManager.Instance.PlayBgm(SoundID.BGM_VillageGather);
 
             // 지속 플레이어를 이 씬 스폰 지점으로 옮겨 활성화한 뒤, 마을 모드(전투 off + 마을 컨트롤러)로 전환.
             Player player;

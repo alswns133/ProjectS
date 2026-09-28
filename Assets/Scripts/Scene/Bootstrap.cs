@@ -65,8 +65,14 @@ namespace ProjectS.Scenes
             //    ★ 전용 서버는 렌더링/클라 UI가 없으므로 로딩 화면을 띄우지 않는다.
             if (!GameNetworkManager.IsServerMode) UIManager.Instance.ShowLoading();
 
-            // 1) 매니저들이 Awake에서 초기화를 '시작'할 시간을 줌
-            //    (JsonManager.Awake가 ReadyTask 발사)
+            // 로그인/캐릭터 선택 BGM을 끄고 해제한다. 그 씬들에서 이리로 오는 전환은 GameSceneManager가 아니라
+            // SceneManager 직접 로드라, 씬 전환 때 도는 ReleaseAllClips가 이번엔 불리지 않기 때문이다.
+            // 안 끄면 로딩 화면 내내 캐릭터 선택 곡이 흐르고, 그 클립 핸들도 다음 씬 전환까지 남는다.
+            if (SoundManager.Instance != null) SoundManager.Instance.ReleaseAllClips();
+
+            // 1) 데이터 로딩은 Login 씬의 JsonManager.Awake에서 이미 시작됐다(DontDestroyOnLoad로 여기까지 유지).
+            //    이 씬에 배치된 JsonManager/SoundManager는 Bootstrap을 직접 실행해 테스트할 때를 위한 사본이며,
+            //    정상 흐름에서는 싱글톤 중복 검사(Awake)로 스스로 파괴된다.
 
             // 2) 데이터 로딩이 '끝날 때까지' 여기서 기다림
             await JsonManager.Instance.ReadyTask;
