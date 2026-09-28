@@ -116,6 +116,13 @@ namespace ProjectS.UI
         public bool IsPlaying { get; private set; }
 
         /// <summary>
+        /// 마지막으로 대화가 끝난 프레임(<see cref="Time.frameCount"/>). NPC 없이 도는 대화(튜토리얼·퀘스트 게이트)를
+        /// ESC로 닫은 그 프레임에 <c>UIManager.Back()</c>이 옵션창까지 여는 것을 막는 데 쓴다
+        /// (<see cref="ProjectS.NPCs.NpcInteractionController.LastClosedFrame"/>와 같은 이유).
+        /// </summary>
+        public static int LastEndedFrame { get; private set; } = -1;
+
+        /// <summary>
         /// 대화가 스스로 플레이어 입력·카메라·커서를 얼릴지. 상호작용 컨트롤러가 인사말→허브→대화 전체를
         /// 한 번에 얼리는 경우, 컨트롤러가 이걸 false로 두어 대화마다 이중으로 얼렸다 푸는 걸 막는다
         /// (대화↔허브 전환 때 커서가 사라져 버튼을 못 누르는 문제 방지).
@@ -384,6 +391,7 @@ namespace ProjectS.UI
         private void EndSession()
         {
             IsPlaying = false;
+            LastEndedFrame = Time.frameCount;
             lines = null;
             onComplete = null;
             onCancel = null;

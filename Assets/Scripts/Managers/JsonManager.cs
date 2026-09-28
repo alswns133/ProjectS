@@ -111,6 +111,10 @@ namespace ProjectS.Managers
             try { await RegisterAsync<DungeonRewardTable>(critical: false); }
             catch (Exception e) { Debug.LogWarning($"[JsonManager] DungeonRewardTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
+            // 레이드 규칙(제한 시간) 테이블도 2026-09-28 신설이라 같은 방식으로 감싼다. 없으면 제한 시간 없이 동작한다.
+            try { await RegisterAsync<RaidTable>(critical: false); }
+            catch (Exception e) { Debug.LogWarning($"[JsonManager] RaidTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
+
             IsReady = true;   // ★ 모든 로딩이 끝난 뒤에야 true
 
             if (HasLoadFailures)

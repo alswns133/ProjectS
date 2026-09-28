@@ -103,6 +103,17 @@ namespace ProjectS.UI
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null || !keyboard[toggleKey].wasPressedThisFrame) return;
             if (IsTyping()) return;
+
+            RequestToggle();
+        }
+
+        /// <summary>
+        /// 단축키와 같은 조건(대화·NPC 상호작용 중, 마을 전용이면 던전 안)을 거쳐 결성창을 여닫는다.
+        /// HUD 메뉴 아이콘(<see cref="HudMenuButton"/>)이 부른다 — 아이콘과 Tab이 같은 규칙으로 동작하게 하기 위함이다.
+        /// 조건 없이 바로 여닫아야 하는 호출부는 <see cref="ToggleRoster"/>를 쓴다.
+        /// </summary>
+        public void RequestToggle()
+        {
             if (IsInConversation()) return;
             if (villageOnly && DungeonContext.CurrentDungeonId != 0) return;
 

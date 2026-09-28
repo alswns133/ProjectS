@@ -44,6 +44,7 @@ namespace ProjectS.UI
             BossEvents.OnBossGroggyChanged += OnBossGroggyChanged;
             CombatEvents.OnEnemyHealthChanged += OnEnemyHealthChanged;
             PlayerEvents.OnCombatZoneChanged += OnCombatZoneChanged;
+            RaidTimerEvents.OnChanged += OnRaidTimerChanged;
         }
 
         protected override void Unsubscribe()
@@ -53,6 +54,7 @@ namespace ProjectS.UI
             BossEvents.OnBossGroggyChanged -= OnBossGroggyChanged;
             CombatEvents.OnEnemyHealthChanged -= OnEnemyHealthChanged;
             PlayerEvents.OnCombatZoneChanged -= OnCombatZoneChanged;
+            RaidTimerEvents.OnChanged -= OnRaidTimerChanged;
         }
 
         // 마을 진입 등 전투 구역이 아닌 곳으로 바뀌면 보스 바를 내린다. 보스를 잡지 않고 던전을 떠난 경우
@@ -62,8 +64,14 @@ namespace ProjectS.UI
             if (combatEnabled) return;   // 던전 진입(true)에서는 등장 이벤트가 바를 관리한다.
 
             view.Hide();
+            view.ClearTimeLimit();   // 레이드 제한 시간도 내린다 — 다음에 들어간 일반 던전 보스 바에 이전 판 시간이 남지 않게
             currentBoss = null;
         }
+
+        // 레이드 제한 시간 변화(시작·일시정지·재개·정지). 보스 바와 수명이 달라(등장 연출 전부터 가득 찬 값이 온다)
+        // 보스 식별 없이 그대로 넘기고, 표시·숨김은 바(barRoot)를 따른다.
+        private void OnRaidTimerChanged(float remaining, double endTime, bool running)
+            => view.SetTimeLimit(remaining, endTime, running);
 
         // 보스 등장: 바를 켜고 이름·초기 HP·초기 그로기를 세팅한다.
         private void OnBossAppeared(Boss boss)

@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using ProjectS.Debugging;
+using ProjectS.NPCs;
 using ProjectS.UI.Framework;
 using ProjectS.UI;
 
@@ -164,6 +167,7 @@ namespace ProjectS.Managers
         /// <summary>
         /// 뒤로가기 처리(Esc/뒤로 버튼). 팝업이 열려 있으면 팝업부터 하나 닫고,
         /// 없으면 패널 스택을 한 단계 되돌린다. 마지막 패널 1개는 닫지 않는다(빈 화면 방지).
+        /// 닫을 게 하나도 없으면(인게임 HUD만 떠 있음) 옵션창을 연다.
         /// </summary>
         public void Back()
         {
@@ -186,12 +190,51 @@ namespace ProjectS.Managers
                 return;
             }
 
-            // 패널이 1개 이하면 종료 (마지막 패널은 안 닫음)
-            if (panelStack.Count <= 1) return;
+            // 패널이 1개 이하면 닫을 게 없다(마지막 패널은 안 닫음) → 옵션창을 연다.
+            // 규칙: "ESC는 열린 걸 하나 닫고, 닫을 게 없으면 옵션창을 연다." 옵션창 닫기는 위 팝업 분기가 맡는다.
+            // ESC를 UIManager 한 곳에서만 받기 위해 옵션용 PopupHotkey(Esc)는 두지 않는다 — 두면 한 번의 ESC에
+            // 둘이 같이 반응해 "인벤을 닫는 ESC가 옵션을 여는" 식으로 꼬인다.
+            if (panelStack.Count <= 1)
+            {
+                if (CanOpenOptionsByBack()) PopupToggle.Toggle(PopupToggle.PopupKind.Options);
+                return;
+            }
 
             // TODO(sound): 뒤로가기(메뉴 취소/이전)음 — SoundManager.Instance.PlaySFX(<메뉴 취소 SFX>);
             panelStack.Pop().Hide();
             panelStack.Peek().Resume();
+        }
+
+        // 닫을 게 없을 때 ESC로 옵션창을 열어도 되는지. ESC를 자기 닫기 키로 쓰는 다른 UI(NPC 허브·대화·채팅)와
+        // 한 번의 ESC가 겹치지 않게 거른다. Input System 콜백끼리는 실행 순서가 정해져 있지 않으므로
+        // "아직 열려 있음"(Back이 먼저 돈 경우)과 "이번 프레임에 방금 닫힘"(Back이 나중에 돈 경우)을 둘 다 본다.
+        private bool CanOpenOptionsByBack()
+        {
+            // 인게임(HUD가 최상단)에서만 연다. 부트스트랩 대기·결과 화면(스택을 비우고 단독으로 뜸)·로딩 중엔 열지 않는다.
+            if (panelStack.Count == 0 || !(panelStack.Peek() is HUDPanel)) return false;
+            if (loadingPanel != null && loadingPanel.IsVisible) return false;
+
+            // NPC 상호작용(허브·퀘스트 목록·NPC 대화).
+            if (NpcInteractionController.Active != null) return false;
+            if (NpcInteractionController.LastClosedFrame == Time.frameCount) return false;
+
+            // NPC 없이 도는 대화(튜토리얼·퀘스트 게이트).
+            DialogueManager dialogue = DialogueManager.Instance;
+            if (dialogue != null && dialogue.IsPlaying) return false;
+            if (DialogueManager.LastEndedFrame == Time.frameCount) return false;
+
+            // 채팅 타이핑 중 ESC는 포커스 해제용이다(ChatWindow.Update가 처리하며, 이 콜백보다 늦게 돈다).
+            return !IsTextInputFocused();
+        }
+
+        // UiTypingGuard("선택된 게 입력창인가")가 아니라 isFocused로 본다. ESC로 포커스를 풀어도 EventSystem의
+        // 선택은 입력창에 남을 수 있어, 선택 기준이면 채팅을 한 번 쓴 뒤로 다른 곳을 클릭하기 전까지 ESC가 옵션을 못 연다.
+        private static bool IsTextInputFocused()
+        {
+            EventSystem eventSystem = EventSystem.current;
+            GameObject selected = eventSystem != null ? eventSystem.currentSelectedGameObject : null;
+            TMP_InputField field = selected != null ? selected.GetComponent<TMP_InputField>() : null;
+            return field != null && field.isFocused;
         }
 
         /// <summary>

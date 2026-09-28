@@ -57,6 +57,7 @@ namespace ProjectS.Scenes
             UIManager.Instance.ShowPanel<HUDPanel>();
             SetupPlayer();
             SetupSpawning();
+            SetupTimeLimit();
             OnRaidEnter();   // 레이드별 훅. 베이스는 비어 있음.
         }
 
@@ -164,6 +165,28 @@ namespace ProjectS.Scenes
             // 즉시 스폰이면 프리로드 후 곧바로 스폰하고 트리거는 켜지 않는다(방 진입 대기 없음).
             // 던전 방식이면 프리로드 후 트리거만 켜 두고 플레이어가 방에 들어올 때 스폰한다.
             _ = spawnBossOnEnter ? PreloadThenSpawnAsync() : PreloadThenEnableAsync();
+        }
+
+        /// <summary>
+        /// 싱글 레이드의 플레이 제한 시간을 연다(<c>RaidTable</c>의 싱글 값). 가득 찬 채 멈춰 있다가
+        /// 등장 연출이 끝나면 흐른다.
+        /// </summary>
+        /// <remarks>
+        /// 파티 레이드는 여기서 열지 않는다 — 서버가 인스턴스를 열 때 파티 값으로 연다(<c>PartyManager.ServerLoadInstanceAndMove</c>).
+        /// 여기서도 열면 파티원 화면마다 제각각 시간을 재 서버와 어긋난다. 판정 기준은 <see cref="SetupSpawning"/>과 같은 파티 소속이다.
+        /// </remarks>
+        protected virtual void SetupTimeLimit()
+        {
+            if (RaidFailFlow.IsPartyRaid) return;
+
+            // 레이드는 단일 로드라 Enter 시점의 활성 씬이 곧 레이드 씬이다(이 BaseScene 오브젝트 자체는 GameSceneManager 아래 DDoL).
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+
+            RaidTimeLimit timer = RaidTimeLimit.Open(scene, DungeonContext.CurrentDungeonId, 0);
+
+            // 등장 연출이 없는 씬은 "연출 종료" 신호가 영영 안 와 시간이 멈춘 채 남는다 → 곧바로 흐르게 한다.
+            if (timer != null && BossIntroDirector.Find(scene, BossIntroDirector.DirectorRole.Intro) == null)
+                RaidTimeLimit.BeginIn(scene);
         }
 
         /// <summary>레이드별 진입 연출·기믹 훅(보스 등장 컷신, HP바 활성 등). 베이스는 아무것도 하지 않는다.</summary>

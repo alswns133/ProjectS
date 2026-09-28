@@ -29,8 +29,9 @@ namespace ProjectS.Managers
     ///   ① 베일로 덮기 → ② 저장 완료까지 대기 → ③ 네트워크 정리 →
     ///   ④ DontDestroyOnLoad 오브젝트 파괴 → ⑤ static 상태 리셋 → ⑥ 캐릭터 선택 씬 로드
     ///
-    /// <see cref="ISurvivesReboot"/>가 붙은 오브젝트만 ④에서 살아남는다(로그·오토세이브 러너 등
-    /// 앱 시작에만 생성되어 다시 만들 경로가 없는 인프라).
+    /// ④에서 살아남는 것은 <see cref="ISurvivesReboot"/>가 붙은 오브젝트(로그·오토세이브 러너 등
+    /// 앱 시작에만 생성되어 다시 만들 경로가 없는 인프라)와, 우리 스크립트가 없는 외부 SDK 오브젝트
+    /// (Firebase·Addressables 등이 스스로 만든 것)뿐이다.
     /// </summary>
     public static class SessionReboot
     {
@@ -161,8 +162,30 @@ namespace ProjectS.Managers
                 // 앱 시작에만 생성되는 인프라는 남긴다(파괴하면 다시 만들 경로가 없다).
                 if (root.GetComponentInChildren<ISurvivesReboot>(true) != null) continue;
 
+                // 우리 스크립트가 하나도 없는 루트는 외부 SDK가 스스로 만든 인프라다. 건드리지 않는다.
+                // ★ 실제 사고(2026-09-28): Firebase SDK는 비동기 작업의 완료 콜백을 "Firebase Services"라는
+                //   DontDestroyOnLoad 오브젝트의 Update로 메인 스레드에 흘려보낸다. 이걸 지우면 SDK는 살아 있는데
+                //   콜백만 영영 안 와서, 캐릭터 선택 씬의 로스터 조회(GetValueAsync)가 끝나지 않고
+                //   "캐릭터 정보를 불러오는 중..."에 갇혔다. 에러도 예외도 남지 않아 원인이 보이지 않는 종류다.
+                //   Addressables·DOTween 같은 다른 SDK도 같은 식으로 DontDestroyOnLoad 오브젝트를 만든다.
+                // 세션 오브젝트는 전부 우리 스크립트가 DontDestroyOnLoad를 걸었으므로 이 기준으로 빠지지 않는다.
+                if (!HasOwnComponent(root)) continue;
+
                 UnityEngine.Object.Destroy(root);
             }
+        }
+
+        private static readonly Assembly OwnAssembly = typeof(SessionReboot).Assembly;
+
+        // 루트(자식 포함)에 우리 어셈블리의 컴포넌트가 하나라도 있는지. Missing Script는 null로 와서 건너뛴다.
+        private static bool HasOwnComponent(GameObject root)
+        {
+            foreach (MonoBehaviour behaviour in root.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour != null && behaviour.GetType().Assembly == OwnAssembly) return true;
+            }
+
+            return false;
         }
 
         // ── ⑤ static 리셋 ───────────────────────────────────────────

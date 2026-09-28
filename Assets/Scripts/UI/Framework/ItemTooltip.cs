@@ -6,6 +6,7 @@ using ProjectS.Data;
 using ProjectS.Enhance;
 using ProjectS.Items;
 using ProjectS.Managers;
+using ProjectS.Scenes;
 
 namespace ProjectS.UI.Framework
 {
@@ -61,8 +62,6 @@ namespace ProjectS.UI.Framework
         [Tooltip("온체인 정보 묶음. 비우면 이 기능 전체가 꺼진다(기존 툴팁 프리팹은 그대로 동작).")]
         [SerializeField] private GameObject chainSection;
         [SerializeField] private TMP_Text chainText;
-        [Tooltip("이 등급 이상의 장비만 '온체인 아이템'으로 표시한다.")]
-        [SerializeField] private ItemGrade chainMinGrade = ItemGrade.Rare;
         [Tooltip("표시용 가짜 컨트랙트 주소. 실제 체인과 연결되지 않는다.")]
         [SerializeField] private string chainContract = "0x5e7a1c90b3d24f8e6a0c7b1d9f2e3a4b5c6d7e8f";
         [SerializeField] private string chainNetwork = "ProjectS Testnet";
@@ -306,21 +305,43 @@ namespace ProjectS.UI.Framework
         // 나중에 실제 연동을 붙이면 이 메서드의 데이터 출처만 교체하면 된다(섹션/레이아웃은 그대로).
         private void FillChain(EquipmentInstance equip)
         {
-            bool show = chainSection != null && equip.Item.Grade >= chainMinGrade;
+            bool show = chainSection != null && IsRaidReward(equip.Item.Index);
             SetActiveSafe(chainSection, show);
             if (!show || chainText == null) return;
 
             uint seed = ChainSeed(equip);
             chainText.text =
-                "온체인 아이템 (보기 전용)
-" +
-                $"토큰 ID  #{seed % 1000000:000000}
-" +
-                $"컨트랙트  {ShortAddress(chainContract)}
-" +
-                $"소유자  {ShortAddress(FakeAddress(seed))}
-" +
+                "온체인 아이템 (보기 전용)\n" +
+                $"토큰 ID  #{seed % 1000000:000000}\n" +
+                $"컨트랙트  {ShortAddress(chainContract)}\n" +
+                $"소유자  {ShortAddress(FakeAddress(seed))}\n" +
                 $"네트워크  {chainNetwork}";
+        }
+
+        // "블록체인 아이템 = 레이드 클리어 보상"이다. 별도 플래그 컬럼을 두지 않고 레이드 보상 행(DungeonRewardTable,
+        // 던전 번호 9 = DungeonContext.RaidDungeonNumber)의 지급 목록에 든 아이템인지로 판정한다 —
+        // 보상 풀을 시트에서 바꾸면 온체인 표시 대상도 저절로 따라가게 하기 위함(목록을 두 군데서 관리하지 않는다).
+        private static bool IsRaidReward(int itemId)
+        {
+            if (JsonManager.Instance == null || !JsonManager.Instance.IsReady) return false;
+
+            foreach (DungeonRewardTable row in JsonManager.Instance.DungeonRewardDict.Values)
+            {
+                if (row == null || row.DungeonId / 10 != DungeonContext.RaidDungeonNumber) continue;
+                if (Contains(row.BaseRewards, itemId) || Contains(row.FixedRewards, itemId)) return true;
+                if (row.RandomRewards != null)
+                    foreach (RandomRewardEntry e in row.RandomRewards)
+                        if (e != null && e.ItemId == itemId) return true;
+            }
+            return false;
+        }
+
+        private static bool Contains(List<RewardItemEntry> list, int itemId)
+        {
+            if (list == null) return false;
+            foreach (RewardItemEntry e in list)
+                if (e != null && e.ItemId == itemId) return true;
+            return false;
         }
 
         // FNV-1a. string.GetHashCode는 런타임마다 달라질 수 있어 쓰지 않는다.
