@@ -208,6 +208,10 @@ namespace ProjectS.UI
         [Tooltip("보스 이름 라벨. 비워두면 이름을 표시하지 않는다.")]
         [SerializeField] private TMP_Text bossNameText;
 
+        [Tooltip("아이콘이 찢어져 사라진 뒤 텍스트가 나타나기까지 비워 둘 시간(초). 0이면 사라지는 프레임에 곧바로 나타난다. " +
+                 "Morph Extra Delay와 달리 아이콘·경고 띠가 사라지는 시각은 그대로 두고 텍스트만 뒤로 민다.")]
+        [SerializeField, Min(0f)] private float textAppearDelay;
+
         [Tooltip("텍스트가 일그러진 모양에서 제 모양으로 잡히는 시간(초).")]
         [SerializeField, Min(0f)] private float revealSeconds = 0.22f;
 
@@ -367,7 +371,8 @@ namespace ProjectS.UI
             public float CurtainStart;
             public float CurtainEnd;
             public float Morph;       // 아이콘이 일그러지기 시작. 고조의 끝
-            public float Swap;        // 아이콘이 사라지고 텍스트가 나타남
+            public float Swap;        // 아이콘·경고 띠가 사라짐
+            public float TextStart;   // 텍스트가 나타남. textAppearDelay가 0이면 Swap과 같다
             public float RevealEnd;   // 텍스트가 제 모양으로 잡힘
             public float OutStart;
             public float OutDuration;
@@ -884,7 +889,9 @@ namespace ProjectS.UI
             t.CurtainEnd = t.CurtainStart + curtainDuration;
             t.Morph = t.CurtainStart + curtainDuration * morphTriggerRatio + morphExtraDelay;
             t.Swap = t.Morph + warpSeconds;
-            t.RevealEnd = t.Swap + revealSeconds;
+            // 공백은 교체 뒤에 끼운다. Morph Extra Delay로 벌리면 아이콘이 커튼보다 늦게 남아 버린다.
+            t.TextStart = t.Swap + textAppearDelay;
+            t.RevealEnd = t.TextStart + revealSeconds;
             t.OutStart = t.RevealEnd + holdSeconds;
             t.OutDuration = ashDissolve != null ? ashDissolve.Duration : fadeOutSeconds;
             t.End = t.OutStart + t.OutDuration;
@@ -1140,7 +1147,7 @@ namespace ProjectS.UI
         {
             if (bossRoot == null) return;
 
-            bool active = time >= tm.Swap;
+            bool active = time >= tm.TextStart;
             SetActive(bossRoot.gameObject, active);
 
             Vector3 scale = Vector3.one;
@@ -1149,7 +1156,7 @@ namespace ProjectS.UI
 
             if (active && time < tm.RevealEnd)
             {
-                float e = Evaluate(revealCurve, revealSeconds > 0f ? Mathf.Clamp01((time - tm.Swap) / revealSeconds) : 1f);
+                float e = Evaluate(revealCurve, revealSeconds > 0f ? Mathf.Clamp01((time - tm.TextStart) / revealSeconds) : 1f);
                 float remain = 1f - e;
 
                 scale = new Vector3(Mathf.LerpUnclamped(warpStretch, 1f, e), Mathf.LerpUnclamped(warpSquash, 1f, e), 1f);
@@ -1244,11 +1251,11 @@ namespace ProjectS.UI
         private void SampleTextGrow(float time, in Timings tm)
         {
             float g = 0f;
-            bool on = time >= tm.Swap;
+            bool on = time >= tm.TextStart;
             if (on)
             {
-                float span = tm.End - tm.Swap;
-                g = Evaluate(textGrowCurve, span > 0f ? Mathf.Clamp01((time - tm.Swap) / span) : 1f);
+                float span = tm.End - tm.TextStart;
+                g = Evaluate(textGrowCurve, span > 0f ? Mathf.Clamp01((time - tm.TextStart) / span) : 1f);
             }
 
             if (GrowableLabel != null)
@@ -1292,9 +1299,9 @@ namespace ProjectS.UI
             if (textGlitchMaterials.Count == 0) return;
 
             float glitch = textGlitchPeak;
-            if (time >= tm.Swap)
+            if (time >= tm.TextStart)
             {
-                float k = Mathf.Clamp01((time - tm.Swap) / textGlitchSettleSeconds);
+                float k = Mathf.Clamp01((time - tm.TextStart) / textGlitchSettleSeconds);
                 glitch = Mathf.LerpUnclamped(textGlitchPeak, textGlitchSettled, Evaluate(textGlitchCurve, k));
             }
 
