@@ -180,6 +180,11 @@ namespace ProjectS.Enemies
         {
             base.OnDied();
 
+            // 레이드 클리어 — 제한 시간을 남은 값에 고정한다. 페이즈 보스의 앞 페이즈는 하한 때문에 죽지 않으므로
+            // 여기 오는 것은 최종 페이즈뿐이다. 이 메서드는 판정 권한 쪽(서버·싱글)에서만 돌고, 타이머도 그쪽에만 있다.
+            // 레이드가 아닌 보스방(타이머 없음)에서는 아무 일도 없다.
+            ProjectS.Scenes.RaidTimeLimit.StopIn(gameObject.scene);
+
             // 화면이 있는 프로세스(싱글·호스트)에서만 건다. 전용 서버는 화면이 없고, timeScale을 늦추면 서버 시뮬레이션 전체가
             // 느려진다. 원격 파티원 화면은 이 메서드가 안 도므로(DeadState는 서버에서만) BossNetSync.RpcDie가 따로 건다.
             bool isDedicatedServer = NetworkServer.active && !NetworkClient.active;

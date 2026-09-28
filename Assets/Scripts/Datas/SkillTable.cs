@@ -4,8 +4,14 @@ namespace ProjectS.Data
 {
     /// <summary>
     /// 평타·스킬 공통 행. 평타와 스킬은 계수의 출처만 다를 뿐 같은 계산 경로를 타므로
-    /// 한 테이블에 같이 둔다(평타=1, 피니시=2, 우클릭 강공격=3, 캐릭터 스킬=101~/201~).
+    /// 한 테이블에 같이 둔다. ID는 캐릭터별 3자리(docs/ID_NUMBERING.md):
+    /// 스킬 x01~x04, 기본 액션 x21 평타·x22 피니시·x23 우클릭 강공격·x24 대시·x25 점프 (검사 1xx / 거너 2xx).
     /// </summary>
+    /// <remarks>
+    /// 기본 액션 행의 NameKey(ATK_NORMAL 등)에는 캐릭터 접두사(SW_/GN_)를 붙이지 않는다. PlayerCombat이
+    /// "접두사로 시작하는 행 = 캐릭터 스킬 1~4"로 목록을 만들기 때문에, 붙이면 평타가 스킬 슬롯으로 끼어든다.
+    /// 캐릭터 구분은 ID 앞자리로 한다.
+    /// </remarks>
     [Serializable]
     public class SkillTable : IDataRow
     {

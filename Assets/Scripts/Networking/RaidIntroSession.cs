@@ -196,6 +196,10 @@ namespace ProjectS.Networking
             if (director != null) director.ForceEnd();
             else if (boss != null) boss.ResumeAI();
 
+            // 보스가 깨어나는 순간부터 제한 시간이 흐른다. 디렉터 종료 처리도 같은 신호를 보내지만(중복은 무시된다),
+            // 디렉터가 없는 인스턴스는 여기가 유일한 시작 지점이다.
+            RaidTimeLimit.BeginIn(instance);
+
             foreach (uint id in expected)
                 if (TryGetMember(id, out PartyManager pm, out NetworkConnectionToClient conn))
                     pm.TargetRaidIntroEnd(conn);

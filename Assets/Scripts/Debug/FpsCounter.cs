@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
 using ProjectS.Core;
@@ -128,7 +128,7 @@ namespace ProjectS.Debugging
             textGo.transform.SetParent(transform, false);
 
             label = textGo.AddComponent<TextMeshProUGUI>();
-            label.fontSize = 28f;
+            label.fontSize = 21f;
             label.color = Color.green;
             label.alignment = TextAlignmentOptions.TopLeft;
             label.raycastTarget = false;
@@ -139,7 +139,7 @@ namespace ProjectS.Debugging
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(16f, -16f);
+            rect.anchoredPosition = new Vector2(0f, 0f);
             rect.sizeDelta = new Vector2(400f, 60f);
         }
 

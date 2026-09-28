@@ -102,6 +102,13 @@ namespace ProjectS.NPCs
         /// <summary>상호작용 시작(컨트롤러)/종료(null) 시 발행. 뷰는 이걸 받아 Active.ScreenChanged에 붙었다 뗀다.</summary>
         public static event Action<NpcInteractionController> ActiveChanged;
 
+        /// <summary>
+        /// 마지막으로 상호작용이 끝난 프레임(<see cref="Time.frameCount"/>). 허브·목록·대화를 닫은 그 ESC가
+        /// 같은 프레임에 <c>UIManager.Back()</c>에서 "닫을 게 없음"으로 읽혀 옵션창까지 여는 것을 막는 데 쓴다.
+        /// Input System 콜백끼리는 실행 순서가 정해져 있지 않아 <see cref="Active"/>만으로는 늦게 도는 쪽을 못 거른다.
+        /// </summary>
+        public static int LastClosedFrame { get; private set; } = -1;
+
         /// <summary>허브 고유기능 버튼을 눌렀을 때 발행(컨트롤러, 기능). 상점/강화 등 실제 구현이 이걸 구독해 연다.</summary>
         public static event Action<NpcInteractionController, NpcHubFeature> HubFeatureSelected;
 
@@ -411,6 +418,7 @@ namespace ProjectS.NPCs
         private static void SetActive(NpcInteractionController controller)
         {
             Active = controller;
+            if (controller == null) LastClosedFrame = Time.frameCount;
             ActiveChanged?.Invoke(controller);
         }
 

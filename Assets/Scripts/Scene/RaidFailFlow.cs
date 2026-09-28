@@ -4,6 +4,7 @@ using ProjectS.Managers;
 using ProjectS.Networking;
 using ProjectS.Players;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace ProjectS.Scenes
 {
@@ -78,7 +79,12 @@ namespace ProjectS.Scenes
             }
 
             // 싱글: 기다릴 파티원이 없으므로 다운이 곧 실패다. 투표도 혼자라 제한 시간을 두지 않는다.
-            if (down) RaidFailEvents.FireFailed(1, 0f);
+            if (!down) return;
+
+            // 판이 끝났으니 레이드 제한 시간을 고정한다. 안 멈추면 실패 창을 보는 동안 시간이 다 돼 실패가 한 번 더 들어온다.
+            // (파티는 서버의 RaidFailSession이 실패를 확정하며 멈춘다.) 싱글 레이드는 단일 로드라 활성 씬이 곧 레이드 씬이다.
+            RaidTimeLimit.StopIn(SceneManager.GetActiveScene());
+            RaidFailEvents.FireFailed(1, 0f);
         }
 
         /// <summary>재시도 투표. 파티는 서버가 집계하고, 싱글은 곧바로 결정된다.</summary>

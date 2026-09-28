@@ -141,6 +141,29 @@ SMB의 부착·값·필요 파라미터를 함께 챙깁니다. (파일은 `Asse
 - Presenter는 `BasePresenter`를 상속하고, 게임 이벤트를 받아 View 메서드 호출로 변환합니다.
 - HUD 흐름 예시: `PlayerEvents.FireHpChanged()` -> `HUDPresenter.OnHpChanged()` -> `HUDPanel.SetHp()` -> `FillGauge.SetRatio()`.
 
+#### Presenter를 둘지 말지 (2026-09-28 확정)
+
+모든 창에 Presenter를 강제하지 않습니다. 대신 **아래 기준으로 고르고, 한 창 안에서는 한 방식만** 씁니다.
+기존 창은 이미 이 기준에 맞게 나뉘어 있어 옮기지 않습니다.
+
+- **창이 직접 구독 (Presenter 없음)** — 받은 이벤트를 그대로 화면에 반영만 하고, 구독 수명이 "창이 열려 있는 동안"과
+  같을 때. 구독은 `OnShow`, 해제는 `OnHide`에서 짝을 맞춥니다. 예: `InventoryPopup`, `EquipmentPopup`,
+  `ShopPopup`, `RaidFailPopup`.
+- **Presenter를 둠 (`BasePresenter` 상속)** — 아래 중 하나라도 해당할 때.
+  - 검증 → 서비스 판정 → 연출 → 이벤트 발행 같은 **흐름 제어**가 있다 (예: `EnhancePresenter`).
+  - **창이 닫혀 있어도 이벤트를 받아야** 한다 (예: `DeathPresenter` — 사망 이벤트를 받아 창을 연다,
+    `BossHpPresenter` — `KeepSubscribedWhileDisabled`).
+  - 여러 View를 한꺼번에 묶어 다룬다 (예: `HUDPresenter`).
+- **한 창의 구독은 한 곳에만.** Presenter가 있으면 창(View)은 표시 메서드와 View 이벤트(`OnXxxRequested` 등)만
+  갖고, 게임 이벤트(`PlayerEvents` 등)를 직접 구독하지 않습니다. 양쪽에서 같은 이벤트를 걸면 핸들러가 두 번 돕니다.
+- **구독 시점이 다릅니다.** `BasePresenter`는 GameObject 활성(`OnEnable`/`OnDisable`), 창 직접 구독은
+  `OnShow`/`OnHide` 기준입니다. 지금은 창을 열고 닫을 때 GameObject도 켜고 꺼서 결과가 같지만,
+  CanvasGroup 숨김처럼 GameObject를 켜 둔 채 숨기는 방식으로 바꾸면 두 방식의 동작이 달라지니 주의합니다.
+- **`Presenter`라는 이름은 `BasePresenter` 상속을 뜻합니다.** 상속할 수 없는 구조라면 이름을 달리하거나
+  (예: `~Binder`), 클래스 주석 첫머리에 상속하지 않는 이유를 적습니다. 현재 예외: `PartyStatusPresenter`
+  (뷰가 스스로 꺼지는 구조라 `Update` 폴링, 주석에 사유 명시). `UI/Presenter/` 폴더의 `QuestTrackerHud`는
+  Presenter가 아닙니다 — 폴더만 보고 판단하지 마세요.
+
 ### 씬 흐름
 
 - 씬 로직은 `BaseScene`을 상속하고 `Initialize`, `Enter`, `Exit`, `Progress`를 구현합니다.
@@ -282,7 +305,7 @@ Enhance 팝업의 표기를 기준으로 삼되, **배경 이름만 의도적으
 - 몬스터 HP·피격이면 `EnemyStats`, 추적·이동이면 `EnemyMovement`, 공격 판정·쿨다운이면 `EnemyCombat`, Animator 제어면 `EnemyAnimation`.
 - 몬스터 AI 행동 추가면 `EnemyBaseState`를 상속한 새 상태 클래스.
 - UI 화면 생명주기면 `BasePanel` 또는 `BasePopup` 하위 클래스.
-- UI 데이터 바인딩이면 `BasePresenter` 하위 클래스.
+- UI 데이터 바인딩이면 "Presenter를 둘지 말지" 기준에 따라 창의 `OnShow`/`OnHide` 직접 구독 또는 `BasePresenter` 하위 클래스.
 - 씬 고유 로직이면 `BaseScene` 하위 클래스.
 - 공용 데이터 테이블이면 `IDataRow` 행 클래스와 `JsonManager` 등록.
 
@@ -334,6 +357,20 @@ Enhance 팝업의 표기를 기준으로 삼되, **배경 이름만 의도적으
   - 강/약 피격 구분(`LastHitWasStrong`)은 받은 피해량 임계값 기준의 기존 개념을 그대로 재사용합니다
     (피격 모션 `doHit`/`doHitLarge`와 경직 시간 분기에도 쓰이는 값). 몬스터 공격이 스스로 "강피격"이라고
     지정하는 방식이 아니라, **맞은 피해가 큰가**로 판정합니다.
+- **ESC 규칙 (2026-09-28 확정)**: "ESC는 열린 걸 하나 닫고, 닫을 게 없으면 옵션창을 연다."
+  ESC는 `UIManager.Back()` **한 곳에서만** 받습니다(`backAction` = `<Keyboard>/escape`).
+  - 순서: 확인창(`ConfirmDialog`) → 맨 위 팝업(`CanCloseByBack == false`인 모달이면 거기서 멈춤) →
+    패널 한 단계 → 닫을 게 없으면 옵션창(`CanOpenOptionsByBack`).
+  - **옵션창용 `PopupHotkey`(Esc)를 두지 않습니다.** 두면 한 번의 ESC에 `Back()`과 둘이 같이 반응해
+    "인벤을 닫는 ESC가 옵션을 열고", "옵션을 닫자마자 다시 여는" 식으로 꼬입니다. 옵션 닫기는 팝업 분기가 맡습니다.
+  - 옵션창은 **인게임(HUD가 패널 최상단)에서만** 엽니다. 부트스트랩 대기·로딩·던전 결과 화면에서는 열지 않습니다.
+  - ESC를 **자기 닫기 키로 쓰는 UI**(NPC 허브·퀘스트 목록·대화·채팅)와 한 프레임에 겹치지 않게 거릅니다.
+    Input System 콜백끼리는 실행 순서가 정해져 있지 않아, "아직 열려 있음"(`NpcInteractionController.Active`,
+    `DialogueManager.IsPlaying`)과 "이번 프레임에 방금 닫힘"(`LastClosedFrame`/`LastEndedFrame` == `Time.frameCount`)을
+    **둘 다** 봅니다. 채팅은 `UiTypingGuard`(선택 기준)가 아니라 입력칸 `isFocused`로 봅니다 —
+    ESC로 포커스를 풀어도 선택이 남아 옵션이 계속 막히는 것을 피하기 위함입니다.
+  - **ESC를 자기 닫기 키로 쓰는 새 UI를 추가하면**, 닫힌 프레임을 기록하고 `CanOpenOptionsByBack`에 조건을
+    더하거나, 아예 `BasePopup`/`BasePanel`로 만들어 `Back()` 경로에 태웁니다. 빠지면 그 창을 닫는 ESC가 옵션창까지 엽니다.
 - **네임스페이스 (2026-07-20 결정 및 일괄 적용 완료)**: 전 스크립트가 `ProjectS.` 루트 네임스페이스를 사용합니다.
   **새 파일은 폴더에 맞는 네임스페이스를 필수로 붙입니다.** 원칙: 폴더 = 네임스페이스, 깊이 최대 3단.
   - 매핑: `Core/` → `ProjectS.Core`(공용 계약: `IState`, `IDamageable`, `SoundID`),

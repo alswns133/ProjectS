@@ -106,6 +106,16 @@ namespace ProjectS.UI
         [SerializeField] private string segmentCountFormat = "X {0}";
         [SerializeField] private string hpValueFormat = "{0}/{1}";
 
+        [Header("레이드 제한 시간")]
+        // HP 바 바로 밑의 남은 시간 텍스트. barRoot 자식으로 두면 바와 함께 켜지고 꺼진다.
+        // 레이드가 아닌 보스(제한 시간 없음)에서는 이 텍스트만 꺼 둔다. 비워 두면 표시하지 않는다.
+        [SerializeField] private TextMeshProUGUI timeLimitText;
+        // {0}=분, {1}=초.
+        [SerializeField] private string timeLimitFormat = "{0:00}:{1:00}";
+        // 남은 시간이 이 값(초) 이하면 경고색으로 바꾼다. 0이면 경고색을 쓰지 않는다.
+        [SerializeField, Min(0f)] private float timeLimitWarningSeconds = 60f;
+        [SerializeField] private Color timeLimitWarningColor = new Color(1f, 0.3f, 0.3f, 1f);
+
         // 목표값(SetHp가 넣는 실제 HP). 화면 표시는 이 값으로 러프하게 수렴한다.
         private int targetHp;
         private int targetMax;
@@ -139,6 +149,17 @@ namespace ProjectS.UI
         // (SetGroggy 시점에 읽으면 이미 회색으로 칠해진 값을 원색으로 오인할 수 있다).
         private Color bossIconOriginalColor = Color.white;
 
+        // ── 레이드 제한 시간 ──
+        // 받은 상태만 들고 있고, 흐르는 중이면 매 프레임 끝 시각 − 지금으로 그린다(서버는 상태가 바뀔 때만 보낸다).
+        private bool hasTimeLimit;
+        private bool timeLimitRunning;
+        private double timeLimitEndTime;
+        private float timeLimitRemaining;
+        // 직전에 그린 초. 같은 초면 문자열을 다시 만들지 않는다(매 프레임 할당 방지).
+        private int shownTimeLimitSeconds = -1;
+        // 텍스트의 저작 원색. 경고색에서 되돌릴 기준이라 Awake에서 한 번만 잡는다.
+        private Color timeLimitNormalColor = Color.white;
+
         private static readonly int FillId = Shader.PropertyToID("_Fill");
         private static readonly int GhostFillId = Shader.PropertyToID("_GhostFill");
         private static readonly int FillColorId = Shader.PropertyToID("_FillColor");
@@ -156,6 +177,13 @@ namespace ProjectS.UI
                 Debug.LogWarning($"[BossHpView] {name}: barRoot가 비어 있어 보스 HP 바가 표시되지 않는다. 인스펙터에서 연결하라.", this);
 
             if (bossIcon != null) bossIconOriginalColor = bossIcon.color;
+
+            // 제한 시간 상태를 받기 전(일반 던전 보스 등)에는 텍스트를 꺼 둔다.
+            if (timeLimitText != null)
+            {
+                timeLimitNormalColor = timeLimitText.color;
+                timeLimitText.gameObject.SetActive(false);
+            }
 
             if (track == null) return;
 
@@ -211,6 +239,52 @@ namespace ProjectS.UI
         public void SetName(string bossName)
         {
             if (nameText != null && nameText.text != bossName) nameText.text = bossName;
+        }
+
+        /// <summary>
+        /// 레이드 제한 시간 상태를 받는다. 흐르는 중이면 <paramref name="endTime"/>까지 매 프레임 스스로 줄여 그리고,
+        /// 멈춰 있으면(등장 연출 대기·페이즈 전환·클리어·실패) <paramref name="remaining"/>을 그대로 보여 준다.
+        /// </summary>
+        /// <param name="remaining">멈춰 있을 때의 남은 시간(초).</param>
+        /// <param name="endTime">흐르는 중일 때의 끝 시각(<c>RaidTimeLimit.Now</c> 기준).</param>
+        /// <param name="running">시간이 흐르는 중이면 true.</param>
+        public void SetTimeLimit(float remaining, double endTime, bool running)
+        {
+            hasTimeLimit = true;
+            timeLimitRemaining = remaining;
+            timeLimitEndTime = endTime;
+            timeLimitRunning = running;
+            shownTimeLimitSeconds = -1;   // 상태가 바뀌었으니 같은 초여도 다시 그린다
+
+            if (timeLimitText != null) timeLimitText.gameObject.SetActive(true);
+            RenderTimeLimit();
+        }
+
+        /// <summary>제한 시간 표시를 내린다. 레이드를 떠나 다음 보스(일반 던전 등)에 이전 판 시간이 남지 않게 한다.</summary>
+        public void ClearTimeLimit()
+        {
+            hasTimeLimit = false;
+            if (timeLimitText != null) timeLimitText.gameObject.SetActive(false);
+        }
+
+        // 남은 시간을 mm:ss로 그린다. 초가 바뀔 때만 문자열을 새로 만든다.
+        private void RenderTimeLimit()
+        {
+            if (!hasTimeLimit || timeLimitText == null) return;
+
+            float remain = timeLimitRunning
+                ? Mathf.Max(0f, (float)(timeLimitEndTime - ProjectS.Scenes.RaidTimeLimit.Now))
+                : Mathf.Max(0f, timeLimitRemaining);
+
+            // 올림으로 센다 — 내림이면 시작하자마자 한 초가 깎여 보이고, 0초가 1초 동안 떠 있다가 실패가 뜬다.
+            int seconds = Mathf.CeilToInt(remain);
+            if (seconds == shownTimeLimitSeconds) return;
+            shownTimeLimitSeconds = seconds;
+
+            timeLimitText.text = string.Format(timeLimitFormat, seconds / 60, seconds % 60);
+
+            bool warning = timeLimitWarningSeconds > 0f && seconds <= timeLimitWarningSeconds;
+            timeLimitText.color = warning ? timeLimitWarningColor : timeLimitNormalColor;
         }
 
         /// <summary>보스 퇴장(사망·이탈) 시 바를 숨긴다.</summary>
@@ -376,6 +450,9 @@ namespace ProjectS.UI
 
         private void Update()
         {
+            // 제한 시간은 HP 데이터와 무관하게 흐르므로 아래 조기 반환보다 먼저 그린다.
+            if (timeLimitRunning) RenderTimeLimit();
+
             if (barRoot == null || !barRoot.activeSelf || !hasData) return;
 
             // HP를 목표로 러프하게 밀어 깎는다. 매 순간 남은 거리의 drainSpeed 비율만큼 좁힌다(프레임률 보정).

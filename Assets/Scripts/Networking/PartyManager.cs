@@ -505,6 +505,10 @@ namespace ProjectS.Networking
             // 가장 정확한 순간이라, 실패가 난 뒤에 뒤늦게 모으지 않는다(이탈자는 세션이 매 프레임 걸러 낸다).
             RaidFailSession.Open(pid, instance, introMembers);
 
+            // 플레이 제한 시간(파티 값)도 여기서 연다. 가득 찬 채 멈춰 있다가 등장 연출이 끝나면(RaidIntroSession.End) 흐른다.
+            // RaidTable에 행이 없는 던전(일반 던전)은 열리지 않는다.
+            RaidTimeLimit.Open(instance, dungeonId, pid);
+
             // TODO(Stage 2): 이 파티 두 커넥션에만 클라 additive 로드를 지시한다.
             //   foreach 파티원 conn: conn.Send(new SceneMessage { sceneName = sceneName, sceneOperation = SceneOperation.LoadAdditive });
             //   그 뒤 클라의 로컬 캐릭터/DungeonContext 세팅(PartyDungeonId SyncVar 이용) + GameSceneManager 통합(Stage 5).
