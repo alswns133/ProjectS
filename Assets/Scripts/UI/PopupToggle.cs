@@ -18,6 +18,7 @@ namespace ProjectS.UI
             Equipment,  // 장비창(P)
             Skill,      // 스킬창(K)
             Options,    // 옵션창. 인스펙터 직렬화 값이 밀리지 않게 항상 끝에 추가한다.
+            MonsterIndex, // 몬스터 도감(O)
         }
 
         /// <summary>
@@ -34,6 +35,7 @@ namespace ProjectS.UI
                 case PopupKind.Equipment: Toggle<EquipmentPopup>(allowDuringEnhance: true); break;
                 case PopupKind.Skill:     Toggle<SkillPopup>(allowDuringEnhance: false); break;
                 case PopupKind.Options:   Toggle<OptionsPopup>(allowDuringEnhance: false); break;
+                case PopupKind.MonsterIndex: Toggle<MonsterIndexPopup>(allowDuringEnhance: false); break;
             }
         }
 
@@ -52,6 +54,7 @@ namespace ProjectS.UI
                 case PopupKind.Equipment: ui.ClosePopup<EquipmentPopup>(); break;
                 case PopupKind.Skill:     ui.ClosePopup<SkillPopup>(); break;
                 case PopupKind.Options:   ui.ClosePopup<OptionsPopup>(); break;
+                case PopupKind.MonsterIndex: ui.ClosePopup<MonsterIndexPopup>(); break;
             }
         }
 
