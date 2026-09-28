@@ -78,7 +78,6 @@ namespace ProjectS.UI
         [Header("그래픽")]
         [SerializeField] private TMP_Dropdown screenModeDropdown;
         [SerializeField] private TMP_Dropdown resolutionDropdown;
-        [SerializeField] private TMP_Dropdown qualityDropdown;
         [SerializeField] private Toggle vSyncToggle;
         [SerializeField] private TMP_Dropdown frameLimitDropdown;
 
@@ -142,9 +141,6 @@ namespace ProjectS.UI
                 draft.ResolutionWidth = resolutions[i].x;
                 draft.ResolutionHeight = resolutions[i].y;
             });
-
-            BuildDropdown(qualityDropdown, QualitySettings.names);
-            BindDropdown(qualityDropdown, i => draft.QualityLevel = i);
 
             BindToggle(vSyncToggle, on => draft.VSync = on);
 
@@ -232,7 +228,6 @@ namespace ProjectS.UI
 
             SetDropdown(screenModeDropdown, Mathf.Max(0, Array.IndexOf(ScreenModes, draft.ScreenMode)));
             SetDropdown(resolutionDropdown, Mathf.Max(0, resolutions.IndexOf(draft.GetEffectiveResolution())));
-            SetDropdown(qualityDropdown, draft.QualityLevel >= 0 ? draft.QualityLevel : QualitySettings.GetQualityLevel());
             if (vSyncToggle != null) vSyncToggle.SetIsOnWithoutNotify(draft.VSync);
             SetDropdown(frameLimitDropdown, Mathf.Max(0, Array.IndexOf(FrameLimits, draft.FrameLimit)));
             RefreshFrameLimitInteractable();
