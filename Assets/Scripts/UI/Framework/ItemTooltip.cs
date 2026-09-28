@@ -57,6 +57,16 @@ namespace ProjectS.UI.Framework
         [SerializeField] private GameObject consumableSection;
         [SerializeField] private TMP_Text effectText;         // 회복량/쿨다운
 
+        [Header("블록체인 표시 섹션 (보기 전용 목업)")]
+        [Tooltip("온체인 정보 묶음. 비우면 이 기능 전체가 꺼진다(기존 툴팁 프리팹은 그대로 동작).")]
+        [SerializeField] private GameObject chainSection;
+        [SerializeField] private TMP_Text chainText;
+        [Tooltip("이 등급 이상의 장비만 '온체인 아이템'으로 표시한다.")]
+        [SerializeField] private ItemGrade chainMinGrade = ItemGrade.Rare;
+        [Tooltip("표시용 가짜 컨트랙트 주소. 실제 체인과 연결되지 않는다.")]
+        [SerializeField] private string chainContract = "0x5e7a1c90b3d24f8e6a0c7b1d9f2e3a4b5c6d7e8f";
+        [SerializeField] private string chainNetwork = "ProjectS Testnet";
+
         [Header("비교(장착 중 아이템)")]
         [Tooltip("이 툴팁 자체가 비교용 보조 패널이면 체크. 체크된 패널은 싱글톤(Instance)으로 등록되지 않고 또 다른 비교를 띄우지 않는다.")]
         [SerializeField] private bool isComparePanel;
@@ -163,6 +173,7 @@ namespace ProjectS.UI.Framework
             }
 
             FillOptions(equip.Options);
+            FillChain(equip);
         }
 
         /// <summary>스택형 아이템(소비품·재료) 정보를 커서 지점에 띄운다.</summary>
@@ -184,6 +195,7 @@ namespace ProjectS.UI.Framework
             SetActiveSafe(equipMetaSection, false);
             SetActiveSafe(mainStatSection, false);
             SetActiveSafe(optionSection, false);           // 옵션은 장비 전용
+            SetActiveSafe(chainSection, false);            // 온체인 표시는 장비 전용
             SetActiveSafe(consumableSection, stack.IsConsumable);
             SetActiveSafe(effectText != null ? effectText.gameObject : null, true);
 
@@ -285,6 +297,62 @@ namespace ProjectS.UI.Framework
             return opt.IsPercent
                 ? $"{opt.Label} +{opt.Value * 100f:0.#}%"
                 : $"{opt.Label} +{Mathf.RoundToInt(opt.Value)}";
+        }
+
+        // ── 블록체인 표시 (보기 전용 목업) ─────────────────────────────────────
+        // 실제 지갑·RPC·컨트랙트 호출은 전혀 없다. 시연용으로 "이 장비가 온체인 자산이라면 이렇게 보인다"만 보여준다.
+        // 토큰 ID·소유자 주소는 인스턴스의 롤값(아이템 Index·주스탯·옵션)에서 결정적으로 만든다 —
+        // 난수로 만들면 같은 장비를 hover할 때마다 값이 바뀌어 가짜 티가 나고, 롤값은 세이브되므로 재접속해도 같다.
+        // 나중에 실제 연동을 붙이면 이 메서드의 데이터 출처만 교체하면 된다(섹션/레이아웃은 그대로).
+        private void FillChain(EquipmentInstance equip)
+        {
+            bool show = chainSection != null && equip.Item.Grade >= chainMinGrade;
+            SetActiveSafe(chainSection, show);
+            if (!show || chainText == null) return;
+
+            uint seed = ChainSeed(equip);
+            chainText.text =
+                "온체인 아이템 (보기 전용)
+" +
+                $"토큰 ID  #{seed % 1000000:000000}
+" +
+                $"컨트랙트  {ShortAddress(chainContract)}
+" +
+                $"소유자  {ShortAddress(FakeAddress(seed))}
+" +
+                $"네트워크  {chainNetwork}";
+        }
+
+        // FNV-1a. string.GetHashCode는 런타임마다 달라질 수 있어 쓰지 않는다.
+        private static uint ChainSeed(EquipmentInstance equip)
+        {
+            uint h = 2166136261;
+            void Mix(int v) { unchecked { h = (h ^ (uint)v) * 16777619; } }
+
+            Mix(equip.Item.Index);
+            Mix(equip.RolledMainStat);
+            foreach (ItemOption opt in equip.Options) Mix(Mathf.RoundToInt(opt.Value * 10000f));
+            return h;
+        }
+
+        // seed로 40자리 hex 주소를 만든다(xorshift로 늘림).
+        private static string FakeAddress(uint seed)
+        {
+            var sb = new System.Text.StringBuilder("0x", 42);
+            uint x = seed == 0 ? 1u : seed;
+            for (int i = 0; i < 5; i++)
+            {
+                x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+                sb.Append(x.ToString("x8"));
+            }
+            return sb.ToString();
+        }
+
+        // 0x1234abcd...ef56 형태. 말줄임은 폰트에 없을 수 있는 '…' 대신 "..."을 쓴다.
+        private static string ShortAddress(string address)
+        {
+            if (string.IsNullOrEmpty(address) || address.Length <= 12) return address;
+            return $"{address.Substring(0, 6)}...{address.Substring(address.Length - 4)}";
         }
 
         // 아이콘을 async 로드. 대기 중 다른 아이템으로 바뀌면(빠른 hover 이동) 늦게 온 스프라이트는 버린다.

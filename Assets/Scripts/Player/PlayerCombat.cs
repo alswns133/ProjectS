@@ -41,7 +41,7 @@ namespace ProjectS.Players
             public Transform area;
 
             // 이 타격이 참조할 SkillTable 행 ID. 계수·랜덤 범위·게이지 회복량이 전부 여기서 나온다.
-            // 평타=1, 피니시(마지막 타)=2, 우클릭 강공격=3, 캐릭터 스킬=101~(검사) / 201~(거너).
+            // 캐릭터별 3자리: 스킬 x01~x04, 평타 x21·피니시 x22·강공격 x23·대시 x24·점프 x25 (검사 1xx / 거너 2xx).
             // 데미지를 슬롯에 직접 넣지 않는 이유: 밸런스 수치는 기획이 시트에서 바꾸는 값이라
             // 인스펙터와 테이블 두 곳에 두면 어느 쪽이 진짜인지 알 수 없게 된다.
             public int skillId = 1;
@@ -98,8 +98,10 @@ namespace ProjectS.Players
         // skillReadyTime[0]은 쓰지 않는 더미 슬롯.
         private const int MaxSkillNumber = 4;
 
-        // 우클릭 강공격은 캐릭터 공용 행(SKILL_RCLICK)을 쓴다.
-        private const int StrongAttackSkillId = 3;
+        // 우클릭 강공격 행 = 캐릭터ID×100 + 23 (docs/ID_NUMBERING.md 기본 액션 대역 21~25).
+        // 예전엔 전 캐릭터가 공용 행 3을 봐서, 거너가 강공격해도 검사 행의 쿨타임이 적용됐다.
+        private const int StrongAttackSkillNumber = 23;
+        private int StrongAttackSkillId => player.Stats.CharacterId * 100 + StrongAttackSkillNumber;
 
         // 어떤 스킬이 시전 중 '완전 무적'을 주는지는 SkillTable.Invincible(데이터)로 정한다(예: 각성기).
         // 다른 스킬의 슈퍼아머(데미지는 받되 경직만 생략, Player.OnDamaged)와 달리 피격 자체를 씹는다
@@ -114,7 +116,7 @@ namespace ProjectS.Players
         private int[] characterSkillIds;
 
         [Header("강공격")]
-        // 테이블(SkillId 3) 조회에 실패했을 때만 쓰는 폴백 쿨타임.
+        // 테이블(StrongAttackSkillId) 조회에 실패했을 때만 쓰는 폴백 쿨타임.
         [SerializeField] private float strongAttackCooldown = 3f;
 
         private float strongAttackReadyTime;
