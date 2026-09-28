@@ -19,7 +19,7 @@ namespace ProjectS.UI
         [Tooltip("이 핫키가 여닫을 창.")]
         [SerializeField] private PopupToggle.PopupKind target = PopupToggle.PopupKind.Inventory;
 
-        [Tooltip("토글 키. 인벤=I, 장비=P, 스킬=K.")]
+        [Tooltip("토글 키. 인벤=I, 장비=P, 스킬=K, 몬스터 도감=O.")]
         [SerializeField] private Key key = Key.I;
 
         // NPC 상호작용이 시작되면(대화·허브·보상) 열려 있던 창을 닫는다.
