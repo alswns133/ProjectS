@@ -47,6 +47,7 @@ namespace ProjectS.Managers
         public IReadOnlyDictionary<int, PlayerStatTable> PlayerStatDict => GetTable<PlayerStatTable>();
         public IReadOnlyDictionary<int, PlayerLevelTable> PlayerLevelDict => GetTable<PlayerLevelTable>();
         public IReadOnlyDictionary<int, MonsterStatTable> MonsterStatDict => GetTable<MonsterStatTable>();
+        public IReadOnlyDictionary<int, MonsterIndexTable> MonsterIndexDict => GetTable<MonsterIndexTable>();
         public IReadOnlyDictionary<int, SkillTable> SkillDict => GetTable<SkillTable>();
         public IReadOnlyDictionary<int, SkillGrowthTable> SkillGrowthDict => GetTable<SkillGrowthTable>();
 
@@ -111,9 +112,9 @@ namespace ProjectS.Managers
             try { await RegisterAsync<DungeonRewardTable>(critical: false); }
             catch (Exception e) { Debug.LogWarning($"[JsonManager] DungeonRewardTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
-            // 레이드 규칙(제한 시간) 테이블도 2026-09-28 신설이라 같은 방식으로 감싼다. 없으면 제한 시간 없이 동작한다.
-            try { await RegisterAsync<RaidTable>(critical: false); }
-            catch (Exception e) { Debug.LogWarning($"[JsonManager] RaidTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
+            // 몬스터 도감 테이블은 표시 전용 신설 테이블이라, 없어도 게임 진행·세이브엔 영향이 없다 → 선택 테이블로 등록.
+            try { await RegisterAsync<MonsterIndexTable>(critical: false); }
+            catch (Exception e) { Debug.LogWarning($"[JsonManager] MonsterIndexTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
             IsReady = true;   // ★ 모든 로딩이 끝난 뒤에야 true
 
