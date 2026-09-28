@@ -120,7 +120,7 @@ namespace ProjectS.UI
 
             loadedCharacterId = charId;
             SetArt(classSymbol, roster.GetSymbol(charId));
-            SetArt(characterIllust, roster.GetIllust(charId));
+            SetArt(characterIllust, roster.GetStatusPortrait(charId));
         }
 
         private void RefreshStats()

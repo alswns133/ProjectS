@@ -339,24 +339,24 @@ namespace ProjectS.Managers
         }
 
         /// <summary>
-        /// 로딩 화면을 띄운다.
+        /// 로딩 화면을 띄운다. 목적지는 켜질 때 기본 표기로 초기화되므로,
+        /// 목적지를 아는 호출자는 이어서 <see cref="SetLoadingDestination"/>을 부른다.
         /// </summary>
-        /// <param name="sceneName">
-        /// 진입할 씬 이름(BaseScene 파생 클래스 이름). 그 씬에 맞는 로딩 일러스트를 고르는 데 쓴다.
-        /// 목적지가 아직 정해지지 않은 부팅 직후(Bootstrap)처럼 이름을 줄 수 없으면 생략한다 → 기본 이미지.
-        /// </param>
-        public void ShowLoading(string sceneName = null)
-        {
-            // Show()보다 먼저 갈아끼워야 이전 씬의 그림이 한 프레임 비치지 않는다.
-            loadingPanel.SetSceneArt(sceneName);
-            loadingPanel.Show();
-        }
+        public void ShowLoading()
+            => loadingPanel.Show();
 
         public void HideLoading()
             => loadingPanel.Hide();
 
         public void SetLoadingProgress(float progress)
             => loadingPanel.SetProgress(progress);
+
+        /// <summary>
+        /// 로딩 화면에 이동할 목적지를 띄운다. 씬 이름으로 목적지 표를 찾아 이름·구역 코드를 표시한다.
+        /// </summary>
+        /// <param name="sceneName">로드할 씬 이름(씬 클래스 이름)</param>
+        public void SetLoadingDestination(string sceneName)
+            => loadingPanel.SetDestination(sceneName);
 
     }
 }

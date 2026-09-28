@@ -34,9 +34,6 @@ namespace ProjectS.Settings
         /// <summary>해상도 세로. 0이면 모니터 기본.</summary>
         public int ResolutionHeight;
 
-        /// <summary>그래픽 품질 단계 인덱스(Project Settings ▸ Quality 목록 순서). -1이면 프로젝트 기본 단계.</summary>
-        public int QualityLevel = -1;
-
         /// <summary>수직동기화. 켜져 있으면 프레임 제한은 무시된다(Unity 사양).</summary>
         public bool VSync = true;
 
@@ -79,10 +76,6 @@ namespace ProjectS.Settings
         public bool ShowDamageNumbers = true;
 
         private static GameSettings current;
-
-        // 부팅 시점의 품질 단계. QualityLevel = -1(기본)을 적용할 때 되돌아갈 곳이다.
-        // 이걸 잡아 두지 않으면 Low로 바꿨다가 리셋해도 Low에 머문다.
-        private static int bootQualityLevel = -1;
 
         /// <summary>
         /// 현재 확정된 설정. 처음 접근할 때 PlayerPrefs에서 읽고, 없거나 깨졌으면 기본값을 쓴다.
@@ -142,7 +135,6 @@ namespace ProjectS.Settings
         private static void ApplyOnBoot()
         {
             current = null;   // 도메인 리로드를 꺼도 이전 플레이의 값이 남지 않게
-            bootQualityLevel = QualitySettings.GetQualityLevel();
             ApplyGraphics(Current);
         }
 
@@ -180,7 +172,6 @@ namespace ProjectS.Settings
                 ScreenMode = FullScreenMode.FullScreenWindow;   // MaximizedWindow는 macOS 전용이라 옵션에 없다
 
             if (ResolutionWidth <= 0 || ResolutionHeight <= 0) ResolutionWidth = ResolutionHeight = 0;
-            if (QualityLevel < -1 || QualityLevel >= QualitySettings.names.Length) QualityLevel = -1;
             if (FrameLimit < 0) FrameLimit = 0;
 
             MasterVolume = Mathf.Clamp(MasterVolume, 0, 100);
@@ -192,15 +183,12 @@ namespace ProjectS.Settings
             MouseSensitivity = Mathf.Clamp(MouseSensitivity, MinMouseSensitivity, MaxMouseSensitivity);
         }
 
-        // 순서가 중요하다: 품질 단계는 vSyncCount를 자기 값으로 덮어쓰므로 품질 → VSync → 프레임 제한 순으로 적용한다.
+        // 그래픽 품질 단계는 옵션에서 뺐다(2026-09-23, 품질 프리셋 제작 일정 부족). 나중에 넣는다면
+        // QualitySettings.SetQualityLevel이 vSyncCount를 자기 값으로 덮어쓰므로 반드시 VSync보다 먼저 적용할 것.
         private static void ApplyGraphics(GameSettings settings)
         {
             Vector2Int resolution = settings.GetEffectiveResolution();
             Screen.SetResolution(resolution.x, resolution.y, settings.ScreenMode);
-
-            int quality = settings.QualityLevel >= 0 ? settings.QualityLevel : bootQualityLevel;
-            if (quality >= 0 && quality != QualitySettings.GetQualityLevel())
-                QualitySettings.SetQualityLevel(quality, true);
 
             QualitySettings.vSyncCount = settings.VSync ? 1 : 0;
 

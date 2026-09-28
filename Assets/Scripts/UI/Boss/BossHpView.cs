@@ -142,6 +142,11 @@ namespace ProjectS.UI
 
         private void Awake()
         {
+            // barRoot가 비면 Show가 아무것도 켜지 못하고 Update도 그리기를 건너뛰어, 에러 없이 바가 영영 안 뜬다.
+            // 씬에서 바 계층을 다시 만들다 참조가 풀린 사고가 있었다(2026-09-26 Bootstrap) — 조용히 죽지 않게 알린다.
+            if (barRoot == null)
+                Debug.LogWarning($"[BossHpView] {name}: barRoot가 비어 있어 보스 HP 바가 표시되지 않는다. 인스펙터에서 연결하라.", this);
+
             if (track == null) return;
 
             // track에 머티리얼을 안 물리면 Unity가 기본 UI 머티리얼을 돌려준다(null이 아니다).
