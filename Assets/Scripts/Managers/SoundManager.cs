@@ -7,6 +7,7 @@ using UnityEngine.AddressableAssets;
 using System.Threading.Tasks;
 using ProjectS.Core;
 using ProjectS.Events;
+using ProjectS.Networking;
 using ProjectS.Scenes;
 using ProjectS.Settings;
 
@@ -20,6 +21,7 @@ namespace ProjectS.Managers
     /// - 다른 스크립트에서 SoundManager.Instance.PlaySFX(id) 형태로 호출
     /// - 클립은 씬 단위로 로드되며, 씬 전환 시 ReleaseAllClips() 호출 필요
     /// - 3D 사운드는 PlaySFX3D(id, position) 사용
+    /// - 전용 서버·초기화 실패 시에는 Instance는 있지만 전부 no-op (<see cref="IsAvailable"/>)
     /// </remarks>
     public class SoundManager : MonoBehaviour
     {
@@ -57,6 +59,12 @@ namespace ProjectS.Managers
         /// </summary>
         public bool IsSfxMuted { get; private set; }
 
+        /// <summary>
+        /// 사운드를 실제로 낼 수 있는 상태인지 여부. 전용 서버이거나 믹서 초기화에 실패하면 false이며,
+        /// 이때 공개 메서드는 전부 아무것도 하지 않는다(no-op). 호출하는 쪽은 이 값을 확인하지 않아도 된다.
+        /// </summary>
+        public bool IsAvailable { get; private set; }
+
         private AudioMixerGroup bgmGroup;
         private AudioMixerGroup sfxGroup;
         private AudioMixerGroup ambientGroup;
@@ -92,13 +100,38 @@ namespace ProjectS.Managers
             }
         }
 
+        // 실패하면 예외를 던지지 않고 IsAvailable=false로 남긴다. Instance는 Awake에서 이미 등록됐으므로
+        // 여기서 예외가 나면 "Instance는 있는데 bgmSource는 null"인 반쪽 상태가 되어, 호출하는 쪽 전부가
+        // NRE를 맞는다(2026-09-28 전용 서버 부팅 시 Bootstrap → ReleaseAllClips → StopBgm에서 실제 발생).
         private void Initialize()
         {
+            // Dedicated Server 빌드(와 -batchmode 헤드리스 서버)는 오디오가 빠져 있어 믹서 로드·그룹 조회가 실패한다.
+            // 서버는 소리를 낼 일이 없으므로 초기화 자체를 건너뛰고 no-op으로 둔다.
+            // 몬스터·보스 로직은 서버에서 돌기 때문에, 거기서 PlaySFX3D를 불러도 호출부가 서버 여부를 따질 필요가 없게 하기 위함이다.
+            if (GameNetworkManager.IsServerMode)
+            {
+                Debug.Log("[SoundManager] 서버 모드 — 사운드를 비활성화합니다.");
+                return;
+            }
+
             audioMixer = Resources.Load<AudioMixer>("AudioMixer");
+            if (audioMixer == null)
+            {
+                Debug.LogError("[SoundManager] Resources/AudioMixer를 찾지 못해 사운드를 비활성화합니다.");
+                return;
+            }
 
             // 믹서 그룹은 한 번만 찾아서 캐싱 (FindMatchingGroups는 비용이 있음)
-            bgmGroup = audioMixer.FindMatchingGroups(BGM_VOLUME_PARAM)[0];
-            sfxGroup = audioMixer.FindMatchingGroups(SFX_VOLUME_PARAM)[0];
+            AudioMixerGroup[] bgmGroups = audioMixer.FindMatchingGroups(BGM_VOLUME_PARAM);
+            AudioMixerGroup[] sfxGroups = audioMixer.FindMatchingGroups(SFX_VOLUME_PARAM);
+            if (bgmGroups.Length == 0 || sfxGroups.Length == 0)
+            {
+                Debug.LogError($"[SoundManager] 믹서에 '{BGM_VOLUME_PARAM}'/'{SFX_VOLUME_PARAM}' 그룹이 없어 사운드를 비활성화합니다.");
+                return;
+            }
+
+            bgmGroup = bgmGroups[0];
+            sfxGroup = sfxGroups[0];
             ambientGroup = FindGroupOrFallback(AMBIENT_VOLUME_PARAM);
             voiceGroup = FindGroupOrFallback(VOICE_VOLUME_PARAM);
 
@@ -111,6 +144,8 @@ namespace ProjectS.Managers
             {
                 CreateSfxSource();
             }
+
+            IsAvailable = true;
         }
 
         // 저장된 옵션 볼륨을 적용한다. Awake가 아니라 Start인 이유: AudioMixer.SetFloat는
@@ -189,6 +224,7 @@ namespace ProjectS.Managers
         /// <returns>로드 완료를 기다릴 수 있는 Task</returns>
         public Task PreloadClip(string fileName)
         {
+             if (!IsAvailable) return Task.CompletedTask;   // 서버 등: 들을 사람이 없으니 로드도 안 함
              return LoadClipAsync(fileName);
         }
 
@@ -241,6 +277,8 @@ namespace ProjectS.Managers
         /// </summary>
         public void ReleaseAllClips()
         {
+            if (!IsAvailable) return;   // 로드 경로가 전부 막혀 있어 해제할 핸들도 없다
+
             StopBgm();
 
             // 재생 중인 SFX도 정지
@@ -263,6 +301,7 @@ namespace ProjectS.Managers
         /// <param name="soundIndex">사운드 테이블의 인덱스</param>
         public async void PlayBgm(int soundIndex)
         {
+            if (!IsAvailable) return;
             if (!JsonManager.Instance.SoundDict.TryGetValue(soundIndex, out var table))
             {
                 Debug.LogError($"[SoundManager] Index {soundIndex}를 찾을 수 없습니다.");
@@ -287,6 +326,8 @@ namespace ProjectS.Managers
         /// </summary>
         public void StopBgm()
         {
+            if (!IsAvailable) return;
+
             bgmSource.Stop();
             bgmSource.clip = null;
         }
@@ -299,6 +340,7 @@ namespace ProjectS.Managers
         /// <param name="soundIndex">사운드 테이블의 인덱스</param>
         public async void PlaySFX(int soundIndex)
         {
+            if (!IsAvailable) return;
             if (!JsonManager.Instance.SoundDict.TryGetValue(soundIndex, out var table))
             {
                 Debug.LogError($"[SoundManager] Index {soundIndex}를 찾을 수 없습니다.");
@@ -329,6 +371,7 @@ namespace ProjectS.Managers
         /// <param name="position">재생 될 오브젝트의 위치</param>
         public async void PlaySFX3D(int soundIndex, Vector3 position)
         {
+            if (!IsAvailable) return;   // 서버에서 도는 몬스터·보스 로직이 불러도 안전해야 한다
             if (!JsonManager.Instance.SoundDict.TryGetValue(soundIndex, out var table))
             {
                 Debug.LogError($"[SoundManager] Index {soundIndex}를 찾을 수 없습니다.");
@@ -365,7 +408,7 @@ namespace ProjectS.Managers
         /// <param name="settings">반영할 설정</param>
         public void ApplyVolumes(GameSettings settings)
         {
-            if (settings == null) return;
+            if (!IsAvailable || settings == null) return;
 
             // 옵션 음소거는 "볼륨 0"으로 적용한다(볼륨 값 자체는 설정에 남아 음소거 해제 시 복원된다).
             audioMixer.SetFloat(MASTER_VOLUME_PARAM, ToDb(Effective(settings.MasterVolume, settings.MasterMuted)));
@@ -391,6 +434,8 @@ namespace ProjectS.Managers
         /// <param name="volume">볼륨 (0~100, 슬라이더 값 기준)</param>
         public void SetBgmVolume(int volume)
         {
+            if (!IsAvailable) return;
+
             float db = ToDb(volume);
 
             // 뮤트 중 볼륨 변경은 복원값에만 반영. 믹서에 바로 쓰면 뮤트가 풀려버림 (2026-07-20 TH 수정)
@@ -409,6 +454,8 @@ namespace ProjectS.Managers
         /// <param name="volume">볼륨 (0~100, 슬라이더 값 기준)</param>
         public void SetSfxVolume(int volume)
         {
+            if (!IsAvailable) return;
+
             float db = ToDb(volume);
 
             // 뮤트 중 볼륨 변경은 복원값에만 반영. 믹서에 바로 쓰면 뮤트가 풀려버림 (2026-07-20 TH 수정)
@@ -428,6 +475,8 @@ namespace ProjectS.Managers
         /// <param name="mute">true면 무음, false면 뮤트 직전 볼륨으로 복원</param>
         public void SetBgmMute(bool mute)
         {
+            if (!IsAvailable) return;
+
             // 같은 상태로 중복 호출 시 savedBgmDb가 -80으로 덮여 복원이 망가지는 것 방지
             if (mute == IsBgmMuted) return;
 
@@ -451,6 +500,8 @@ namespace ProjectS.Managers
         /// <param name="mute">true면 무음, false면 뮤트 직전 볼륨으로 복원</param>
         public void SetSfxMute(bool mute)
         {
+            if (!IsAvailable) return;
+
             // 같은 상태로 중복 호출 시 savedSfxDb가 -80으로 덮여 복원이 망가지는 것 방지
             if (mute == IsSfxMuted) return;
 

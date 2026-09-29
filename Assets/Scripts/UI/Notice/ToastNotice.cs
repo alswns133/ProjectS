@@ -36,13 +36,14 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 토스트 문구를 채우고 재생한다. 재생 중 새 요청이 오면 최신 문구로 갈아끼워 다시 재생한다.
+        /// 토스트 문구를 채우고 재생한다. 재생 중 새 요청이 오면 최신 문구로 갈아끼우고,
+        /// 떠 있는 상태를 유지한 채 유지 시간만 새로 센다(연타 시 깜빡임 방지).
         /// </summary>
         /// <param name="message">표시할 문구</param>
         public void Show(string message)
         {
             if (messageText != null) messageText.text = message;
-            Play();
+            Play(keepVisible: true);
         }
     }
 }

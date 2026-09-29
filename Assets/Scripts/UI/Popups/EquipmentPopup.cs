@@ -74,10 +74,7 @@ namespace ProjectS.UI
             PlayerEvents.OnCombatStatsChanged -= RefreshStats;
             EnhanceEvents.OnEnhanced -= HandleEnhanced;
 
-            // 인벤·스킬창이 아직 열려 있으면 마우스 모드를 유지한다(공존 팝업이라 하나만 닫혀도 잠그면 안 됨).
-            UIManager ui = UIManager.Instance;
-            if (ui != null && !ui.IsPopupOpen<InventoryPopup>() && !ui.IsPopupOpen<SkillPopup>())
-                PlayerManager.Instance?.Player?.SetCursorMode(false);
+            // 닫을 때 커서를 잠그지 않는다(TPS 복귀는 Alt로만). 이유는 InventoryPopup.OnHide 참고.
         }
 
         private void HandleEquipChanged(ItemData _) => RefreshAll();

@@ -11,12 +11,24 @@ using ProjectS.UI;
 
 namespace ProjectS.Managers
 {
+    [RequireComponent(typeof(CanvasGroup))]
     public class UIManager : MonoBehaviour
     {
         public static UIManager Instance { get; private set; }
 
+        /// <summary>
+        /// 연출(보스 등장 등) 때문에 UI 전체가 숨겨져 있는지. raw 키보드를 읽는 UI 핫키(인벤·포션·채팅 등)는
+        /// 이 값이 true면 입력을 무시해야 한다 — 숨김은 GameObject를 끄지 않고 알파만 내리므로, 핫키가 계속 살아 있어
+        /// 안 보이는 창이 열리거나 포션이 소모되기 때문이다.
+        /// </summary>
+        public static bool IsHidden => Instance != null && Instance.hidden;
+
         // 뒤로가기 버튼 (Esc)
         public InputAction backAction;
+
+        // UI 루트 전체의 표시/클릭을 한 번에 끄고 켜는 그룹. SetHidden 참고.
+        private CanvasGroup rootGroup;
+        private bool hidden;
 
         // 에디터 확인용 리스트 (빌드 시 지울 예정)
         [SerializeField] private List<BasePanel> basePanels;
@@ -43,6 +55,10 @@ namespace ProjectS.Managers
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // RequireComponent는 이미 씬에 배치된 오브젝트에 소급해 붙지 않으므로, 없으면 여기서 붙인다.
+            rootGroup = GetComponent<CanvasGroup>();
+            if (rootGroup == null) rootGroup = gameObject.AddComponent<CanvasGroup>();
 
             // 인스펙터에 일일이 등록 안 해도 됨!
             // 자식 오브젝트에서 자동으로 찾아옴
@@ -81,6 +97,24 @@ namespace ProjectS.Managers
                 backAction.started -= OnBack;
                 backAction.Disable();
             }
+        }
+
+        /// <summary>
+        /// UI 전체를 숨기거나 되살린다. 보스 등장 연출처럼 화면을 비워야 할 때 부른다.
+        /// </summary>
+        /// <remarks>
+        /// GameObject를 끄지 않고 루트 CanvasGroup의 알파·클릭만 내린다. 끄면 그 아래 코루틴이 강제 종료돼
+        /// (스킬 쿨타임 게이지가 연출 뒤 멈춘 채로 남음) Presenter 구독도 풀려 연출 중 이벤트를 놓친다.
+        /// 대신 키 입력은 살아 있으므로 ESC는 <see cref="OnBack"/>에서, 나머지 raw 핫키는 각자 <see cref="IsHidden"/>로 거른다.
+        /// 하위에 ignoreParentGroups를 켠 CanvasGroup이 있으면 그 요소는 숨겨지지 않는다.
+        /// </remarks>
+        /// <param name="hide">true면 숨기고, false면 되살린다.</param>
+        public void SetHidden(bool hide)
+        {
+            hidden = hide;
+            rootGroup.alpha = hide ? 0f : 1f;
+            rootGroup.interactable = !hide;
+            rootGroup.blocksRaycasts = !hide;
         }
 
         /// <summary>
@@ -377,6 +411,9 @@ namespace ProjectS.Managers
         // 뒤로가기 버튼
         private void OnBack(InputAction.CallbackContext context)
         {
+            // 숨김 중 ESC는 무시한다 — 안 보이는 옵션창이 열리거나 안 보이는 팝업이 닫히는 것을 막는다.
+            if (hidden) return;
+
             Back();
             DevLog.Log("[UIManager] Back");
         }

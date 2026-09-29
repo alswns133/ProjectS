@@ -185,6 +185,9 @@ namespace ProjectS.Enemies
             // 레이드가 아닌 보스방(타이머 없음)에서는 아무 일도 없다.
             ProjectS.Scenes.RaidTimeLimit.StopIn(gameObject.scene);
 
+            // 파티 레이드면 결과창의 "재입장"을 받을 투표를 연다(실패 후 재시도와 같은 경로). 세션이 없으면(싱글) 무시된다.
+            ProjectS.Networking.RaidFailSession.NotifyCleared(gameObject.scene);
+
             // 화면이 있는 프로세스(싱글·호스트)에서만 건다. 전용 서버는 화면이 없고, timeScale을 늦추면 서버 시뮬레이션 전체가
             // 느려진다. 원격 파티원 화면은 이 메서드가 안 도므로(DeadState는 서버에서만) BossNetSync.RpcDie가 따로 건다.
             bool isDedicatedServer = NetworkServer.active && !NetworkClient.active;

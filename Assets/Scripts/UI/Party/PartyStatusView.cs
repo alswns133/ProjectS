@@ -56,14 +56,14 @@ namespace ProjectS.UI
         /// <param name="index">슬롯 번호(0부터). <see cref="MaxOtherMembers"/> 이상이면 무시한다.</param>
         /// <param name="memberName">파티원 닉네임</param>
         /// <param name="level">파티원 레벨</param>
-        /// <param name="portrait">초상화. null이면 프리팹 기본값을 쓴다.</param>
-        public void SetMember(int index, string memberName, int level, Sprite portrait = null)
+        /// <param name="symbol">직업 심볼. null이면 심볼을 숨긴다.</param>
+        public void SetMember(int index, string memberName, int level, Sprite symbol = null)
         {
             PartyMemberSlot slot = GetSlot(index);
             if (slot == null) return;
 
             slot.gameObject.SetActive(true);
-            slot.SetMember(memberName, level, portrait);
+            slot.SetMember(memberName, level, symbol);
 
             MemberCount = Mathf.Max(MemberCount, index + 1);
             root.SetActive(true);
