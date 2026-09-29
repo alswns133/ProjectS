@@ -103,10 +103,8 @@ namespace ProjectS.UI
             // 툴팁은 여기서 무조건 닫지 않는다 — 그러면 인벤을 닫을 때 장비창에서 띄운 툴팁까지 사라진다.
             // 대신 슬롯의 OnDisable이 "자기가 주인인 툴팁만" 닫는다(InventoryItemSlot.OnDisable → ItemTooltip.Hide(this)).
 
-            // 장비·스킬창이 아직 열려 있으면 마우스 모드를 유지한다(공존 팝업이라 하나만 닫혀도 잠그면 안 됨).
-            UIManager ui = UIManager.Instance;
-            if (ui != null && !ui.IsPopupOpen<EquipmentPopup>() && !ui.IsPopupOpen<SkillPopup>())
-                PlayerManager.Instance?.Player?.SetCursorMode(false);
+            // 닫을 때 커서를 잠그지 않는다(TPS 복귀는 Alt로만). 뒤에 다른 창(NPC 허브·퀘스트 트래커 등)이 떠 있을 수
+            // 있는데, 여기서 잠그면 그 창이 커서 없이 남아 아무것도 클릭할 수 없게 된다.
         }
 
         // 탭을 바꾸고, 선택 표시를 갱신하고, 선택 탭을 저장한 뒤 그리드를 다시 채운다.
