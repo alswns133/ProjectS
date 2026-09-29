@@ -25,6 +25,9 @@ namespace ProjectS.Players
 
         [Tooltip("스테이터스(장비)창 전용 캐릭터 그림. 비워 두면 illust로 대체한다.")]
         public Sprite statusPortrait;
+
+        [Tooltip("클래스 이름")]
+        public string className;
     }
 
     /// <summary>
@@ -87,6 +90,14 @@ namespace ProjectS.Players
             }
 
             return players;
+        }
+        
+        public string GetClassName(int characterType)
+        {
+            PlayerType t = Find(characterType);
+            if (t == null) return null;
+
+            return t.className;
         }
 
         // characterType으로 칸을 찾는 유일한 규칙. 프리팹·일러스트·심볼 조회가 모두 이 함수를 지난다.

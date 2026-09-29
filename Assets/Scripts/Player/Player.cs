@@ -786,6 +786,15 @@ namespace ProjectS.Players
         {
             if (!CombatAllowed) return;          // 마을(전투 비활성) 또는 마우스 모드에서는 강공격 입력 무시
             if (Stats.IsDead) return;
+
+            // 쿨타임 안내는 동작 게이트(시전 중·캔슬 창·구르기 등)보다 먼저 한다. 뒤에 두면 강공격 모션이
+            // 끝날 때까지 우클릭이 게이트에 조용히 먹혀, 안내가 한참 늦게 뜨는 것처럼 보인다.
+            if (!Combat.CanUseStrongAttack)
+            {
+                UIEvents.FireToast("쿨타임입니다.");
+                return;
+            }
+
             if (IsGrabbed) return;               // 보스에게 잡힌 동안 강공격 금지
             if (IsRolling) return;               // 구르기 커밋 유지
             if (IsHitBlocked) return;            // 피격 중 강공격 금지(태그 캐릭터=Hit 태그 / 기존=경직 타이머)
@@ -797,7 +806,7 @@ namespace ProjectS.Players
             if (usesTags && IsInAttackMotion() && !Combat.ComboCancelWindowOpen) return;  // 평타 캔슬 창
             if (!Movement.IsGrounded) return;    // 올려치기는 지상 전용(공중 우클릭은 무시)
 
-            if (!Combat.UseStrongAttack()) return;   // 쿨타임 중이면 아무 일도 일어나지 않음(잠금 X)
+            if (!Combat.UseStrongAttack()) return;   // 쿨타임은 위에서 확인했으므로 사실상 항상 성공
 
             if (usesTags) Combat.SetInCombo(false);   // 평타를 캔슬하고 나온 것이므로 콤보 종료
             Movement.SnapToCameraForward();

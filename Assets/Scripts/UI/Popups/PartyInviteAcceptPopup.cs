@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Managers;
@@ -63,8 +63,6 @@ namespace ProjectS.UI
         [Tooltip("{0}=레벨, {1}=클래스 이름.")]
         [SerializeField] private string metaFormat = "Lv.{0} {1}";
 
-        [Tooltip("클래스 이름. 인덱스는 CharacterSaveData.characterType과 같다(카드의 classIcons와 같은 순서).")]
-        [SerializeField] private string[] classNames = { "검사", "거너" };
         [SerializeField] private TMP_Text dungeonNameText;
         [SerializeField] private TMP_Text difficultyText;
         [SerializeField] private CountdownView countdown;
@@ -235,18 +233,20 @@ namespace ProjectS.UI
         }
 
         // 레벨과 클래스를 한 줄로 합친다. 카드에서는 클래스를 아이콘으로 두어 이름표가 필요 없었지만,
-        // 여기는 글자 한 줄이라 이름이 있어야 한다. 표는 인스펙터에 두어 기획이 직접 고칠 수 있게 한다.
+        // 여기는 글자 한 줄이라 이름이 있어야 한다. 이름은 CharacterRoster에서 characterType으로 찾는다
+        // (배열 인덱스로 찾으면 1-base인 characterType과 한 칸씩 어긋난다).
+        // 이름을 못 찾아도 레벨은 남긴다 — 엉뚱한 직업을 적는 것보다 레벨만 보이는 편이 낫다.
         private string DescribeMeta(PartyMemberInfo member)
         {
             if (member == null) return string.Empty;
 
-            // 범위를 벗어나면 클래스를 비운다 — 엉뚱한 직업을 적는 것보다 레벨만 보이는 편이 낫다.
-            bool hasName = classNames != null
-                        && member.CharacterType >= 0
-                        && member.CharacterType < classNames.Length;
+            string className = null;
+            if (PlayerManager.Instance != null && PlayerManager.Instance.Roster != null)
+            {
+                className = PlayerManager.Instance.Roster.GetClassName(member.CharacterType);
+            }
 
-            string className = hasName ? classNames[member.CharacterType] : string.Empty;
-            return string.Format(metaFormat, member.Level, className).TrimEnd();
+            return string.Format(metaFormat, member.Level, className ?? string.Empty).TrimEnd();
         }
 
         private void OnAcceptClicked()

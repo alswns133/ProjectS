@@ -1,4 +1,6 @@
 ﻿using UnityEngine;
+using ProjectS.Managers;
+using ProjectS.Players;
 
 namespace ProjectS.UI
 {
@@ -122,14 +124,22 @@ namespace ProjectS.UI
                 return;
             }
 
-            // 초상화는 직업 아이콘 매핑이 붙기 전까지 null(프리팹 기본값 유지). 이름·레벨만 채운다.
-            view.SetMember(PartnerSlot, partner.Nickname, partner.Level);
+            // 직업 심볼은 파티원의 직업(characterType)으로 로스터에서 꺼낸다(결성창 PartySlotView와 같은 출처).
+            // 레벨이 바뀌어도 소스가 OnChanged를 다시 내므로 여기서 함께 갱신된다.
+            view.SetMember(PartnerSlot, partner.Nickname, partner.Level, ResolveSymbol(partner.CharacterType));
 
             // 새 파티원이 앉았으니 첫 값을 반드시 그리게 기준을 눕히고, 붙자마자 현재 HP/SG를 한 번 민다
             // (다음 Update를 기다리지 않게).
             shownHp = -1f;
             shownSg = -1f;
             PushVitals();
+        }
+
+        // 못 찾으면 null — 슬롯이 심볼을 숨긴다. characterType 0(세이브를 못 읽은 프레즌스)이 실제로 들어온다.
+        private static Sprite ResolveSymbol(int characterType)
+        {
+            CharacterRoster roster = PlayerManager.Instance != null ? PlayerManager.Instance.Roster : null;
+            return roster != null ? roster.GetSymbol(characterType) : null;
         }
 
         private void Update()

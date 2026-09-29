@@ -669,6 +669,11 @@ namespace ProjectS.Players
         {
             if (rootAnimator == null || controller == null || !controller.enabled) return;
 
+            // 꺼진 이동 컴포넌트(서버가 가진 원격 아바타 사본, OwnerGate)는 위치를 NetworkTransform에 맡긴다.
+            // 거기선 CharacterController가 판정용으로 켜져 있어 위 가드를 통과하므로, 동기화된 애니의 루트모션이
+            // controller.Move로 새어 NT 위치와 싸우지 않게 여기서 막는다.
+            if (!enabled) return;
+
             Vector3 rootDelta = rootAnimator.deltaPosition;
             if (rootDelta == Vector3.zero) return;
 

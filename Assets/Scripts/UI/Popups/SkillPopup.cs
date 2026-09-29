@@ -106,10 +106,7 @@ namespace ProjectS.UI
             // 영상 클립은 스킬창을 열어 둔 동안만 필요하다 — 닫으면 메모리에서 내린다.
             if (previewVideo != null) previewVideo.Stop();
 
-            // 인벤·장비창이 아직 열려 있으면 마우스 모드를 유지한다(공존 팝업이라 하나만 닫혀도 잠그면 안 됨).
-            UIManager ui = UIManager.Instance;
-            if (ui != null && !ui.IsPopupOpen<InventoryPopup>() && !ui.IsPopupOpen<EquipmentPopup>())
-                PlayerManager.Instance?.Player?.SetCursorMode(false);
+            // 닫을 때 커서를 잠그지 않는다(TPS 복귀는 Alt로만). 이유는 InventoryPopup.OnHide 참고.
         }
 
         // 캐릭터 타입(1=검사·2=거너)에 맞는 프리뷰 아이콘 하나만 켠다.

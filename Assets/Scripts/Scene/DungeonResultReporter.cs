@@ -80,6 +80,12 @@ namespace ProjectS.Scenes
             // 최종 보스를 지정했다면 그 보스일 때만 클리어로 친다(잡몹 웨이브 중 다른 보스 퇴장 무시).
             if (clearBoss != null && boss != clearBoss) return;
 
+            // ★ '죽어서' 사라진 보스만 클리어다. 퇴장 이벤트는 처치 말고도 나간다 — 멀티 클라에서 레이드 실패 후
+            //   마을로 돌아가면 인스턴스의 보스가 내 화면에서 제거되며(BossNetSync.OnStopClient) 퇴장이 발행되는데,
+            //   이걸 클리어로 받아 실패한 판에 결과창이 뜨고 보상까지 지급됐다(2026-09-28).
+            //   클라의 HP는 서버 값으로 동기화되므로(SetNetworkHp) IsDead로 싱글·호스트·클라를 같은 기준으로 가른다.
+            if (boss != null && boss.Stats != null && !boss.Stats.IsDead) return;
+
             reported = true;
 
             // EndBoss가 죽어 사라지는 이 시점에 히트 콤보를 0으로 비워 HUD 콤보 표시를 끈다.

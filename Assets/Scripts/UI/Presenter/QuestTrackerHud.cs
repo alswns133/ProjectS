@@ -255,7 +255,13 @@ namespace ProjectS.UI
         // ---------- 단축키 ----------
 
         // J 단축키 진입점. 실제 동작은 공개 메서드로 빼, HUD 메뉴의 퀘스트 아이콘(HudMenuButton)도 같은 경로를 쓴다.
-        private void OnToggleShortcut(InputAction.CallbackContext _) => ToggleWithCursor();
+        private void OnToggleShortcut(InputAction.CallbackContext _)
+        {
+            // 연출로 UI가 숨겨진 동안엔 무시한다 — 안 보이는 트래커가 펼쳐지며 컷신 중에 커서가 풀린다.
+            if (UIManager.IsHidden) return;
+
+            ToggleWithCursor();
+        }
 
         /// <summary>
         /// 트래커를 '창 펼침 + 마우스 모드'로 함께 토글한다. 접혀 있으면 펼치며 커서를 풀고,

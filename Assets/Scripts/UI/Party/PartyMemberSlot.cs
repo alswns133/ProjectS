@@ -1,11 +1,12 @@
 ﻿using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 파티 현황 HUD의 파티원 한 칸. 기획서 2-2의 ① UI_MP_011(초상화+HP바) ·
+    /// 파티 현황 HUD의 파티원 한 칸. 기획서 2-2의 ① UI_MP_011(직업 심볼+HP바) ·
     /// ② UI_MP_012(이름+레벨) · ③ UI_MP_013(사망 슬롯)을 한 덩어리로 담는다.
     /// </summary>
     /// <remarks>
@@ -23,9 +24,10 @@ namespace ProjectS.UI
     /// </remarks>
     public class PartyMemberSlot : MonoBehaviour
     {
-        [Header("① UI_MP_011 — 초상화 + HP바")]
-        [Tooltip("파티원 초상화. 스프라이트가 없으면 기본 색만 남는다.")]
-        [SerializeField] private Image portrait;
+        [Header("① UI_MP_011 — 직업 심볼 + HP바")]
+        [Tooltip("파티원 직업 심볼. 스프라이트는 CharacterRoster에서 직업(characterType)으로 꺼내 꽂는다(여기서 지정하지 않는다).")]
+        [FormerlySerializedAs("portrait")]   // 초상화 → 직업 심볼로 이름을 바꾸며 기존 인스펙터 연결을 유지한다
+        [SerializeField] private Image symbol;
 
         [Tooltip("Image Type = Filled(Horizontal). fillAmount로 남은 HP 비율을 그린다.")]
         [SerializeField] private Image hpFill;
@@ -65,8 +67,8 @@ namespace ProjectS.UI
         /// </summary>
         /// <param name="memberName">파티원 닉네임</param>
         /// <param name="level">파티원 레벨</param>
-        /// <param name="portraitSprite">초상화. null이면 기존 스프라이트를 유지한다.</param>
-        public void SetMember(string memberName, int level, Sprite portraitSprite = null)
+        /// <param name="symbolSprite">직업 심볼. null이면(직업을 못 찾음) 심볼을 숨긴다.</param>
+        public void SetMember(string memberName, int level, Sprite symbolSprite = null)
         {
             // levelText가 있으면 이미지 목업처럼 두 줄로 나눠 그린다(Lv 윗줄·닉네임 아랫줄).
             // 없으면 기존처럼 nameText 한 줄에 이름·레벨을 합쳐 그린다.
@@ -80,8 +82,13 @@ namespace ProjectS.UI
                 nameText.text = string.Format(NameFormat, memberName, level);
             }
 
-            if (portraitSprite != null && portrait != null)
-                portrait.sprite = portraitSprite;
+            // 슬롯은 파티원이 바뀌어도 재사용된다. 못 찾았을 때 그대로 두면 직전 파티원의 직업이 남거나
+            // 스프라이트 없는 흰 사각형이 그려지므로 숨긴다(엉뚱한 직업보다 빈 자리가 낫다 — PartySlotView와 같은 규칙).
+            if (symbol != null)
+            {
+                symbol.sprite = symbolSprite;
+                symbol.enabled = symbolSprite != null;
+            }
 
             SetDead(false);
         }

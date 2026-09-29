@@ -12,7 +12,8 @@ namespace ProjectS.Debugging
 {
     /// <summary>
     /// 에디터 전용: T 키로 레이드 보스를 클리어할 수 있는 상태를 즉시 만든다 —
-    /// 레벨 <see cref="TargetLevel"/>로 올리고, 캐릭터에 맞는 30레벨 무기(검사 131030 / 거너 132030)를 지급해 바로 착용한다.
+    /// 레벨 <see cref="TargetLevel"/>로 올리고, 캐릭터에 맞는 30레벨 무기(검사 131030 / 거너 132030)를 지급해 바로 착용하며,
+    /// "레이드 게이트 해금" 퀘스트(<see cref="RaidGateQuestId"/>)를 완료로 기록해 마을 레이드 입구 문을 연다.
     /// 레이드 흐름(등장연출·페이즈·제한 시간)을 반복 테스트할 때 매번 육성을 밟지 않기 위한 임시 도구다.
     /// <para>
     /// 씬 배치 불필요 — 플레이 시작 시 자기 오브젝트를 만들어 붙는다(AutoCreate). 파일 전체가 #if UNITY_EDITOR라
@@ -30,6 +31,9 @@ namespace ProjectS.Debugging
         private const int TargetLevel = 30;
         private const int SwordWeaponId = 131030;   // 유물 검 Lv30
         private const int GunWeaponId = 132030;     // 유물 총 Lv30
+
+        // "레이드 게이트 해금"(메인). 마을(VillageGather)의 레이드 입구 문(QuestGateDoor)이 이 퀘스트의 완료 기록을 보고 열린다.
+        private const int RaidGateQuestId = 503016;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
@@ -75,6 +79,7 @@ namespace ProjectS.Debugging
             if (saved != null && saved != controlled) RaiseLevel(saved);
 
             GiveAndEquipWeapon(controlled.Stats.CharacterId);
+            UnlockRaidGate();
 
             // 레벨만 바뀌고 무기가 이미 착용돼 있던 경우엔 Equip의 SaveNow가 안 돌므로 여기서 커밋한다.
             PlayerSaveService.SaveNow();
@@ -117,6 +122,36 @@ namespace ProjectS.Debugging
 
             bool equipped = inventory.Equip(granted);
             DevLog.Log($"[Debug] 무기 {weaponId} 지급" + (equipped ? " + 착용" : " (착용 실패 — 로그/토스트 확인)"));
+        }
+
+        // 레이드 입구 문은 레벨이 아니라 "레이드 게이트 해금" 퀘스트 완료 기록만 보고 열린다(RaidCatalog 요구 레벨은 1).
+        // QuestManager에 디버그 전용 API를 늘리지 않으려고 세이브 왕복(WriteTo → 완료 목록 수정 → RestoreFrom)으로 넣는다.
+        // RestoreFrom이 OnQuestsRestored를 발행하므로, 마을에서 누르면 문과 퀘스트 트래커가 그 자리에서 다시 그려진다.
+        // 보상(경험치·골드·무기)은 주지 않는다 — 무기는 GiveAndEquipWeapon이 따로 지급한다.
+        private static void UnlockRaidGate()
+        {
+            QuestManager quests = QuestManager.Instance;
+            if (quests == null)
+            {
+                DevLog.Log("[Debug] QuestManager가 없어 레이드 해금 생략");
+                return;
+            }
+
+            if (quests.IsCompleted(RaidGateQuestId))
+            {
+                DevLog.Log($"[Debug] 레이드 게이트({RaidGateQuestId}) 이미 해금됨");
+                return;
+            }
+
+            // 임시 세이브에 현재 퀘스트 상태를 떠서 고친 뒤 되돌린다. WriteTo/RestoreFrom은 퀘스트 필드만 오가므로
+            // 레벨·장비 등 다른 세이브 값에는 영향이 없다.
+            var snapshot = new CharacterSaveData();
+            quests.WriteTo(snapshot);
+            snapshot.activeQuests.RemoveAll(q => q != null && q.questId == RaidGateQuestId);   // 진행 중이었다면 목록에서 뺀다
+            snapshot.completedQuestIds.Add(RaidGateQuestId);
+            quests.RestoreFrom(snapshot);
+
+            DevLog.Log($"[Debug] 레이드 게이트({RaidGateQuestId}) 해금 — 마을 레이드 입구 문 열림");
         }
 
         private static EquipmentInstance FindInBag(InventoryManager inventory, int itemId)

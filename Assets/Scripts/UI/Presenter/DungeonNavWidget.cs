@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using ProjectS.Enemies;
 using ProjectS.Players;
 
@@ -8,9 +9,9 @@ namespace ProjectS.UI
     /// 던전 "다음 지역" 안내 위젯(HUD). 플레이어가 있는 전투방(<see cref="DungeonNav.CurrentRoom"/>)을 읽어,
     /// 방을 클리어하면 다음 지역 방향으로 화살표를 돌리고 안내 묶음을 켠다. 전투 중에는 숨긴다.
     ///
-    /// 표시 요소(화살표·"GO!"·안내문)는 모두 <see cref="root"/> 자식으로 묶어 둔다. 이 스크립트는 <see cref="root"/>를
-    /// 통째로 켜고 끄고, 화살표(<see cref="arrowRect"/>)만 매 프레임 회전시킨다 — "GO!"와 안내문은 정적 텍스트라
-    /// 코드가 건드릴 게 없으므로 root에 얹혀 함께 나타났다 사라진다.
+    /// 표시 요소(화살표·거리·"GO!"·안내문)는 모두 <see cref="root"/> 자식으로 묶어 둔다. 이 스크립트는 <see cref="root"/>를
+    /// 통째로 켜고 끄고, 화살표(<see cref="arrowRect"/>)를 매 프레임 회전시키며 거리(<see cref="distanceText"/>)를 갱신한다 —
+    /// "GO!"와 안내문은 정적 텍스트라 코드가 건드릴 게 없으므로 root에 얹혀 함께 나타났다 사라진다.
     ///
     /// <b>배치</b>: 이 스크립트는 <b>항상 켜져 있는 부모</b>에 붙이고(예: OverlayCanvas 직속 자식), <see cref="root"/>에는
     /// 그 자식(안내 묶음)을 넣는다. root를 이 오브젝트 자신으로 두면 숨길 때 <c>SetActive(false)</c>로 자기
@@ -33,6 +34,13 @@ namespace ProjectS.UI
         [Tooltip("화살표 스프라이트의 기본 방향 보정(도). 이미지가 '위(↑)'를 향해 그려졌으면 0. " +
                  "오른쪽(→)이면 -90, 아래(↓)면 180, 왼쪽(←)이면 90. bearing과 무관하게 UI 회전만 보정한다.")]
         [SerializeField] private float arrowAngleOffset;
+
+        [Tooltip("화살표 아래에 띄울 목표까지 거리 텍스트(예: \"24m\"). root 자식이되 arrowRect 자식이면 안 된다 — " +
+                 "화살표와 함께 돌아가 글자가 기운다. 비워 두면 거리 표시 없이 화살표만 돈다.")]
+        [SerializeField] private TMP_Text distanceText;
+
+        // 마지막으로 표시한 거리(m, 정수). 값이 바뀔 때만 text를 갱신해 매 프레임 문자열 할당을 피한다.
+        private int shownMeters = -1;
 
         // 지속 플레이어라 한 번 잡으면 유지된다. 씬 전환으로 파괴되면 Unity가 null로 만들어 다시 잡는다.
         private Player player;
@@ -81,6 +89,17 @@ namespace ProjectS.UI
             {
                 float bearing = QuestNavResolver.BearingRelativeToCamera(to, cam);
                 arrowRect.localRotation = Quaternion.Euler(0f, 0f, -bearing + arrowAngleOffset);
+            }
+
+            // 거리도 방향과 같은 XZ 평면 기준(계단·경사로 높이 차는 안내에 의미가 없다). 표기는 퀘스트 나침반과 같은 "Nm".
+            if (distanceText != null)
+            {
+                int meters = Mathf.RoundToInt(to.magnitude);
+                if (meters != shownMeters)
+                {
+                    shownMeters = meters;
+                    distanceText.text = meters + "m";
+                }
             }
         }
 

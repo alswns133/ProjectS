@@ -95,6 +95,28 @@ namespace ProjectS.Networking
             => sessions.TryGetValue(party, out session) && session != null;
 
         /// <summary>
+        /// 이 인스턴스의 레이드가 <b>클리어</b>됐음을 알린다. 세션을 재입장 투표로 돌린다(서버 전용, 없으면 무시).
+        /// </summary>
+        /// <remarks>
+        /// 클리어 후 결과창의 "재입장"도 실패 후 재시도와 같은 규칙(전원 동의 → 파티 전체 재입장, 한 명이라도
+        /// 마을 복귀 = 무산)을 따른다. 이게 없으면 파티의 재입장 버튼이 서버에 닿을 곳이 없어 아무 반응도 없었다(2026-09-28).
+        /// 최종 보스 사망(<c>Boss.OnDied</c>)이 부른다. 싱글·호스트 없는 경로에서는 세션이 없어 아무 일도 없다.
+        /// </remarks>
+        /// <param name="instanceScene">클리어된 인스턴스 씬.</param>
+        public static void NotifyCleared(Scene instanceScene)
+        {
+            if (!NetworkServer.active) return;
+
+            foreach (RaidFailSession session in sessions.Values)
+            {
+                if (session == null || session.instance != instanceScene) continue;
+
+                session.OpenClearVote();
+                return;
+            }
+        }
+
+        /// <summary>
         /// 파티원 한 명의 다운 상태를 기록한다. 다운은 "사망 + 부활 기회 0"이며, 부활하면 해제된다.
         /// </summary>
         /// <param name="memberNetId">보고한 파티원의 플레이어 오브젝트 netId.</param>
@@ -122,7 +144,8 @@ namespace ProjectS.Networking
                 return;
             }
 
-            agreed.Add(memberNetId);
+            if (agreed.Add(memberNetId))
+                Debug.Log($"[진단][RaidFail] 재시도 동의 — netId={memberNetId} ({agreed.Count}/{expected.Count})", this);
         }
 
         /// <summary>
@@ -165,6 +188,19 @@ namespace ProjectS.Networking
 
             if (agreed.Count >= expected.Count) Retry();
             else if (NetworkTime.time >= voteDeadline) Cancel("시간이 지나 재시도가 취소됐습니다.");
+        }
+
+        // 클리어 → 재입장 투표. 실패와 달리 실패 알림(TargetRaidFailed)을 보내지 않는다 — 각자 결과창을 보고
+        // 퇴장 선택 창(DungeonExitPopup)에서 투표한다. 결과창을 넘기는 속도가 사람마다 달라 제한 시간을 두지 않고,
+        // 무산은 누군가 마을 복귀(= 거절)를 고르거나 인스턴스를 떠날 때만 난다.
+        private void OpenClearVote()
+        {
+            if (phase != Phase.Fighting) return;
+
+            phase = Phase.Voting;
+            voteDeadline = double.MaxValue;
+
+            Debug.Log($"[진단][RaidFail] 레이드 클리어 — 파티 {partyId}, {expected.Count}명. 재입장 투표 시작(제한 없음)", this);
         }
 
         // 파티 전멸·시간 초과 → 실패 확정. 투표를 열고 전원에게 알린다.

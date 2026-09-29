@@ -288,6 +288,29 @@ namespace ProjectS.Enemies
         }
 
         /// <summary>
+        /// 피격 연출(하이라이트 번쩍임 + 데미지 텍스트)만 낸다. HP·그로기·사망은 건드리지 않는다.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="TakeDamage"/>가 적용 직후 부르고, 멀티에선 원격 클라가 <b>서버가 확정한 결과를 돌려받아</b> 부른다
+        /// (<c>NetworkDamageRelay.TargetBossHitConfirmed</c>). 원격 클라의 보스 타격은 서버로만 보내고 로컬 TakeDamage를
+        /// 건너뛰므로, 이 경로가 없으면 텍스트가 서버 프로세스에서만 떠 때린 사람 화면엔 아무것도 안 보인다.
+        /// 연출을 한 곳에 모아 두 경로의 표시가 어긋나지 않게 한다.
+        /// </remarks>
+        /// <param name="amount">실제 적용된 피해량.</param>
+        /// <param name="isCritical">치명타 여부(텍스트 스타일).</param>
+        public void PlayHitFeedback(int amount, bool isCritical)
+        {
+            // 사망 타격 포함, "맞았다"를 항상 보여준다.
+            hitHighlight?.Flash();
+
+            // 연출은 이벤트로만 알린다(데미지 텍스트·이펙트가 각자 구독).
+            CombatEvents.FireDamageDealt(
+                transform.position + Vector3.up * damageTextHeight,
+                amount,
+                isCritical ? DamageTextKind.Critical : DamageTextKind.Normal);
+        }
+
+        /// <summary>
         /// 데미지 적용. 몬스터는 무적이 없어 살아 있으면 항상 적용된다.
         /// </summary>
         /// <returns>실제 적용됐으면 true. 이미 죽은 대상이면 false(IDamageable 계약).</returns>
@@ -308,19 +331,12 @@ namespace ProjectS.Enemies
                 Debug.Log($"[진단][BossDeath] '{name}' 사망 타격 — 피해 {result.Amount}, HP {hpBefore}→{currentHp}/{maxHp}, " +
                           $"t={Time.time:0.00}\n{System.Environment.StackTrace}", this);
 
-            // 피격 피드백: 하이라이트를 잠깐 번쩍인다(사망 타격 포함, "맞았다"를 항상 보여준다).
-            hitHighlight?.Flash();
-
             // TODO(sound): 몬스터 피격음 — SoundManager.Instance.PlaySFX3D(SoundID.SFX_MonsterHit, transform.position);
             //   여기가 "실제 데미지 적용" 타이밍. 사망 타격도 여기를 지나므로, 처치음을 따로 낼지는 아래 사망 분기와 조율.
 
-            // 연출은 이벤트로만 알린다(데미지 텍스트·이펙트가 각자 구독).
             // 받은 쪽이 발행하는 이유: 방어력까지 반영된 '실제 적용된' 수치를 아는 곳이 여기이기 때문.
             // 치명타 여부는 때린 쪽만 알 수 있어 DamageResult에 실려 온다.
-            CombatEvents.FireDamageDealt(
-                transform.position + Vector3.up * damageTextHeight,
-                result.Amount,
-                result.IsCritical ? DamageTextKind.Critical : DamageTextKind.Normal);
+            PlayHitFeedback(result.Amount, result.IsCritical);
 
             // HP 바 갱신용. 사망(비율 0)까지 포함해 항상 발행한다 — 구독자가 풀피/사망을 "바 치우기"로,
             // 그 사이를 "붙이기·갱신"으로 처리한다. 비활성화 전에 발행해 위치 참조가 유효하다.

@@ -162,6 +162,7 @@ namespace ProjectS.Networking
                 // 로컬에서만 걸었던 HP/SG 구독을 짝 맞춰 푼다. 안 풀면 파괴된 프레즌스가 static 이벤트에 남는다.
                 PlayerEvents.OnHpChanged -= OnLocalHpChanged;
                 PlayerEvents.OnSGChanged -= OnLocalSgChanged;
+                PlayerEvents.OnLevelChanged -= OnLocalLevelChanged;
             }
             OnAnyChanged?.Invoke();
         }
@@ -195,6 +196,9 @@ namespace ProjectS.Networking
             // PlayerEvents는 static이라 마을↔던전 씬 전환에도 구독이 유지된다.
             PlayerEvents.OnHpChanged += OnLocalHpChanged;
             PlayerEvents.OnSGChanged += OnLocalSgChanged;
+
+            // 레벨은 등록 때 한 번만 올라가서, 파티 중 레벨업이 파티원 카드에 반영되지 않았다(2026-09-28). 바뀔 때마다 올린다.
+            PlayerEvents.OnLevelChanged += OnLocalLevelChanged;
 
             // 구독 직전에 이미 발행됐을 현재 스탯을 다시 받아 첫 값을 밀어 올린다(HudPresenter와 같은 통로).
             PlayerEvents.FireStatsRefreshRequested();
@@ -235,6 +239,28 @@ namespace ProjectS.Networking
         public void CmdSetAcceptsInvites(bool accepts)
         {
             acceptsInvites = accepts;
+        }
+
+        // ── 로컬 → 서버: 내 레벨 밀어 올리기 ──────────────────────────
+        // 레벨업·스폰 때마다 PlayerStats가 발행한다. 같은 값이면 보내지 않는다(스탯 새로고침마다 재발행되므로).
+        private void OnLocalLevelChanged(int newLevel)
+        {
+            if (newLevel == level) return;
+            CmdSetLevel(newLevel);
+        }
+
+        /// <summary>
+        /// 내 레벨을 서버에 반영한다(→ 파티원 클라의 결성창·파티 카드로 복제). 등록과 같은 trust-on-first-use다.
+        /// </summary>
+        /// <remarks>
+        /// 레벨은 게임 안에서 내려가지 않으므로 더 낮은 값은 무시한다. 멀티에선 숨겨진 마을 캐릭터와 레이드 아바타가
+        /// 각자 PlayerStats를 가져, 스폰 직후 아직 기본값(1)인 쪽이 발행해도 카드 레벨이 떨어지지 않게 하기 위함이다.
+        /// </remarks>
+        /// <param name="lv">현재 레벨</param>
+        [Command]
+        private void CmdSetLevel(int lv)
+        {
+            if (lv > level) level = lv;
         }
 
         // ── 로컬 → 서버: 내 HP/SG 밀어 올리기 ──────────────────────────
