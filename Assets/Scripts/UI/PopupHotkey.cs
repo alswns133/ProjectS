@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using ProjectS.Managers;
 using ProjectS.NPCs;
 
 namespace ProjectS.UI
@@ -35,6 +36,9 @@ namespace ProjectS.UI
             // 특히 채팅은 Enter가 '열기'와 '전송'에 겹치는데, PopupHotkey는 Keyboard를 직접 읽어(SetInputSuspended 무관)
             // 이 가드가 없으면 전송·닫기와 같은 프레임에 다시 열려 깜빡인다.
             if (UiTypingGuard.IsTypingInInputField()) return;
+
+            // 연출로 UI가 숨겨진 동안엔 안 보이는 창이 열리지 않게 무시한다(UIManager.SetHidden은 알파만 내린다).
+            if (UIManager.IsHidden) return;
 
             if (keyboard[key].wasPressedThisFrame) PopupToggle.Toggle(target);
         }

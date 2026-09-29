@@ -1091,7 +1091,8 @@ namespace ProjectS.Scenes
             if (!hideUIDuringIntro) return;
             if (UIManager.Instance == null) return;
 
-            UIManager.Instance.gameObject.SetActive(!hide);
+            // 비활성화가 아니라 알파로 숨긴다 — 끄면 HUD 코루틴(스킬 쿨타임 게이지)이 죽어 연출 뒤 멈춘 채로 남는다.
+            UIManager.Instance.SetHidden(hide);
             uiHidden = hide;
         }
     }

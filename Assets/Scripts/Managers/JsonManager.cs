@@ -112,6 +112,11 @@ namespace ProjectS.Managers
             try { await RegisterAsync<DungeonRewardTable>(critical: false); }
             catch (Exception e) { Debug.LogWarning($"[JsonManager] DungeonRewardTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
 
+            // 레이드 제한 시간(RaidTimeLimit). 어드레서블만 등록하고 여기 로드 등록이 빠져 제한 시간이 싱글·파티 모두
+            // 꺼져 있었다(2026-09-28, 서버 로그 "RaidTable 테이블 미로드"). 없으면 "제한 없음"으로 도는 부가 규칙이라 선택 테이블.
+            try { await RegisterAsync<RaidTable>(critical: false); }
+            catch (Exception e) { Debug.LogWarning($"[JsonManager] RaidTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }
+
             // 몬스터 도감 테이블은 표시 전용 신설 테이블이라, 없어도 게임 진행·세이브엔 영향이 없다 → 선택 테이블로 등록.
             try { await RegisterAsync<MonsterIndexTable>(critical: false); }
             catch (Exception e) { Debug.LogWarning($"[JsonManager] MonsterIndexTable 로드 건너뜀(어드레서블 미등록?): {e.Message}"); }

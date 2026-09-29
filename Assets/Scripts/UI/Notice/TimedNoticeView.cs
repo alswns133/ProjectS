@@ -90,7 +90,12 @@ namespace ProjectS.UI
         /// (연속 레벨업처럼 같은 알림이 겹쳐 들어올 때 최신 내용을 보여주기 위함).
         /// 표시 내용은 이 호출 <b>전에</b> 파생 클래스가 채워 둔다.
         /// </summary>
-        protected void Play()
+        /// <param name="keepVisible">
+        /// true면 이미 보이는 알림을 투명으로 되돌리지 않고 <b>현재 알파에서 이어 올린 뒤 유지 시간만 새로 센다.</b>
+        /// 같은 안내가 연타로 들어오는 토스트("쿨타임입니다.")가 누를 때마다 깜빡이지 않게 하기 위함이다.
+        /// 내용이 바뀌었음을 보여줘야 하는 알림(레벨업 등)은 기본값 false로 처음부터 다시 페이드 인한다.
+        /// </param>
+        protected void Play(bool keepVisible = false)
         {
             // 꺼져 있으면 켜야 코루틴이 돈다. SetActive(true)는 Awake를 그 자리에서 동기 실행하므로
             // 아래 group 참조는 항상 준비된 상태다(첫 재생이 곧 Awake인 경우 포함).
@@ -106,7 +111,8 @@ namespace ProjectS.UI
             if (group == null) group = GetComponent<CanvasGroup>();
 
             if (routine != null) StopCoroutine(routine);
-            routine = StartCoroutine(PlayRoutine());
+            float startAlpha = keepVisible ? group.alpha : 0f;
+            routine = StartCoroutine(PlayRoutine(startAlpha));
         }
 
         /// <summary>
@@ -127,9 +133,10 @@ namespace ProjectS.UI
         /// </summary>
         protected virtual void OnNoticeFinished() { }
 
-        private IEnumerator PlayRoutine()
+        private IEnumerator PlayRoutine(float startAlpha)
         {
-            yield return Fade(0f, 1f, fadeInSeconds);
+            // 이어 올리는 경우 남은 알파만큼만 페이드 인한다(완전히 보이는 중이면 즉시 유지 구간으로).
+            yield return Fade(startAlpha, 1f, fadeInSeconds * (1f - startAlpha));
 
             // 페이드 인이 끝난 시점에 한 번만 평가한다. 대기열이 남았는지에 따라 파생 클래스가 줄일 수 있다.
             float remain = ResolveHoldSeconds();

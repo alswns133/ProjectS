@@ -20,6 +20,10 @@ namespace ProjectS.UI
             // 채팅에 'q'/'e'를 치면 포션이 소모되기 때문(다른 raw 핫키들과 동일한 포커스 기준 게이트).
             if (UiTypingGuard.IsTypingInInputField()) return;
 
+            // 연출로 UI가 숨겨진 동안(보스 등장 등)엔 포션을 쓰지 않는다. 예전엔 UIManager가 꺼지며 이 컴포넌트도
+            // 함께 멈췄지만, 지금은 알파로만 숨겨 계속 돌기 때문에 명시적으로 막는다.
+            if (UIManager.IsHidden) return;
+
             InventoryManager inv = InventoryManager.Instance;
             if (inv == null) return;
 

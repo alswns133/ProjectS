@@ -103,6 +103,7 @@ namespace ProjectS.UI
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null || !keyboard[toggleKey].wasPressedThisFrame) return;
             if (IsTyping()) return;
+            if (UIManager.IsHidden) return;   // 연출로 UI가 숨겨진 동안엔 안 보이는 결성창을 열지 않는다
 
             RequestToggle();
         }

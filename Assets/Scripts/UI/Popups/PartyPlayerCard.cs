@@ -1,3 +1,5 @@
+﻿using ProjectS.Managers;
+using ProjectS.Players;
 using System;
 using System.Collections;
 using TMPro;
@@ -50,8 +52,8 @@ namespace ProjectS.UI
 
         [Header("② 플레이어")]
         [SerializeField] private TMP_Text levelText;
-        [Tooltip("직업 아이콘 오브젝트. 인덱스는 CharacterSaveData.characterType과 같고, 해당하는 하나만 켠다.")]
-        [SerializeField] private GameObject[] classIcons;
+        [Tooltip("직업 심볼. 스프라이트는 CharacterRoster에서 characterType으로 꺼내 꽂는다(여기서 지정하지 않는다).")]
+        [SerializeField] private Image classIcons;
         [SerializeField] private TMP_Text nameText;
 
         [Header("③ 상태")]
@@ -119,14 +121,19 @@ namespace ProjectS.UI
             if (levelText != null) levelText.text = $"Lv.{member.Level}";
             if (nameText != null) nameText.text = member.Nickname;
 
-            // 직업 아이콘: 해당하는 하나만 켠다. 범위를 벗어나면 전부 꺼져 아이콘 자리가 빈다
-            // (엉뚱한 직업을 보여주는 것보다 낫다).
+            // 직업 심볼: CharacterRoster에서 characterType으로 꺼낸다. 못 찾으면 Image를 꺼 자리를 비운다
+            // (엉뚱한 직업을 보여주는 것보다 낫다). 카드는 풀에서 재사용되므로 끄지 않으면 직전 사람의
+            // 심볼이 남거나, sprite 없는 흰 사각형이 그려진다(characterType 0 = 세이브 못 읽은 프레즌스).
             if (classIcons != null)
             {
-                for (int i = 0; i < classIcons.Length; i++)
+                Sprite symbol = null;
+                if (PlayerManager.Instance != null && PlayerManager.Instance.Roster != null)
                 {
-                    if (classIcons[i] != null) classIcons[i].SetActive(i == member.CharacterType);
+                    symbol = PlayerManager.Instance.Roster.GetSymbol(member.CharacterType);
                 }
+
+                classIcons.sprite = symbol;
+                classIcons.enabled = symbol != null;
             }
 
             // ① 접속 구체: 색이 아니라 형태(채운 원/빈 원)가 다른 두 오브젝트를 갈아 켠다.

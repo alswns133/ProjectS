@@ -189,6 +189,9 @@ namespace ProjectS.UI
                 // wasPressedThisFrame이라 여기서 곧바로 다시 포커스가 걸려 "포커스가 안 풀리는" 증상이 난다.
                 if (Time.frameCount == submitFrame) return;
 
+                // 연출로 UI가 숨겨진 동안엔 Enter로 채팅을 열지 않는다 — 안 보이는 입력창에 포커스가 걸려 게임 입력이 잠긴다.
+                if (UIManager.IsHidden) return;
+
                 // 포커스 아님 + Enter → 입력창 포커스(채팅 시작).
                 // 이 Enter가 곧바로 빈 submit으로 새어도 SubmitMessage가 '유지'로 처리하므로 열자마자 닫히지 않는다.
                 if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
