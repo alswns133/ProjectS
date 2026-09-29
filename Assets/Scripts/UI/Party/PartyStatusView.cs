@@ -57,13 +57,14 @@ namespace ProjectS.UI
         /// <param name="memberName">파티원 닉네임</param>
         /// <param name="level">파티원 레벨</param>
         /// <param name="symbol">직업 심볼. null이면 심볼을 숨긴다.</param>
-        public void SetMember(int index, string memberName, int level, Sprite symbol = null)
+        /// <param name="isLeader">이 파티원이 파티장인가. 왕관 표시에 쓴다.</param>
+        public void SetMember(int index, string memberName, int level, Sprite symbol = null, bool isLeader = false)
         {
             PartyMemberSlot slot = GetSlot(index);
             if (slot == null) return;
 
             slot.gameObject.SetActive(true);
-            slot.SetMember(memberName, level, symbol);
+            slot.SetMember(memberName, level, symbol, isLeader);
 
             MemberCount = Mathf.Max(MemberCount, index + 1);
             root.SetActive(true);
