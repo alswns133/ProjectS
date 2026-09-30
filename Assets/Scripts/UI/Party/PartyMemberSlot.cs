@@ -47,6 +47,9 @@ namespace ProjectS.UI
         [SerializeField] private TMP_Text levelText;
         [SerializeField] private TMP_Text nameText;
 
+        [Tooltip("파티장 표시(왕관). 이 슬롯의 파티원이 파티장일 때만 켜고, 일반 파티원이면 끈다.")]
+        [SerializeField] private GameObject crown;
+
         [Header("③ UI_MP_013 — 사망 처리")]
         [Tooltip("사망처리할 이펙트의 오브젝트")]
         [SerializeField] private GameObject dieEffectObj;
@@ -68,8 +71,13 @@ namespace ProjectS.UI
         /// <param name="memberName">파티원 닉네임</param>
         /// <param name="level">파티원 레벨</param>
         /// <param name="symbolSprite">직업 심볼. null이면(직업을 못 찾음) 심볼을 숨긴다.</param>
-        public void SetMember(string memberName, int level, Sprite symbolSprite = null)
+        /// <param name="isLeader">이 파티원이 파티장인가. true일 때만 왕관을 켠다.</param>
+        public void SetMember(string memberName, int level, Sprite symbolSprite = null, bool isLeader = false)
         {
+            // 슬롯은 재사용되므로 매번 명시적으로 켜고 끈다. 씬에 켠 채로 저장돼 있어도
+            // 일반 파티원이면 여기서 꺼진다(직전 파티장의 왕관이 남지 않게).
+            if (crown != null) crown.SetActive(isLeader);
+
             // levelText가 있으면 이미지 목업처럼 두 줄로 나눠 그린다(Lv 윗줄·닉네임 아랫줄).
             // 없으면 기존처럼 nameText 한 줄에 이름·레벨을 합쳐 그린다.
             if (levelText != null)
