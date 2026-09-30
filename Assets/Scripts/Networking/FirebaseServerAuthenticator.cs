@@ -1,13 +1,13 @@
+﻿using Mirror;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using ProjectS.Data;
+using ProjectS.Managers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using Mirror;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using ProjectS.Data;
-using ProjectS.Managers;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -43,6 +43,9 @@ namespace ProjectS.Networking
 
         [Tooltip("REST 요청 타임아웃(초). 초과하면 실패로 처리(requireAuth면 거부, 아니면 save 없이 허용).")]
         [SerializeField] private int restTimeoutSeconds = 10;
+
+        [Tooltip("재도출 REST 사이 최소 간격(초). 요청이 연달아 와도 이 간격보다 자주 읽지 않는다(연타·변조 클라 방지).")]
+        [SerializeField] private float rederiveMinInterval = 1f;
 
         #region Messages
 
@@ -98,6 +101,13 @@ namespace ProjectS.Networking
             /// 클라로 복제하고, 보스 데미지 재계산에 쓴다. <see cref="save"/>가 null이면 0 블록이다.
             /// </summary>
             public CombatStatBlock stats;
+
+            // ── 재도출(스탯 변경 후) ──
+            /// <summary>재도출 REST 읽기가 진행 중인지. 진행 중에 온 요청은 새로 읽지 않고 <see cref="rederiveQueued"/>만 켠다.</summary>
+            public bool rederiveInFlight;
+
+            /// <summary>진행 중에 요청이 또 왔는지. 켜져 있으면 지금 읽기가 끝난 뒤 최신 세이브로 한 번 더 읽는다.</summary>
+            public bool rederiveQueued;
         }
 
         // 커넥션 → 인증 정보. 서버 전용. static이라 스폰 훅·스탯 도출 등 다른 서버 코드가 조회한다.
@@ -176,67 +186,104 @@ namespace ProjectS.Networking
             StartCoroutine(LoadSaveThenDecide(conn, auth));
         }
 
-        // 토큰으로 Users/{uid}/Characters/{characterId} 를 REST GET → 세이브 파싱 → 수락/거부.
-        private IEnumerator LoadSaveThenDecide(NetworkConnectionToClient conn, PendingConnectionAuth auth)
-        {
-            string url = $"{databaseUrl.TrimEnd('/')}/Users/{auth.uid}/Characters/{auth.characterId}.json?auth={UnityWebRequest.EscapeURL(auth.idToken)}";
+        private enum SaveFetchResult { None ,Success, RequestFailed, NotFound, ParseFailed }
 
+        // uid/charId/토큰으로 세이브를 REST로 읽는다. 인증(최초)과 재도출이 같이 쓴다.
+        // 결과 판정(수락/거부/적용)은 호출측 몫 — 여기서는 읽기·파싱만 한다.
+        private IEnumerator FetchSave(string uid, long characterId, string idToken, Action<SaveFetchResult, CharacterSaveData> onDone)
+        {
+            string url = $"{databaseUrl.TrimEnd('/')}/Users/{uid}/Characters/{characterId}.json?auth={UnityWebRequest.EscapeURL(idToken)}";
             using (UnityWebRequest req = UnityWebRequest.Get(url))
             {
                 req.timeout = Mathf.Max(1, restTimeoutSeconds);
                 yield return req.SendWebRequest();
 
-                // 커넥션이 그 사이 끊겼으면 조용히 끝낸다(끊긴 커넥션에 Accept/Reject 금지).
-                if (!pending.ContainsKey(conn)) yield break;
-
-                if (req.result != UnityWebRequest.Result.Success)
+                if(req.result != UnityWebRequest.Result.Success)
                 {
                     // 401/권한거부(토큰이 그 uid 것이 아님) 포함. 위조 토큰은 여기서 걸린다.
-                    Debug.LogWarning($"[Auth] 세이브 REST 실패 conn={conn.connectionId}, uid={auth.uid}, " +
+                    Debug.LogWarning($"[Auth] 세이브 REST 실패 uid={uid}, " +
                                      $"result={req.result}, http={req.responseCode}, err={req.error}");
-                    if (requireAuth) Reject(conn, "세이브 인증/조회 실패.");
-                    else AcceptDev(conn, "REST 실패 → 개발 허용(save=null)");
+
+                    onDone(SaveFetchResult.RequestFailed, null);
                     yield break;
+                   
                 }
 
                 string body = req.downloadHandler.text;
 
                 // RTDB는 노드가 없으면 리터럴 "null"을 준다(존재하지 않는 캐릭터 id).
-                if (string.IsNullOrWhiteSpace(body) || body == "null")
+                if(string.IsNullOrWhiteSpace(body) || body == "null")
                 {
-                    Debug.LogWarning($"[Auth] 세이브 없음 conn={conn.connectionId}, uid={auth.uid}, charId={auth.characterId}");
-                    if (requireAuth) Reject(conn, "선택한 캐릭터를 찾을 수 없습니다.");
-                    else AcceptDev(conn, "세이브 없음 → 개발 허용(save=null)");
+                    Debug.LogWarning($"[Auth] 세이브 없음 uid={uid}, charId={characterId}");
+                    onDone(SaveFetchResult.NotFound, null);
                     yield break;
                 }
 
                 CharacterSaveData save;
+
                 try
                 {
                     save = JsonConvert.DeserializeObject<CharacterSaveData>(body);
+
                 }
-                catch (Exception ex)
+                catch(Exception ex)
                 {
-                    Debug.LogError($"[Auth] 세이브 파싱 실패 conn={conn.connectionId}: {ex}");
-                    if (requireAuth) Reject(conn, "세이브 데이터 손상.");
-                    else AcceptDev(conn, "세이브 파싱 실패 → 개발 허용(save=null)");
+                    Debug.LogError($"[Auth] 세이브 파싱 실패 uid={uid}, charId={characterId}: {ex}");
+                    onDone(SaveFetchResult.ParseFailed, null);
                     yield break;
                 }
 
                 // 노드 키(characterId)를 정체성의 진실로 고정한다(FirebaseManager.LoadCharacter와 같은 방침 —
                 // uniqueId가 Ticks라 JS 계층 정밀도로 깎일 수 있어 요청 id로 덮는다).
-                if (save != null) save.uniqueId = auth.characterId;
-                auth.save = save;
-
-                // 세이브로 전투 스탯을 서버가 직접 도출해 보관한다(권위). 다음 단계에서 클라로 복제·데미지 계산에 쓴다.
-                auth.stats = ServerStatDeriver.Derive(save);
-
-                Debug.Log($"[Auth] 세이브 로드 성공 conn={conn.connectionId}, uid={auth.uid}, " +
-                          $"char='{save?.name}', lv={save?.level}, type={save?.characterType} → 스탯[{auth.stats}]");
-
-                conn.Send(new AuthResponseMessage { code = 100, message = "OK" });
-                ServerAccept(conn);
+                if (save != null) save.uniqueId = characterId;
+                onDone(SaveFetchResult.Success, save);
+                
             }
+        }
+
+        // 운영(requireAuth)이면 거부, 개발이면 세이브 없이 허용한다. 실패 분기마다 같은 두 줄이 반복돼 묶었다.
+        // rejectReason은 클라 화면에 뜨는 문장, devReason은 서버 로그에만 남는 문장이다.
+        private void RejectOrDev(NetworkConnectionToClient conn, string rejectReason, string devReason)
+        {
+            if (requireAuth) Reject(conn, rejectReason);
+            else AcceptDev(conn, devReason);
+        }
+
+        // 토큰으로 Users/{uid}/Characters/{characterId} 를 읽고(FetchSave) → 결과로 수락/거부를 정한다.
+        private IEnumerator LoadSaveThenDecide(NetworkConnectionToClient conn, PendingConnectionAuth auth)
+        {
+            SaveFetchResult result = SaveFetchResult.None;
+            CharacterSaveData save = null;
+            yield return FetchSave(auth.uid, auth.characterId, auth.idToken, (r, s) => { result = r; save = s; });
+
+            // 커넥션이 그 사이 끊겼으면 조용히 끝낸다(끊긴 커넥션에 Accept/Reject 금지).
+            if (!pending.ContainsKey(conn)) yield break;
+
+            // 실패 사유별 판정. 로그는 FetchSave가 사유별로 남겼으니 여기선 수락/거부만 한다.
+            switch(result)
+            {
+                case SaveFetchResult.Success:
+                    break;
+                case SaveFetchResult.NotFound:
+                    RejectOrDev(conn, "선택한 캐릭터를 찾을 수 없습니다.", "세이브 없음 → 개발 허용(save=null)");
+                    yield break;
+                case SaveFetchResult.ParseFailed:
+                    RejectOrDev(conn, "세이브 데이터 손상.", "세이브 파싱 실패 → 개발 허용(save=null)");
+                    yield break;
+                default:   // RequestFailed + None(콜백 누락). 모르는 결과는 실패로 본다.
+                    RejectOrDev(conn, "세이브 인증/조회 실패.", "REST 실패 → 개발 허용(save=null)");
+                    yield break;
+            }
+
+            auth.save = save;
+
+            // 세이브로 전투 스탯을 서버가 직접 도출해 보관한다(권위). 클라로 복제·데미지 계산에 쓴다.
+            auth.stats = ServerStatDeriver.Derive(save);
+            Debug.Log($"[Auth] 세이브 로드 성공 conn={conn.connectionId}, uid={auth.uid}, " +
+                      $"char='{save?.name}', lv={save?.level}, type={save?.characterType} → 스탯[{auth.stats}]");
+
+            conn.Send(new AuthResponseMessage { code = 100, message = "OK" });
+            ServerAccept(conn);
         }
 
         // 개발 허용(save 없이). 서버가 그 커넥션의 권위 스탯을 모르는 상태 → 다음 단계에서 기존 값(클라 제공)으로 폴백.
@@ -323,6 +370,70 @@ namespace ProjectS.Networking
         public override void OnClientAuthenticate()
         {
             _ = SendAuthRequestAsync();
+        }
+
+        /// <summary>
+        /// 소유 클라가 스탯 변경을 저장한 뒤 요청한다(<see cref="NetworkCombatStats"/>의 Cmd). 세이브를 다시 읽어 권위 스탯을 갱신한다.
+        /// 경로(uid·캐릭터)는 접속 때 확정한 값만 쓴다 — 새 토큰은 "같은 유저인지" 확인과 REST 인증에만 쓴다.
+        /// </summary>
+        public void ServerRequestRederive(NetworkConnectionToClient conn, string idToken)
+        {
+            if (!TryGet(conn, out PendingConnectionAuth auth)) return;
+            // 개발 허용으로 들어온 커넥션: 권위 스탯이 없으니 갱신할 것도 없다
+            if (auth.save == null) return;
+
+            // ★ 새 토큰이 접속 때와 같은 유저인지. 다르면 남의 토큰으로 경로를 바꿔치기하려는 시도다.
+            if(!TryGetUidFromToken(idToken, out string uid) || uid !=  auth.uid)
+            {
+                Debug.LogWarning($"[Auth] 재도출 거부 conn={conn.connectionId} — 토큰 uid 불일치");
+                return;
+            }
+
+            // 이후 읽기는 가장 최근 토큰으로
+            auth.idToken = idToken;
+
+            if(auth.rederiveInFlight)
+            {
+                auth.rederiveQueued = true;
+                return;
+            }
+
+            StartCoroutine(RederiveLoop(conn, auth));
+        }
+
+        private IEnumerator RederiveLoop(NetworkConnectionToClient conn,  PendingConnectionAuth auth)
+        {
+            auth.rederiveInFlight = true;
+
+            do
+            {
+                auth.rederiveQueued = false;
+                SaveFetchResult result = SaveFetchResult.None;
+                CharacterSaveData save = null;
+                yield return FetchSave(auth.uid, auth.characterId, auth.idToken, (r, s) => { result = r; save = s; });
+
+                // 그 사이 접속 종료(auth째 지워졌으니 플래그 정리도 불필요)
+                if (!pending.ContainsKey(conn)) yield break;
+
+                if (result == SaveFetchResult.Success && save != null)
+                {
+                    auth.save = save;
+                    auth.stats = ServerStatDeriver.Derive(save);
+                    Debug.Log($"[Auth] 재도출 성공 conn={conn.connectionId}, lv={save.level} → 스탯[{auth.stats}]");
+
+                    // 보스 데미지 계산이 읽는 건 auth.stats가 아니라 NetworkCombatStats의 SyncVar다 → 거기에 반영해야 적용된다.
+                    if (conn.identity != null && conn.identity.TryGetComponent(out NetworkCombatStats combatStats))
+                        combatStats.ServerApplyStats(auth.stats);
+                }
+                else
+                {
+                    Debug.LogWarning($"[Auth] 재도출 실패 conn={conn.connectionId}, result={result} — 기존 스탯 유지");
+                }
+
+                if (auth.rederiveQueued) yield return new WaitForSeconds(rederiveMinInterval);
+            }
+            while (auth.rederiveQueued);
+            auth.rederiveInFlight = false;
         }
 
         private async Task SendAuthRequestAsync()

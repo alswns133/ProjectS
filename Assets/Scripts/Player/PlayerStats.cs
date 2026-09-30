@@ -361,6 +361,8 @@ namespace ProjectS.Players
             currentHp = Mathf.Min(MaxHp, currentHp + Mathf.Max(0, maxHp - previousMaxHp));
             PublishAllStats();
 
+            // 장비창 + 서버 재도출 신호: 기본 AD/방어 변경
+            PlayerEvents.FireCombatStatsChanged();
             // 레벨 변화는 저장 대상. AddExp 경로는 그 직후 SaveNow로 즉시 올리고, 외부 직접 호출은 오토세이브가 받는다.
             PlayerSaveService.MarkDirty();
         }
