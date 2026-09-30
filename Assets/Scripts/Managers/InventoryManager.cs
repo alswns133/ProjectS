@@ -20,6 +20,7 @@ namespace ProjectS.Managers
     /// </summary>
     public class InventoryManager : MonoBehaviour, IEnhanceResources
     {
+        /// <summary>싱글톤 인스턴스. 중복 생성분은 Awake에서 제거된다.</summary>
         public static InventoryManager Instance { get; private set; }
 
         /// <summary>인벤토리 한 탭의 슬롯 수(장비/소모품 각각). UI 그리드 슬롯 수와 일치시킨다.</summary>

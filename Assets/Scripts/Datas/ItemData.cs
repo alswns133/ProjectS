@@ -10,9 +10,16 @@ namespace ProjectS.Data
     [Serializable]
     public class ItemData : IDataRow
     {
+        /// <summary>아이템 ID. 6자리 규칙은 docs/ID_NUMBERING.md를 따른다.</summary>
         public int Index;
+
+        /// <summary>UI에 표시할 이름. 비어 있으면 Validate에서 행이 제외된다.</summary>
         public string Name;
+
+        /// <summary>분류(무기·방어구·소비·재료).</summary>
         public ItemCategory Category;
+
+        /// <summary>등급.</summary>
         public ItemGrade Grade;
 
         /// <summary>아이템 레벨이자 요구 레벨(5단위). 소비품·재료는 0(제한 없음).</summary>
@@ -34,6 +41,7 @@ namespace ProjectS.Data
         /// <summary>판매가. 기획상 상점 구매가의 20%.</summary>
         public int SellPrice;
 
+        /// <summary>툴팁에 표시할 설명문.</summary>
         public string Description;
 
         int IDataRow.Index => Index;

@@ -38,8 +38,13 @@ namespace ProjectS.Data
         public bool acceptsPartyInvites = true;
 
         // ── 캐릭터별 인벤토리(재화도 캐릭터마다 따로) ──────────────────────────
+        /// <summary>보유 골드(제니). 캐릭터마다 따로 저장한다.</summary>
         public int gold;
+
+        /// <summary>보유 하급 강화 재료 수.</summary>
         public int lowMaterial;
+
+        /// <summary>보유 상급 강화 재료 수.</summary>
         public int highMaterial;
 
         // ── 퀘스트 진행 (QuestManager가 저장 WriteTo·복원 RestoreFrom) ─────────
@@ -86,8 +91,14 @@ namespace ProjectS.Data
         /// </summary>
         public TutorialState tutorialState = TutorialState.Undone;
 
+        /// <summary>역직렬화(JSON·Firebase)용 기본 생성자. 지우면 세이브 로드가 실패한다.</summary>
         public CharacterSaveData() { }
 
+        /// <summary>새 캐릭터 슬롯을 만들 때 쓰는 생성자. 나머지 값은 필드 기본값으로 시작한다.</summary>
+        /// <param name="uniqueId">슬롯 고유 id(Firebase 노드 키).</param>
+        /// <param name="characterType">캐릭터 종류(PlayerStatTable.CharacterId).</param>
+        /// <param name="name">캐릭터 이름.</param>
+        /// <param name="tutorialState">튜토리얼 진행 상태.</param>
         public CharacterSaveData(long uniqueId, int characterType, string name , TutorialState tutorialState)
         {
             this.uniqueId = uniqueId;
@@ -115,8 +126,13 @@ namespace ProjectS.Data
     [Serializable]
     public class QuestSave
     {
+        /// <summary>진행 중인 퀘스트 ID(QuestTable).</summary>
         public int questId;
+
+        /// <summary>목표별 현재 진행 카운트(퀘스트 목표 순서와 같은 순서).</summary>
         public List<int> objectiveCounts = new();
+
+        /// <summary>트래커에 고정(핀)했는지.</summary>
         public bool pinned;
     }
 
@@ -150,9 +166,16 @@ namespace ProjectS.Data
         /// <summary>착용 부위(EquipSlot enum 값).</summary>
         public int equipSlot;
 
+        /// <summary>아이템 테이블 ID(ItemData/EquipmentData 공통 Index).</summary>
         public int tableId;
+
+        /// <summary>현재 강화 단계(+N).</summary>
         public int enhanceStep;
+
+        /// <summary>드랍 시 롤된 +0강 기준 주 스탯값. 0이면 복원 시 MainStatBase로 폴백.</summary>
         public int mainStat;
+
+        /// <summary>드랍 시 롤된 옵션(인스턴스 고유).</summary>
         public List<ItemOptionSave> options = new();
     }
 

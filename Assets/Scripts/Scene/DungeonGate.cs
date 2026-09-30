@@ -114,19 +114,25 @@ namespace ProjectS.Scenes
             private readonly DungeonGate gate;
             private readonly int dungeonNumber;
 
+            /// <summary>던전 게이트 위치를 퀘스트 네비게이션에 알리는 웨이포인트를 만든다.</summary>
+            /// <param name="gate">위치를 제공할 게이트.</param>
+            /// <param name="dungeonNumber">이 게이트가 여는 던전 번호(웨이포인트 키).</param>
             public GateWaypoint(DungeonGate gate, int dungeonNumber)
             {
                 this.gate = gate;
                 this.dungeonNumber = dungeonNumber;
             }
 
+            /// <inheritdoc/>
             public QuestWaypointKind Kind => QuestWaypointKind.Gate;
 
+            /// <inheritdoc/>
             public int Key => dungeonNumber;
 
+            /// <inheritdoc/>
             public Vector3 Position => gate.transform.position;
 
-            // 게이트가 살아 있는 동안만 유효. 해제는 OnDisable이 하지만, 파괴 타이밍 사이의 조회도 걸러낸다.
+            /// <summary>게이트가 살아 있는 동안만 유효. 해제는 OnDisable이 하지만, 파괴 타이밍 사이의 조회도 걸러낸다.</summary>
             public bool IsActive => gate != null && gate.isActiveAndEnabled;
         }
 

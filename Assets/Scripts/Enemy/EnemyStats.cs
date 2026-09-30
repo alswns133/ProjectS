@@ -84,6 +84,7 @@ namespace ProjectS.Enemies
         /// <summary>스폰한 쪽이 지정한 던전 ID. 0이면 미지정. 다음 페이즈 보스에 같은 값을 넘길 때 쓴다.</summary>
         public int DungeonIdOverride => dungeonIdOverride;
 
+        /// <summary>HP가 0 이하인지(<see cref="ProjectS.Core.IDamageable"/>).</summary>
         public bool IsDead => currentHp <= 0;
 
         /// <summary>현재 HP. 보스 HP 바가 "현재/최대" 수치와 남은 줄 수 계산에 쓴다.</summary>

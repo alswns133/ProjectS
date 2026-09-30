@@ -83,14 +83,25 @@ namespace ProjectS.UI
         // 불꽃 하나의 상태. 클래스 하나에 몰아넣어 풀 관리를 단순하게 유지한다.
         private class Spark
         {
+            /// <summary>이 불꽃의 RectTransform.</summary>
             public RectTransform Rect;
+
+            /// <summary>이 불꽃의 이미지(알파·색 조절용).</summary>
             public Image Image;
+
+            /// <summary>현재 위치(px).</summary>
             public Vector2 Position;
+
+            /// <summary>현재 속도(px/초).</summary>
             public Vector2 Velocity;
+
+            /// <summary>수명(초).</summary>
             public float Life;
+
+            /// <summary>태어난 뒤 지난 시간(초).</summary>
             public float Age;
 
-            // 태어난 뒤 실제로 이동한 거리(px). 꼬리 길이의 상한으로 쓴다.
+            /// <summary>태어난 뒤 실제로 이동한 거리(px). 꼬리 길이의 상한으로 쓴다.</summary>
             public float Travelled;
         }
 

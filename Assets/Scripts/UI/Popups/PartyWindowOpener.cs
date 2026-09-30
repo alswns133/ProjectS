@@ -32,6 +32,13 @@ namespace ProjectS.UI
     /// </remarks>
     public class PartyWindowOpener : MonoBehaviour
     {
+        /// <summary>
+        /// 지금 켜져 있는 오프너. HUD 메뉴 아이콘(<see cref="HudMenuButton"/>)이 Tab과 같은 경로
+        /// (<see cref="RequestToggle"/>)로 결성창을 여닫기 위해 쓴다. 아이콘은 HUDMenu 프리팹 안에 있어
+        /// 인스펙터로 이 오브젝트를 연결하기 어렵기 때문이다. 꺼져 있으면 null.
+        /// </summary>
+        public static PartyWindowOpener Current { get; private set; }
+
         [Header("데이터원")]
         [Tooltip("파티 상태를 물어볼 곳. 비우면 같은 오브젝트에서 찾는다.")]
         [SerializeField] private MonoBehaviour partySourceBehaviour;
@@ -66,6 +73,8 @@ namespace ProjectS.UI
 
         private void OnEnable()
         {
+            Current = this;
+
             // 소스가 나중에 등록/교체돼도 따라 붙게 provider 변경을 듣는다.
             PartySourceProvider.Changed += Rebind;
             Rebind();
@@ -75,6 +84,9 @@ namespace ProjectS.UI
         {
             PartySourceProvider.Changed -= Rebind;
             BindTo(null);
+
+            // 다른 오프너가 이미 자리를 넘겨받았으면 지우지 않는다.
+            if (Current == this) Current = null;
         }
 
         // 지금 유효한 소스로 다시 붙는다. 슬롯/같은 오브젝트가 우선, 없으면 등록된 provider.

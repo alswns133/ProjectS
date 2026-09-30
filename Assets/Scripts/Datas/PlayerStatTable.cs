@@ -10,7 +10,10 @@ namespace ProjectS.Data
     [Serializable]
     public class PlayerStatTable : IDataRow
     {
+        /// <summary>캐릭터 종류 ID(테이블 키). 세이브의 characterType과 같은 값이다.</summary>
         public int CharacterId;
+
+        /// <summary>캐릭터 식별 키.</summary>
         public string NameKey;
 
         /// <summary>치명타 확률(0~1). 레벨이 아니라 캐릭터·아이템·패시브로만 변한다.</summary>

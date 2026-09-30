@@ -16,15 +16,46 @@ namespace ProjectS.Networking
     /// </summary>
     public struct CombatStatBlock
     {
+        /// <summary>
+        /// 최대 HP = (레벨 기본 HP + 장비 깡체) × (1 + 장비 체퍼 + 패시브 체퍼), 정수 반올림.
+        /// <see cref="ProjectS.Players.PlayerStats.MaxHp"/>와 같은 공식이다.
+        /// </summary>
         public int MaxHp;
+
+        /// <summary>
+        /// 총 공격력(AD) = (레벨 기본 AD + 장비 깡공) × (1 + 장비 공퍼 + 패시브 공퍼).
+        /// 데미지 계산의 기본 피해(AD × 계수 × 난수)에 들어가는 값이다.
+        /// </summary>
         public float AttackPower;
+
+        /// <summary>
+        /// 방어도 = (레벨 기본 방어 + 장비 깡방) × (1 + 장비 방퍼 + 패시브 방퍼).
+        /// 이 캐릭터가 <b>맞을 때</b> 때린 쪽이 읽어 경감률을 계산한다(내가 때릴 때 쓰는 값이 아님).
+        /// </summary>
         public float Defense;
+
+        /// <summary>치명타 확률(0~1). 캐릭터 기본 + 장비 치확 + 패시브 치확. 1 이상이면 항상 치명타.</summary>
         public float CritChance;
+
+        /// <summary>
+        /// 치명타 배율. 캐릭터 기본 + 장비 치피 + 패시브 치피. 치명타가 뜨면 피해에 이 값을 그대로 곱한다
+        /// (예: 1.5 = 150% 피해). 가산 보너스가 아니라 배율이라, 캐릭터 테이블 기본값이 빠지면 치명타가 오히려 약해진다.
+        /// </summary>
         public float CritDamage;
+
+        /// <summary>
+        /// 방어력 관통(0~1 비율). 장비 옵션 + 패시브. 대상 방어도가 아니라 <b>대상 경감률에서 빼는</b> 값이다
+        /// (DamageCalculator에서 경감률 - 관통을 0~1로 자른다).
+        /// </summary>
         public float DefensePenetration;
+
+        /// <summary>데미지 증가(비율, 장비 옵션 전용). 최종 피해에 (1 + 값)으로 곱연산한다.</summary>
         public float DamageIncrease;
+
+        /// <summary>보스 추가 피해(비율, 장비 옵션 전용). 대상이 보스일 때만 최종 피해에 (1 + 값)으로 곱연산한다.</summary>
         public float BossDamage;
 
+        /// <summary>서버 로그용 요약 문자열. HP·AD·방어·치명타만 찍고 관통·데미지 증가·보스 피해는 출력하지 않는다.</summary>
         public override string ToString()
             => $"HP={MaxHp}, AD={AttackPower:F1}, DEF={Defense:F1}, CritC={CritChance:P0}, CritD={CritDamage:F2}";
     }

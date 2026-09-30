@@ -352,11 +352,21 @@ namespace ProjectS.EditorTools
 
         private sealed class ExternalRef
         {
+            /// <summary>참조를 들고 있는 컴포넌트(교체되는 패널 바깥).</summary>
             public Component Owner;
+
+            /// <summary>Owner 안에서 참조가 든 SerializedProperty 경로.</summary>
             public string PropertyPath;
+
+            /// <summary>참조 대상이 속한 패널 이름(새 패널에서 같은 이름으로 찾는다).</summary>
             public string Panel;
+
+            /// <summary>패널 루트 기준 상대 경로.</summary>
             public string RelativePath;
-            public Type ComponentType;   // null이면 GameObject 참조
+
+            /// <summary>참조가 가리키는 컴포넌트 타입. null이면 GameObject 참조.</summary>
+            public Type ComponentType;
+            /// <summary>같은 오브젝트에 같은 타입 컴포넌트가 여러 개일 때 몇 번째인지.</summary>
             public int ComponentIndex;
         }
 

@@ -72,8 +72,10 @@ namespace ProjectS.Scenes
             alive.Clear();
         }
 
+        /// <inheritdoc/>
         public override void Initialize() { }
 
+        /// <inheritdoc/>
         public override void Progress(float progress) { }
 
         // ── 공통 단계: 서브클래스가 필요한 것만 재정의 ────────────────────

@@ -72,6 +72,7 @@ namespace ProjectS.Players
         private int runningHash;
         private bool hashed;
 
+        /// <summary>진행도가 cancelWindowStart를 넘으면 다음 공격 입력(연계·캔슬 창)을 연다. 설정에 따라 블렌드아웃 중 이동 입력이 있으면 걷기/달리기로 갈아탄다.</summary>
         public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (!hashed)

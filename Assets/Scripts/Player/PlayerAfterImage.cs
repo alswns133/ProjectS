@@ -71,20 +71,25 @@ namespace ProjectS.Players
         [Serializable]
         private class PoseSlot
         {
+            /// <summary>Animation Event 인자로 이 포즈 슬롯을 찾는 키.</summary>
             public string key;
 
-            // 기준점에서의 오프셋(미터). 기준이 바라보는 쪽이 +Z다.
-            // 월드 좌표가 아니라 기준 상대값인 이유: 캐릭터가 어느 방향을 보고 시전하든
-            // 같은 모양이 그려져야 하기 때문이다.
+            /// <summary>
+            /// 기준점에서의 오프셋(미터). 기준이 바라보는 쪽이 +Z다.
+            /// 월드 좌표가 아니라 기준 상대값인 이유: 캐릭터가 어느 방향을 보고 시전하든
+            /// 같은 모양이 그려져야 하기 때문이다.
+            /// </summary>
             public Vector3 offset;
 
-            // 잔상을 좌우로 돌리는 각도(도). 0이면 그 순간 포즈 그대로, 180이면 정반대를 바라본다.
+            /// <summary>잔상을 좌우로 돌리는 각도(도). 0이면 그 순간 포즈 그대로, 180이면 정반대를 바라본다.</summary>
             public float yawOffset;
 
-            // true면 이번 묶음의 첫 잔상이 뜬 시점(또는 OnAfterImageAnchor를 찍은 시점)의
-            // 캐릭터 위치·방향을 기준으로 삼는다. 클립이 루트모션으로 이동하는 동안에도
-            // 도형이 흔들리지 않으므로, 별처럼 정해진 모양을 그릴 땐 켜는 쪽이 맞다.
-            // false면 이벤트가 찍힌 순간의 캐릭터가 기준이다.
+            /// <summary>
+            /// true면 이번 묶음의 첫 잔상이 뜬 시점(또는 OnAfterImageAnchor를 찍은 시점)의
+            /// 캐릭터 위치·방향을 기준으로 삼는다. 클립이 루트모션으로 이동하는 동안에도
+            /// 도형이 흔들리지 않으므로, 별처럼 정해진 모양을 그릴 땐 켜는 쪽이 맞다.
+            /// false면 이벤트가 찍힌 순간의 캐릭터가 기준이다.
+            /// </summary>
             public bool fromAnchor = true;
         }
 
@@ -100,22 +105,38 @@ namespace ProjectS.Players
         // 몸(스킨드)과 무기(정적)를 함께 남겨야 포즈가 완성되므로 개별 오브젝트가 아니라 묶음으로 다룬다.
         private class Ghost
         {
+            /// <summary>잔상 묶음의 루트(파트들의 부모).</summary>
             public Transform root;
+
+            /// <summary>원본 렌더러마다 하나씩 대응하는 잔상 파트.</summary>
             public Transform[] parts;
+
+            /// <summary>파트별 메시 필터.</summary>
             public MeshFilter[] filters;
+
+            /// <summary>파트별 렌더러.</summary>
             public MeshRenderer[] renderers;
 
-            // 스킨드 원본용 재사용 메시. 매번 new Mesh()를 만들면 잔상을 뿌릴 때마다 GC가 튄다.
-            // 정적 원본(무기)은 원본 메시를 그대로 참조하므로 null이다.
+            /// <summary>
+            /// 스킨드 원본용 재사용 메시. 매번 new Mesh()를 만들면 잔상을 뿌릴 때마다 GC가 튄다.
+            /// 정적 원본(무기)은 원본 메시를 그대로 참조하므로 null이다.
+            /// </summary>
             public Mesh[] bakedMeshes;
 
-            // 파트별로 마지막에 적용한 머티리얼과 서브메시 수.
-            // 매 잔상마다 머티리얼 배열을 새로 만들지 않기 위한 캐시이며,
-            // 인스펙터에서 머티리얼을 갈아끼우면 값이 달라져 자동으로 다시 적용된다.
+            /// <summary>
+            /// 파트별로 마지막에 적용한 머티리얼과 서브메시 수.
+            /// 매 잔상마다 머티리얼 배열을 새로 만들지 않기 위한 캐시이며,
+            /// 인스펙터에서 머티리얼을 갈아끼우면 값이 달라져 자동으로 다시 적용된다.
+            /// </summary>
             public Material[] appliedMaterials;
+
+            /// <summary>파트별로 마지막에 적용한 서브메시 수(머티리얼 캐시와 짝).</summary>
             public int[] appliedSubMeshCounts;
 
+            /// <summary>이 잔상이 생성된 시각. 페이드 진행도와 가장 오래된 잔상(재사용 대상) 판정 기준이다.</summary>
             public float bornTime;
+
+            /// <summary>지금 표시 중인지. false면 풀에서 재사용할 수 있다.</summary>
             public bool active;
         }
 

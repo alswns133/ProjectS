@@ -33,19 +33,26 @@ namespace ProjectS.Players
         [Serializable]
         private class EffectSlot
         {
+            /// <summary>Animation Event 인자로 이 슬롯을 찾는 키(언더바 표기 차이는 Normalize로 흡수).</summary>
             public string key;
+
+            /// <summary>재생할 파티클(자식 파티클까지 함께 재생·정지된다).</summary>
             public ParticleSystem particle;
 
-            // 시전 위치에 남아야 하는 이펙트(땅의 검흔 등)만 켠다.
-            // 재생 순간 플레이어에서 분리해 월드에 고정하므로 이동해도 따라오지 않는다.
+            /// <summary>
+            /// 시전 위치에 남아야 하는 이펙트(땅의 검흔 등)만 켠다.
+            /// 재생 순간 플레이어에서 분리해 월드에 고정하므로 이동해도 따라오지 않는다.
+            /// </summary>
             public bool anchorToWorld;
 
-            // 월드 고정 이펙트를 중단 정리(구르기·피격·사망)에도 함께 멈출지 여부.
-            // anchorToWorld는 기본적으로 "동작이 끊겨도 그대로 남는다"(땅의 검흔은 죽어도 남아야 함)라
-            // AllStopEffect에서 제외된다. 하지만 설치형 지속 이펙트(장판·오라 등)는 캐릭터를 따라오지
-            // 않게 월드 고정을 켜면서도, 동작이 끊기면 같이 걷어야 할 때가 있다.
-            // 이 값을 켜면 월드 고정 슬롯이라도 AllStopEffect 중단 정리에 포함된다.
-            // ★ anchorToWorld가 false면 의미 없다(그때는 어차피 항상 정리 대상).
+            /// <summary>
+            /// 월드 고정 이펙트를 중단 정리(구르기·피격·사망)에도 함께 멈출지 여부.
+            /// anchorToWorld는 기본적으로 "동작이 끊겨도 그대로 남는다"(땅의 검흔은 죽어도 남아야 함)라
+            /// AllStopEffect에서 제외된다. 하지만 설치형 지속 이펙트(장판·오라 등)는 캐릭터를 따라오지
+            /// 않게 월드 고정을 켜면서도, 동작이 끊기면 같이 걷어야 할 때가 있다.
+            /// 이 값을 켜면 월드 고정 슬롯이라도 AllStopEffect 중단 정리에 포함된다.
+            /// ★ anchorToWorld가 false면 의미 없다(그때는 어차피 항상 정리 대상).
+            /// </summary>
             public bool stopOnInterrupt;
 
             // 분리했다가 다음 재생 때 제자리로 복귀시키기 위한 원래 부모/로컬 포즈.

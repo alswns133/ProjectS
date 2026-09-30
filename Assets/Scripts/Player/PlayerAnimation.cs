@@ -236,6 +236,7 @@ namespace ProjectS.Players
             return false;
         }
 
+        /// <summary>접지 여부를 애니메이터에 전달한다(Player가 매 프레임 호출).</summary>
         public void SetGrounded(bool v) => animator.SetBool(Grounded, v);
 
         /// <summary>
@@ -267,6 +268,7 @@ namespace ProjectS.Players
             if (hasJump) SetTrigger(DoJump);
         }
 
+        /// <summary>래치된 점프 트리거를 지운다(남은 트리거가 나중에 유령 발동하지 않게).</summary>
         public void ResetJumpTrigger()
         {
             if (hasJump) ResetTrigger(DoJump);
@@ -278,6 +280,7 @@ namespace ProjectS.Players
             if (hasJumpDash) SetTrigger(DoJumpDash);
         }
 
+        /// <summary>래치된 공중 대시 트리거를 지운다. PlayerJumpDashState가 상태를 떠날 때 호출한다.</summary>
         public void ResetJumpDashTrigger()
         {
             if (hasJumpDash) ResetTrigger(DoJumpDash);
@@ -306,8 +309,10 @@ namespace ProjectS.Players
             
         }
 
+        /// <summary>일반 공격 트리거를 켠다.</summary>
         public void PlayAttackTrigger() => animator.SetTrigger(Attack);
 
+        /// <summary>래치된 일반 공격 트리거를 지운다.</summary>
         public void ResetAttackTrigger() => animator.ResetTrigger(Attack);
 
         /// <summary>
@@ -316,8 +321,10 @@ namespace ProjectS.Players
         /// </summary>
         public void ResetStrongAttackTrigger() => ResetTrigger(StrongAttack);
 
+        /// <summary>래치된 달리기 공격 트리거를 지운다(캔슬 시 유령 발동 방지).</summary>
         public void ResetRunAttackTrigger() => ResetTrigger(RunAttack);
 
+        /// <summary>래치된 점프 공격 트리거를 지운다(캔슬 시 유령 발동 방지).</summary>
         public void ResetJumpAttackTrigger() => ResetTrigger(JumpAttack);
 
         /// <summary>우클릭 강공격 트리거. PlayerCombat.UseStrongAttack이 발동에 성공했을 때만 호출한다.</summary>
@@ -399,12 +406,15 @@ namespace ProjectS.Players
             animator.Update(0f);
         }
 
+        /// <summary>회피 키를 누르고 있는지(또는 구르는 중인지)를 애니메이터에 전달한다. 연속 구르기 전이에 쓴다. 파라미터가 없으면 무시한다.</summary>
         public void SetRollHeld(bool held)
         {
             if (!hasRollHeld) return;
             animator.SetBool(RollHeld, held);
         }
 
+        /// <summary>원격 복제본에서 콤보 단계(1부터)에 해당하는 공격 State로 크로스페이드한다. NetworkComboRelay가 RPC로 호출한다.</summary>
+        /// <param name="step">재생할 콤보 단계(1 = 첫 타). 범위를 벗어나면 무시한다.</param>
         public void PlayAttackStepNetworked(int step)
         {
             int i = step - 1;

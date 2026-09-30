@@ -10,6 +10,7 @@ using ProjectS.Skills;
 
 namespace ProjectS.Players
 {
+    /// <summary>플레이어 HP·스탯·사망 판정을 소유한다. 기본 스탯(테이블)·장비·패시브를 합성해 최종 전투 스탯을 돌려주고, 변화는 PlayerEvents로 발행한다(<see cref="IDamageable"/> 구현).</summary>
     public class PlayerStats : MonoBehaviour, IDamageable
     {
         // 착용 장비 보너스 합계(장착/해제 시 InventoryManager가 ApplyEquipmentStats로 갱신).
@@ -78,6 +79,7 @@ namespace ProjectS.Players
 
         private float currentSkillGauge;
 
+        /// <summary>HP가 0 이하인지(<see cref="IDamageable"/>).</summary>
         public bool IsDead => currentHp <= 0;
 
         /// <summary>

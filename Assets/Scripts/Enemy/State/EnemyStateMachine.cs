@@ -9,8 +9,10 @@ namespace ProjectS.Enemies
     /// </summary>
     public class EnemyStateMachine
     {
-        // 현재 상태. 외부는 읽기만 가능(누가 무슨 상태인지 조회는 OK, 직접 교체는 금지).
-        // 전환은 반드시 ChangeState를 거치게 해서 Exit/Enter 순서를 강제한다.
+        /// <summary>
+        /// 현재 상태. 외부는 읽기만 가능(누가 무슨 상태인지 조회는 OK, 직접 교체는 금지).
+        /// 전환은 반드시 ChangeState를 거치게 해서 Exit/Enter 순서를 강제한다.
+        /// </summary>
         public IState Current { get; private set; }
 
         /// 
@@ -32,6 +34,7 @@ namespace ProjectS.Enemies
             Current.Enter();    // 새 상태 진입 (여기선 next가 확정 non-null이라 ?. 불필요)
         }
 
+        /// <summary>현재 상태의 Update를 호출한다. Enemy.Update가 매 프레임 부른다.</summary>
         public void Update() => Current?.Update();
     }
 }

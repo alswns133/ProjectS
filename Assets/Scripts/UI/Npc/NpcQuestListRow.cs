@@ -129,7 +129,10 @@ namespace ProjectS.UI
             if (selectionArrow != null) selectionArrow.SetActive(selected);
         }
 
+        /// <summary>마우스를 올리면 이 행 인덱스로 hover 콜백을 부른다.</summary>
         public void OnPointerEnter(PointerEventData eventData) => onHover?.Invoke(index);
+
+        /// <summary>클릭하면 이 행 인덱스로 선택 콜백을 부른다.</summary>
         public void OnPointerClick(PointerEventData eventData) => onClick?.Invoke(index);
     }
 }

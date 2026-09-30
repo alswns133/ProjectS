@@ -15,7 +15,6 @@ namespace ProjectS.FX
     /// 2) 그 부모에 이 스크립트를 붙인다
     /// 3) Arrange Children을 켜두면 알아서 맞닿게 재배치한다
     /// </summary>
-
     public class ConveyorLoop : MonoBehaviour
     {
         [Header("이동")]

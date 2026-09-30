@@ -11,11 +11,13 @@ namespace ProjectS.Data
     [Serializable]
     public class EnhanceBonusData : IDataRow
     {
+        /// <summary>행 ID(테이블 키).</summary>
         public int Index;
 
         /// <summary>Weapon 또는 Armor. 무기는 감속형, 방어구는 가속형 곡선이라 반드시 구분해야 한다.</summary>
         public ItemCategory Category;
 
+        /// <summary>이 보너스 곡선이 적용되는 장비 등급.</summary>
         public ItemGrade Grade;
 
         /// <summary>+1~+9 각 단계의 증가분(누적 아님). 길이 9.</summary>

@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 namespace ProjectS.UI.Framework
 {
+    /// <summary>이미지 게이지 하나(HP·스태미나 등)를 목표 비율까지 부드럽게 채우는 헬퍼. MonoBehaviour가 아니라 인스펙터에 직렬화해 쓰고, 코루틴은 주인(runner)이 대신 돌린다.</summary>
     [System.Serializable]   // 인스펙터에 노출 → Image/Text를 드래그로 연결
     public class FillGauge
     {
@@ -22,11 +23,12 @@ namespace ProjectS.UI.Framework
 
         private Material material;
 
+        /// <summary>이 게이지가 쓰는 머티리얼 인스턴스(Init에서 복제). 같은 머티리얼에 값을 쓰는 다른 효과(HpEcg 등)가 공유한다.</summary>
         public Material Material => material;
 
         private bool hasFillAmountProperty = false;
 
-        // 코루틴은 MonoBehaviour 위에서만 돌 수 있어서, 주인을 받아둠
+        /// <summary>코루틴은 MonoBehaviour 위에서만 돌 수 있어서, 주인을 받아둠</summary>
         public void Init(MonoBehaviour runner)
         {
             this.runner = runner;
@@ -45,6 +47,8 @@ namespace ProjectS.UI.Framework
             Apply(current);   // ★ 시작할 때 초기값을 화면에 한 번 그려줌
         }
 
+        /// <summary>목표 비율을 정하고 현재 값에서 부드럽게 따라가게 한다.</summary>
+        /// <param name="ratio">0~1 비율(범위 밖은 잘린다).</param>
         public void SetRatio(float ratio)
         {
             target = Mathf.Clamp01(ratio);

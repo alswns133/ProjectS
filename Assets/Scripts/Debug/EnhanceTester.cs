@@ -233,16 +233,23 @@ namespace ProjectS.Debugging
         // 강화 로직만 격리 테스트하기 위한 인메모리 재화 공급자.
         private class TestResources : IEnhanceResources
         {
+            /// <summary>테스트용 보유 골드(제니).</summary>
             public int Gold;
+
+            /// <summary>테스트용 보유 하급 재료 수.</summary>
             public int Low;
+
+            /// <summary>테스트용 보유 상급 재료 수.</summary>
             public int High;
 
             int IEnhanceResources.Gold => Gold;
             int IEnhanceResources.LowMaterial => Low;
             int IEnhanceResources.HighMaterial => High;
 
+            /// <summary>주어진 비용을 모두 낼 수 있는지.</summary>
             public bool CanAfford(int zeny, int low, int high) => Gold >= zeny && Low >= low && High >= high;
 
+            /// <summary>비용을 차감한다. 검사는 호출 전에 <see cref="CanAfford"/>로 끝나 있어야 한다(여기선 음수 방어 없음).</summary>
             public void Spend(int zeny, int low, int high)
             {
                 Gold -= zeny;

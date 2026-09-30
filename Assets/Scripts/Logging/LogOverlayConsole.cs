@@ -25,6 +25,7 @@ namespace ProjectS.Logging
         private Vector2 scroll;
         private GUIStyle logStyle;
 
+        /// <summary>설정대로 링버퍼 크기와 시작 표시 여부를 정한다. 사용 전에 한 번 호출해야 한다.</summary>
         public void Configure(LogSettings settings)
         {
             entries = new LogEntry[settings.OverlayCapacity];
@@ -32,6 +33,7 @@ namespace ProjectS.Logging
             displayDirty = true;
         }
 
+        /// <inheritdoc/>
         public void Write(in LogEntry entry)
         {
             if (entries == null || entries.Length == 0) return;

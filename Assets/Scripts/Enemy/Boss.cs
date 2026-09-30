@@ -49,31 +49,41 @@ namespace ProjectS.Enemies
         [Serializable]
         private class GrabPattern
         {
-            // 인스펙터에서 식별하기 위한 표시 이름. 로직 키로 쓰지 않는다.
+            /// <summary>인스펙터에서 식별하기 위한 표시 이름. 로직 키로 쓰지 않는다.</summary>
             public string name = "Grab";
 
-            // 이 잡기가 대응하는 잡기 클립의 인덱스. EnemyCombat.attacks[]의 잡기 슬롯 animationIndex와 같은 값을 넣어
-            // 짝짓는다. OnGrabConnect가 EnemyCombat.CurrentAttackIndex로 이 값을 찾아 해당 설정을 쓴다
-            // (룰렛이 어떤 잡기를 골랐는지의 실제 출처가 CurrentAttackIndex라, 애니메이션 이벤트 인자 대신 이걸로 맞춘다).
+            /// <summary>
+            /// 이 잡기가 대응하는 잡기 클립의 인덱스. EnemyCombat.attacks[]의 잡기 슬롯 animationIndex와 같은 값을 넣어
+            /// 짝짓는다. OnGrabConnect가 EnemyCombat.CurrentAttackIndex로 이 값을 찾아 해당 설정을 쓴다
+            /// (룰렛이 어떤 잡기를 골랐는지의 실제 출처가 CurrentAttackIndex라, 애니메이션 이벤트 인자 대신 이걸로 맞춘다).
+            /// </summary>
             [Min(0)] public int animationIndex;
 
             [Header("포착")]
-            // 잡기 히트 프레임에 플레이어를 포착하는 판정 박스. 이 Transform의 위치/회전/스케일이 곧 박스다
-            // (EnemyCombat 히트박스와 같은 규약). 잡기 클립별로 보스 손이 뻗는 위치에 맞춘 자식 오브젝트를 연결한다.
+            /// <summary>
+            /// 잡기 히트 프레임에 플레이어를 포착하는 판정 박스. 이 Transform의 위치/회전/스케일이 곧 박스다
+            /// (EnemyCombat 히트박스와 같은 규약). 잡기 클립별로 보스 손이 뻗는 위치에 맞춘 자식 오브젝트를 연결한다.
+            /// </summary>
             public Transform grabHitbox;
 
             [Header("구속")]
-            // 잡힌 플레이어를 붙여 둘 앵커. 보스가 애니메이션으로 플레이어를 끌고 다니게, 손/입 등의 자식 Transform을 연결한다.
-            // 비워 두면 포착만 하고 위치는 고정하지 않는다(플레이어는 잡힌 자리에 멈춘 채 구속 모션만 재생).
+            /// <summary>
+            /// 잡힌 플레이어를 붙여 둘 앵커. 보스가 애니메이션으로 플레이어를 끌고 다니게, 손/입 등의 자식 Transform을 연결한다.
+            /// 비워 두면 포착만 하고 위치는 고정하지 않는다(플레이어는 잡힌 자리에 멈춘 채 구속 모션만 재생).
+            /// </summary>
             public Transform grabAnchor;
 
-            // 구속 중 데미지 프레임(OnGrabDamage)의 계수. 피해 = Stats.AttackPower × 이 값.
+            /// <summary>구속 중 데미지 프레임(OnGrabDamage)의 계수. 피해 = Stats.AttackPower × 이 값.</summary>
             public float grabDamageCoef = 1f;
 
             [Header("던지기 마무리")]
-            // OnGrabThrow가 플레이어에게 실어 보내는 넉백 세기(수평/수직). OnGrabDrop(제자리 해제)에는 쓰이지 않는다.
-            // 실제 넉백 적용은 플레이어 쪽(PlayerMovement.ApplyThrow)이 하고, 세기만 여기서 넘긴다.
+            /// <summary>
+            /// OnGrabThrow가 플레이어에게 실어 보내는 넉백 세기(수평/수직). OnGrabDrop(제자리 해제)에는 쓰이지 않는다.
+            /// 실제 넉백 적용은 플레이어 쪽(PlayerMovement.ApplyThrow)이 하고, 세기만 여기서 넘긴다.
+            /// </summary>
             public float throwHorizontalSpeed = 6f;
+
+            /// <summary>던지기 마무리 때 플레이어를 띄우는 수직 넉백 세기. 수평 세기와 함께 OnGrabThrow에서만 쓴다.</summary>
             public float throwUpSpeed = 6f;
         }
 

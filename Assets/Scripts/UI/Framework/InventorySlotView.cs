@@ -41,11 +41,13 @@ namespace ProjectS.UI.Framework
             // TODO: 아이콘 스프라이트는 equip.Item.IconAddress로 어드레서블 로드해 넣는다. 지금은 자리만.
         }
 
+        /// <summary>더블클릭하면 이 슬롯의 장비를 더블클릭 이벤트로 알린다.</summary>
         public void OnPointerClick(PointerEventData eventData)
         {
             if (eventData.clickCount == 2) OnDoubleClicked?.Invoke(Instance);
         }
 
+        /// <summary>드래그 시작: 아이콘을 고스트로 띄운다.</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (icon == null) return;
@@ -67,11 +69,13 @@ namespace ProjectS.UI.Framework
             dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 중 고스트를 포인터 위치로 옮긴다.</summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (dragGhost != null) dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 종료: 고스트를 지운다.</summary>
         public void OnEndDrag(PointerEventData eventData)
         {
             if (dragGhost != null) Destroy(dragGhost);

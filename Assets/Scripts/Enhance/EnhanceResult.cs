@@ -16,6 +16,10 @@ namespace ProjectS.Enhance
         /// <summary>시도 후 강화 단계. 실패해도 하락은 없다(기획).</summary>
         public readonly int StepAfter;
 
+        /// <summary>강화 시도 결과를 만든다.</summary>
+        /// <param name="success">성공 여부.</param>
+        /// <param name="stepBefore">시도 전 강화 단계.</param>
+        /// <param name="stepAfter">시도 후 강화 단계.</param>
         public EnhanceResult(bool success, int stepBefore, int stepAfter)
         {
             Success = success;

@@ -18,6 +18,7 @@ namespace ProjectS.Players
         private FreeMoveController move;
         private PlayerMovement playerMove;
 
+        /// <summary>공중 공격 Loop State에 들어오면 하강을 시작한다("Start=체공, Loop=하강").</summary>
         public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (move == null)

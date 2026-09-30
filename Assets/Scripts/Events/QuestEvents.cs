@@ -3,6 +3,7 @@ using ProjectS.Data;
 
 namespace ProjectS.Events
 {
+    /// <summary>퀘스트 수락·진행·완료·포기를 알리는 static 이벤트 허브. 보상 지급과 UI 갱신은 구독자가 맡는다.</summary>
     public static class QuestEvents
     {
         /// <summary>
@@ -31,14 +32,22 @@ namespace ProjectS.Events
         /// </summary>
         public static event Action OnQuestsRestored;
 
+        /// <summary><see cref="OnQuestAccepted"/>를 발행한다.</summary>
         public static void FireQuestAccepted(QuestData data) => OnQuestAccepted?.Invoke(data);
 
+        /// <summary><see cref="OnQuestCompleted"/>를 발행한다. 보상 지급은 이 이벤트의 구독자가 한다.</summary>
         public static void FireQuestCompleted(QuestData data) => OnQuestCompleted?.Invoke(data);
 
+        /// <summary><see cref="OnQuestAbandoned"/>를 발행한다.</summary>
         public static void FireQuestAbandoned(QuestData data) => OnQuestAbandoned?.Invoke(data);
 
+        /// <summary><see cref="OnQuestProgressUpdated"/>를 발행한다.</summary>
+        /// <param name="data">진행된 퀘스트.</param>
+        /// <param name="cur">현재 진행값.</param>
+        /// <param name="max">목표값.</param>
         public static void FireQuestProgressUpdated(QuestData data, int cur, int max) => OnQuestProgressUpdated?.Invoke(data, cur, max);
 
+        /// <summary><see cref="OnQuestsRestored"/>를 발행한다. 세이브에서 퀘스트 복원이 끝난 뒤 1회 호출한다.</summary>
         public static void FireQuestsRestored() => OnQuestsRestored?.Invoke();
     }
 }

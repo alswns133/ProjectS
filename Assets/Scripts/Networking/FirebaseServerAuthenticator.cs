@@ -77,15 +77,27 @@ namespace ProjectS.Networking
         /// </summary>
         public class PendingConnectionAuth
         {
+            /// <summary>클라가 보낸 Firebase ID 토큰. 없으면(오프라인/미로그인) 빈 문자열.</summary>
             public string idToken;
+
+            /// <summary>클라가 고른 캐릭터 슬롯 id(Users/{uid}/Characters/{id}의 노드 키).</summary>
             public long characterId;
 
             // ── S2에서 채움(REST 읽기 결과) ──
-            public string uid;               // 토큰이 가리키는 유저(세이브 경로 확정용)
-            public CharacterSaveData save;   // 서버가 REST로 읽은 '권위' 세이브(스탯 도출 입력)
+
+            /// <summary>토큰이 가리키는 유저 uid. 세이브 경로를 정하는 데만 쓴다(위조 차단은 DB 규칙이 맡는다).</summary>
+            public string uid;
+
+            /// <summary>서버가 REST로 읽은 '권위' 세이브(스탯 도출 입력). 개발 허용으로 통과한 커넥션은 null.</summary>
+            public CharacterSaveData save;
 
             // ── S3에서 채움(세이브로 도출한 전투 스탯) ──
-            public CombatStatBlock stats;    // 서버가 소유하는 권위 전투 스탯(다음 단계에서 클라로 복제·데미지 계산에 사용)
+
+            /// <summary>
+            /// 서버가 세이브로 도출한 권위 전투 스탯. <see cref="NetworkCombatStats"/>가 스폰 시 SyncVar로 옮겨
+            /// 클라로 복제하고, 보스 데미지 재계산에 쓴다. <see cref="save"/>가 null이면 0 블록이다.
+            /// </summary>
+            public CombatStatBlock stats;
         }
 
         // 커넥션 → 인증 정보. 서버 전용. static이라 스폰 훅·스탯 도출 등 다른 서버 코드가 조회한다.
@@ -102,18 +114,23 @@ namespace ProjectS.Networking
 
         #region Server
 
+        /// <summary>서버 시작 시 호출. 클라의 <see cref="AuthRequestMessage"/> 핸들러를 등록한다(인증 전에도 받도록 requireAuth=false).</summary>
         public override void OnStartServer()
         {
             NetworkServer.RegisterHandler<AuthRequestMessage>(OnAuthRequest, false);
         }
 
+        /// <summary>서버 종료 시 호출. 핸들러를 해제하고 남은 커넥션 인증 정보를 모두 비운다.</summary>
         public override void OnStopServer()
         {
             NetworkServer.UnregisterHandler<AuthRequestMessage>();
             pending.Clear();
         }
 
-        // 클라 접속 시 호출. 우리는 클라의 AuthRequestMessage를 기다린다(BasicAuthenticator와 같은 결).
+        /// <summary>
+        /// 클라 접속 시 Mirror가 호출. 여기서는 아무것도 하지 않고 클라의 <see cref="AuthRequestMessage"/>를 기다린다
+        /// (BasicAuthenticator와 같은 결). 수락/거부는 요청이 도착한 뒤 <c>OnAuthRequest</c>에서 정한다.
+        /// </summary>
         public override void OnServerAuthenticate(NetworkConnectionToClient conn) { }
 
         // 클라의 인증 요청 도착. 토큰으로 그 유저 세이브를 REST로 읽어(권위 스탯의 입력) 성공하면 수락한다.
@@ -286,19 +303,23 @@ namespace ProjectS.Networking
 
         #region Client
 
+        /// <summary>클라 시작 시 호출. 서버의 <see cref="AuthResponseMessage"/> 핸들러를 등록한다.</summary>
         public override void OnStartClient()
         {
             NetworkClient.RegisterHandler<AuthResponseMessage>(OnAuthResponse, false);
         }
 
+        /// <summary>클라 종료 시 호출. 인증 응답 핸들러를 해제한다.</summary>
         public override void OnStopClient()
         {
             NetworkClient.UnregisterHandler<AuthResponseMessage>();
         }
 
-        // 클라 접속 시 호출. 토큰 획득이 비동기라, 받아온 뒤 요청을 보낸다.
-        // ★ 어떤 경우든 반드시 한 번은 Send 해야 한다 — 안 보내면 서버가 핸드셰이크를 기다리며 접속이 멈춘다.
-        //   그래서 실패(토큰 없음/미로그인/오프라인 테스트)해도 빈 토큰으로 보낸다(S1은 서버가 무조건 수락).
+        /// <summary>
+        /// 클라 접속 시 Mirror가 호출. 토큰 획득이 비동기라, 받아온 뒤 <see cref="AuthRequestMessage"/>를 보낸다.
+        /// <para>★ 어떤 경우든 반드시 한 번은 Send 해야 한다 — 안 보내면 서버가 핸드셰이크를 기다리며 접속이 멈춘다.
+        /// 그래서 실패(토큰 없음/미로그인/오프라인 테스트)해도 빈 토큰으로 보낸다(개발 모드면 서버가 save 없이 수락).</para>
+        /// </summary>
         public override void OnClientAuthenticate()
         {
             _ = SendAuthRequestAsync();

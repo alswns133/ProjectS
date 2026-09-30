@@ -79,6 +79,7 @@ namespace ProjectS.Networking
             ChatEvents.OnSendRequested += HandleLocalSend;
         }
 
+        /// <summary>로컬 플레이어 해제 시 입력 허브 구독을 푼다(OnStartLocalPlayer와 짝).</summary>
         public override void OnStopLocalPlayer()
         {
             ChatEvents.OnSendRequested -= HandleLocalSend;

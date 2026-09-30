@@ -166,6 +166,7 @@ namespace ProjectS.UI.Framework
         }
 
         // ---- 좌클릭 드래그(고스트) : InventorySlotView와 동일 패턴 ----
+        /// <summary>좌클릭 드래그 시작: 아이템 아이콘을 고스트로 띄우고 hover 툴팁을 억제한다(빈 슬롯·우클릭 드래그는 무시).</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
             // 좌클릭 드래그만 아이템 집기. 우클릭 드래그는 컨텍스트 메뉴용이라 무시한다
@@ -197,11 +198,13 @@ namespace ProjectS.UI.Framework
             dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 중 고스트를 포인터 위치로 옮긴다.</summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (dragGhost != null) dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 종료: 고스트를 지우고 툴팁 억제를 푼다.</summary>
         public void OnEndDrag(PointerEventData eventData)
         {
             if (dragGhost != null) Destroy(dragGhost);
