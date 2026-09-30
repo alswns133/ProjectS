@@ -1,5 +1,7 @@
-using System;
+﻿using System;
 using Mirror;
+using ProjectS.Events;
+using ProjectS.Managers;
 using UnityEngine;
 
 namespace ProjectS.Networking
@@ -67,12 +69,17 @@ namespace ProjectS.Networking
         public override void OnStartLocalPlayer()
         {
             Local = this;
+            PlayerEvents.OnCombatStatsChanged += PlayerSaveService.MarkStatsDirty;
+            PlayerSaveService.OnStatsCommitted += OnLocalStatsCommitted;
+
             OnLocalStatsChanged?.Invoke();   // 스폰 시 이미 도착해 있을 초기값을 밀어 올린다.
         }
 
         /// <summary>로컬 플레이어 해제 시 호출. 자신이 <see cref="Local"/>이면 비워 파괴된 오브젝트를 가리키지 않게 한다.</summary>
         public override void OnStopLocalPlayer()
         {
+            PlayerEvents.OnCombatStatsChanged -= PlayerSaveService.MarkStatsDirty;
+            PlayerSaveService.OnStatsCommitted -= OnLocalStatsCommitted;
             if (Local == this) Local = null;
         }
 
@@ -80,6 +87,42 @@ namespace ProjectS.Networking
         private void OnStatsChanged(CombatStatBlock _, CombatStatBlock __)
         {
             if (isLocalPlayer) OnLocalStatsChanged?.Invoke();
+        }
+
+        private async void OnLocalStatsCommitted()
+        {
+            if (isServer) return; // 호스트는 로컬 경로로 데미지를 계산해 서버 스탯을 안 쓴다
+
+            // 접속 때 토큰은 1시간이면 만료돼 서버 REST가 401을 받는다. 매번 새로 받는다(유효하면 캐시를 돌려줌).
+            string token = FirebaseManager.Instance != null ? await FirebaseManager.Instance.GetIdTokenAsync() : null;
+
+            // await 사이에 접속이 끊겼거나 이 오브젝트가 사라졌을 수 있다(종료·재부팅 저장).
+            if (this == null || !isLocalPlayer || !NetworkClient.active) return;
+            // 오프라인 dev: 서버도 세이브가 없어 재도출할 게 없다
+            if (string.IsNullOrEmpty(token)) return;
+
+            Debug.Log("[CombatStats] 재도출 요청 보냄");
+            CmdRequestRederive(token);
+        }
+
+        [Command]
+        private void CmdRequestRederive(string idToken)
+        {
+            Debug.Log($"[CombatStats] 재도출 요청 받음 conn={connectionToClient.connectionId}");
+            if (NetworkManager.singleton != null && NetworkManager.singleton.authenticator is FirebaseServerAuthenticator auth)
+                auth.ServerRequestRederive(connectionToClient, idToken);
+        }
+
+        /// <summary>
+        /// 서버가 세이브를 다시 읽어 도출한 스탯으로 갱신한다(재도출 성공 시 인증기가 호출).
+        /// SyncVar라 소유 클라로도 복제되고, 다음 보스 타격부터 서버 데미지 계산이 이 값을 쓴다.
+        /// </summary>
+        /// <param name="block">새로 도출한 권위 전투 스탯</param>
+        [Server]
+        public void ServerApplyStats(CombatStatBlock block)
+        {
+            stats = block;
+            hasAuthoritativeStats = true;
         }
 
         /// <summary>
