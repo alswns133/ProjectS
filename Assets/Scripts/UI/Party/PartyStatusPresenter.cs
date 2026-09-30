@@ -126,7 +126,10 @@ namespace ProjectS.UI
 
             // 직업 심볼은 파티원의 직업(characterType)으로 로스터에서 꺼낸다(결성창 PartySlotView와 같은 출처).
             // 레벨이 바뀌어도 소스가 OnChanged를 다시 내므로 여기서 함께 갱신된다.
-            view.SetMember(PartnerSlot, partner.Nickname, partner.Level, ResolveSymbol(partner.CharacterType));
+            // 파티는 2인이라 내가 파티장이 아니면 상대가 파티장이다 — 그때만 슬롯에 왕관을 띄운다
+            // (결성창 PartyRosterPopup이 partnerSlot에 !IsLeader를 넘기는 것과 같은 판정).
+            bool partnerIsLeader = !source.IsLeader;
+            view.SetMember(PartnerSlot, partner.Nickname, partner.Level, ResolveSymbol(partner.CharacterType), partnerIsLeader);
 
             // 새 파티원이 앉았으니 첫 값을 반드시 그리게 기준을 눕히고, 붙자마자 현재 HP/SG를 한 번 민다
             // (다음 Update를 기다리지 않게).
