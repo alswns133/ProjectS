@@ -356374,6 +356374,7 @@ GameObject:
   - component: {fileID: 560216740953722782}
   - component: {fileID: 5352168776041628395}
   - component: {fileID: 326609509207336285}
+  - component: {fileID: -3894009392787433076}
   m_Layer: 6
   m_Name: Boss_Raid_Hammer
   m_TagString: Untagged
@@ -357669,6 +357670,36 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+--- !u!114 &-3894009392787433076
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5687241768397509265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e52de21a22b6dd44c9cc19f810c65059, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.SignalReceiver
+  m_Events:
+    m_Signals:
+    - {fileID: 11400000, guid: b7f0e3679b249da4589d0cfe6726540e, type: 2}
+    m_Events:
+    - m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 3507311219570952477}
+          m_TargetAssemblyTypeName: ProjectS.Enemies.EnemyEffects, Assembly-CSharp
+          m_MethodName: StopAll
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
 --- !u!1 &5687600060786113994
 GameObject:
   m_ObjectHideFlags: 0
