@@ -1,8 +1,9 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using UnityEngine;
 using ProjectS.Data;
 using ProjectS.Players;
 using ProjectS.Skills;
+using System;
 
 namespace ProjectS.Managers
 {
@@ -22,11 +23,21 @@ namespace ProjectS.Managers
         /// <summary>저장이 필요한 변경이 쌓여 있는지. AutoSaveTicker가 이 값을 보고 flush한다.</summary>
         public static bool IsDirty { get; private set; }
 
+        /// <summary>전투 스탯 변경이 아직 서버에 커밋되지 않았는지. 다음 저장의 스냅샷이 가져간다.</summary>
+        public static bool StatsDirty { get; private set; }
+
+        /// <summary>
+        /// 전투 스탯 변경을 담은 저장이 Firebase에 올라간 직후 발행. 서버가 이제 새 세이브를 읽을 수 있다는 신호라,
+        /// 구독자(NetworkCombatStats)가 여기서 재도출을 요청한다. 이벤트 시점에 바로 요청하면 서버가 옛 세이브를 읽는다.
+        /// </summary>
+        public static event Action OnStatsCommitted;
         /// <summary>
         /// 영구 상태가 바뀌었음을 표시한다(다음 오토세이브/경계에 저장됨). 어디서든 싸게 호출한다.
         /// "즉시 저장할 만큼 중요하지 않지만 유실되면 안 되는" 변화(부분 킬 진행, 드랍 골드 등)에 쓴다.
         /// </summary>
         public static void MarkDirty() => IsDirty = true;
+        /// <summary>전투 스탯이 바뀌었음을 표시한다. 다음 저장이 성공하면 <see cref="OnStatsCommitted"/>로 이어진다.</summary>
+        public static void MarkStatsDirty() => StatsDirty = true;
 
         /// <summary>
         /// 지금 즉시 저장한다(커밋·경계·오토세이브 flush 공통 경로). 값 수집(WriteTo)은 이 호출 시점에
@@ -68,12 +79,32 @@ namespace ProjectS.Managers
             // 이후 변경이 다시 dirty로 만들거나 다음 경계 flush가 재시도한다.
             IsDirty = false;
 
-            if (FirebaseManager.Instance == null) return Task.FromResult(false);
-            return FirebaseManager.Instance.SaveCharacter(save);
+            // 스냅샷과 같은 순간에 옮겨 담는다: 업로드 도중 생긴 스탯 변경은 이번이 아니라 다음 저장 몫이다.
+            bool includesStats = StatsDirty;
+            StatsDirty = false;
+
+            return UploadAsync(save, includesStats);
+        }
+
+        private static async Task<bool> UploadAsync(CharacterSaveData save, bool includesStats)
+        {
+            bool ok = FirebaseManager.Instance != null && await FirebaseManager.Instance.SaveCharacter(save);
+
+            if (includesStats)
+            {
+                if (ok) OnStatsCommitted?.Invoke();
+                else StatsDirty = true; // 실패 → 다음 저장이 다시 가져간다.
+            }
+            return ok;
         }
 
         // 플레이 모드 리로드 후에도 남을 수 있는 static 상태를 초기화한다.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() => IsDirty = false;
+        private static void ResetStatics()
+        {
+            IsDirty = false;
+            StatsDirty = false;
+            OnStatsCommitted = null;
+        }
     }
 }
