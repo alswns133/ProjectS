@@ -349,7 +349,12 @@ namespace ProjectS.Managers
 
         /// <summary>
         /// 지정한 팝업 하나를 닫고 활성 목록에서 제거한다. 목록에 없는 팝업이면 아무것도 하지 않는다.
+        /// 닫은 팝업이 마지막이고 HUD만 떠 있으면 커서를 잠가 TPS 조작으로 돌려보낸다.
         /// </summary>
+        /// <remarks>
+        /// 커서 잠금을 각 팝업의 OnHide가 아니라 여기서 판정하는 이유: OnHide 시점엔 닫히는 팝업이 아직 목록에 남아 있고,
+        /// 팝업은 다른 팝업이 떠 있는지 모른다. 팝업마다 스스로 잠그면 "인벤을 켠 채 입장창을 닫았더니 커서가 잠기는" 식으로 꼬인다.
+        /// </remarks>
         /// <param name="popup">닫을 팝업</param>
         internal void ClosePopup(BasePopup popup)
         {
@@ -358,6 +363,15 @@ namespace ProjectS.Managers
             // TODO(sound): 팝업(창) 닫기음 — SoundManager.Instance.PlaySFX(<닫기 SFX>);
             popup.Hide();
             activePopups.Remove(popup);
+
+            // 팝업이 남아 있거나 HUD 위에 다른 패널이 떠 있으면 아직 마우스로 조작 중이라 잠그지 않는다.
+            // Count만 보지 않고 HUDPanel인지까지 보는 이유: 결과 화면·캐릭터 선택처럼 HUD 없이 혼자 뜬 패널도
+            // 개수는 1개라, 거기서 잠그면 마우스로 쓰는 화면에서 커서가 사라진다.
+            // Cursor를 직접 바꾸지 않고 Player를 거쳐야 OnCursorModeChanged가 나가 HUD 위젯(퀘스트 트래커 등)이 따라온다.
+            if (activePopups.Count == 0 && panelStack.Count == 1 && panelStack.Peek() is HUDPanel)
+            {
+                PlayerManager.Instance?.Player?.SetCursorMode(false);
+            }
         }
 
         /// <summary>
