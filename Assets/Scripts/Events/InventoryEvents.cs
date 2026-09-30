@@ -3,6 +3,7 @@ using ProjectS.Data;
 
 namespace ProjectS.Events
 {
+    /// <summary>인벤토리·장비·퀵슬롯 변화를 UI에 알리는 static 이벤트 허브. 발행은 반드시 FireXxx로 한다.</summary>
     public class InventoryEvents
     {
         /// <summary>
@@ -41,18 +42,29 @@ namespace ProjectS.Events
         public static event Action OnInventoryChanged;
 
 
+        /// <summary><see cref="OnItemAdded"/>를 발행한다. 인벤토리에 아이템을 넣은 쪽이 호출한다.</summary>
         public static void FireItemAdded(ItemData item) => OnItemAdded?.Invoke(item);
 
+        /// <summary><see cref="OnItemRemoved"/>를 발행한다. 인벤토리에서 아이템을 뺀 쪽이 호출한다.</summary>
         public static void FireItemRemoved(ItemData item) => OnItemRemoved?.Invoke(item);
 
+        /// <summary><see cref="OnItemEquipped"/>를 발행한다. 장착 처리 후 호출한다.</summary>
         public static void FireItemEquipped(ItemData item) => OnItemEquipped?.Invoke(item);
 
+        /// <summary><see cref="OnItemUnequipped"/>를 발행한다. 장착 해제 처리 후 호출한다.</summary>
         public static void FireItemUnequipped(ItemData item) => OnItemUnequipped?.Invoke(item);
 
+        /// <summary><see cref="OnQuickSlotChanged"/>를 발행한다. itemId가 0이면 슬롯 해제.</summary>
+        /// <param name="index">퀵슬롯 인덱스.</param>
+        /// <param name="itemId">등록한 소비품 itemId(0 = 해제).</param>
         public static void FireQuickSlotChanged(int index, int itemId) => OnQuickSlotChanged?.Invoke(index, itemId);
 
+        /// <summary><see cref="OnConsumableUsed"/>를 발행한다. 소비품을 실제로 사용한 뒤 호출해야 HUD 쿨다운이 맞게 돈다.</summary>
+        /// <param name="itemId">사용한 소비품 itemId.</param>
+        /// <param name="cooldownSec">쿨다운(초).</param>
         public static void FireConsumableUsed(int itemId, float cooldownSec) => OnConsumableUsed?.Invoke(itemId, cooldownSec);
 
+        /// <summary><see cref="OnInventoryChanged"/>를 발행한다. 추가/제거가 아닌 배치 변경(위치 이동 등) 때 호출한다.</summary>
         public static void FireInventoryChanged() => OnInventoryChanged?.Invoke();
     }
 }

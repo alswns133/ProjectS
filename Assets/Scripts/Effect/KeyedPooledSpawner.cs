@@ -25,7 +25,10 @@ namespace ProjectS.Effects
         [Serializable]
         private class PrewarmEntry
         {
+            /// <summary>미리 만들어 둘 프리팹.</summary>
             public T prefab;
+
+            /// <summary>이 프리팹을 미리 만들어 둘 개수.</summary>
             [Min(1)] public int count = 4;
         }
 

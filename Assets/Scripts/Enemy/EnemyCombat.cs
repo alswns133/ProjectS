@@ -46,60 +46,74 @@ namespace ProjectS.Enemies
         [Serializable]
         private class AttackPattern
         {
-            // 인스펙터에서 식별하기 위한 표시 이름. 로직 키로 쓰지 않는다.
+            /// <summary>인스펙터에서 식별하기 위한 표시 이름. 로직 키로 쓰지 않는다.</summary>
             public string name = "Attack";
 
-            // 히트 전달 방식. Melee는 hitBox로 그 자리 판정, Projectile은 muzzle에서 발사한다.
-            // 기본값이자 enum 0번이 Melee라, 이 필드가 없던 시절의 기존 프리팹은 전부 근접으로 읽힌다.
-            // 아래 슬롯별 설정이 이 값에 따라 인스펙터에서 갈린다.
+            /// <summary>
+            /// 히트 전달 방식. Melee는 hitBox로 그 자리 판정, Projectile은 muzzle에서 발사한다.
+            /// 기본값이자 enum 0번이 Melee라, 이 필드가 없던 시절의 기존 프리팹은 전부 근접으로 읽힌다.
+            /// 아래 슬롯별 설정이 이 값에 따라 인스펙터에서 갈린다.
+            /// </summary>
             public AttackKind kind = AttackKind.Melee;
 
-            // Animator의 AttackIndex 파라미터로 전달되는 값.
-            // 예: 0=Attack1, 1=Attack2, 2=Attack3. 실제 전이 규칙은 Animator Controller가 소유한다.
+            /// <summary>
+            /// Animator의 AttackIndex 파라미터로 전달되는 값.
+            /// 예: 0=Attack1, 1=Attack2, 2=Attack3. 실제 전이 규칙은 Animator Controller가 소유한다.
+            /// </summary>
             [Min(0)] public int animationIndex;
 
-            // 이 공격이 선택될 수 있는 최대 거리. ChaseState의 공격 진입 거리는 전체 공격 중 최대값을 쓴다.
+            /// <summary>이 공격이 선택될 수 있는 최대 거리. ChaseState의 공격 진입 거리는 전체 공격 중 최대값을 쓴다.</summary>
             [Min(0.01f)] public float range = 1.8f;
 
-            // 이 공격이 선택되기 위한 최소 거리. 0이면 붙어 있어도 쓸 수 있다.
-            // 궁수의 "붙으면 근접"은 이 값으로 표현한다: 활 슬롯에 minRange를 주면
-            // 플레이어가 파고들었을 때 활이 후보에서 빠지고 근접 슬롯만 남는다.
+            /// <summary>
+            /// 이 공격이 선택되기 위한 최소 거리. 0이면 붙어 있어도 쓸 수 있다.
+            /// 궁수의 "붙으면 근접"은 이 값으로 표현한다: 활 슬롯에 minRange를 주면
+            /// 플레이어가 파고들었을 때 활이 후보에서 빠지고 근접 슬롯만 남는다.
+            /// </summary>
             [Min(0f)] public float minRange;
 
-            // 공격 시작 시 바로 쿨다운을 소모한다. 빗나가도 쿨다운은 돌아가는 '공격 커밋' 규칙.
+            /// <summary>공격 시작 시 바로 쿨다운을 소모한다. 빗나가도 쿨다운은 돌아가는 '공격 커밋' 규칙.</summary>
             [Min(0.01f)] public float cooldown = 2f;
 
-            // 이 공격의 계수. 피해 = EnemyStats.AttackPower × 계수 로 계산된다.
-            // 공격력(테이블)과 모션별 세기(인스펙터)를 분리해, 같은 몬스터의 강한 패턴/약한 패턴을
-            // 스탯 테이블을 건드리지 않고 표현한다.
+            /// <summary>
+            /// 이 공격의 계수. 피해 = EnemyStats.AttackPower × 계수 로 계산된다.
+            /// 공격력(테이블)과 모션별 세기(인스펙터)를 분리해, 같은 몬스터의 강한 패턴/약한 패턴을
+            /// 스탯 테이블을 건드리지 않고 표현한다.
+            /// </summary>
             public float coef = 1f;
 
-            // 같은 거리 조건을 만족하는 공격들 중 선택 확률. 0이면 사실상 비활성화된다.
+            /// <summary>같은 거리 조건을 만족하는 공격들 중 선택 확률. 0이면 사실상 비활성화된다.</summary>
             [Min(0)] public float weight = 1f;
 
-            // 공격이 진행되는 동안 대상을 계속 조준할지.
-            // 기본값(끔)은 시작 순간의 방향으로 커밋하는 기존 규칙이다 — 근접은 휘두르는 순간이
-            // 곧 판정이라 시차가 거의 없고, 플레이어의 회피 이동이 의미 있게 작동한다.
-            // 조준 모션이 긴 원거리 공격은 켠다. 끄면 발사 시점엔 이미 낡은 방향이라
-            // 플레이어가 지나간 자리로 총알이 날아간다(피격 넉백 직후가 특히 눈에 띈다).
-            // Projectile 슬롯에서는 몸 회전뿐 아니라 발사 방향도 발사 순간의 대상 위치로 다시 잡는다.
+            /// <summary>
+            /// 공격이 진행되는 동안 대상을 계속 조준할지.
+            /// 기본값(끔)은 시작 순간의 방향으로 커밋하는 기존 규칙이다 — 근접은 휘두르는 순간이
+            /// 곧 판정이라 시차가 거의 없고, 플레이어의 회피 이동이 의미 있게 작동한다.
+            /// 조준 모션이 긴 원거리 공격은 켠다. 끄면 발사 시점엔 이미 낡은 방향이라
+            /// 플레이어가 지나간 자리로 총알이 날아간다(피격 넉백 직후가 특히 눈에 띈다).
+            /// Projectile 슬롯에서는 몸 회전뿐 아니라 발사 방향도 발사 순간의 대상 위치로 다시 잡는다.
+            /// </summary>
             public bool trackTarget;
 
-            // 이 공격이 Start→Loop→End처럼 여러 Animator State로 이어지는 다단(연결) 모션인지.
-            // false(기본) = 단일 클립. State가 클립 하나 끝(IsCurrentStateFinished)으로 공격 종료를 판단한다 — 기존 몬스터는 전부 이쪽이라 동작이 바뀌지 않는다.
-            // true = 여러 모션이 한 공격으로 뭉친 다단. State가 "클립 하나 끝"을 공격 종료로 오인하지 않고,
-            //   애니메이터가 마지막 State(End)에서 로코모션으로 자동 전이해 "Attack" 태그를 완전히 벗어날 때까지 상태를 유지한다.
-            //   ★ 계약: 다단 공격은 Start·Loop·End 모든 State에 "Attack" 태그를 달고, End→로코모션 자동 전이(Has Exit Time)를 둔다.
-            //     자동 전이가 없으면 태그를 못 벗어나 안전 타임아웃(EnemyAttackState.MaxAttackTime)까지 굳는다.
-            //   근접/돌진/원거리/보스 잡기 어느 kind든 공통으로 적용된다(모션 '형태'라 kind와 직교).
+            /// <summary>
+            /// 이 공격이 Start→Loop→End처럼 여러 Animator State로 이어지는 다단(연결) 모션인지.
+            /// false(기본) = 단일 클립. State가 클립 하나 끝(IsCurrentStateFinished)으로 공격 종료를 판단한다 — 기존 몬스터는 전부 이쪽이라 동작이 바뀌지 않는다.
+            /// true = 여러 모션이 한 공격으로 뭉친 다단. State가 "클립 하나 끝"을 공격 종료로 오인하지 않고,
+            ///   애니메이터가 마지막 State(End)에서 로코모션으로 자동 전이해 "Attack" 태그를 완전히 벗어날 때까지 상태를 유지한다.
+            ///   ★ 계약: 다단 공격은 Start·Loop·End 모든 State에 "Attack" 태그를 달고, End→로코모션 자동 전이(Has Exit Time)를 둔다.
+            ///     자동 전이가 없으면 태그를 못 벗어나 안전 타임아웃(EnemyAttackState.MaxAttackTime)까지 굳는다.
+            ///   근접/돌진/원거리/보스 잡기 어느 kind든 공통으로 적용된다(모션 '형태'라 kind와 직교).
+            /// </summary>
             public bool multiPhase;
 
             // ── 이하 kind별 설정. 해당 kind일 때만 인스펙터에 나타난다 ──────────
             // 숨겨진 필드도 값은 직렬화되어 남는다(표시만 감춘다) → kind를 되돌리면 이전 참조가 그대로 살아난다.
 
-            // 이 Transform의 위치/회전/스케일이 곧 판정 박스다.
-            // 공격 클립별 손/무기 위치에 맞춘 자식 오브젝트를 연결한다.
-            // 돌진(Charge)도 같은 hitBox를 쓴다 — 다른 건 "1회 판정 vs 슬라이드 연속 판정"뿐이라 박스 지정은 동일하다.
+            /// <summary>
+            /// 이 Transform의 위치/회전/스케일이 곧 판정 박스다.
+            /// 공격 클립별 손/무기 위치에 맞춘 자식 오브젝트를 연결한다.
+            /// 돌진(Charge)도 같은 hitBox를 쓴다 — 다른 건 "1회 판정 vs 슬라이드 연속 판정"뿐이라 박스 지정은 동일하다.
+            /// </summary>
             [ShowIfEnum(nameof(kind), (int)AttackKind.Melee, (int)AttackKind.Charge)]
             public Transform hitBox;
 
@@ -114,7 +128,7 @@ namespace ProjectS.Enemies
             [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
             public bool useRootMotionCharge = true;
 
-            // 코드 구동 돌진의 지속 시간(초). 속도 커브 X축(정규화 시간) 1.0에 해당한다.
+            /// <summary>코드 구동 돌진의 지속 시간(초). 속도 커브 X축(정규화 시간) 1.0에 해당한다.</summary>
             [Tooltip("코드 구동 돌진의 지속 시간(초). 이 시간이 지나면 돌진이 멈춘다.\n" +
                      "아래 속도 커브의 X축(정규화 시간) 1.0이 이 시간에 해당한다.\n" +
                      "Use Root Motion Charge가 해제된 돌진에만 쓰인다.")]
@@ -131,28 +145,34 @@ namespace ProjectS.Enemies
             [ShowIfEnum(nameof(kind), (int)AttackKind.Charge)]
             public AnimationCurve chargeSpeedCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 12f);
 
-            // 발사할 투사체 프리팹. 반드시 owner가 Enemy이고 targetMask가 플레이어 레이어인
-            // 프리팹이어야 한다(플레이어용 검기와 프리팹을 나눈다).
+            /// <summary>
+            /// 발사할 투사체 프리팹. 반드시 owner가 Enemy이고 targetMask가 플레이어 레이어인
+            /// 프리팹이어야 한다(플레이어용 검기와 프리팹을 나눈다).
+            /// </summary>
             [ShowIfEnum(nameof(kind), (int)AttackKind.Projectile)]
             public Projectile projectilePrefab;
 
-            // 발사 위치·방향 기준 Transform. 보통 활을 든 손이나 가슴 높이의 자식 오브젝트.
-            // 투사체는 이 Transform의 forward로 직진하므로, 플레이어 높이에 맞춘 각도로 배치해야 한다
-            // (AttackState가 진입 시 대상을 바라보게 하므로 수평 방향은 자동으로 맞는다).
+            /// <summary>
+            /// 발사 위치·방향 기준 Transform. 보통 활을 든 손이나 가슴 높이의 자식 오브젝트.
+            /// 투사체는 이 Transform의 forward로 직진하므로, 플레이어 높이에 맞춘 각도로 배치해야 한다
+            /// (AttackState가 진입 시 대상을 바라보게 하므로 수평 방향은 자동으로 맞는다).
+            /// </summary>
             [ShowIfEnum(nameof(kind), (int)AttackKind.Projectile)]
             public Transform muzzle;
 
-            // muzzle 회전에 더할 각도(오일러). 발사각 미세 조정용.
+            /// <summary>muzzle 회전에 더할 각도(오일러). 발사각 미세 조정용.</summary>
             [ShowIfEnum(nameof(kind), (int)AttackKind.Projectile)]
             public Vector3 rotationOffset;
 
-            // 발사 순간 총구에서 터지는 이펙트(총구 화염 등). 보통 muzzle의 자식으로 붙인다.
-            // EnemyEffects(공용 이펙트 통로)로 빼지 않는 이유: 총구 위치·발사 방향·총구 화염은 한 세트라
-            // 발사 로직과 같은 슬롯에 두는 편이 응집도가 높고, 발사 프레임과 정확히 맞물린다.
+            /// <summary>
+            /// 발사 순간 총구에서 터지는 이펙트(총구 화염 등). 보통 muzzle의 자식으로 붙인다.
+            /// EnemyEffects(공용 이펙트 통로)로 빼지 않는 이유: 총구 위치·발사 방향·총구 화염은 한 세트라
+            /// 발사 로직과 같은 슬롯에 두는 편이 응집도가 높고, 발사 프레임과 정확히 맞물린다.
+            /// </summary>
             [ShowIfEnum(nameof(kind), (int)AttackKind.Projectile)]
             public ParticleSystem muzzleFlash;
 
-            // 관통 여부. 몬스터 투사체는 보통 false(첫 적중에 소멸).
+            /// <summary>관통 여부. 몬스터 투사체는 보통 false(첫 적중에 소멸).</summary>
             [ShowIfEnum(nameof(kind), (int)AttackKind.Projectile)]
             public bool canPierce;
         }

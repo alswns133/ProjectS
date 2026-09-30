@@ -15,7 +15,10 @@ namespace ProjectS.Data
     [Serializable]
     public class SkillTable : IDataRow
     {
+        /// <summary>스킬 ID(테이블 키). 3자리 [캐릭터][스킬2] 규칙(docs/ID_NUMBERING.md).</summary>
         public int SkillId;
+
+        /// <summary>스킬 식별 키. 캐릭터 스킬은 캐릭터 접두사(SW_/GN_)가 붙고, 기본 액션 행(ATK_NORMAL 등)에는 붙지 않는다.</summary>
         public string NameKey;
 
         /// <summary>타격 계수. 평타는 1.0으로 두고 편차를 RandomMin/Max로 표현한다.</summary>

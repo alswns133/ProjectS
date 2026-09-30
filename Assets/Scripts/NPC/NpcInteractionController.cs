@@ -43,11 +43,14 @@ namespace ProjectS.NPCs
         Craft      // 제작
     }
 
+    /// <summary>NPC 허브 화면에 띄울 기능 버튼 하나의 정의(인스펙터 설정).</summary>
     [Serializable]
     public class NpcHub
     {
+        /// <summary>이 버튼이 여는 기능(상점/퀘스트/제작 등).</summary>
         public NpcHubFeature feature;
 
+        /// <summary>feature가 Shop일 때 열 상점 ID(ShopTable). 다른 기능이면 쓰지 않는다.</summary>
         [ShowIfEnum(nameof(feature), (int)NpcHubFeature.Shop)]
         public int shopId;
     }
@@ -140,6 +143,8 @@ namespace ProjectS.NPCs
             return false;
         }
 
+        /// <summary>이 NPC에 설정된 기능의 상점 ID를 찾는다.</summary>
+        /// <returns>해당 기능 정의가 없으면 0.</returns>
         public int GetShopIdForFeature(NpcHubFeature feature)
         {
             foreach (NpcHub hub in hubFeatures)

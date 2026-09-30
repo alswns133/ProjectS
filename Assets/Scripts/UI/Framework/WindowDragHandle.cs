@@ -12,16 +12,19 @@ namespace ProjectS.UI.Framework
     {
         [SerializeField] private DraggableWindow window;
 
+        /// <summary>창 드래그를 시작한다(실제 이동은 DraggableWindow가 처리).</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (window != null) window.BeginDrag(eventData);
         }
 
+        /// <summary>창 드래그를 진행한다.</summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (window != null) window.Drag(eventData);
         }
 
+        /// <summary>창 드래그를 끝낸다.</summary>
         public void OnEndDrag(PointerEventData eventData)
         {
             if (window != null) window.EndDrag(eventData);

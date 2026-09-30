@@ -10,14 +10,24 @@ using ProjectS.Players;
 
 namespace ProjectS.UI
 {
+    /// <summary>캐릭터별 HUD 장식 색 한 벌(인스펙터 설정).</summary>
     [System.Serializable]
     public class LevelColor
     {
+        /// <summary>이 색을 쓸 캐릭터 ID(PlayerStatTable.CharacterId).</summary>
         public int charaterId;
+
+        /// <summary>장식 바탕 색.</summary>
         public Color decorColor = new(0, 0, 0, 0);
+
+        /// <summary>장식 무늬 색.</summary>
         public Color decorPatternColor = new(0, 0, 0, 0);
+
+        /// <summary>장식 테두리 색.</summary>
         public Color decorFrameColor = new(0, 0, 0, 0);
     }
+
+    /// <summary>인게임 HUD 패널. HP·SG·스태미나·경험치·레벨·스킬·히트 콤보 표시 메서드를 제공하고, 값은 HUDPresenter가 이벤트를 받아 넣어 준다.</summary>
     public class HUDPanel : BasePanel
     {
         [Header("HP")]
@@ -241,6 +251,8 @@ namespace ProjectS.UI
             classSymbol.enabled = s != null;
         }
 
+        /// <summary>캐릭터에 맞는 장식 색을 적용한다. 설정에 없는 캐릭터면 그대로 둔다.</summary>
+        /// <param name="charId">캐릭터 ID.</param>
         public void SetLevelColor(int charId)
         {
             if (decor == null || decorFrame == null|| decorPattern == null) return;
@@ -337,6 +349,8 @@ namespace ProjectS.UI
             stamina.SetRatio(ratio);
         }
 
+        /// <summary>경험치 바를 갱신한다.</summary>
+        /// <param name="ratio">현재 레벨 경험치 비율(0~1).</param>
         public void SetExp(float ratio)
         {
             expBar.fillAmount = ratio;
@@ -410,6 +424,7 @@ namespace ProjectS.UI
             hitComboTimerRatio = Mathf.Clamp01(ratio);
         }
 
+        /// <summary>히트 콤보 표시를 켜거나 즉시 끈다(준비 전이면 무시).</summary>
         public void SetHitComboVisible(bool visible)
         {
             if (!isHitComboReady) return;

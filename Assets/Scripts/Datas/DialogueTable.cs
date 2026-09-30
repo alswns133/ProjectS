@@ -9,6 +9,7 @@ namespace ProjectS.Data
     [Serializable]
     public class DialogueTable : IDataRow
     {
+        /// <summary>대화 ID(테이블 키). 퀘스트·NPC가 이 값으로 대화를 찾는다.</summary>
         public int DialogueId;
 
         /// <summary>

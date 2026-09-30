@@ -51,11 +51,16 @@ namespace ProjectS.Effects
         [Serializable]
         private class EffectEntry
         {
+            /// <summary>Animation Event·코드가 이펙트를 찾을 때 쓰는 키(언더바 표기 차이는 AnimationEventKey.Normalize로 흡수).</summary>
             public string key;
+
+            /// <summary>이 키로 재생할 히트 이펙트 프리팹.</summary>
             public HitEffect prefab;
 
-            // 총 스프레이·검흔처럼 타격 방향으로 재생할 이펙트만 켠다.
-            // 기존 저장 데이터에 이 필드가 없으면 Unity가 false로 역직렬화하므로 기존 연출은 유지된다.
+            /// <summary>
+            /// 총 스프레이·검흔처럼 타격 방향으로 재생할 이펙트만 켠다.
+            /// 기존 저장 데이터에 이 필드가 없으면 Unity가 false로 역직렬화하므로 기존 연출은 유지된다.
+            /// </summary>
             public bool oriented;
         }
 

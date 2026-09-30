@@ -37,8 +37,11 @@ namespace ProjectS.Enemies
         /// </summary>
         public bool IsAirborne => !hasDescended;
 
+        /// <summary>공중 런처 피격 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyLaunchState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>NavMeshAgent를 멈추고 Hit_Air 모션을 재생한다.</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -61,6 +64,7 @@ namespace ProjectS.Enemies
             enemy.Animation.PlayHitAir();
         }
 
+        /// <summary>클립 진행도로 착지를 래치하고, 기상까지 끝나거나 안전 상한이 지나면 착지 처리 후 교전 상태(AggroState)로 복귀한다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;

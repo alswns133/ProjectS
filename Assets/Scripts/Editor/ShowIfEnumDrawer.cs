@@ -14,6 +14,7 @@ namespace ProjectS.EditorTools
     [CustomPropertyDrawer(typeof(ShowIfEnumAttribute))]
     public class ShowIfEnumDrawer : PropertyDrawer
     {
+        /// <summary>숨길 때는 항목 간격만큼 음수 높이를 돌려 빈 줄이 남지 않게 한다.</summary>
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             if (IsVisible(property)) return EditorGUI.GetPropertyHeight(property, label, true);
@@ -23,6 +24,7 @@ namespace ProjectS.EditorTools
             return -EditorGUIUtility.standardVerticalSpacing;
         }
 
+        /// <summary>조건을 만족할 때만 필드를 그린다(배열·중첩 클래스는 자식까지).</summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             if (!IsVisible(property)) return;

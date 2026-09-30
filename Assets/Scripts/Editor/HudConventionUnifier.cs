@@ -232,10 +232,17 @@ namespace ProjectS.EditorTools
 
         private class NameRule
         {
+            /// <summary>바꾸기 전 이름(정확히 일치해야 적용).</summary>
             public string From;
+
+            /// <summary>바꿀 이름.</summary>
             public string To;
-            public string ParentName;               // null이면 부모 무관
-            public Func<Transform, bool> Guard;     // 추가 조건
+
+            /// <summary>부모 이름 조건. null이면 부모와 무관하게 적용한다.</summary>
+            public string ParentName;
+            /// <summary>추가 적용 조건. null이면 조건 없음.</summary>
+            public Func<Transform, bool> Guard;
+            /// <summary>리포트에 찍을 변경 사유.</summary>
             public string Reason;
         }
 
@@ -679,10 +686,16 @@ namespace ProjectS.EditorTools
 
         private class RefLink
         {
+            /// <summary>참조를 들고 있는 컴포넌트(교체 대상 바깥).</summary>
             public Component Owner;
+
+            /// <summary>Owner 안에서 참조가 든 SerializedProperty 경로.</summary>
             public string PropertyPath;
-            public string RelativePath;   // 교체 대상 루트 기준. 빈 문자열이면 루트 자신
-            public Type ComponentType;    // null이면 GameObject 참조
+
+            /// <summary>교체 대상 루트 기준 상대 경로. 빈 문자열이면 루트 자신.</summary>
+            public string RelativePath;
+            /// <summary>참조가 가리키는 컴포넌트 타입. null이면 GameObject 참조.</summary>
+            public Type ComponentType;
         }
 
         private static List<RefLink> CollectIncomingRefs(Transform oldRoot, Transform scope)

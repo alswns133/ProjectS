@@ -36,7 +36,10 @@ namespace ProjectS.UI
         [Serializable]
         private class TabEntry
         {
+            /// <summary>탭 버튼.</summary>
             public Button button;
+
+            /// <summary>이 탭이 보여 줄 페이지.</summary>
             public GameObject page;
         }
 
@@ -44,8 +47,13 @@ namespace ProjectS.UI
         [Serializable]
         private class VolumeRow
         {
+            /// <summary>볼륨 슬라이더.</summary>
             public Slider slider;
+
+            /// <summary>볼륨 숫자 표시.</summary>
             public TMP_Text valueText;
+
+            /// <summary>음소거 토글.</summary>
             public CyberIconToggleView muteToggle;
         }
 

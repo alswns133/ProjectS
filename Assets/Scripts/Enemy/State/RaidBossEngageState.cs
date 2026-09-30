@@ -12,8 +12,11 @@ namespace ProjectS.Enemies
     {
         private RaidBossLocomotion config;
 
+        /// <summary>레이드 교전 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 보스 컨텍스트.</param>
         public RaidBossEngageState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>RaidBossLocomotion 설정을 읽고, 회전을 코드가 다루도록 자동 회전을 끈 채 이동을 재개한다.</summary>
         public override void Enter()
         {
             config = enemy.GetComponent<RaidBossLocomotion>();
@@ -21,12 +24,14 @@ namespace ProjectS.Enemies
             enemy.Movement.Resume();
         }
 
+        /// <summary>에이전트 자동 회전을 원복한다.</summary>
         public override void Exit()
         {
             // 다른 상태(순찰/발견 등)는 에이전트 자동 회전을 쓰므로 원복한다.
             enemy.Movement.SetAutoRotation(true);
         }
 
+        /// <summary>사거리 안이면 공격(쿨다운 중이면 제자리 주시), 밖이면 거리 밴드에 따라 Walk/Jog/Run 속도로 대상에게 직진한다.</summary>
         public override void Update()
         {
             if (enemy.Target == null || config == null) return;

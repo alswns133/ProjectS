@@ -25,6 +25,7 @@ namespace ProjectS.Managers
     /// </remarks>
     public class SoundManager : MonoBehaviour
     {
+        /// <summary>싱글톤 인스턴스. 중복 생성분은 Awake에서 제거된다.</summary>
         public static SoundManager Instance { get; private set; }
 
         [Header("믹서")]

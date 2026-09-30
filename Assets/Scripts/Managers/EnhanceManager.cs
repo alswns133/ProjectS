@@ -16,6 +16,7 @@ namespace ProjectS.Managers
     /// </remarks>
     public class EnhanceManager : MonoBehaviour
     {
+        /// <summary>싱글톤 인스턴스. 중복 생성분은 Awake에서 제거된다.</summary>
         public static EnhanceManager Instance { get; private set; }
 
         // 강화창을 연 NPC. 닫을 때 이 NPC의 허브로 되돌려 상호작용 잠금을 푼다.

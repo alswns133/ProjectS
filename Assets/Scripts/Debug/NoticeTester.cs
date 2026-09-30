@@ -42,6 +42,7 @@ namespace ProjectS.Debugging
         [Tooltip("보스 등장 연출에 표시할 이름. 비우면 이름 줄이 숨겨진 상태로 뜬다.")]
         [SerializeField] private string testBossName = "강철 파수꾼";
 
+        /// <summary>레벨업 알림을 테스트 레벨로 띄운다(컨텍스트 메뉴 1).</summary>
         [ContextMenu("1. 레벨업 알림")]
         public void ShowLevelUp()
         {
@@ -51,6 +52,7 @@ namespace ProjectS.Debugging
             notice.Show(testLevel);
         }
 
+        /// <summary>스킬 해금 배너를 테스트 스킬 이름·아이콘으로 띄운다(컨텍스트 메뉴 2).</summary>
         [ContextMenu("2. 스킬 해금 알림")]
         public void ShowSkillUnlock()
         {
@@ -98,6 +100,7 @@ namespace ProjectS.Debugging
             intro.Play(testBossName);
         }
 
+        /// <summary>떠 있는 알림·배너(대기열 포함)를 모두 즉시 내린다(컨텍스트 메뉴 6).</summary>
         [ContextMenu("6. 모두 즉시 내리기")]
         public void DismissAll()
         {

@@ -2,6 +2,7 @@
 
 namespace ProjectS.Players
 {
+    /// <summary>로코모션 State에 붙인다. 진입하면 공격·스킬이 끝난 것으로 보고 이동 잠금을 풀며, 전이가 끝나면 콤보를 정리한다(기존 Z 블렌드 모델의 공격 종료 처리).</summary>
     public class ComboResetBehaviour : StateMachineBehaviour
     {
         // SMB는 컨트롤러 에셋에 붙는 객체라 Awake에서 GameObject에 접근할 수 없다.
@@ -13,8 +14,10 @@ namespace ProjectS.Players
         // 이번 로코모션 진입에서 콤보 정리를 했는지. 블렌드 '완료' 프레임에 1회만 돌리기 위함.
         private bool tornDown;
 
-        // 로코모션(평상시) 상태에 진입한 순간 = 공격·스킬 동작이 끝난 시점.
-        // 이때 이동 잠금을 풀어 다시 움직일 수 있게 한다.
+        /// <summary>
+        /// 로코모션(평상시) 상태에 진입한 순간 = 공격·스킬 동작이 끝난 시점.
+        /// 이때 이동 잠금을 풀어 다시 움직일 수 있게 한다.
+        /// </summary>
         public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (player == null)
@@ -39,6 +42,7 @@ namespace ProjectS.Players
             tornDown = false;
         }
 
+        /// <summary>전이가 끝나 로코모션에 완전히 들어오면 콤보 체인을 한 번 정리한다. 방금 시작한 액션의 유예 구간에는 미룬다.</summary>
         public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             // grace 구간에도 EndComboChain(→ResetCombo)이 돌면 currentAction이 None으로 지워진다.

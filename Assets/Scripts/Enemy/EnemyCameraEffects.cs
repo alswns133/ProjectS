@@ -36,31 +36,34 @@ namespace ProjectS.Enemies
         [Serializable]
         private class CameraEffectSlot
         {
+            /// <summary>Animation Event 인자로 이 슬롯을 찾는 키(언더바 표기 차이는 Normalize로 흡수).</summary>
             public string key;
 
             [Header("흔들림")]
-            // 0이면 흔들림 없음. 이 슬롯을 히트스톱 전용으로도 만들 수 있다.
+            /// <summary>0이면 흔들림 없음. 이 슬롯을 히트스톱 전용으로도 만들 수 있다.</summary>
             [Min(0f)] public float shakeForce = 0.4f;
 
-            // 캐릭터 기준 방향(로컬). 내려찍기=(0,-1,0), 앞으로 찌르기=(0,0,1) 식.
-            // 월드 고정이 아니라 캐릭터 기준이라, 보스가 어느 쪽을 보고 때려도 연출이 같게 나온다.
+            /// <summary>
+            /// 캐릭터 기준 방향(로컬). 내려찍기=(0,-1,0), 앞으로 찌르기=(0,0,1) 식.
+            /// 월드 고정이 아니라 캐릭터 기준이라, 보스가 어느 쪽을 보고 때려도 연출이 같게 나온다.
+            /// </summary>
             public Vector3 shakeDirection = new Vector3(0f, -1f, 0f);
 
             [Header("지속 흔들림 (0이면 1회만)")]
-            // 이 시간 동안 interval마다 임펄스를 반복 발사한다. 0이면 이벤트 프레임에 한 번만.
+            /// <summary>이 시간 동안 interval마다 임펄스를 반복 발사한다. 0이면 이벤트 프레임에 한 번만.</summary>
             [Min(0f)] public float duration;
 
-            // 임펄스 재발사 간격. 짧을수록 촘촘하고 무겁게 흔들린다.
+            /// <summary>임펄스 재발사 간격. 짧을수록 촘촘하고 무겁게 흔들린다.</summary>
             [Min(0.01f)] public float interval = 0.06f;
 
-            // 매 발사마다 방향을 랜덤하게 트는 정도(0=항상 같은 방향, 1=완전 랜덤).
+            /// <summary>매 발사마다 방향을 랜덤하게 트는 정도(0=항상 같은 방향, 1=완전 랜덤).</summary>
             [Range(0f, 1f)] public float directionJitter = 0.35f;
 
             [Header("히트스톱 (0이면 사용 안 함)")]
-            // 타격 순간 게임 전체를 잠깐 멈춰 타격의 무게를 강조한다. 보통 0.03~0.08초면 충분.
+            /// <summary>타격 순간 게임 전체를 잠깐 멈춰 타격의 무게를 강조한다. 보통 0.03~0.08초면 충분.</summary>
             [Min(0f)] public float hitStopDuration;
 
-            // 멈추는 동안의 시간 배율. 0=완전 정지, 0.05 같은 작은 값=슬로우모션 느낌.
+            /// <summary>멈추는 동안의 시간 배율. 0=완전 정지, 0.05 같은 작은 값=슬로우모션 느낌.</summary>
             [Range(0f, 1f)] public float hitStopTimeScale;
         }
 

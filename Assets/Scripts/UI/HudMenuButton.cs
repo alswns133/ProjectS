@@ -5,7 +5,8 @@ namespace ProjectS.UI
 {
     /// <summary>
     /// HUD 하단 메뉴바 아이콘 버튼 하나. 클릭하면 <see cref="target"/>이 가리키는 창을 열고/닫는다(토글).
-    /// 키보드 핫키(I/P/K 등)와 <b>같은 토글 경로</b>(<see cref="PopupToggle"/> · <see cref="QuestTrackerHud"/>)를
+    /// 키보드 핫키(I/P/K 등)와 <b>같은 토글 경로</b>(<see cref="PopupToggle"/> · <see cref="QuestTrackerHud"/> ·
+    /// <see cref="PartyWindowOpener"/>)를
     /// 재사용해, 아이콘과 단축키가 똑같이 동작하게 한다.
     /// <para>
     /// 접힘/펼침(애로우)은 이 컴포넌트가 아니라 <see cref="Framework.FoldableToolbar"/>가 따로 담당한다.
@@ -25,6 +26,7 @@ namespace ProjectS.UI
             Quest,      // 퀘스트 트래커(J) — 팝업이 아니라 트래커 펼침+마우스모드 토글
             Options,    // 옵션창. 인스펙터 직렬화 값이 밀리지 않게 항상 끝에 추가한다.
             MonsterIndex, // 몬스터 도감(O)
+            Party, // 파티창(Tab)
         }
 
         [Tooltip("이 아이콘이 여는 창. None이면 눌러도 아무 동작 안 함(미정 슬롯).")]
@@ -51,6 +53,13 @@ namespace ProjectS.UI
                 case Target.Skill:     PopupToggle.Toggle(PopupToggle.PopupKind.Skill); break;
                 case Target.Options:   PopupToggle.Toggle(PopupToggle.PopupKind.Options); break;
                 case Target.MonsterIndex: PopupToggle.Toggle(PopupToggle.PopupKind.MonsterIndex); break;
+
+                // 파티창은 Tab을 처리하는 PartyWindowOpener의 조건(대화 중·던전 안 차단)을 그대로 타야
+                // 아이콘과 Tab이 같게 동작한다. PopupToggle로 보내면 그 조건이 빠진다.
+                case Target.Party:
+                    if (PartyWindowOpener.Current != null) PartyWindowOpener.Current.RequestToggle();
+                    else Debug.LogWarning("[HudMenuButton] Party 대상인데 켜진 PartyWindowOpener가 없음", this);
+                    break;
 
                 // 퀘스트는 팝업이 아니라 트래커 펼침+마우스모드 토글이라 별도 경로를 탄다.
                 case Target.Quest:

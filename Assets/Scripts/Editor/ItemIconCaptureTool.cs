@@ -40,7 +40,10 @@ namespace ProjectS.EditorTools
         [Serializable]
         private class Entry
         {
+            /// <summary>아이콘으로 찍을 모델 프리팹.</summary>
             public GameObject prefab;
+
+            /// <summary>저장할 PNG 파일 이름.</summary>
             public string fileName;
         }
 

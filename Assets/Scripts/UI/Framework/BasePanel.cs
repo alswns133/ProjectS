@@ -2,10 +2,12 @@
 
 namespace ProjectS.UI.Framework
 {
-    // 패널: 화면을 점유하는 큰 UI. 스택으로 관리해 한 번에 하나만 활성이고 뒤로가기(Back)로 되돌린다
-    //        (새 패널을 열면 이전 패널은 Pause되어 뒤에 남고, 닫으면 Resume). 서로 공존하지 않는 화면 전환용.
-    // ex) HUD, 상점, 강화창
-    // cf) 인벤토리·장비창처럼 다른 창과 동시에 띄우는 창은 스택이 아니라 리스트로 공존하는 BasePopup을 쓴다.
+    /// <summary>
+    /// 패널: 화면을 점유하는 큰 UI. 스택으로 관리해 한 번에 하나만 활성이고 뒤로가기(Back)로 되돌린다
+    ///        (새 패널을 열면 이전 패널은 Pause되어 뒤에 남고, 닫으면 Resume). 서로 공존하지 않는 화면 전환용.
+    /// ex) HUD, 상점, 강화창
+    /// cf) 인벤토리·장비창처럼 다른 창과 동시에 띄우는 창은 스택이 아니라 리스트로 공존하는 BasePopup을 쓴다.
+    /// </summary>
     public abstract class BasePanel : MonoBehaviour
     {
         /// <summary>

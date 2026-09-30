@@ -27,13 +27,16 @@ namespace ProjectS.UI
         [Serializable]
         private class MarkerBinding
         {
+            /// <summary>이 바인딩이 그리는 마커 종류.</summary>
             public MinimapMarkerType type;
 
-            // 마커 아이콘 프리팹(UI RectTransform). 플레이어=삼각형, 적=육각형 등.
+            /// <summary>마커 아이콘 프리팹(UI RectTransform). 플레이어=삼각형, 적=육각형 등.</summary>
             public RectTransform prefab;
 
-            // 대상의 바라보는 방향(월드 Y 회전)에 맞춰 마커를 회전시킬지.
-            // 미니맵이 회전하지 않으므로, 방향 표시는 마커별 이 옵션으로만 한다(플레이어 삼각형=켜기).
+            /// <summary>
+            /// 대상의 바라보는 방향(월드 Y 회전)에 맞춰 마커를 회전시킬지.
+            /// 미니맵이 회전하지 않으므로, 방향 표시는 마커별 이 옵션으로만 한다(플레이어 삼각형=켜기).
+            /// </summary>
             public bool rotateWithEntity;
         }
 
@@ -75,8 +78,13 @@ namespace ProjectS.UI
         // 살아 있는 마커 하나. type을 들고 있어야 제거 시 같은 종류 풀로 돌려보낼 수 있다.
         private class Marker
         {
+            /// <summary>화면에 놓인 마커 UI.</summary>
             public RectTransform rect;
+
+            /// <summary>마커 종류. 제거 시 같은 종류 풀로 돌려보내는 데 쓴다.</summary>
             public MinimapMarkerType type;
+
+            /// <summary>대상의 방향에 맞춰 회전시킬지.</summary>
             public bool rotate;
         }
 

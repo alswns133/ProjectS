@@ -8,10 +8,13 @@ namespace ProjectS.Players
     /// </summary>
     public class PlayerFreeState : BaseState
     {
-        // 생성 시 받은 player를 부모(BaseState)에 위임해 보관시킨다.
-        // 본문이 비어있는 건 이 상태가 진입 시 따로 준비할 게 없기 때문.
+        /// <summary>
+        /// 생성 시 받은 player를 부모(BaseState)에 위임해 보관시킨다.
+        /// 본문이 비어있는 건 이 상태가 진입 시 따로 준비할 게 없기 때문.
+        /// </summary>
         public PlayerFreeState(Player player) : base(player) { }
 
+        /// <summary>평상시 이동을 처리한다. 공격·스킬로 이동이 잠겨 있으면 수평 이동만 막고 중력·접지는 유지한다.</summary>
         public override void Update()
         {
             // 공격·스킬 중이면 수평 이동을 막는다.

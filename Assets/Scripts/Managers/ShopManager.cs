@@ -13,6 +13,7 @@ namespace ProjectS.Managers
     public class ShopManager : MonoBehaviour
     {
 
+        /// <summary>싱글톤 인스턴스. 중복 생성분은 Awake에서 제거된다.</summary>
         public static ShopManager Instance { get; private set; }
         
 
@@ -65,6 +66,7 @@ namespace ProjectS.Managers
 
         }
 
+        /// <summary>상점 팝업이 닫힐 때 호출. 상점을 연 NPC의 허브(인사말)로 돌려보내 상호작용 잠금을 푼다.</summary>
         public void OnShopClosed()
         {
             activeNpc?.BackToGreeting(); // 상점 닫으면 허브로 돌아가고 상호작용 잠금 해제
@@ -94,6 +96,10 @@ namespace ProjectS.Managers
             return true;
         }
 
+        /// <summary>소비품·재료 스택을 판매한다. 실제 판매는 InventoryManager가 처리한다.</summary>
+        /// <param name="stack">판매할 스택.</param>
+        /// <param name="count">판매 개수.</param>
+        /// <returns>판매에 성공하면 true.</returns>
         public bool SellStack(ProjectS.Items.ItemStack stack, int count = 1)
         {
             // TODO InventoryManager에 판매 메서드가 아직 없다(아래 2번). 그걸 호출한다.
@@ -102,6 +108,8 @@ namespace ProjectS.Managers
                 && InventoryManager.Instance.SellStack(stack, count);
         }
 
+        /// <summary>장비 한 개를 판매한다. 실제 판매는 InventoryManager가 처리한다.</summary>
+        /// <returns>판매에 성공하면 true.</returns>
         public bool SellEquipment(ProjectS.Enhance.EquipmentInstance eq)
         {
             return InventoryManager.Instance != null

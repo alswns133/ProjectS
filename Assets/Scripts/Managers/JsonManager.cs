@@ -10,9 +10,11 @@ using ProjectS.Data;
 
 namespace ProjectS.Managers
 {
+    /// <summary>Addressables의 TextAsset JSON 테이블을 비동기로 로드·검증해 타입별 Dictionary로 보관하는 매니저. 접근은 <see cref="IsReady"/> 확인 또는 <see cref="ReadyTask"/> await 이후에 한다.</summary>
     public class JsonManager : MonoBehaviour
     {
         // 싱글톤 인스턴스
+        /// <summary>싱글톤 인스턴스.</summary>
         public static JsonManager Instance { get; private set; }
 
         // 각 데이터 테이블을 Type별로 보관하는 딕셔너리
@@ -23,7 +25,8 @@ namespace ProjectS.Managers
         /// </summary>
         public bool IsReady { get; private set; }
 
-        public Task ReadyTask { get; private set; }   // ★ 외부가 이걸 await (Bootstrap에서)
+        /// <summary>모든 테이블 로드가 끝나면 완료되는 Task. 데이터가 필요한 쪽(Bootstrap 등)은 이것을 await한 뒤 접근한다.</summary>
+        public Task ReadyTask { get; private set; }
 
         // 로드에 실패한 필수 테이블 이름. 선택 테이블(미등록 허용)은 넣지 않는다.
         private readonly List<string> failedTables = new();
@@ -43,24 +46,58 @@ namespace ProjectS.Managers
         public IReadOnlyList<string> FailedTables => failedTables;
 
         // 데이터 접근용 프로퍼티 (필요한 테이블마다 추가)
+        /// <summary>사운드 테이블(ID → 행). 로드 전이거나 미등록이면 경고와 함께 빈 사전을 돌려준다(null 아님).</summary>
         public IReadOnlyDictionary<int, SoundTable> SoundDict => GetTable<SoundTable>();
+
+        /// <summary>캐릭터별 기본 스탯 테이블(CharacterId → 행).</summary>
         public IReadOnlyDictionary<int, PlayerStatTable> PlayerStatDict => GetTable<PlayerStatTable>();
+
+        /// <summary>레벨별 기본 HP/AD/방어 테이블(Level → 행).</summary>
         public IReadOnlyDictionary<int, PlayerLevelTable> PlayerLevelDict => GetTable<PlayerLevelTable>();
+
+        /// <summary>몬스터 스탯 테이블(몬스터 ID → 행).</summary>
         public IReadOnlyDictionary<int, MonsterStatTable> MonsterStatDict => GetTable<MonsterStatTable>();
+
+        /// <summary>몬스터 목록 테이블(몬스터 ID → 행).</summary>
         public IReadOnlyDictionary<int, MonsterIndexTable> MonsterIndexDict => GetTable<MonsterIndexTable>();
+
+        /// <summary>스킬 계수·쿨타임 테이블(스킬 ID → 행).</summary>
         public IReadOnlyDictionary<int, SkillTable> SkillDict => GetTable<SkillTable>();
+
+        /// <summary>스킬 성장(레벨별 효과·비용) 테이블(스킬 ID → 행).</summary>
         public IReadOnlyDictionary<int, SkillGrowthTable> SkillGrowthDict => GetTable<SkillGrowthTable>();
 
+        /// <summary>아이템 공통 정보 테이블(아이템 ID → 행).</summary>
         public IReadOnlyDictionary<int, ItemData> ItemDict => GetTable<ItemData>();
+
+        /// <summary>장비 아이템 테이블(아이템 ID → 행).</summary>
         public IReadOnlyDictionary<int, EquipmentData> EquipmentDict => GetTable<EquipmentData>();
+
+        /// <summary>소비 아이템 테이블(아이템 ID → 행).</summary>
         public IReadOnlyDictionary<int, ConsumableData> ConsumableDict => GetTable<ConsumableData>();
+
+        /// <summary>장비 옵션 테이블.</summary>
         public IReadOnlyDictionary<int, ItemOptionData> ItemOptionDict => GetTable<ItemOptionData>();
+
+        /// <summary>아이템 등급 테이블.</summary>
         public IReadOnlyDictionary<int, ItemGradeData> ItemGradeDict => GetTable<ItemGradeData>();
+
+        /// <summary>강화 단계별 보너스 테이블.</summary>
         public IReadOnlyDictionary<int, EnhanceBonusData> EnhanceBonusDict => GetTable<EnhanceBonusData>();
+
+        /// <summary>강화 단계별 비용 테이블.</summary>
         public IReadOnlyDictionary<int, EnhanceCostData> EnhanceCostDict => GetTable<EnhanceCostData>();
+
+        /// <summary>퀘스트 테이블(퀘스트 ID → 행).</summary>
         public IReadOnlyDictionary<int, QuestTable> QuestDict => GetTable<QuestTable>();
+
+        /// <summary>대화 테이블.</summary>
         public IReadOnlyDictionary<int, DialogueTable> DialogueDict => GetTable<DialogueTable>();
+
+        /// <summary>상점 테이블(ShopId → 행).</summary>
         public IReadOnlyDictionary<int, ShopTable> ShopDict => GetTable<ShopTable>();
+
+        /// <summary>던전 보상 테이블.</summary>
         public IReadOnlyDictionary<int, DungeonRewardTable> DungeonRewardDict => GetTable<DungeonRewardTable>();
 
         // 에디터에서 로드된 데이터를 확인하기 위한 디버그 리스트

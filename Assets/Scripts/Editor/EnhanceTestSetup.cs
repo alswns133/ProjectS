@@ -16,6 +16,7 @@ namespace ProjectS.EditorTools
     /// </summary>
     public static class EnhanceTestSetup
     {
+        /// <summary>메뉴 실행: 현재 씬에 JsonManager·InventoryManager·EnhanceTester가 없을 때만 추가한다.</summary>
         [MenuItem("Tools/ProjectS/Setup Enhance Test (current scene)")]
         public static void Setup()
         {

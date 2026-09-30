@@ -13,10 +13,13 @@ namespace ProjectS.Enemies
 
         protected EnemyBaseState(Enemy enemy) => this.enemy = enemy;
 
+        /// <summary>상태를 떠날 때 호출. 기본은 아무것도 하지 않는다.</summary>
         public virtual void Exit() { }
 
+        /// <summary>상태가 활성인 동안 매 프레임 호출. 기본은 아무것도 하지 않는다.</summary>
         public virtual void Update() { }
 
+        /// <summary>상태에 들어올 때 호출. 기본은 아무것도 하지 않는다.</summary>
         public virtual void Enter() { }
     }
 }

@@ -8,9 +8,11 @@ using ProjectS.Core;
 
 namespace ProjectS.Scenes
 {
-    // 게임 시작 시 가장 먼저 켜지는 씬
-    // 역할: 데이터 / 시스템 초기화를 전부 끝낸다.로딩 화면을 보여줄 수도 있음.
-    // 초기화 완료 → 다음 씬으로 전환
+    /// <summary>
+    /// 게임 시작 시 가장 먼저 켜지는 씬
+    /// 역할: 데이터 / 시스템 초기화를 전부 끝낸다.로딩 화면을 보여줄 수도 있음.
+    /// 초기화 완료 → 다음 씬으로 전환
+    /// </summary>
     public class Bootstrap : MonoBehaviour
     {
         // 스테이지(씬)별 미니맵 데이터. 씬 오브젝트는 코드로 생성돼 인스펙터가 없으므로,
@@ -19,7 +21,10 @@ namespace ProjectS.Scenes
         [Serializable]
         private class StageMinimap
         {
+            /// <summary>GameSceneManager가 쓰는 씬 클래스 이름(예: "Tutorial1"). 정확히 같아야 매칭된다.</summary>
             public string sceneName;
+
+            /// <summary>이 씬에서 쓸 미니맵 데이터.</summary>
             public MinimapData data;
         }
 

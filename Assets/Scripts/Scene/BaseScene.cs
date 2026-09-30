@@ -4,6 +4,7 @@ using ProjectS.UI;
 
 namespace ProjectS.Scenes
 {
+    /// <summary>씬 로직의 기반 클래스. GameSceneManager가 Initialize → Enter → (로딩 중 Progress) → Exit 순서로 호출한다.</summary>
     public abstract class BaseScene : MonoBehaviour
     {
         /// <summary>

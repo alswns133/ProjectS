@@ -7,6 +7,7 @@ using ProjectS.Scenes;
 
 namespace ProjectS.Managers
 {
+    /// <summary>Awake에서 어드레서블 시스템을 먼저 초기화한다. 나머지 Button_ 메서드는 어드레서블 생성/해제·메모리를 확인하는 테스트용 버튼 핸들러다.</summary>
     public class AddressableManager : MonoBehaviour
     {
         [SerializeField] private AssetReferenceGameObject charecterObj;
@@ -29,6 +30,7 @@ namespace ProjectS.Managers
             yield return init;
         }
 
+        /// <summary>테스트 버튼: 캐릭터 1개와 건물 프리팹들을 InstantiateAsync로 대량 생성하고 BGM을 튼다(메모리/로드 부하 확인용).</summary>
         public void Button_SpawnObject()
         {
             // 비동기 생성(어드레서블)
@@ -50,6 +52,7 @@ namespace ProjectS.Managers
             SoundManager.Instance.PlayBgm(101);
         }
 
+        /// <summary>테스트 버튼: 어드레서블로 생성한 인스턴스를 모두 ReleaseInstance하고 사운드 클립 캐시도 비운다.</summary>
         public void Button_Releas()
         {
             if (gameObjects.Count == 0) return;
@@ -80,6 +83,7 @@ namespace ProjectS.Managers
             DevLog.Log("강제 GC 실행 완료");
         }
 
+        /// <summary>테스트 버튼: 다음 씬으로 넘기는 자리(현재 비어 있음).</summary>
         public void NextScene()
         {
             //GameSceneManager.Instance.RequestSceneChange<Tutorial>();

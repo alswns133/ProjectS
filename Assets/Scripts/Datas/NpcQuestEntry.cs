@@ -15,11 +15,18 @@ namespace ProjectS.Data
     /// </summary>
     public readonly struct NpcQuestEntry
     {
+        /// <summary>퀘스트 ID.</summary>
         public readonly int QuestId;
+
+        /// <summary>목록에 표시할 퀘스트 제목.</summary>
         public readonly string Title;
-        public readonly QuestType QuestType;     // 아이콘 색: 메인=노랑, 반복=하양
+
+        /// <summary>퀘스트 종류. 아이콘 색을 가른다(메인=노랑, 반복=하양).</summary>
+        public readonly QuestType QuestType;
+        /// <summary>이 NPC 기준 퀘스트 상태(수락 가능/진행 중/완료 가능 등).</summary>
         public readonly NpcQuestStatus Status;
 
+        /// <summary>목록 항목을 만든다.</summary>
         public NpcQuestEntry(int questId, string title, QuestType questType, NpcQuestStatus status)
         {
             QuestId = questId;

@@ -10,12 +10,16 @@ namespace ProjectS.Data
     [Serializable]
     public class PlayerLevelTable : IDataRow
     {
+        /// <summary>레벨(테이블 키).</summary>
         public int Level;
 
         /// <summary>이 레벨의 기본 AD. 장비·패시브가 없는 현재는 이 값이 곧 총 AD다.</summary>
         public int BaseAD;
 
+        /// <summary>이 레벨의 기본 최대 HP.</summary>
         public int BaseHP;
+
+        /// <summary>이 레벨의 기본 방어도.</summary>
         public int BaseDefense;
 
         /// <summary>이 레벨에서 다음 레벨로 가는 데 필요한 경험치.</summary>

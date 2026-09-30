@@ -4,6 +4,7 @@ using ProjectS.Settings;
 
 // 현재 하이어라키 윈도우에 배치된 모든 게임오브젝트의 Update가 호출
 // 그 이후 모든 게임 오브젝트의 LateUpdate가 호출
+/// <summary>3인칭 카메라 피벗. 마우스 델타로 yaw/pitch를 돌리고(LateUpdate 적용), 스킬 연출 동안 입력 잠금과 궤도 회전 연출을 제공한다.</summary>
 public class CameraPivotController : MonoBehaviour
 {
     [SerializeField] private float sensitivity = 0.1f;

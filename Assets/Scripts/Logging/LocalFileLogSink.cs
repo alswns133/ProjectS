@@ -17,6 +17,7 @@ namespace ProjectS.Logging
         private StreamWriter writer;
         private float elapsedSinceFlush;
 
+        /// <summary>로컬 로그 파일 sink를 만든다. 설정에서 파일 기록이 꺼져 있으면 아무것도 쓰지 않는 상태가 된다.</summary>
         public LocalFileLogSink(LogSettings settings)
         {
             flushIntervalSeconds = settings.LocalFlushIntervalSeconds;
@@ -39,6 +40,7 @@ namespace ProjectS.Logging
             }
         }
 
+        /// <inheritdoc/>
         public void Write(in LogEntry entry)
         {
             if (writer == null) return;
@@ -55,6 +57,7 @@ namespace ProjectS.Logging
             }
         }
 
+        /// <inheritdoc/>
         public void Tick(float unscaledDeltaTime)
         {
             if (writer == null) return;
@@ -65,6 +68,7 @@ namespace ProjectS.Logging
             Flush();
         }
 
+        /// <inheritdoc/>
         public void Flush()
         {
             elapsedSinceFlush = 0f;
@@ -79,6 +83,7 @@ namespace ProjectS.Logging
             }
         }
 
+        /// <summary>파일 writer를 닫는다.</summary>
         public void Dispose()
         {
             try

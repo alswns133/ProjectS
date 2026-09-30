@@ -341,41 +341,97 @@ namespace ProjectS.UI
         /// <summary>세션 시작 시점의 표시 상태. <see cref="EndSampling"/>이 이 값으로 되돌린다.</summary>
         private struct RestState
         {
+            /// <summary>연출 루트의 활성 상태.</summary>
             public bool RootActive;
+
+            /// <summary>연출 전체 알파.</summary>
             public float Alpha;
+
+            /// <summary>경고 띠 활성 상태.</summary>
             public bool WarningActive;
+
+            /// <summary>아이콘 활성 상태.</summary>
             public bool IconActive;
+
+            /// <summary>아이콘 색.</summary>
             public Color IconColor;
+
+            /// <summary>아이콘 크기.</summary>
             public Vector3 IconScale;
+
+            /// <summary>플레어 활성 상태.</summary>
             public bool FlareActive;
+
+            /// <summary>플레어 크기.</summary>
             public Vector3 FlareScale;
+
+            /// <summary>주위 빛(스파크)별 활성 상태.</summary>
             public bool[] SparkActive;
+
+            /// <summary>주위 빛별 크기.</summary>
             public Vector3[] SparkScale;
+
+            /// <summary>주위 빛별 회전.</summary>
             public Quaternion[] SparkRotation;
+
+            /// <summary>보스 이름 줄 활성 상태.</summary>
             public bool BossActive;
+
+            /// <summary>보스 이름 줄 크기.</summary>
             public Vector3 BossScale;
+
+            /// <summary>이름 텍스트 크기.</summary>
             public Vector3 NameScale;
+
+            /// <summary>라벨 텍스트 크기.</summary>
             public Vector3 LabelScale;
         }
 
         /// <summary>연출 안의 각 단계가 시작·끝나는 시각(초). 인스펙터 값에서 매번 계산한다.</summary>
         private struct Timings
         {
+            /// <summary>이번 연출에서 터뜨릴 주위 빛 개수.</summary>
             public int SparkCount;
+
+            /// <summary>메인 플레어가 터지는 시각(주위 빛이 다 터진 뒤).</summary>
             public float FlareStart;
+
+            /// <summary>메인 플레어가 꺼지는 시각. 플레어가 없으면 FlareStart와 같다.</summary>
             public float FlareEnd;
+
+            /// <summary>경고 띠가 나타나는 시각.</summary>
             public float WarningStart;
+
+            /// <summary>경고 띠 페이드인 시간. 플레어 도중 나타나면 0(빛이 등장을 가려 준다).</summary>
             public float FadeIn;
+
+            /// <summary>빠른 깜박임이 시작되는 시각.</summary>
             public float BlinkStart;
+
+            /// <summary>깜박임이 끝나고 아이콘을 유지하기 시작하는 시각.</summary>
             public float HoldStart;
+
+            /// <summary>커튼(불꽃 막)이 걷히기 시작하는 시각.</summary>
             public float CurtainStart;
+
+            /// <summary>커튼이 다 걷히는 시각.</summary>
             public float CurtainEnd;
-            public float Morph;       // 아이콘이 일그러지기 시작. 고조의 끝
-            public float Swap;        // 아이콘·경고 띠가 사라짐
-            public float TextStart;   // 텍스트가 나타남. textAppearDelay가 0이면 Swap과 같다
-            public float RevealEnd;   // 텍스트가 제 모양으로 잡힘
+
+            /// <summary>아이콘이 일그러지기 시작하는 시각. 고조의 끝이다(커튼 진행 도중에 둔다).</summary>
+            public float Morph;
+            /// <summary>아이콘·경고 띠가 사라지는 시각.</summary>
+            public float Swap;
+            /// <summary>텍스트가 나타나는 시각. textAppearDelay가 0이면 Swap과 같다.</summary>
+            public float TextStart;
+            /// <summary>텍스트가 제 모양으로 잡히는 시각.</summary>
+            public float RevealEnd;
+            /// <summary>퇴장(재 디졸브/페이드아웃)이 시작되는 시각.</summary>
             public float OutStart;
+
+            /// <summary>퇴장에 걸리는 시간. 재 디졸브가 있으면 그 길이, 없으면 페이드아웃 시간.</summary>
             public float OutDuration;
+
+            /// <summary>연출이 완전히 끝나는 시각.</summary>
             public float End;
         }
 

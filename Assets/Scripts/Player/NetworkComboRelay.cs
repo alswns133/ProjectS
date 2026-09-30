@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace ProjectS.Players
 {
+    /// <summary>멀티에서 오너가 확정한 콤보 타수를 관찰자 화면에 전파해, 원격 아바타도 같은 공격 모션을 재생하게 한다.</summary>
     public class NetworkComboRelay : NetworkBehaviour
     {
         private PlayerAnimation anim;
