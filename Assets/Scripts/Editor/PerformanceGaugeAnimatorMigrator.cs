@@ -40,6 +40,7 @@ namespace ProjectS.EditorTools
 
         private const string LogTag = "[GaugeAnimatorMigrator]";
 
+        /// <summary>메뉴 실행: 퍼포먼스 게이지 프리팹을 열어 Animator를 GaugeLockFx에서 프리팹 루트로 옮긴다.</summary>
         [MenuItem("Tools/ProjectS/Move Performance Gauge Animator To Root")]
         public static void Migrate()
         {

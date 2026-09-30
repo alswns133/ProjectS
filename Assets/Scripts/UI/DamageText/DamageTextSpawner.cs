@@ -19,12 +19,15 @@ namespace ProjectS.UI
         [Serializable]
         private class TextStyle
         {
+            /// <summary>이 종류 데미지 텍스트의 글자 색.</summary>
             public Color color = Color.white;
 
-            // {0}에 데미지 숫자가 들어간다. TMP 리치 텍스트 태그를 그대로 쓸 수 있어
-            // "<size=50%>CRITICAL</size>\n{0}"처럼 라벨만 작게 줄이는 조절이 가능하다.
-            // (태그 규칙: 여는 쪽에만 값을 쓰고 "<size=50%>", 닫는 쪽은 값 없이 "</size>")
-            // 여러 줄 입력이 필요해 TextArea로 둔다(단일 줄 필드로는 개행을 넣을 수 없다).
+            /// <summary>
+            /// {0}에 데미지 숫자가 들어간다. TMP 리치 텍스트 태그를 그대로 쓸 수 있어
+            /// "&lt;size=50%&gt;CRITICAL&lt;/size&gt;\n{0}"처럼 라벨만 작게 줄이는 조절이 가능하다.
+            /// (태그 규칙: 여는 쪽에만 값을 쓰고 "&lt;size=50%&gt;", 닫는 쪽은 값 없이 "&lt;/size&gt;")
+            /// 여러 줄 입력이 필요해 TextArea로 둔다(단일 줄 필드로는 개행을 넣을 수 없다).
+            /// </summary>
             [TextArea(1, 3)]
             public string format = "{0}";
         }

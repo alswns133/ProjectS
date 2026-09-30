@@ -109,15 +109,25 @@ namespace ProjectS.NPCs
             private readonly Transform anchor;
             private readonly int questId;
 
+            /// <summary>반납 NPC 위치를 퀘스트 네비게이션에 알리는 웨이포인트를 만든다.</summary>
+            /// <param name="anchor">표시 기준 위치(NPC 머리 위 등).</param>
+            /// <param name="questId">반납 대상 퀘스트 ID(웨이포인트 키).</param>
             public TurnInWaypoint(Transform anchor, int questId)
             {
                 this.anchor = anchor;
                 this.questId = questId;
             }
 
+            /// <inheritdoc/>
             public QuestWaypointKind Kind => QuestWaypointKind.TurnIn;
+
+            /// <inheritdoc/>
             public int Key => questId;
+
+            /// <inheritdoc/>
             public Vector3 Position => anchor != null ? anchor.position : Vector3.zero;
+
+            /// <inheritdoc/>
             public bool IsActive => anchor != null;
         }
     }

@@ -3,16 +3,32 @@ using ProjectS.Core;
 
 namespace ProjectS.Data
 {
+    /// <summary>사운드 한 개의 메타데이터 행. 코드에서는 가능하면 SoundID 상수로 Index를 참조한다.</summary>
     [Serializable]
     public class SoundTable : IDataRow
     {
+        /// <summary>기획 참고용 설명.</summary>
         public string Description;
+
+        /// <summary>사운드 ID(테이블 키). SoundID 상수와 같은 값이어야 한다.</summary>
         public int Index;
+
+        /// <summary>이 사운드를 쓰는 씬 이름. 씬 진입 시 프리로드 대상을 고르는 데 쓴다.</summary>
         public string Scene;
+
+        /// <summary>사운드 이름(기획 참고용).</summary>
         public string SoundName;
+
+        /// <summary>믹서 라우팅 분류 문자열(BGM/SFX/Ambient/Voice, 대소문자 무시). 오타는 로딩 시 경고 후 SFX로 처리된다.</summary>
         public string SoundType;
+
+        /// <summary>오디오 클립 어드레서블 주소. 비어 있으면 로드가 불가능해 행이 제외된다.</summary>
         public string FileName;
+
+        /// <summary>재생 볼륨. 범위를 벗어나면 로딩 시 안전 범위로 보정된다.</summary>
         public float Volume;
+
+        /// <summary>반복 재생 여부.</summary>
         public bool Loop;
 
         int IDataRow.Index => Index;

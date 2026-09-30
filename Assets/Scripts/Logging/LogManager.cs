@@ -20,6 +20,7 @@ namespace ProjectS.Logging
         private static readonly ConcurrentQueue<LogEntry> pendingTaggedEntries = new();
         private static bool bootstrapped;
 
+        /// <summary>싱글톤 인스턴스.</summary>
         public static LogManager Instance { get; private set; }
 
         private readonly ConcurrentQueue<LogEntry> capturedEntries = new();

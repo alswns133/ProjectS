@@ -126,6 +126,8 @@ namespace ProjectS.Enemies
         [Header("경직 시간")]
         // Hit 모션 후 다음 행동까지의 추가 경직
         [SerializeField] private float hitRecoveryDelay = 0.4f;
+
+        /// <summary>Hit 모션이 끝난 뒤 다음 행동까지의 추가 경직(초).</summary>
         public float HitRecoveryDelay => hitRecoveryDelay;
 
         /// <summary>HP와 사망 판정을 소유하는 스탯 컴포넌트.</summary>
@@ -846,6 +848,7 @@ namespace ProjectS.Enemies
             StateMachine.ChangeState(GroggyState);
         }
 
+        /// <inheritdoc/>
         public void Launch()
         {
             if (!useHitStun) return;

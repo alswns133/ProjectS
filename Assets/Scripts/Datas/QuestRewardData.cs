@@ -24,6 +24,10 @@ namespace ProjectS.Data
         /// <summary>보상 아이콘 어드레서블 주소. UI가 필요할 때 로드한다(없으면 비워 둔다).</summary>
         public string IconAddress = string.Empty;
 
+        /// <summary>무기 보상 ID를 캐릭터 직업에 맞는 무기로 바꾼다. 무기(분류 1)가 아니면 그대로 돌려준다.</summary>
+        /// <param name="baseId">테이블에 적힌 보상 아이템 ID.</param>
+        /// <param name="charType">받는 캐릭터 종류(2 = 거너 → 총, 그 외 → 검).</param>
+        /// <returns>ID의 종류 자리만 직업 무기로 바꾼 아이템 ID.</returns>
         public static int ResolveClassWeaponId(int baseId ,int charType)
         {
             if (baseId / 100000 != 1) return baseId;      // 무기(분류 1)만 스왑, 아니면 그대로

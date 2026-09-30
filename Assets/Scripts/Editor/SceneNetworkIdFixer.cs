@@ -35,6 +35,7 @@ namespace ProjectS.EditorTools
     /// </remarks>
     public static class SceneNetworkIdFixer
     {
+        /// <summary>메뉴 실행: 빌드 설정의 활성 씬들을 차례로 열어 sceneId가 빈 NetworkIdentity를 채운다. 저장 안 된 씬이 있으면 먼저 저장 여부를 묻는다.</summary>
         [MenuItem("Tools/ProjectS/Fix Scene Network Ids")]
         public static void FixAll()
         {

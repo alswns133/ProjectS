@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace ProjectS.Events
 {
+    /// <summary>플레이어 HP·스탯·스킬 등 상태 변화를 HUD·UI에 알리는 static 이벤트 허브. 발행은 반드시 FireXxx로 한다.</summary>
     public static class PlayerEvents
     {
         /// <summary>
@@ -150,6 +151,7 @@ namespace ProjectS.Events
         public static void FireStatsRefreshRequested()
             => OnStatsRefreshRequested?.Invoke();
 
+        /// <summary><see cref="OnCombatStatsChanged"/>를 발행한다. 장비 착용/해제 등으로 전투 스탯이 바뀐 뒤 호출한다.</summary>
         public static void FireCombatStatsChanged()
             => OnCombatStatsChanged?.Invoke();
 

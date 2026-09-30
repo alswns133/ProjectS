@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace ProjectS.UI.Framework
 {
+    /// <summary>게임 이벤트를 받아 View 메서드 호출로 바꾸는 Presenter의 기반. GameObject 활성(OnEnable/OnDisable)에 맞춰 구독/해제한다(KeepSubscribedWhileDisabled면 꺼져 있어도 유지).</summary>
     public abstract class BasePresenter : MonoBehaviour
     {
         /// <summary>

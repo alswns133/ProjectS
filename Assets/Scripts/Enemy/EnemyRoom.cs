@@ -51,9 +51,10 @@ namespace ProjectS.Enemies
 
         private Collider trigger;
 
+        /// <summary>이 방의 스폰 지점들.</summary>
         public EnemySpawnPoint[] Points => spawnPoints;
 
-        // 프리로드 수집용: 이 방이 쓰는 몬스터들
+        /// <summary>프리로드 수집용: 이 방이 쓰는 몬스터들</summary>
         public IEnumerable<AssetReferenceGameObject> EnemyRefs => spawnPoints.Select(p => p.EnemyRef);
 
         /// <summary>이 방을 클리어(몬스터 전멸 → 문 개방)했는지. 던전 네비게이션이 전투 중엔 안내를 숨기는 게이트로 쓴다.</summary>
@@ -131,6 +132,7 @@ namespace ProjectS.Enemies
 
         private void OnDisable() => DungeonNav.Unregister(this);
 
+        /// <summary>플레이어가 방 입구 트리거에 들어왔을 때 부를 콜백을 연결한다. 씬(DungeonGather/RaidGather)이 스폰 권위를 넘겨줄 때 쓴다.</summary>
         public void Bind(System.Action<EnemyRoom> callback) => onPlayerEnter = callback;
 
         // 플레이어가 문 앞 트리거에 '입장' => 소환만 한다. 잠금은 방 안쪽 RoomLockZone이 담당한다.
@@ -184,7 +186,7 @@ namespace ProjectS.Enemies
             BeginEncounter();
         }
 
-        // 준비가 됐는지 체크하는 메서드
+        /// <summary>준비가 됐는지 체크하는 메서드</summary>
         public void EnableTrigger()
         {
             isStart = true;

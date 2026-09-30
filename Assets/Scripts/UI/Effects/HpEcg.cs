@@ -39,6 +39,7 @@ namespace ProjectS.UI
         //        Destroy(_material);
         //}
 
+        /// <summary>_Alive 값을 쓸 머티리얼 인스턴스를 지정한다. HUDPanel이 HP 게이지(FillGauge)의 인스턴스 머티리얼을 넘겨 준다(에셋 머티리얼을 직접 수정하지 않기 위함).</summary>
         public void SetMaterial(Material material)
         {
             _material = material;

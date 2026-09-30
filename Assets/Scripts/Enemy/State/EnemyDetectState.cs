@@ -24,8 +24,11 @@ namespace ProjectS.Enemies
         // 종료 감지 실패(클립이 루프이거나 태그 누락 등) 시 강제로 넘기는 상한. 정상 발견 연출보다 길게.
         private const float MaxDetectTime = 5f;
 
+        /// <summary>발견 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyDetectState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>발견(조우) 모션을 재생하고 루트모션 전진을 켠다.</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -48,6 +51,7 @@ namespace ProjectS.Enemies
             enemy.Movement.BeginAttackRootMotion();
         }
 
+        /// <summary>"Detect" 태그 클립 진입 → 종료를 감지해 교전 상태(AggroState)로 넘어간다. 태그 누락 대비 타임아웃이 있다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;
@@ -70,6 +74,7 @@ namespace ProjectS.Enemies
                 enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
+        /// <summary>루트모션 전진을 끈다(발견이 중간에 끊겨도 이후 클립에 이동량이 새지 않게).</summary>
         public override void Exit()
         {
             // 루트모션 전진을 끈다. 피격/사망 등으로 발견이 중간에 끊겨도 이후 클립에 이동량이 새지 않게.

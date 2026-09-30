@@ -8,6 +8,7 @@ namespace ProjectS.Data
     [Serializable]
     public class MonsterStatTable : IDataRow
     {
+        /// <summary>몬스터 ID. 4자리 [던전][난이도][순번2] 규칙(docs/ID_NUMBERING.md).</summary>
         public int MonsterId;
 
         /// <summary>내부 식별 키(예: MON_D1_NORMAL_BOSS). 표시용이 아니다 — 다국어가 필요해지면 번역 테이블의 키로 쓴다.</summary>
@@ -18,6 +19,8 @@ namespace ProjectS.Data
         /// 비어 있으면 표시측이 NameKey → 오브젝트 이름 순으로 폴백하므로, 행을 하나씩 채워 가도 깨지지 않는다.
         /// </summary>
         public string Name;
+
+        /// <summary>이 몬스터가 나오는 던전 ID(몬스터 ID 앞 두 자리와 같다).</summary>
         public int DungeonId;
 
         /// <summary>난이도. 1=노말, 2=하드, 3=매니악.</summary>
@@ -26,11 +29,13 @@ namespace ProjectS.Data
         /// <summary>MELEE / RANGED. 현재 코드 분기에는 쓰지 않고 기획 참고용이다.</summary>
         public string AttackType;
 
+        /// <summary>최대 HP.</summary>
         public int MaxHp;
 
         /// <summary>몬스터의 총 AD. 공격 패턴의 계수와 곱해져 피해가 된다.</summary>
         public float AttackPower;
 
+        /// <summary>방어도. 때리는 쪽이 이 값으로 경감률(Defense/(Defense+2000))을 계산한다.</summary>
         public float Defense;
 
         /// <summary>

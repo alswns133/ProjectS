@@ -46,6 +46,7 @@ namespace ProjectS.Skills
         /// <summary>사용 가능(해금)한 스킬인지. 잠긴 액티브 스킬2·3·4는 false → 창에서 투자·등록 불가, 흐리게 표시.</summary>
         public readonly bool IsUnlocked;
 
+        /// <summary>스킬창 슬롯 하나의 표시 정보를 만든다. 값은 스킬 소스가 채우고 뷰는 읽기만 한다.</summary>
         public SkillSlotInfo(int skillId, string name, string description, string iconAddress,
             bool isActive, int minLevel, int maxLevel, int currentLevel, string previewMediaAddress = null,
             bool isUnlocked = true)
@@ -74,6 +75,9 @@ namespace ProjectS.Skills
         /// <summary>확정할 새 레벨.</summary>
         public readonly int NewLevel;
 
+        /// <summary>확정할 스킬 레벨 변경 한 건을 만든다.</summary>
+        /// <param name="skillId">대상 스킬 ID.</param>
+        /// <param name="newLevel">확정할 새 레벨.</param>
         public SkillLevelChange(int skillId, int newLevel)
         {
             SkillId = skillId;

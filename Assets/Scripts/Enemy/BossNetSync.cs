@@ -198,6 +198,7 @@ namespace ProjectS.Enemies
 
         // ── 서버: 로컬 전투 이벤트를 SyncVar로 옮겨 담는다 ──
 
+        /// <summary>서버에서 전투 이벤트(HP·그로기)를 구독해 SyncVar로 옮겨 담기 시작한다. 스탯이 아직 확정 전이면 확정 이벤트를 기다렸다 복제한다.</summary>
         public override void OnStartServer()
         {
             CombatEvents.OnEnemyHealthChanged += OnServerHealthChanged;
@@ -210,6 +211,7 @@ namespace ProjectS.Enemies
             else stats.StatsReady += ServerPushStats;
         }
 
+        /// <summary>서버 쪽 전투 이벤트·스탯 확정 구독을 해제한다.</summary>
         public override void OnStopServer()
         {
             CombatEvents.OnEnemyHealthChanged -= OnServerHealthChanged;
@@ -254,6 +256,7 @@ namespace ProjectS.Enemies
 
         // ── 클라: 등장/퇴장 발행 + SyncVar 재현 ──
 
+        /// <summary>클라에서 서버가 확정한 스탯을 먼저 입힌 뒤 보스 등장 이벤트를 발행한다(바가 인스펙터 폴백 값으로 그려지지 않게).</summary>
         public override void OnStartClient()
         {
             // ★ 등장 발행 "전에" 서버 값을 입힌다. 바(BossHpPresenter)는 등장 순간의 MaxHp로 초기화되는데,
@@ -264,6 +267,7 @@ namespace ProjectS.Enemies
             if (boss != null) BossEvents.FireBossAppeared(boss);
         }
 
+        /// <summary>보스가 클라에서 사라질 때 퇴장 이벤트를 발행한다. 페이즈 전환으로 걷어낸 경우는 퇴장이 아니라 발행하지 않는다.</summary>
         public override void OnStopClient()
         {
             // 페이즈 전환으로 걷어내진 보스는 퇴장이 아니다(2페이즈가 이미 등장해 바도 넘어갔다). 진짜 처치일 때만 발행한다.

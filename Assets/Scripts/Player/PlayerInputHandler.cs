@@ -35,7 +35,10 @@ namespace ProjectS.Players
         [SerializeField] private float doubleTapWindow = 0.3f;
 
         // 연속 입력은 프로퍼티로 노출. 호출 시점에 즉시 읽으므로 Update 실행 순서에 안 휘둘림.
+        /// <summary>이동 입력(WASD). 읽는 순간의 값을 돌려주므로 Update 실행 순서에 휘둘리지 않는다.</summary>
         public Vector2 MoveInput => moveAction.ReadValue<Vector2>();
+
+        /// <summary>이번 프레임 마우스 휠 스크롤량(y). 카메라 줌에 쓴다.</summary>
         public float ZoomDelta => zoomAction.ReadValue<Vector2>().y;
 
         /// <summary>
@@ -49,16 +52,24 @@ namespace ProjectS.Players
         // (시작-시작 간격 기준이라, 오래 걷다 떼고 바로 다시 눌러도 달리기로 오인하지 않는다.)
         private float lastMoveStartTime = float.NegativeInfinity;
 
-        public bool AttackHeld => attackAction.IsPressed();   // 지금 공격 버튼이 눌려있나
-        public bool JumpHeld => jumpAction.IsPressed();       // 지금 점프 버튼이 눌려있나(꾹 누르면 연속 점프용)
-        public bool RollHeld => rollAction.IsPressed();       // 지금 회피 버튼이 눌려있나(꾹 누르면 연속 회피용)
+        /// <summary>지금 공격 버튼이 눌려 있는지.</summary>
+        public bool AttackHeld => attackAction.IsPressed();
+        /// <summary>지금 점프 버튼이 눌려 있는지. 꾹 누르면 연속 점프하는 설계라 이벤트가 아니라 폴링으로 읽는다.</summary>
+        public bool JumpHeld => jumpAction.IsPressed();
+        /// <summary>지금 회피 버튼이 눌려 있는지(꾹 누르면 연속 회피).</summary>
+        public bool RollHeld => rollAction.IsPressed();
 
         // 이산 입력은 이벤트로 노출. 구독자(Player·CameraRig)는 입력 출처를 몰라도 됨.
         // 점프는 '꾹 누르면 연속 점프' 설계라 이벤트가 아닌 JumpHeld 폴링으로 처리한다.
+        /// <summary>공격 버튼을 누른 순간 발행된다. 구독자는 입력 출처를 몰라도 된다.</summary>
         public event Action Attacked;
-        public event Action StrongAttacked;      // 우클릭 강공격. 쿨타임 판정은 수신측(PlayerCombat)
-        public event Action<int> SkillPressed;   // 인자 = 눌린 스킬 번호
-        public event Action CursorTogglePressed; // 커서 잠금 토글. 잠금/해제 상태 소유는 수신측(Player)
+
+        /// <summary>우클릭 강공격을 누른 순간 발행된다. 쿨타임 판정은 수신측(PlayerCombat)이 한다.</summary>
+        public event Action StrongAttacked;
+        /// <summary>스킬 키를 누른 순간 발행된다. 인자는 눌린 스킬 번호다.</summary>
+        public event Action<int> SkillPressed;
+        /// <summary>커서 잠금 토글 키를 누른 순간 발행된다. 잠금/해제 상태는 수신측(Player)이 소유한다.</summary>
+        public event Action CursorTogglePressed;
 
         /// <summary>
         /// NPC 상호작용 키를 누른 순간 발행된다. 근접 판정·대상 선택은 수신측(예: QuestGiver)이 정한다.

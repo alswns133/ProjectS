@@ -38,6 +38,7 @@ namespace ProjectS.EditorTools
         // 수동 지정 프리팹. 인스펙터 세션 동안만 유지한다(씬·프리팹에 저장하지 않는 테스트 입력이라).
         private GameObject manualBossPrefab;
 
+        /// <summary>기본 인스펙터 밑에 에디터 전용 연출 미리보기(트랙 자동 할당) 영역을 그린다.</summary>
         public override void OnInspectorGUI()
         {
             DrawDefaultInspector();

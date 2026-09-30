@@ -392,6 +392,7 @@ namespace ProjectS.Debugging.Editor
 
         private sealed class DashboardRecord
         {
+            /// <summary>레코드 식별자(대시보드가 항목을 구분하는 키).</summary>
             public readonly string Id;
             private readonly string capturedAtUtc;
             private readonly string logType;
@@ -400,6 +401,7 @@ namespace ProjectS.Debugging.Editor
             private readonly string message;
             private readonly string stackTrace;
 
+            /// <summary>로그 파일 한 줄에서 읽은 에러 레코드를 만든다.</summary>
             public DashboardRecord(string id, string capturedAtUtc, string logType, string source, string category,
                 string message, string stackTrace)
             {
@@ -412,6 +414,7 @@ namespace ProjectS.Debugging.Editor
                 this.stackTrace = stackTrace;
             }
 
+            /// <summary>대시보드로 보낼 JSON 객체로 변환한다.</summary>
             public JObject ToJson() => new JObject
             {
                 ["id"] = Id,

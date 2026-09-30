@@ -161,6 +161,7 @@ namespace ProjectS.Players
         /// </summary>
         public bool IsGroundedForJump => (IsGrounded || IsGroundWithinSnap()) && verticalVelocity <= 0f;
 
+        /// <summary>지금 점프할 수 있는지(<see cref="IsGroundedForJump"/>와 같다).</summary>
         public bool CanJump => IsGroundedForJump;
 
         /// <summary>
@@ -309,6 +310,10 @@ namespace ProjectS.Players
             runSpeed = dungeonRunSpeed;
         }
 
+        /// <summary>매 프레임 이동·중력·접지를 처리한다. 이동이 잠겨도 zero 입력으로 호출해 중력은 계속 적용한다.</summary>
+        /// <param name="input">이동 입력(카메라 기준으로 변환된다).</param>
+        /// <param name="isRunning">달리기 속도를 쓸지.</param>
+        /// <param name="actionLocked">공격/스킬로 이동이 잠긴 경로인지. 올려치기 상승 억제가 이때만 걸린다.</param>
         public void Move(Vector2 input, bool isRunning = false, bool actionLocked = false)
         {
             // 이동이 잠긴 상태에서도 PlayerFreeState가 zero 입력으로 호출한다.
@@ -401,6 +406,8 @@ namespace ProjectS.Players
             controller.Move(move * Time.deltaTime);
         }
 
+        /// <summary>점프한다. 수직 속도를 주고, 공중 수평 속도는 현재 입력 방향 × 지상에서 측정한 실제 속도로 이어받는다.</summary>
+        /// <returns>접지가 아니라 점프하지 못했으면 false.</returns>
         public bool Jump()
         {
             if (!CanJump) return false;
@@ -644,6 +651,7 @@ namespace ProjectS.Players
             transform.rotation = Quaternion.LookRotation(worldDirection);
         }
 
+        /// <summary>카메라 정면으로 즉시 돌린다. 공격/스킬 시작 순간에 쓴다. 반드시 Update 단계에서 호출한다(LateUpdate면 카메라 보정과 충돌해 깜빡인다).</summary>
         public void SnapToCameraForward()
         {
             // 공격/스킬 시작 순간에는 부드러운 회전보다 카메라 방향 정렬이 우선이다.

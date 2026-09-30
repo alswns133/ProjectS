@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using Unity.Cinemachine;
 using UnityEngine;
 
+/// <summary>네트워크 아바타에서 조작 컴포넌트(입력·이동·전투·애니·카메라)를 <b>오너 클라에서만</b> 켜 두는 게이트. 남의 아바타와 서버 쪽 사본에서는 꺼서 로컬 입력·물리가 동기화 위치와 싸우지 않게 한다.</summary>
 public class OwnerGate : NetworkBehaviour
 {
     private readonly List<Behaviour> ownerOnly = new(); // Input·Movement·Combat·PlayerAnimation·카메라
@@ -24,6 +25,7 @@ public class OwnerGate : NetworkBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics() => LocalAvatar = null;
 
+    /// <summary>오너 전용으로 관리할 조작 컴포넌트들을 모아 둔다(끄고 켜는 판단은 네트워크 시작 콜백에서 한다).</summary>
     public void Awake()
     {
         AddGetComponent<PlayerInputHandler>();
@@ -63,6 +65,7 @@ public class OwnerGate : NetworkBehaviour
         }
     }
 
+    /// <summary>클라에 아바타가 스폰될 때 호출. 내 것이면 로컬 마을 캐릭터를 숨기고 던전 설정·레이드 줌·부활 기회·스탯 리프레시를 걸어 LocalAvatar로 등록하고, 남의 것이면 조작 컴포넌트를 끈다(순수 관찰자는 CharacterController도 끈다).</summary>
     public override void OnStartClient()
     {
         base.OnStartClient();
@@ -119,6 +122,7 @@ public class OwnerGate : NetworkBehaviour
         Debug.Log($"[진단][OwnerGate] NON-OWNED 컨트롤러={GetComponentInChildren<Animator>(true)?.runtimeAnimatorController?.name}");
     }
 
+    /// <summary>내 아바타가 사라지면(인스턴스 이탈·접속 종료) LocalAvatar를 비워 싱글 캐릭터로 되돌아가게 한다.</summary>
     public override void OnStopClient()
     {
         base.OnStopClient();

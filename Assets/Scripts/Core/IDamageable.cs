@@ -1,5 +1,8 @@
 namespace ProjectS.Core
 {
+    /// <summary>
+    /// 데미지를 받을 수 있는 대상(플레이어·몬스터·허수아비)의 공통 계약. 때리는 쪽은 구체 클래스가 아니라 이 인터페이스에만 의존한다.
+    /// </summary>
     public interface IDamageable
     {
         /// <summary>
@@ -18,6 +21,7 @@ namespace ProjectS.Core
         /// </returns>
         bool TakeDamage(in DamageResult result);
 
+        /// <summary>이미 죽었는지. 때리는 쪽이 죽은 대상을 판정·타게팅에서 거르는 데 쓴다.</summary>
         bool IsDead { get; }
 
         /// <summary>

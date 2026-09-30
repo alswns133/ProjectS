@@ -18,8 +18,13 @@ namespace ProjectS.Players
 
         // virtual + 빈 본문: 자식이 "필요한 것만" override 하게 하는 장치.
         // 안 그러면 모든 상태가 안 쓰는 메서드까지 빈 {}로 강제 구현해야 한다.
+        /// <summary>상태에 들어올 때 호출. 기본은 아무것도 하지 않는다(자식이 필요한 것만 override).</summary>
         public virtual void Enter() { }
+
+        /// <summary>상태가 활성인 동안 매 프레임 호출. 기본은 아무것도 하지 않는다.</summary>
         public virtual void Update() { }
+
+        /// <summary>상태를 떠날 때 호출. 기본은 아무것도 하지 않는다.</summary>
         public virtual void Exit() { }
     }
 }

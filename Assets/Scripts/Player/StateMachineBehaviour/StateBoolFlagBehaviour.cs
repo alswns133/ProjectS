@@ -24,6 +24,7 @@ namespace ProjectS.Players
         private int hash;
         private bool hashed;
 
+        /// <summary>State에 들어오면 지정 Bool 파라미터를 켠다.</summary>
         public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (!hashed)
@@ -35,6 +36,7 @@ namespace ProjectS.Players
             animator.SetBool(hash, true);
         }
 
+        /// <summary>State를 떠나면 지정 Bool 파라미터를 끈다.</summary>
         public override void OnStateExit(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             animator.SetBool(hash, false);

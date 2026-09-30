@@ -111,6 +111,7 @@ namespace ProjectS.UI.Framework
         }
 
         // ---- 좌클릭 드래그(고스트): InventoryItemSlot과 동일 패턴. 액티브만 집을 수 있다 ----
+        /// <summary>좌클릭 드래그 시작: 해금된 액티브 스킬만 고스트로 집는다(툴팁은 숨기고 억제).</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (eventData.button != PointerEventData.InputButton.Left) return;
@@ -139,11 +140,13 @@ namespace ProjectS.UI.Framework
             dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 중 고스트를 포인터 위치로 옮긴다.</summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (dragGhost != null) dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 종료: 고스트를 지우고 툴팁 억제를 푼다.</summary>
         public void OnEndDrag(PointerEventData eventData)
         {
             if (dragGhost != null) Destroy(dragGhost);

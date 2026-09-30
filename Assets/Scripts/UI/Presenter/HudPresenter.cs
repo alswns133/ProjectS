@@ -7,6 +7,7 @@ using ProjectS.Players;
 
 namespace ProjectS.UI
 {
+    /// <summary>플레이어 이벤트(HP·SG·레벨·스킬 등)를 받아 HUDPanel 표시 메서드로 옮기는 Presenter.</summary>
     public class HUDPresenter : BasePresenter
     {
         // FormerlySerializedAs: 언더바 제거 리네임(_view→view) 전에 저장된

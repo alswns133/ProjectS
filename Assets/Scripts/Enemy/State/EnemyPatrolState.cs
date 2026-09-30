@@ -19,8 +19,11 @@ namespace ProjectS.Enemies
         // 도착해 Idle로 쉬는 중인지. true면 이동하지 않고 대기 시간만 센다.
         private bool waiting;
 
+        /// <summary>순찰 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyPatrolState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>Walk 속도로 고정하고 첫 목적지를 고른다.</summary>
         public override void Enter()
         {
             // 순찰 이동은 항상 Walk 속도. 추격(Run)과 애니메이션이 명확히 갈리도록 진입 때 못박는다.
@@ -31,6 +34,7 @@ namespace ProjectS.Enemies
             PickNextDestination();
         }
 
+        /// <summary>발견을 최우선으로 확인하고, 이동 → 도착(또는 막힘 타임아웃) → 대기 → 다음 목적지를 반복한다.</summary>
         public override void Update()
         {
             // 순찰보다 발견이 우선이다.

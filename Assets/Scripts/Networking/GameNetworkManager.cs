@@ -43,6 +43,7 @@ namespace ProjectS.Networking
 
         private bool awaitingNetworkSceneLoad;
 
+        /// <summary>포트 오버라이드 적용, 파티 인스턴스 관심 영역 관리 부착, 자동 씬 전환 차단, 캐릭터·레이드 보스 프리팹을 spawnPrefabs에 등록한다.</summary>
         public override void Awake()
         {
             base.Awake();
@@ -80,6 +81,7 @@ namespace ProjectS.Networking
 
         }
 
+        /// <summary>전용 서버 프로세스면 틱레이트를 고정하고 서버로 기동한다. 클라는 여기서 아무것도 하지 않는다(마을 진입 시 ConnectFromVillage로 접속).</summary>
         public override void Start()
         {
             base.Start();
@@ -100,6 +102,7 @@ namespace ProjectS.Networking
             }
         }
 
+        /// <summary>서버 시작 시 원격 클라 로그를 서버 콘솔로 받는 핸들러를 등록한다(서버가 내려가면 Mirror가 비우므로 매번 등록).</summary>
         public override void OnStartServer()
         {
             base.OnStartServer();
@@ -109,19 +112,21 @@ namespace ProjectS.Networking
             ProjectS.Logging.ClientLogRelay.RegisterServerHandler();
         }
 
+        /// <summary>클라 시작 시 씬 진입 이벤트를 구독한다(네트워크로 몰아 로드한 던전의 로드 완료를 Mirror에 통지하기 위함).</summary>
         public override void OnStartClient()
         {
             base.OnStartClient();
             GameSceneManager.SceneEntered += OnSceneEnteredForNetwork;
         }
 
+        /// <summary>클라 종료 시 씬 진입 이벤트 구독을 푼다.</summary>
         public override void OnStopClient()
         {
             base.OnStopClient();
             GameSceneManager.SceneEntered -= OnSceneEnteredForNetwork;
         }
 
-        // 로드 "전" — 어디로 들어가는지 기억만 해둔다(마을 언로드는 로드가 끝난 뒤에 해야 하므로).
+        /// <summary>로드 "전" — 어디로 들어가는지 기억만 해둔다(마을 언로드는 로드가 끝난 뒤에 해야 하므로).</summary>
         public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
         {
             base.OnClientChangeScene(newSceneName, sceneOperation, customHandling);

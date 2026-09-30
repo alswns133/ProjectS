@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace ProjectS.Effects
 {
+    /// <summary>시작 시 자식 렌더러의 모든 머티리얼 색(_TintColor/_Color/_RimColor)을 지정 색으로 덮어쓴다. 같은 이펙트를 색만 바꿔 재사용할 때 쓴다.</summary>
     public class ChangeColor : MonoBehaviour
     {
         [SerializeField] private Color m_changeColor = Color.white; // 인스펙터에서 지정한 색. 자식 렌더러 전체를 이 색으로 덮어쓴다.

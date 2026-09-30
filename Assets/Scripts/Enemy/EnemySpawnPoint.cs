@@ -15,8 +15,11 @@ namespace ProjectS.Enemies
         [System.Serializable]
         private struct SpawnEffectEntry
         {
+            /// <summary>스폰 순간 재생할 이펙트 프리팹.</summary>
             public GameObject prefab;
-            public Vector3 offset;   // 스폰 포인트 기준 오프셋(회전 반영). 이펙트별로 위치를 따로 튜닝한다.
+
+            /// <summary>스폰 포인트 기준 오프셋(회전 반영). 이펙트별로 위치를 따로 튜닝한다.</summary>
+            public Vector3 offset;
         }
 
         [SerializeField] private AssetReferenceGameObject enemyRef;  // 어떤 적( 어드레서블 포인터)
@@ -30,10 +33,16 @@ namespace ProjectS.Enemies
         // 스폰 순간 재생할 이펙트(들). 여러 개 = 강한 연출. 포인트마다·이펙트마다 위치를 따로 준다.
         [SerializeField] private SpawnEffectEntry[] spawnEffects;
 
+        /// <summary>이 지점에서 스폰할 몬스터 프리팹의 어드레서블 참조.</summary>
         public AssetReferenceGameObject EnemyRef => enemyRef;
+
+        /// <summary>이 지점에서 스폰할 마리 수.</summary>
         public int Count => count;
 
+        /// <summary>스폰 위치(이 오브젝트의 월드 위치).</summary>
         public Vector3 Position => transform.position;
+
+        /// <summary>스폰 방향(이 오브젝트의 월드 회전).</summary>
         public Quaternion Rotation => transform.rotation;
 
         /// <summary>

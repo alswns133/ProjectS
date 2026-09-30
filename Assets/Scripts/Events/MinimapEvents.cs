@@ -33,9 +33,13 @@ namespace ProjectS.Events
         /// <summary>등록된 대상 하나. Transform으로 매 프레임 위치를 읽고, Type으로 마커를 고른다.</summary>
         public readonly struct Entry
         {
+            /// <summary>미니맵에 표시할 대상. 매 프레임 이 Transform의 위치를 읽는다.</summary>
             public readonly Transform Target;
+
+            /// <summary>대상에 쓸 마커 종류.</summary>
             public readonly MinimapMarkerType Type;
 
+            /// <summary>등록 항목을 만든다.</summary>
             public Entry(Transform target, MinimapMarkerType type)
             {
                 Target = target;

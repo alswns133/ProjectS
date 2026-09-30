@@ -25,6 +25,10 @@ namespace ProjectS.Logging
         private bool sendInFlight;
         private float elapsedSinceSend;
 
+        /// <summary>Apps Script 웹앱으로 로그를 배치 전송하는 sink를 만든다.</summary>
+        /// <param name="settings">전송 URL·배치 크기·재시도 설정.</param>
+        /// <param name="buildIdProvider">전송 시점의 빌드 ID를 돌려주는 함수.</param>
+        /// <param name="testerIdProvider">전송 시점의 테스터 ID를 돌려주는 함수.</param>
         public GoogleSheetsLogSink(LogSettings settings, Func<string> buildIdProvider, Func<string> testerIdProvider)
         {
             this.settings = settings;
@@ -32,6 +36,7 @@ namespace ProjectS.Logging
             this.testerIdProvider = testerIdProvider;
         }
 
+        /// <inheritdoc/>
         public void Write(in LogEntry entry)
         {
             if (!settings.HasRemoteConfiguration || !settings.ShouldSendRemotely(entry.Severity)) return;
@@ -40,6 +45,7 @@ namespace ProjectS.Logging
             TrimPendingEntries();
         }
 
+        /// <inheritdoc/>
         public void Tick(float unscaledDeltaTime)
         {
             if (!settings.HasRemoteConfiguration || sendInFlight || pendingEntries.Count == 0) return;
@@ -51,6 +57,7 @@ namespace ProjectS.Logging
             StartSend();
         }
 
+        /// <inheritdoc/>
         public void Flush()
         {
             elapsedSinceSend = settings.RemoteBatchIntervalSeconds;
@@ -154,6 +161,7 @@ namespace ProjectS.Logging
             if (excess > 0) pendingEntries.RemoveRange(0, excess);
         }
 
+        /// <summary>진행 중 전송을 취소하고 대기열을 비운다.</summary>
         public void Dispose()
         {
             if (!cancellation.IsCancellationRequested) cancellation.Cancel();
@@ -167,6 +175,7 @@ namespace ProjectS.Logging
             [JsonProperty("secret")] public readonly string Secret;
             [JsonProperty("logs")] public readonly List<RemoteLogDto> Logs;
 
+            /// <summary>전송 한 번 분량의 요청 본문을 만든다.</summary>
             public RemoteBatchPayload(string secret, List<RemoteLogDto> logs)
             {
                 Secret = secret;
@@ -185,6 +194,7 @@ namespace ProjectS.Logging
             [JsonProperty("buildId")] public readonly string BuildId;
             [JsonProperty("user")] public readonly string User;
 
+            /// <summary>로그 한 줄을 시트 전송용 DTO로 변환한다(열거형은 문자열로 바꾼다).</summary>
             public RemoteLogDto(LogEntry entry, string buildId, string user)
             {
                 TimestampUtcMs = entry.TimestampUtcMs;

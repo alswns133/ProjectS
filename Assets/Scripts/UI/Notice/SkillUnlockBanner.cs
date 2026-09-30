@@ -61,9 +61,13 @@ namespace ProjectS.UI
         // 표시할 내용 한 건. 아이콘이 아직 없을 수 있어 이름만으로도 성립한다.
         private readonly struct Entry
         {
+            /// <summary>해금된 스킬 이름.</summary>
             public readonly string SkillName;
+
+            /// <summary>스킬 아이콘. 없으면 이름만 표시한다.</summary>
             public readonly Sprite Icon;
 
+            /// <summary>대기열에 넣을 알림 한 건을 만든다.</summary>
             public Entry(string skillName, Sprite icon)
             {
                 SkillName = skillName;

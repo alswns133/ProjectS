@@ -35,8 +35,11 @@ namespace ProjectS.Enemies
         // 지속시간이 끝나 회복(End) 모션을 재생하는 중인지. 이 구간에서도 상태는 유지된다.
         private bool recovering;
 
+        /// <summary>무력화 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyGroggyState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>이동을 즉시 멈추고 무력화 모션을 재생하며, 진행 중이던 지속 이펙트를 걷어낸다.</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -51,6 +54,7 @@ namespace ProjectS.Enemies
             enemy.Effects?.StopAll();
         }
 
+        /// <summary>지속시간이 끝나면 게이지를 리필하고 회복 모션을 시작하며, 회복 모션이 끝나 "Groggy" 태그를 벗어나면 전투로 복귀한다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;
@@ -77,9 +81,11 @@ namespace ProjectS.Enemies
                 enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
-        // 무력화에서 빠져나갈 때 isGroggy를 내려 애니메이터가 로코모션으로 복귀하게 한다
-        // (Groggy→로코모션 전이 조건). 정상 경로에서는 Update가 이미 내렸지만, 사망·페이즈 전환처럼
-        // 밖에서 상태를 갈아치우는 경로에서도 파라미터가 켜진 채 남지 않게 여기서 한 번 더 내린다.
+        /// <summary>
+        /// 무력화에서 빠져나갈 때 isGroggy를 내려 애니메이터가 로코모션으로 복귀하게 한다
+        /// (Groggy→로코모션 전이 조건). 정상 경로에서는 Update가 이미 내렸지만, 사망·페이즈 전환처럼
+        /// 밖에서 상태를 갈아치우는 경로에서도 파라미터가 켜진 채 남지 않게 여기서 한 번 더 내린다.
+        /// </summary>
         public override void Exit() => enemy.Animation.EndGroggy();
     }
 }

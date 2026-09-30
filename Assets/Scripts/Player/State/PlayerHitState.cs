@@ -26,8 +26,11 @@ namespace ProjectS.Players
         // 모션 종료를 태그로 판정할 수 없다 → 착지를 종료 신호로 쓰기 위해 기록해 둔다.
         private bool startedAirborne;
 
+        /// <summary>피격 경직 상태를 만든다.</summary>
+        /// <param name="player">상태가 조작할 플레이어 컨텍스트.</param>
         public PlayerHitState(Player player) : base(player) { }
 
+        /// <summary>진행 중이던 동작을 강제로 끊고 피격 모션을 재생한다. 공중에서 맞았는지 기록해 둔다(착지를 종료 신호로 쓰기 위해).</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -49,6 +52,7 @@ namespace ProjectS.Players
             player.Animation.SetLocomotion(false, false);
         }
 
+        /// <summary>수평 이동 없이 중력·접지만 유지하다가 자유 이동으로 돌아간다. 태그 캐릭터는 Hit 모션 종료(공중 피격은 착지), 기존 Z 블렌드 캐릭터는 경직 타이머가 종료 기준이다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;
@@ -81,6 +85,7 @@ namespace ProjectS.Players
                 player.ChangeState(player.FreeState);
         }
 
+        /// <summary>래치된 피격 트리거를 지우고, 던지기로 켜졌던 회전 억제를 푼다.</summary>
         public override void Exit()
         {
             // 경직 중 사망/구르기로 끊겨도 래치된 피격 트리거가 남지 않게 정리한다.

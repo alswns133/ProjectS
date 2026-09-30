@@ -39,6 +39,7 @@ namespace ProjectS.Enhance
         /// <summary>주 스탯 종류(라벨 표시용).</summary>
         public readonly MainStatType MainStatType;
 
+        /// <summary>강화창 표시용 스냅샷을 만든다. 값은 서비스가 계산해 채우고, 뷰는 읽기만 한다.</summary>
         public EnhanceInfo(int currentStep, bool isMax, float successRate, float baseSuccessRate, int zenyCost,
             int lowMaterial, int highMaterial, int currentMainStat, int nextMainStat, MainStatType mainStatType)
         {

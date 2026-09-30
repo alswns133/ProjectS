@@ -51,6 +51,7 @@ namespace ProjectS.EditorTools
         private static readonly Color ArcColor = Color.white;
         private static readonly Color TextColor = new Color32(0xDC, 0xE3, 0xEE, 0xFF);
 
+        /// <summary>메뉴 실행: 파티원 대기 화면을 현재 씬의 UIManager 아래에 만든다. UIManager가 없으면 계속할지 묻는다.</summary>
         [MenuItem("Tools/ProjectS/Create Raid Wait Screen")]
         public static void Create()
         {
