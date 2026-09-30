@@ -17,6 +17,7 @@ namespace ProjectS.UI
     ///
     /// 수량(ItemCounter)은 카드가 스스로 관리한다 — 호스트는 Bind에서 상한(maxCount)만 알려주고,
     /// 거래 시점에 <see cref="Count"/>를 읽어 간다. 상한이 1이면 카운터는 통째로 숨는다(장비 등).
+    /// 수량은 화살표(±1) 외에 입력칸(countInput)에 숫자를 직접 쳐서 정할 수도 있다(1 ~ MaxCount로 잘림).
     /// </summary>
     public class ShopItemCard : MonoBehaviour, IPointerClickHandler
     {
@@ -33,6 +34,9 @@ namespace ProjectS.UI
         [SerializeField] private GameObject counterRoot;
         [Tooltip("현재 수량 표시(ItemCounter/Num).")]
         [SerializeField] private TMP_Text countText;
+        [Tooltip("수량 직접 입력칸(ItemCounter/NumInput). 넣으면 숫자를 타이핑해 수량을 정할 수 있다. " +
+                 "비워두면 화살표로만 조절한다. countText와 함께 쓰면 둘 다 갱신된다.")]
+        [SerializeField] private TMP_InputField countInput;
         [Tooltip("수량 +1 (ItemCounter/UpArrow).")]
         [SerializeField] private Button increaseButton;
         [Tooltip("수량 -1 (ItemCounter/DownArrow).")]
@@ -61,6 +65,15 @@ namespace ProjectS.UI
         {
             if (increaseButton != null) increaseButton.onClick.AddListener(() => Step(1));
             if (decreaseButton != null) decreaseButton.onClick.AddListener(() => Step(-1));
+
+            if (countInput != null)
+            {
+                // 숫자만 받는다. 음수 부호는 IntegerNumber가 허용하지만 SetCount의 Clamp가 1로 되돌린다.
+                countInput.contentType = TMP_InputField.ContentType.IntegerNumber;
+                countInput.onSelect.AddListener(OnCountInputSelected);
+                countInput.onValueChanged.AddListener(OnCountInputChanged);
+                countInput.onEndEdit.AddListener(OnCountInputEndEdit);
+            }
         }
 
         /// <summary>카드에 아이템·가격·거래 대상을 채우고 클릭 콜백을 건다(호스트가 카드 재사용마다 호출).</summary>
@@ -112,8 +125,41 @@ namespace ProjectS.UI
             SetCount(Count + delta);
         }
 
+        // 입력칸을 누르면 카드도 선택되게 한다(입력칸이 클릭을 먹어 카드 본체까지 올라오지 않는 건 화살표와 같다).
+        private void OnCountInputSelected(string _) => onClick?.Invoke(this);
+
+        // 타이핑 중 실시간 반영. 거래 버튼은 Count를 바로 읽으므로 입력 확정(엔터/포커스 해제)을 기다리지 않는다.
+        // 빈칸(전부 지우고 다시 쓰는 중)은 Count를 건드리지 않고 그대로 둔다 — 여기서 1로 채우면
+        // "1을 지우고 5를 치면 15"가 되는 식으로 입력이 꼬인다. 빈칸 복구는 OnCountInputEndEdit이 맡는다.
+        private void OnCountInputChanged(string text)
+        {
+            if (!int.TryParse(text, out int value)) return;
+
+            int clamped = Mathf.Clamp(value, 1, MaxCount);
+            Count = clamped;
+
+            // 상한 초과·0 입력은 즉시 잘라 보여준다(얼마까지 살 수 있는지 입력하면서 바로 알 수 있게).
+            // 범위 안이면 텍스트를 덮어쓰지 않는다 — 캐럿 위치가 튀지 않게.
+            if (clamped != value) RefreshCounter();
+            else RefreshCounterExceptInput();
+        }
+
+        // 입력 확정(엔터·포커스 해제) 시 빈칸이나 잘못된 값을 현재 Count로 되돌린다.
+        private void OnCountInputEndEdit(string text)
+        {
+            SetCount(int.TryParse(text, out int value) ? value : Count);
+        }
+
         // 수량 표시·가격·화살표 활성 상태를 현재 Count/MaxCount에 맞춘다.
         private void RefreshCounter()
+        {
+            // SetTextWithoutNotify: 코드가 넣은 값으로 onValueChanged가 다시 돌지 않게 한다.
+            if (countInput != null) countInput.SetTextWithoutNotify(Count.ToString());
+            RefreshCounterExceptInput();
+        }
+
+        // 입력칸 텍스트만 빼고 갱신한다. 타이핑 중엔 입력칸을 덮어쓰면 캐럿이 튀므로 이쪽을 쓴다.
+        private void RefreshCounterExceptInput()
         {
             // 상한이 1이면 조절할 여지가 없으므로 카운터를 통째로 숨긴다(장비, 소지금 부족 등).
             if (counterRoot != null) counterRoot.SetActive(MaxCount > 1);

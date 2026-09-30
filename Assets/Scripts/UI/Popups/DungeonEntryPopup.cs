@@ -76,6 +76,9 @@ namespace ProjectS.UI
         private EntryMode mode = EntryMode.Dungeon;
         private DungeonCatalog catalog;
 
+        // 미리보기 폴백용 로딩 화면 참조. 처음 필요할 때 찾아 캐싱한다(FindLoadingPanel).
+        private LoadingPanel loadingPanel;
+
         // 목록에 실제로 만들어 둔 카드들. 카탈로그가 바뀌어도 재사용하고, 남는 카드는 꺼 둔다.
         private readonly List<EpisodeEntryView> entries = new();
 
@@ -345,8 +348,9 @@ namespace ProjectS.UI
         {
             if (previewImage != null)
             {
-                previewImage.sprite = info.PreviewImage;
-                previewImage.enabled = info.PreviewImage != null;
+                Sprite sprite = ResolvePreviewSprite(info);
+                previewImage.sprite = sprite;
+                previewImage.enabled = sprite != null;
             }
 
             if (previewCaption != null)
@@ -354,6 +358,29 @@ namespace ProjectS.UI
                 previewCaption.text = info.Caption;
                 previewCaption.gameObject.SetActive(!string.IsNullOrWhiteSpace(info.Caption));
             }
+        }
+
+        // 카탈로그에 전용 이미지를 넣었으면 그걸 쓰고, 비어 있으면 로딩 화면의 지역 일러스트를 빌려 온다.
+        // 지역 그림의 원천은 LoadingPanel 목적지 표 하나로 둔다 — 두 곳에 따로 등록하면 한쪽만 바뀌어 어긋난다.
+        // 에피소드 → 씬은 DungeonRouter가 정하는 규칙 그대로 따라간다(여기서 씬 이름을 따로 적지 않는다).
+        private Sprite ResolvePreviewSprite(EpisodeInfo info)
+        {
+            if (info.PreviewImage != null) return info.PreviewImage;
+
+            LoadingPanel loading = FindLoadingPanel();
+            if (loading == null) return null;
+
+            int dungeonId = DungeonCatalog.MakeDungeonId(info.DungeonNumber, 1);
+            return loading.GetIllustration(DungeonRouter.SceneNameOf(dungeonId, mode));
+        }
+
+        // LoadingPanel은 UIManager가 패널 맵에 넣지 않고 따로 들고 있어 GetPanel로 못 찾는다.
+        // 같은 UIManager 자식이므로 거기서 한 번 찾아 캐싱한다(UIManager는 씬을 넘어 살아남아 참조가 유지된다).
+        private LoadingPanel FindLoadingPanel()
+        {
+            if (loadingPanel == null && UIManager.Instance != null)
+                loadingPanel = UIManager.Instance.GetComponentInChildren<LoadingPanel>(true);
+            return loadingPanel;
         }
 
         // 접기/펼치기 버튼. trackerUserClosed를 쓰는 유일한 곳이다.

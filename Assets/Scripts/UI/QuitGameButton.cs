@@ -5,7 +5,8 @@ using ProjectS.Managers;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 옵션 창의 "게임 종료" 버튼. 확인을 받고 → 저장 완료를 기다린 뒤 → 앱을 종료한다.
+    /// "게임 종료" 버튼. 확인을 받고 → 저장 완료를 기다린 뒤 → 앱을 종료한다.
+    /// 게임 종료는 이 컴포넌트만 담당한다(옵션 창·로그인·캐릭터 선택 등). 새 종료 버튼도 onClick을 직접 달지 말고 이것을 붙인다.
     ///
     /// <see cref="Application.Quit"/>만 부르면 안 되는 이유: 종료 시점의 저장(AutoSaveTicker.OnApplicationQuit)은
     /// best-effort라 업로드가 끝나기 전에 프로세스가 내려갈 수 있다. 사용자가 직접 누른 종료는 기다릴 여유가 있으므로
