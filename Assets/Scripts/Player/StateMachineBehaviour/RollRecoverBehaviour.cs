@@ -15,12 +15,14 @@ namespace ProjectS.Players
         private int hash;
         private bool hashed;
 
+        /// <summary>새 구르기마다 복귀 허용 bool을 false로 초기화한다.</summary>
         public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (!hashed) { hash = Animator.StringToHash(recoveredParam); hashed = true; }
             animator.SetBool(hash, false);   // 새 구르기마다 복귀 금지로 초기화
         }
 
+        /// <summary>진행도가 recoverStart를 넘으면 복귀 허용 bool을 켠다.</summary>
         public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (stateInfo.normalizedTime >= recoverStart)

@@ -8,8 +8,11 @@ namespace ProjectS.Enemies
     /// </summary>
     public class EnemyIdleState : EnemyBaseState
     {
+        /// <summary>대기 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyIdleState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>이동을 멈추고 대기 모션 변형(0/1)을 무작위로 고른다.</summary>
         public override void Enter()
         {
             enemy.Movement.Stop();
@@ -17,6 +20,7 @@ namespace ProjectS.Enemies
             enemy.Animation.SetIdleVariant(Random.Range(0, 2));
         }
 
+        /// <summary>대상을 발견하면 발견 상태로 넘어간다.</summary>
         public override void Update()
         {
             enemy.Animation.SetSpeed(0f);

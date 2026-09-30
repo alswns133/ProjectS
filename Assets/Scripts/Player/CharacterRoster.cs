@@ -21,6 +21,7 @@ namespace ProjectS.Players
         [Tooltip("직업 심볼 아이콘. HUD와 장비창 헤더가 쓴다.")]
         public Sprite symbol;
 
+        /// <summary>캐릭터 초상화. 캐릭터 선택 슬롯·파티 카드가 쓴다.</summary>
         public Sprite portrait;
 
         [Tooltip("스테이터스(장비)창 전용 캐릭터 그림. 비워 두면 illust로 대체한다.")]
@@ -57,6 +58,8 @@ namespace ProjectS.Players
         /// <param name="characterType">캐릭터 타입(1=검사, 2=거너 …)</param>
         public Sprite GetSymbol(int characterType) => Find(characterType)?.symbol;
 
+        /// <summary>characterType에 맞는 초상화. 캐릭터가 없으면 null.</summary>
+        /// <param name="characterType">캐릭터 타입(1=검사, 2=거너 …)</param>
         public Sprite GetPortrait(int characterType) => Find(characterType)?.portrait;
 
         /// <summary>
@@ -92,6 +95,8 @@ namespace ProjectS.Players
             return players;
         }
         
+        /// <summary>characterType에 맞는 클래스(직업) 이름. 캐릭터가 없으면 null.</summary>
+        /// <param name="characterType">캐릭터 타입(1=검사, 2=거너 …)</param>
         public string GetClassName(int characterType)
         {
             PlayerType t = Find(characterType);

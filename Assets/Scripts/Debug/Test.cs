@@ -4,9 +4,13 @@ using ProjectS.Events;
 
 namespace ProjectS.Debugging
 {
+    /// <summary>HUD 게이지 확인용 임시 테스트. 입력 a로 HP, s로 SG를 1씩 깎아 PlayerEvents로 발행한다.</summary>
     public class Test : MonoBehaviour
     {
+        /// <summary>누를 때마다 HP를 1 깎는 테스트 입력.</summary>
         public InputAction a;
+
+        /// <summary>누를 때마다 SG를 1 깎는 테스트 입력.</summary>
         public InputAction s;
         [SerializeField] private int hp = 100;
         [SerializeField] private int mp = 50;

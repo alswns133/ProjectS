@@ -86,7 +86,10 @@ namespace ProjectS.UI
         [System.Serializable]
         private struct ClassModel
         {
+            /// <summary>캐릭터 타입(1=검사, 2=거너 …).</summary>
             public int characterType;
+
+            /// <summary>선택 화면에 보여 줄 이 캐릭터의 모델.</summary>
             public GameObject model;
         }
 

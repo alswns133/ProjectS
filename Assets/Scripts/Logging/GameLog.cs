@@ -9,21 +9,28 @@ namespace ProjectS.Logging
     /// </summary>
     public static class GameLog
     {
+        /// <summary>정보 로그를 남긴다.</summary>
+        /// <param name="source">로그가 난 쪽(클라/서버).</param>
+        /// <param name="category">분류(네트워크·전투 등).</param>
+        /// <param name="message">내용.</param>
         public static void Info(LogSource source, LogCategory category, string message)
         {
             Write(source, category, LogSeverity.Info, message, null);
         }
 
+        /// <summary>경고 로그를 남긴다. 인자는 <see cref="Info"/>와 같다.</summary>
         public static void Warning(LogSource source, LogCategory category, string message)
         {
             Write(source, category, LogSeverity.Warning, message, null);
         }
 
+        /// <summary>에러 로그를 남긴다. 예외가 있으면 스택 트레이스를 함께 기록한다.</summary>
         public static void Error(LogSource source, LogCategory category, string message, Exception exception = null)
         {
             Write(source, category, LogSeverity.Error, message, exception);
         }
 
+        /// <summary>예외 로그를 남긴다. 원격 전송 기본 기준(Error 이상)에 걸려 시트로 올라간다.</summary>
         public static void Exception(LogSource source, LogCategory category, string message, Exception exception)
         {
             Write(source, category, LogSeverity.Exception, message, exception);

@@ -17,10 +17,19 @@ namespace ProjectS.Enemies
         [SerializeField, Min(0f)] private float jogSpeed = 10f;
         [SerializeField, Min(0f)] private float runSpeed = 15f;
 
+        /// <summary>이 거리 안이면 Walk 속도로 직진 접근한다.</summary>
         public float EngageDist => engageDist;
+
+        /// <summary>EngageDist~이 거리는 Jog, 이보다 멀면 Run 속도로 접근한다.</summary>
         public float JogDist => jogDist;
+
+        /// <summary>Walk 이동 속도(애니 블렌드 Threshold와 맞춘다).</summary>
         public float WalkSpeed => walkSpeed;
+
+        /// <summary>Jog 이동 속도(애니 블렌드 Threshold와 맞춘다).</summary>
         public float JogSpeed => jogSpeed;
+
+        /// <summary>Run 이동 속도(애니 블렌드 Threshold와 맞춘다).</summary>
         public float RunSpeed => runSpeed;
     }
 }

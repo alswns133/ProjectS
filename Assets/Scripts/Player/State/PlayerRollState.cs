@@ -15,8 +15,11 @@ namespace ProjectS.Players
     {
         private float elapsed;
 
+        /// <summary>구르기 상태를 만든다.</summary>
+        /// <param name="player">상태가 조작할 플레이어 컨텍스트.</param>
         public PlayerRollState(Player player) : base(player) { }
 
+        /// <summary>진행 중이던 공격/스킬을 캔슬하고, 입력 방향으로 즉시 돌아 구르기 모션을 재생하며 무적을 켠다.</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -48,6 +51,7 @@ namespace ProjectS.Players
             player.Stats.SetInvincible(true);
         }
 
+        /// <summary>수평 이동은 루트모션에 맡기고 중력·접지만 유지하다가, 구르기가 끝나면 자유 이동으로 돌아간다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;
@@ -72,6 +76,7 @@ namespace ProjectS.Players
             player.ChangeState(player.FreeState);
         }
 
+        /// <summary>어떤 경로로 떠나든 무적을 끄고, 일어나는 프레임에 바로 맞지 않게 잔여 무적을 준다.</summary>
         public override void Exit()
         {
             // 어떤 경로로 상태를 떠나든(정상 종료·사망 전환) 무적이 남지 않게 여기서 해제.

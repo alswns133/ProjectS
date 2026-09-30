@@ -12,8 +12,11 @@ namespace ProjectS.Players
     /// </summary>
     public class PlayerJumpDashState : BaseState
     {
+        /// <summary>공중 대시 상태를 만든다.</summary>
+        /// <param name="player">상태가 조작할 플레이어 컨텍스트.</param>
         public PlayerJumpDashState(Player player) : base(player) { }
 
+        /// <summary>진행 중이던 공격/스킬을 캔슬하고 공중 대시를 시작하며 무적을 켠다.</summary>
         public override void Enter()
         {
             // 회피 캔슬: 진행 중이던 공격/스킬을 강제 종료하고 잠금·버퍼·트리거·이펙트를 정리한다.
@@ -28,6 +31,7 @@ namespace ProjectS.Players
             player.Stats.SetInvincible(true);
         }
 
+        /// <summary>대시 이동을 진행하고 이동 bool을 갱신하다가, 대시가 끝나면 자유 이동으로 돌아간다.</summary>
         public override void Update()
         {
             player.Movement.TickJumpDash();
@@ -42,6 +46,7 @@ namespace ProjectS.Players
                 player.ChangeState(player.FreeState);
         }
 
+        /// <summary>어떤 경로로 떠나든 무적을 끄고 잔여 무적을 준 뒤, 대시 상태가 남지 않게 정리한다.</summary>
         public override void Exit()
         {
             // 어떤 경로로 상태를 떠나든(정상 종료, 피격, 사망) 무적이 남지 않게해제(RollState와 동일)

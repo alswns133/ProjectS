@@ -1,4 +1,4 @@
-using Mirror;
+﻿using Mirror;
 using ProjectS.Core;
 using ProjectS.Data;
 using ProjectS.Enemies;
@@ -64,6 +64,7 @@ namespace ProjectS.Players
         /// <param name="skillId">이 타격의 스킬/공격 ID(서버가 계수·랜덤·그로기를 테이블에서 조회).</param>
         /// <param name="fallbackAmount">클라가 계산한 피해량(서버 권위 스탯이 없을 때만 폴백으로 사용).</param>
         /// <param name="fallbackGroggy">클라가 실은 그로기 데미지(폴백용).</param>
+        /// <returns>서버로 보냈으면 true(로컬 적용 생략), 로컬 경로로 처리해야 하면 false.</returns>
         public bool TryReportBossHit(Collider targetCollider, int skillId, int fallbackAmount, float fallbackGroggy)
         {
             if (targetCollider == null) return false;
@@ -137,9 +138,9 @@ namespace ProjectS.Players
                 RandomMax = skill.RandomMax,
                 CritChance = stats.CritChance,
                 CritDamage = stats.CritDamage,
-                Penetration = 0f,
-                DamageBonus = 0f,
-                BossBonus = 0f,
+                Penetration = stats.DefensePenetration,
+                DamageBonus = stats.DamageIncrease,
+                BossBonus = stats.BossDamage,
                 GroggyDamage = skill.GroggyDamage,
             };
             return DamageCalculator.Calculate(in ctx, bossStats.Defense, bossStats.IsBoss);

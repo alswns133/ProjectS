@@ -36,8 +36,11 @@ namespace ProjectS.Enemies
         // 종료 감지 실패(클립이 루프이거나 태그 누락 등) 시 강제로 넘기는 상한. 정상 공격 길이보다 길게.
         private const float MaxAttackTime = 15f;
 
+        /// <summary>공격 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyAttackState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>이동을 멈추고 대상 방향으로 커밋한 뒤, Combat에 공격 선택을 요청해 공격 모션을 재생한다. 돌진 슬롯이면 전진(루트모션/코드 구동)을 켠다.</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -86,6 +89,7 @@ namespace ProjectS.Enemies
 
         }
 
+        /// <summary>돌진 히트·전진과 조준 유지를 처리하고, 공격 클립 진입 → 종료(단일/다단 규칙)를 감지해 교전 상태(AggroState)로 돌아간다. 태그 누락 대비 타임아웃이 있다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;
@@ -137,6 +141,7 @@ namespace ProjectS.Enemies
                 enemy.StateMachine.ChangeState(enemy.AggroState);
         }
 
+        /// <summary>어떻게 끝나든 예고 장판·돌진 전진·히트 창을 정리하고, 패턴 종료를 알린다(레이드 보스는 여기서 다음 대상을 고른다).</summary>
         public override void Exit()
         {
             // 공격이 어떻게 끝나든(정상 종료·피격·사망) 남아 있을 수 있는 예고 장판을 끈다.

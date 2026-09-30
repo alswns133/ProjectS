@@ -8,8 +8,11 @@ namespace ProjectS.Enemies
     /// </summary>
     public class EnemyChaseState : EnemyBaseState
     {
+        /// <summary>추격 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyChaseState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>추격 속도로 이동을 재개하고, 회전은 코드가 직접 다루도록 에이전트 자동 회전을 끈다.</summary>
         public override void Enter()
         {
             enemy.Movement.SetMoveSpeed(enemy.ChaseSpeed);
@@ -17,12 +20,14 @@ namespace ProjectS.Enemies
             enemy.Movement.Resume();
         }
 
+        /// <summary>에이전트 자동 회전을 원복한다.</summary>
         public override void Exit()
         {
             // 추격을 벗어나면 자동 회전을 원복한다. 순찰/발견은 에이전트 자동 회전을 그대로 쓴다.
             enemy.Movement.SetAutoRotation(true);
         }
 
+        /// <summary>시야가 트이고 사거리 안이면 공격(쿨다운 중이면 제자리에서 주시), 아니면 분산된 교전 지점으로 이동한다. 도달할 수 없으면 제자리에서 바라만 본다.</summary>
         public override void Update()
         {
             if (enemy.Target == null) return;

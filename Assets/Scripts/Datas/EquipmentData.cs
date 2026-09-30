@@ -10,12 +10,16 @@ namespace ProjectS.Data
     [Serializable]
     public class EquipmentData : IDataRow
     {
+        /// <summary>아이템 ID(ItemData.Index와 같은 값).</summary>
         public int Index;
+
+        /// <summary>착용 부위.</summary>
         public EquipSlot EquipSlot;
 
         /// <summary>무기 종류이자 직업 제한. 방어구는 None.</summary>
         public WeaponType WeaponType;
 
+        /// <summary>주 스탯 종류(무기=공격력, 방어구=방어력). 강화 보너스도 이 스탯에 붙는다.</summary>
         public MainStatType MainStatType;
 
         /// <summary>+0강 기준값. 실제 표시값은 여기에 드랍 시 랜덤(0.95~1.05)과 강화 보너스를 더한 값이다.</summary>

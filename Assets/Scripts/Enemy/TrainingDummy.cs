@@ -19,6 +19,7 @@ namespace ProjectS.Enemies
         [SerializeField] private float damageTextHeight = 1.8f;   // 데미지 텍스트가 뜨는 높이(머리 위). 적 크기에 맞춰 조정
         private int currentHp;
 
+        /// <summary>HP가 0 이하인지(<see cref="ProjectS.Core.IDamageable"/>).</summary>
         public bool IsDead => currentHp <= 0;
 
         /// <summary>IDamageable. 방어 경감은 때린 쪽이 이 값을 읽어 계산한다.</summary>

@@ -48,6 +48,7 @@ namespace ProjectS.EditorTools
         private static readonly Color TextColor = new Color32(0xDC, 0xE3, 0xEE, 0xFF);
         private static readonly Color TitleColor = new Color32(0xE2, 0x4B, 0x4A, 0xFF);   // 실패 = 경고색
 
+        /// <summary>메뉴 실행: 레이드 실패 팝업 프리팹을 만들어 열린 씬의 UIManager 아래에 배치한다. UIManager가 없으면 중단한다.</summary>
         [MenuItem("Tools/ProjectS/Create Raid Fail Popup")]
         public static void Create()
         {

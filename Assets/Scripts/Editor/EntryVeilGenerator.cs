@@ -57,6 +57,7 @@ namespace ProjectS.EditorTools
         private static readonly Color ArcColor = Color.white;
         private static readonly Color TextColor = new Color32(0xDC, 0xE3, 0xEE, 0xFF);
 
+        /// <summary>메뉴 실행: 진입 베일 프리팹을 불러오거나 새로 만들어 열린 씬에 배치한다. 이미 있으면 교체할지 먼저 묻는다.</summary>
         [MenuItem("Tools/ProjectS/Create Entry Veil")]
         public static void Create()
         {

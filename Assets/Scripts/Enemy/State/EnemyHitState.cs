@@ -11,8 +11,11 @@ namespace ProjectS.Enemies
     {
         private float elapsed;
 
+        /// <summary>피격 경직 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyHitState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>이동을 멈추고 피격 모션을 처음부터 재생하며 경직 타이머를 시작한다.</summary>
         public override void Enter() => PlayHitStun();
 
         /// <summary>
@@ -45,6 +48,7 @@ namespace ProjectS.Enemies
         //    enemy.Effects?.StopAll();
         //}
 
+        /// <summary>경직 시간(HitStunDuration + HitRecoveryDelay)이 끝나면 교전 상태(AggroState)로 돌아간다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;

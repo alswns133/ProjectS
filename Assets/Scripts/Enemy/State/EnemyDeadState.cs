@@ -10,8 +10,11 @@ namespace ProjectS.Enemies
     {
         private float elapsed;
 
+        /// <summary>사망 상태를 만든다.</summary>
+        /// <param name="enemy">상태가 조작할 몬스터 컨텍스트.</param>
         public EnemyDeadState(Enemy enemy) : base(enemy) { }
 
+        /// <summary>지상/공중에 맞는 사망 모션을 재생하고, 지속 이펙트를 걷어낸 뒤 이동(NavMeshAgent)과 몸 충돌을 끈다.</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -31,6 +34,7 @@ namespace ProjectS.Enemies
             if (enemy.BodyCollider != null) enemy.BodyCollider.enabled = false;
         }
 
+        /// <summary>소멸 지연 시간이 지나면 Enemy.Despawn()으로 치운다(소멸 훅이 함께 돌도록 SetActive를 직접 부르지 않는다).</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;

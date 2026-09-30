@@ -37,13 +37,18 @@ namespace ProjectS.Players
         [Serializable]
         private class HitBoxSlot
         {
+            /// <summary>Animation Event 인자로 이 슬롯을 찾는 키(언더바 표기 차이는 Normalize로 흡수).</summary>
             public string key;
+
+            /// <summary>판정 박스. 이 Transform의 위치/회전/스케일이 곧 OverlapBox 영역이다.</summary>
             public Transform area;
 
-            // 이 타격이 참조할 SkillTable 행 ID. 계수·랜덤 범위·게이지 회복량이 전부 여기서 나온다.
-            // 캐릭터별 3자리: 스킬 x01~x04, 평타 x21·피니시 x22·강공격 x23·대시 x24·점프 x25 (검사 1xx / 거너 2xx).
-            // 데미지를 슬롯에 직접 넣지 않는 이유: 밸런스 수치는 기획이 시트에서 바꾸는 값이라
-            // 인스펙터와 테이블 두 곳에 두면 어느 쪽이 진짜인지 알 수 없게 된다.
+            /// <summary>
+            /// 이 타격이 참조할 SkillTable 행 ID. 계수·랜덤 범위·게이지 회복량이 전부 여기서 나온다.
+            /// 캐릭터별 3자리: 스킬 x01~x04, 평타 x21·피니시 x22·강공격 x23·대시 x24·점프 x25 (검사 1xx / 거너 2xx).
+            /// 데미지를 슬롯에 직접 넣지 않는 이유: 밸런스 수치는 기획이 시트에서 바꾸는 값이라
+            /// 인스펙터와 테이블 두 곳에 두면 어느 쪽이 진짜인지 알 수 없게 된다.
+            /// </summary>
             public int skillId = 1;
         }
 
@@ -52,23 +57,28 @@ namespace ProjectS.Players
         [Serializable]
         private class ProjectileSlot
         {
+            /// <summary>Animation Event 인자로 이 슬롯을 찾는 키(히트박스 슬롯과 같은 키 체계).</summary>
             public string key;
 
-            // 이 슬롯이 발사할 투사체 프리팹. 종류(검기 가로/세로, 총알 등 = 비주얼·판정 박스가 다른 것)마다
-            // 프리팹을 나누고 여기서 고른다. 풀 관리는 씬에 하나 있는 ProjectileSpawner가 프리팹별로 한다.
+            /// <summary>
+            /// 이 슬롯이 발사할 투사체 프리팹. 종류(검기 가로/세로, 총알 등 = 비주얼·판정 박스가 다른 것)마다
+            /// 프리팹을 나누고 여기서 고른다. 풀 관리는 씬에 하나 있는 ProjectileSpawner가 프리팹별로 한다.
+            /// </summary>
             public Projectile prefab;
 
-            // 발사 위치·방향 기준 Transform. 보통 캐릭터 가슴 높이의 자식 오브젝트를 쓴다.
+            /// <summary>발사 위치·방향 기준 Transform. 보통 캐릭터 가슴 높이의 자식 오브젝트를 쓴다.</summary>
             public Transform muzzle;
 
-            // muzzle 회전에 더할 각도(오일러). 같은 프리팹을 대각/세로 등으로 살짝 틀 때만 쓴다.
-            // 검기 종류 자체가 다르면 프리팹(spawner)을 나누고, 여기선 미세 각도만 조정한다.
+            /// <summary>
+            /// muzzle 회전에 더할 각도(오일러). 같은 프리팹을 대각/세로 등으로 살짝 틀 때만 쓴다.
+            /// 검기 종류 자체가 다르면 프리팹(spawner)을 나누고, 여기선 미세 각도만 조정한다.
+            /// </summary>
             public Vector3 rotationOffset;
 
-            // 히트 박스 슬롯과 같은 규칙: 계수·랜덤 범위·게이지 회복량은 SkillTable 행에서 온다.
+            /// <summary>히트 박스 슬롯과 같은 규칙: 계수·랜덤 범위·게이지 회복량은 SkillTable 행에서 온다.</summary>
             public int skillId = 101;
 
-            // 관통 여부. true면 경로 위 여러 적을 연속 타격, false면 첫 적중에 소멸한다.
+            /// <summary>관통 여부. true면 경로 위 여러 적을 연속 타격, false면 첫 적중에 소멸한다.</summary>
             public bool canPierce = true;
         }
 
@@ -136,7 +146,7 @@ namespace ProjectS.Players
         private bool attackBuffered;
         private float[] skillReadyTime;
 
-        // 스킬 시전 중에는 일반 공격 입력을 막기 위해 Player가 확인하는 플래그.
+        /// <summary>스킬 시전 중에는 일반 공격 입력을 막기 위해 Player가 확인하는 플래그.</summary>
         public bool IsCastingSkill { get; private set; }
 
         /// <summary>
@@ -278,6 +288,8 @@ namespace ProjectS.Players
             }
         }
 
+        /// <summary>n번 단축키 스킬을 지금 쓸 수 있는지. 쿨타임·해금 여부와 함께, 테이블이 아직 없으면(로딩 중) 막는다.</summary>
+        /// <param name="n">단축키 번호(1~).</param>
         public bool CanUseSkill(int n)
         {
             if (n < 1 || n > MaxSkillNumber) return false;
@@ -289,6 +301,8 @@ namespace ProjectS.Players
             return skillId != 0 && SkillState.IsUnlocked(skillId) && GetSkillRow(skillId) != null;
         }
 
+        /// <summary>n번 단축키 스킬의 남은 쿨타임(초). 범위 밖이거나 준비됐으면 0.</summary>
+        /// <param name="n">단축키 번호(1~).</param>
         public float GetRemainingCooldown(int n)
         {
             if (n < 1 || n > MaxSkillNumber) return 0f;
@@ -320,7 +334,7 @@ namespace ProjectS.Players
             return skill != null ? skill.SgCost : 0f;
         }
 
-        // n = 눌린 단축키(1~4). 등록(로드아웃)으로 키와 스킬이 분리됐으므로 안에서 스킬 고유 번호로 환산한다.
+        /// <summary>n = 눌린 단축키(1~4). 등록(로드아웃)으로 키와 스킬이 분리됐으므로 안에서 스킬 고유 번호로 환산한다.</summary>
         public bool UseSkill(int n)
         {
             if (!CanUseSkill(n)) return false;
@@ -464,9 +478,9 @@ namespace ProjectS.Players
                 RandomMax = skill.RandomMax,
                 CritChance = stats.CritChance,
                 CritDamage = stats.CritDamage,
-                Penetration = 0f,
-                DamageBonus = 0f,
-                BossBonus = 0f,
+                Penetration = stats.DefensePenetration,
+                DamageBonus = stats.DamageIncrease,
+                BossBonus = stats.BossDamage,
                 GroggyDamage = skill.GroggyDamage,   // 스킬 테이블의 그로기 데미지를 그대로 실어 보낸다(평타는 0)
             };
 
@@ -474,6 +488,7 @@ namespace ProjectS.Players
             return true;
         }
 
+        /// <summary>스킬 시전 플래그를 내린다. 캔슬 창이 열릴 때 호출된다(각성기 무적은 여기서 풀지 않는다).</summary>
         public void EndSkillCast() => IsCastingSkill = false;
 
         /// <summary>
@@ -559,6 +574,8 @@ namespace ProjectS.Players
             anim.PlayJumpAttack();
         }
 
+        /// <summary>Animation Event(히트 프레임): 키에 맞는 히트박스로 판정해 데미지를 적용한다. 키가 없거나 틀리면 경고만 남긴다. ★ Unity가 이름 문자열로 부르므로 이름을 바꾸지 않는다.</summary>
+        /// <param name="key">히트박스 슬롯 키(클립 이벤트 인자).</param>
         public void OnHitFrame(string key)
         {
             // Animation Event의 인자 실수(오타·빈칸)는 플레이를 멈추지 않고 경고만 남긴다.
@@ -773,6 +790,8 @@ namespace ProjectS.Players
         }
 #endif
 
+        /// <summary>공격 입력을 받는다. 첫 타는 즉시 트리거하고, 이후 타수는 버퍼에 담았다가 콤보 창이 열려 있으면 바로 이어간다.</summary>
+        /// <returns>이번 호출로 다음 타수를 이어 발동했으면 true(첫 타는 false).</returns>
         public bool OnAttackInput()
         {
             currentAction = CombatAction.Combo;
@@ -793,6 +812,8 @@ namespace ProjectS.Players
             return false;
         }
 
+        /// <summary>Animation Event(공격 시작): 애니메이션이 실제로 그 타수에 진입한 시점에 콤보 단계를 확정하고, 멀티면 관찰자에 타수를 전파한다. ★ Unity가 이름 문자열로 부르므로 이름을 바꾸지 않는다.</summary>
+        /// <param name="step">진입한 콤보 타수(1부터).</param>
         public void OnAttackStart(int step)
         {
             // 캔슬된 콤보 클립의 시작 이벤트가 뒤늦게 도착해 현재 액션을 되돌리지 못하게 한다.
@@ -817,6 +838,7 @@ namespace ProjectS.Players
             DevLog.Log(comboStep);
         }
 
+        /// <summary>래치된 공격 트리거와 입력 버퍼를 비우고 콤보 창을 닫는다.</summary>
         public void ClearAttackBuffer()
         {
             anim.ResetAttackTrigger();
@@ -825,6 +847,7 @@ namespace ProjectS.Players
             comboWindowOpen = false;
         }
 
+        /// <summary>콤보 입력 창을 연다. 홀드·선입력이 있으면 즉시 다음 타수를 발동한다. 로코모션 진입 시에도 호출되는 것은 의도된 설계다(CLAUDE.md 기획 결정).</summary>
         public void OnComboWindowOpen()
         {
             // 강공격/스킬이 콤보를 캔슬한 직후, 밀려나는 공격 클립의 이벤트가 블렌드 중에
@@ -841,6 +864,8 @@ namespace ProjectS.Players
             TryConsumeComboInput();
         }
 
+        /// <summary>콤보 창이 열려 있고 공격 홀드·버퍼 입력이 있으면 다음 타수를 발동하고 창을 닫는다.</summary>
+        /// <returns>발동했으면 true.</returns>
         public bool TryConsumeComboInput()
         {
             if (!comboWindowOpen) return false;
@@ -858,6 +883,7 @@ namespace ProjectS.Players
             return false;
         }
 
+        /// <summary>로코모션 복귀 시 호출. 콤보 단계·스킬 시전 상태·각성기 무적을 정리한다(입력 버퍼는 남긴다 — 버퍼까지 비우려면 CancelAction).</summary>
         public void ResetCombo()
         {
             // Locomotion 복귀 시 호출된다. 콤보와 스킬 시전 상태를 모두 정리한다.
@@ -872,6 +898,7 @@ namespace ProjectS.Players
             DevLog.Log(comboStep);
         }
 
+        /// <summary>로코모션 블렌드가 끝났을 때 호출. 콤보를 리셋하고 다음 입력을 받도록 콤보 창을 다시 연다.</summary>
         public void EndComboChain()
         {
             // 블렌드 완료(로코모션 완전 진입)에서 호출. 피니시(3타)로 끝났으면 하드 스톱.

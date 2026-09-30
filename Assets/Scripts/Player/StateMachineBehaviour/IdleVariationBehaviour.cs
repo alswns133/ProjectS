@@ -51,6 +51,7 @@ namespace ProjectS.Players
         // 연속 중복 회피용. State 재진입과 무관하게 유지돼야 하므로 OnStateEnter에서 초기화하지 않는다.
         private int lastVariant = -1;
 
+        /// <summary>대기 State에 들어올 때마다 타이머를 초기화하고 다음 발동까지의 무작위 지연을 뽑는다.</summary>
         public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (!initialized) Initialize(animator);
@@ -59,6 +60,7 @@ namespace ProjectS.Players
             nextDelay = Random.Range(minDelay, maxDelay);
         }
 
+        /// <summary>전이 중이 아닐 때 시간을 세다가, 지연이 차면 특수 대기 모션을 발동한다.</summary>
         public override void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (!paramsAvailable) return;
@@ -73,6 +75,7 @@ namespace ProjectS.Players
             Fire(animator);
         }
 
+        /// <summary>특수 대기가 재생되지 못하고 남은 트리거를 지운다(나중에 유령 발동하지 않게).</summary>
         public override void OnStateExit(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             if (!paramsAvailable) return;

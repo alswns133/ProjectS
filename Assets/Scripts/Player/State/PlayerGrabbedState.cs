@@ -30,6 +30,8 @@ namespace ProjectS.Players
         private Transform anchor;   // 잡힌 위치를 고정할 보스의 앵커 Transform(손/입 등). null이면 위치 고정 없음.
         private float elapsed;
 
+        /// <summary>잡힘 상태를 만든다. 잡기 주체·앵커는 진입 직전 <see cref="Setup"/>으로 주입한다.</summary>
+        /// <param name="player">상태가 조작할 플레이어 컨텍스트.</param>
         public PlayerGrabbedState(Player player) : base(player) { }
 
         /// <summary>
@@ -42,6 +44,7 @@ namespace ProjectS.Players
             this.anchor = anchor;
         }
 
+        /// <summary>진행 중이던 동작·이펙트를 끊고 외부 제어(구속)로 들어간다.</summary>
         public override void Enter()
         {
             elapsed = 0f;
@@ -69,6 +72,7 @@ namespace ProjectS.Players
         private bool IsGrabberAlive()
             => grabber.HasGameplayAuthority ? grabber.isActiveAndEnabled : grabber.gameObject.activeInHierarchy;
 
+        /// <summary>잡은 주체가 죽거나 사라지면 즉시 스스로 해제하고, 그 외에는 앵커 위치에 붙여 둔다.</summary>
         public override void Update()
         {
             elapsed += Time.deltaTime;
@@ -92,6 +96,7 @@ namespace ProjectS.Players
             SnapToAnchor();
         }
 
+        /// <summary>컨트롤러를 되살리고 래치된 구속 트리거를 정리한다. 던지기 관성은 이 뒤에 Player.ReleaseFromGrab이 얹는다.</summary>
         public override void Exit()
         {
             // 컨트롤러를 되살리고(관성 리셋 포함) 래치된 구속 트리거를 정리한다.

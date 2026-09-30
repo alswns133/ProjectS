@@ -24,6 +24,7 @@ namespace ProjectS.Enhance
         /// <summary>재료 아이템 ID(슬롯 hover 툴팁 조회용). 0이면 툴팁 없음.</summary>
         public readonly int ItemId;
 
+        /// <summary>재료 슬롯 표시 정보를 만든다. itemId를 생략(0)하면 hover 툴팁이 뜨지 않는다.</summary>
         public MaterialSlotInfo(string iconAddress, string name, int owned, int required, int itemId = 0)
         {
             IconAddress = iconAddress;

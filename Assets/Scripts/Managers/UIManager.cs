@@ -11,9 +11,11 @@ using ProjectS.UI;
 
 namespace ProjectS.Managers
 {
+    /// <summary>UI 루트 싱글톤. 자식의 BasePanel/BasePopup을 타입별로 모아 패널 스택·팝업 목록을 관리하고, ESC(뒤로가기)를 <c>Back()</c> 한 곳에서 처리한다.</summary>
     [RequireComponent(typeof(CanvasGroup))]
     public class UIManager : MonoBehaviour
     {
+        /// <summary>싱글톤 인스턴스.</summary>
         public static UIManager Instance { get; private set; }
 
         /// <summary>
@@ -23,7 +25,7 @@ namespace ProjectS.Managers
         /// </summary>
         public static bool IsHidden => Instance != null && Instance.hidden;
 
-        // 뒤로가기 버튼 (Esc)
+        /// <summary>뒤로가기 버튼 (Esc)</summary>
         public InputAction backAction;
 
         // UI 루트 전체의 표시/클릭을 한 번에 끄고 켜는 그룹. SetHidden 참고.
@@ -425,9 +427,12 @@ namespace ProjectS.Managers
         public void ShowLoading()
             => loadingPanel.Show();
 
+        /// <summary>로딩 화면을 닫는다.</summary>
         public void HideLoading()
             => loadingPanel.Hide();
 
+        /// <summary>로딩 화면 진행도를 갱신한다.</summary>
+        /// <param name="progress">0~1 진행도.</param>
         public void SetLoadingProgress(float progress)
             => loadingPanel.SetProgress(progress);
 

@@ -10,6 +10,7 @@ namespace ProjectS.Data
     [Serializable]
     public class EnhanceCostData : IDataRow
     {
+        /// <summary>행 ID(테이블 키). 강화 시도 단계와 같은 값이다.</summary>
         public int Index;
 
         /// <summary>강화 시도 단계(1~9). Index와 같은 값이지만 의미를 드러내기 위해 따로 둔다.</summary>
@@ -18,8 +19,13 @@ namespace ProjectS.Data
         /// <summary>성공 확률(0~1).</summary>
         public float SuccessRate;
 
+        /// <summary>이 단계 시도에 드는 골드(제니).</summary>
         public int ZenyCost;
+
+        /// <summary>이 단계 시도에 드는 하급 재료 수.</summary>
         public int LowMaterial;
+
+        /// <summary>이 단계 시도에 드는 상급 재료 수.</summary>
         public int HighMaterial;
 
         int IDataRow.Index => Index;

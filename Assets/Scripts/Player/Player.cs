@@ -29,19 +29,32 @@ namespace ProjectS.Players
     public class Player : MonoBehaviour
     {
         // 컴포넌트 참조: 외부에선 읽기만(접근은 허용, 교체는 금지) → { get; private set; }
+        /// <summary>입력 해석 컴포넌트. Awake에서 한 번 캐싱한다(외부는 읽기만).</summary>
         public PlayerInputHandler Input { get; private set; }
+
+        /// <summary>CharacterController 기반 이동·중력·점프·회전 컴포넌트.</summary>
         public PlayerMovement Movement { get; private set; }
+
+        /// <summary>Animator 파라미터·트리거를 다루는 유일한 통로.</summary>
         public PlayerAnimation Animation { get; private set; }
+
+        /// <summary>공격 콤보·스킬·히트 판정 컴포넌트.</summary>
         public PlayerCombat Combat { get; private set; }
 
+        /// <summary>HP·스탯·사망 판정 컴포넌트.</summary>
         public PlayerStats Stats { get; private set; }
 
         // 상태 인스턴스도 외부(상태끼리 전환)에서 참조하므로 읽기 전용 공개
+        /// <summary>일반 이동 상태. 다른 상태가 끝나면 대부분 여기로 돌아온다.</summary>
         public PlayerFreeState FreeState { get; private set; }
 
+        /// <summary>사망 상태. 조작을 막고 사망 모션을 재생한다.</summary>
         public PlayerDeadState DeadState { get; private set; }
 
+        /// <summary>구르기(회피) 상태.</summary>
         public PlayerRollState RollState { get; private set; }
+
+        /// <summary>피격 경직 상태.</summary>
         public PlayerHitState HitState { get; private set; }
 
         /// <summary>공중 대시(점프 대시) 상태. 공중 회피 입력 시 Player가 이 상태로 전환한다.</summary>
@@ -50,6 +63,7 @@ namespace ProjectS.Players
         /// <summary>보스에게 잡힌 구속 상태. 보스 잡기 히트가 성공하면 <see cref="OnGrabbed"/>가 전환한다.</summary>
         public PlayerGrabbedState GrabbedState { get; private set; }
 
+        /// <summary>Animation Event 키로 이펙트를 재생하는 컴포넌트.</summary>
         public PlayerEffects Effect { get; private set; }
 
         /// <summary>연속 유효타 카운터(히트 콤보). <see cref="OnTargetHit"/>가 적중마다 AddHit을 호출한다.</summary>

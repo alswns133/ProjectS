@@ -103,20 +103,37 @@ namespace ProjectS.UI
         // 불똥 하나의 상태. 클래스 하나에 몰아넣어 풀 관리를 단순하게 유지한다.
         private class Ember
         {
+            /// <summary>이 불똥의 RectTransform.</summary>
             public RectTransform Rect;
+
+            /// <summary>이 불똥의 이미지(알파·색 조절용).</summary>
             public Image Image;
+
+            /// <summary>현재 위치(px).</summary>
             public Vector2 Position;
+
+            /// <summary>현재 속도(px/초).</summary>
             public Vector2 Velocity;
+
+            /// <summary>수명(초).</summary>
             public float Life;
+
+            /// <summary>태어난 뒤 지난 시간(초).</summary>
             public float Age;
+
+            /// <summary>크기(px).</summary>
             public float Size;
 
-            // 입자별 흔들림. 위상과 주기가 제각각이어야 한 몸으로 쓸리지 않는다.
+            /// <summary>입자별 흔들림. 위상과 주기가 제각각이어야 한 몸으로 쓸리지 않는다.</summary>
             public float SwayPhase;
+
+            /// <summary>좌우 흔들림 주기.</summary>
             public float SwayFrequency;
+
+            /// <summary>좌우 흔들림 폭 배율.</summary>
             public float SwayScale;
 
-            // 명멸 위상. 이것까지 같으면 전부 동시에 깜박여 신호등처럼 보인다.
+            /// <summary>명멸 위상. 이것까지 같으면 전부 동시에 깜박여 신호등처럼 보인다.</summary>
             public float FlickerPhase;
         }
 

@@ -20,6 +20,7 @@ namespace ProjectS.Managers
         // 프리로드가 가벼우면 낮추고, 무거우면 높여 체감 시간 비율에 맞춘다.
         private const float PRELOAD_WEIGHT = 0.4f;
 
+        /// <summary>싱글톤 인스턴스. 중복 생성분은 Awake에서 제거된다.</summary>
         public static GameSceneManager Instance { get; private set; }
 
         // 로드되고 있는 상태를 가리키는 변수

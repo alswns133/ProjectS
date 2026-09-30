@@ -40,6 +40,10 @@ namespace ProjectS.Networking
         /// <summary>서버가 로그인 세이브로 실제 도출했는지(=stats를 신뢰해도 되는지).</summary>
         public bool HasAuthoritativeStats => hasAuthoritativeStats;
 
+        /// <summary>
+        /// 서버에서 이 오브젝트가 스폰될 때 호출. 인증 단계에서 커넥션별로 도출해 둔 스탯을 SyncVar로 옮겨
+        /// 소유 클라로 복제되게 한다. 인증 정보가 없으면 권위 스탯 없음(폴백) 상태로 둔다.
+        /// </summary>
         public override void OnStartServer()
         {
             // 인증 단계에서 이 커넥션에 대해 도출·보관해 둔 스탯을 SyncVar로 옮겨 담는다(→ 소유 클라로 복제).
@@ -56,12 +60,17 @@ namespace ProjectS.Networking
             }
         }
 
+        /// <summary>
+        /// 소유 클라에서 로컬 플레이어로 확정될 때 호출. <see cref="Local"/>에 등록하고, 스폰 시점에 이미 도착해 있는
+        /// 초기 스탯을 <see cref="OnLocalStatsChanged"/>로 한 번 알린다(SyncVar 훅은 초기값에는 돌지 않기 때문).
+        /// </summary>
         public override void OnStartLocalPlayer()
         {
             Local = this;
             OnLocalStatsChanged?.Invoke();   // 스폰 시 이미 도착해 있을 초기값을 밀어 올린다.
         }
 
+        /// <summary>로컬 플레이어 해제 시 호출. 자신이 <see cref="Local"/>이면 비워 파괴된 오브젝트를 가리키지 않게 한다.</summary>
         public override void OnStopLocalPlayer()
         {
             if (Local == this) Local = null;

@@ -297,14 +297,20 @@ namespace ProjectS.EditorTools
         [Serializable]
         private class IconRefRow
         {
+            /// <summary>아이템 ID(JSON 매핑용, 대조에는 쓰지 않는다).</summary>
             public int Index;
+
+            /// <summary>아이템 이름(JSON 매핑용, 대조에는 쓰지 않는다).</summary>
             public string Name;
+
+            /// <summary>아이콘 어드레서블 주소. 아이콘 폴더 파일과 대조하는 유일한 값이다.</summary>
             public string IconAddress;
         }
 
         [Serializable]
         private class IconRefList
         {
+            /// <summary>ItemData.json의 행들. JsonUtility가 최상위 배열을 못 읽어 {"rows":[...]}로 감싸 읽는다.</summary>
             public IconRefRow[] rows;
         }
     }

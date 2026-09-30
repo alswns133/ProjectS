@@ -10,8 +10,13 @@ namespace ProjectS.Data
     [Serializable]
     public class ItemOptionData : IDataRow
     {
+        /// <summary>행 ID(테이블 키).</summary>
         public int Index;
+
+        /// <summary>옵션 종류(치확·치피·보스뎀 등). 스탯 합산 시 어느 칸에 더할지를 정한다.</summary>
         public ItemOptionType OptionType;
+
+        /// <summary>이 옵션 행이 적용되는 장비 등급.</summary>
         public ItemGrade Grade;
 
         /// <summary>툴팁에 그대로 찍히는 표시명. 코드 수정 없이 문구를 바꾸기 위해 데이터로 둔다.</summary>

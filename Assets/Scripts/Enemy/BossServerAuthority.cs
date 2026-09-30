@@ -37,6 +37,7 @@ namespace ProjectS.Enemies
             Add<BossPhaseTransition>();
         }
 
+        /// <summary>순수 관찰자 클라에서만 서버 전용 AI 컴포넌트를 끈다. 호스트는 서버로서 AI를 돌려야 하므로 건드리지 않는다.</summary>
         public override void OnStartClient()
         {
             base.OnStartClient();

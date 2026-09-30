@@ -33,6 +33,7 @@ namespace ProjectS.Skills
         // skillId → 시작(바닥) 레벨. 액티브 1 / 패시브 0으로 스킬마다 다르므로 비용 인덱싱에 함께 쓴다.
         private readonly Dictionary<int, int> startById = new();
 
+        /// <summary>현재 플레이어 캐릭터 기준으로 SkillGrowthTable에서 스킬 목록·비용을 읽어 구성한다. 총 SP는 레벨당 1P이며, 테이블에서 스킬을 못 찾으면 플레이스홀더로 대체한다.</summary>
         public TableSkillSource()
         {
             ProjectS.Players.PlayerStats stats =

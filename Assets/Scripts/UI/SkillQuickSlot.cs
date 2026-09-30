@@ -108,6 +108,7 @@ namespace ProjectS.UI
         }
 
         // ---- 좌클릭 드래그(고스트): 등록된 스킬을 집어 다른 슬롯으로 옮기거나(스왑) 밖에 놓아 해제 ----
+        /// <summary>좌클릭 드래그 시작: 등록된 스킬 아이콘을 고스트로 띄우고 툴팁을 숨긴다(빈 슬롯이면 무시).</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (eventData.button != PointerEventData.InputButton.Left) return;
@@ -136,11 +137,13 @@ namespace ProjectS.UI
             dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 중 고스트를 포인터 위치로 옮긴다.</summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (dragGhost != null) dragGhost.transform.position = eventData.position;
         }
 
+        /// <summary>드래그 종료: 고스트를 지우고, 어느 슬롯에도 드롭되지 않았으면 등록을 해제한다.</summary>
         public void OnEndDrag(PointerEventData eventData)
         {
             if (dragGhost != null) Destroy(dragGhost);

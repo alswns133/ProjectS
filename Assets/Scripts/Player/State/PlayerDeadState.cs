@@ -9,8 +9,11 @@ namespace ProjectS.Players
     /// </summary>
     public class PlayerDeadState : BaseState
     {
+        /// <summary>사망 상태를 만든다.</summary>
+        /// <param name="player">상태가 조작할 플레이어 컨텍스트.</param>
         public PlayerDeadState(Player player) : base(player) { }
 
+        /// <summary>사망 모션(강피격이면 큰 사망 모션)을 재생하고 진행 중이던 이펙트를 정리한다.</summary>
         public override void Enter()
         {
             // 강한 공격에 죽었으면 별도 사망 모션(doDieLarge)으로 분기한다.

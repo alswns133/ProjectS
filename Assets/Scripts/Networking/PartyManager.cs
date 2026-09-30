@@ -45,9 +45,16 @@ namespace ProjectS.Networking
         // 보류 초대 한 건: 초대자 netId + 향하는 던전(성립 시 파티 상태로 심는다).
         private struct PendingInvite
         {
+            /// <summary>초대한 사람의 netId.</summary>
             public uint inviter;
+
+            /// <summary>향하는 던전 ID(성립 시 파티 상태로 심는다).</summary>
             public int dungeonId;
+
+            /// <summary>향하는 던전 표시 이름.</summary>
             public string dungeonName;
+
+            /// <summary>난이도 표시 문자열.</summary>
             public string difficultyLabel;
         }
 
@@ -63,10 +70,12 @@ namespace ProjectS.Networking
         // 파티 id 발급기. 0은 "무소속" 예약값이라 1부터 센다. 서버에서만 증가한다.
         private static uint nextPartyId = 1;
 
-        // 초대 서버측 타임아웃(안전망). 받는 팝업의 클라 타임아웃(기본 20초)보다 살짝 길게 둬,
-        // 보통은 클라가 먼저 자동 거절하고 이 타이머는 팝업이 없거나 이상한 상황에서만 발동한다.
-        // 밸런스가 아니라 네트워크 안전장치라 상수로 둔다(ChatManager.MaxChatLength와 같은 취지).
-        // 받는 쪽 카운트다운의 PhaseDuration(총 시간)으로도 쓰여 public.
+        /// <summary>
+        /// 초대 서버측 타임아웃(안전망). 받는 팝업의 클라 타임아웃(기본 20초)보다 살짝 길게 둬,
+        /// 보통은 클라가 먼저 자동 거절하고 이 타이머는 팝업이 없거나 이상한 상황에서만 발동한다.
+        /// 밸런스가 아니라 네트워크 안전장치라 상수로 둔다(ChatManager.MaxChatLength와 같은 취지).
+        /// 받는 쪽 카운트다운의 PhaseDuration(총 시간)으로도 쓰여 public.
+        /// </summary>
         public const float InviteTimeoutSeconds = 25f;
 
         /// <summary>
@@ -108,14 +117,16 @@ namespace ProjectS.Networking
 
         // ── 생명주기 ────────────────────────────────────────────────
 
+        /// <summary>로컬 플레이어가 되면 <see cref="Local"/>에 등록한다(파티 다리가 이 인스턴스로 요청을 넘긴다).</summary>
         public override void OnStartLocalPlayer() => Local = this;
 
+        /// <summary>로컬 플레이어 해제 시 자신이 <see cref="Local"/>이면 비운다.</summary>
         public override void OnStopLocalPlayer()
         {
             if (Local == this) Local = null;
         }
 
-        // 이 커넥션의 오브젝트가 서버에서 사라질 때(=접속 끊김/강제종료/언스폰) 뒤처리.
+        /// <summary>이 커넥션의 오브젝트가 서버에서 사라질 때(=접속 끊김/강제종료/언스폰) 뒤처리.</summary>
         public override void OnStopServer()
         {
             // 1. 이 사람이 낀 보류 초대 청소. 안 하면 가드 7(pendingByTarget.ContainsKey)이 영영 참이 돼

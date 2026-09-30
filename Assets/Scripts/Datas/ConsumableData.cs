@@ -10,6 +10,7 @@ namespace ProjectS.Data
     [Serializable]
     public class ConsumableData : IDataRow
     {
+        /// <summary>아이템 ID(ItemData.Index와 같은 값).</summary>
         public int Index;
 
         /// <summary>즉시형은 총 회복량, 지속형은 초당 회복량.</summary>
@@ -18,6 +19,7 @@ namespace ProjectS.Data
         /// <summary>0이면 즉시 회복. 양수면 그 시간 동안 초당 HealAmount만큼 회복한다.</summary>
         public float DurationSec;
 
+        /// <summary>사용 후 재사용 대기 시간(초). HUD 퀵슬롯 쿨다운 연출에도 쓰인다.</summary>
         public float CooldownSec;
 
         int IDataRow.Index => Index;

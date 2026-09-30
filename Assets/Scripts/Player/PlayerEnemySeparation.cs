@@ -29,6 +29,7 @@ namespace ProjectS.Players
 
         private PlayerCombat combat;
 
+        /// <summary>밀어낼 플레이어 컨텍스트. Awake에서 같은 오브젝트의 Player로 채운다(몬스터 통과 중이면 밀어내지 않는다).</summary>
         public Player player;
 
         // 매 프레임 할당을 없애는 NonAlloc 버퍼. 동시에 겹치는 몬스터 상한(넘치면 나머지는 다음 프레임에).

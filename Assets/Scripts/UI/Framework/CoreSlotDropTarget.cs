@@ -27,6 +27,7 @@ namespace ProjectS.UI.Framework
         // 툴팁은 이 인스턴스를 인벤 슬롯 툴팁과 같은 형식으로 띄운다(롤 주스탯·옵션·+N 포함).
         private EquipmentInstance current;
 
+        /// <summary>좌클릭 드래그로 인벤토리 장비 슬롯을 놓으면 그 장비를 드롭 이벤트로 알린다(우클릭 드래그는 무시).</summary>
         public void OnDrop(PointerEventData eventData)
         {
             // 좌클릭 드래그의 드롭만 받는다(우클릭 드래그는 컨텍스트 메뉴용 — InventoryItemSlot과 동일 규약).

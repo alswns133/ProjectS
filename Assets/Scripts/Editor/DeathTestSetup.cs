@@ -27,6 +27,7 @@ namespace ProjectS.EditorTools
     {
         private const string HostName = "__DeathTest";
 
+        /// <summary>메뉴 실행: 현재 씬에 DeathTester 하네스가 없으면 추가하고, 부족한 연결을 점검해 알린다.</summary>
         [MenuItem("Tools/ProjectS/Setup Death Test (current scene)", false, 111)]
         public static void Setup()
         {
