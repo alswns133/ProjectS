@@ -32,6 +32,9 @@ namespace ProjectS.UI.Framework
         private int itemId;
         private int owned;
 
+        // 프리팹에 지정된 이름 색. 등급 행을 못 찾을 때 되돌릴 기본값(처음 칠하기 직전에 한 번만 저장).
+        private Color? defaultNameColor;
+
         /// <summary>
         /// 재료 한 칸을 표시한다. 아이콘은 주소로 비동기 로드한다.
         /// </summary>
@@ -49,6 +52,11 @@ namespace ProjectS.UI.Framework
             {
                 nameText.gameObject.SetActive(true);
                 nameText.text = materialName;
+
+                // 이름은 문자열로 받지만 itemId로 등급을 찾을 수 있다. 못 찾으면(itemId 0 등) 프리팹 기본색.
+                ItemData item = itemId > 0 && JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(itemId) : null;
+                defaultNameColor ??= nameText.color;
+                nameText.color = ItemGradeStyle.ColorOf(item, defaultNameColor.Value);
             }
 
             if (countText != null)

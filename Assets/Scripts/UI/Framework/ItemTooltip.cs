@@ -239,7 +239,7 @@ namespace ProjectS.UI.Framework
             currentItem = item;
 
             // 등급 표기와 색은 같은 행에서 나오므로 조회는 한 번만 한다.
-            ItemGradeData gradeRow = GradeRow(item.Grade);
+            ItemGradeData gradeRow = ItemGradeStyle.Row(item.Grade);
             Color gradeColor = gradeRow != null ? gradeRow.DisplayColor : Color.white;
 
             if (nameText != null)
@@ -467,20 +467,6 @@ namespace ProjectS.UI.Framework
         {
             if (go != null && go.activeSelf != value) go.SetActive(value);
         }
-
-        // ── 등급 표기 (표기·색의 유일한 출처는 ItemGradeData 테이블) ─────────────
-
-        /// <summary>
-        /// 등급 표기와 색은 <see cref="ItemGradeData"/> 테이블(JSON)이 유일한 기준이다.
-        /// 여기서 색 4개와 이름 4개를 코드·인스펙터로 들고 있으면 등급을 쓰는 UI가 늘어날 때마다
-        /// 같은 값이 복제되고, 톤이나 표기를 바꿀 때 한 곳씩 빠뜨리게 된다.
-        /// 로딩 전(IsReady 이전)이거나 행이 없으면 null을 돌려주고, 호출측이 폴백을 정한다.
-        /// 등급 하나 때문에 툴팁 자체가 안 뜨는 것보다는 낫기 때문이다.
-        /// </summary>
-        /// <param name="grade">조회할 등급</param>
-        /// <returns>등급 행. 없으면 null</returns>
-        private static ItemGradeData GradeRow(ItemGrade grade)
-            => JsonManager.Instance != null ? JsonManager.Instance.Get<ItemGradeData>((int)grade) : null;
 
         // 직업 표기: 무기는 무기종류에서 직업이 갈리고(검=검사·총=거너), 방어구는 직업 제한이 없어 공용.
         private static string ClassLabel(EquipSlot slot, WeaponType weapon)

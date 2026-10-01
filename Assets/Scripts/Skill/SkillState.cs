@@ -92,8 +92,14 @@ namespace ProjectS.Skills
             PlayerSaveService.SaveNow();   // 해금은 딜리버릿 이벤트 → 즉시 저장.
         }
 
-        // 스킬 번호(1~4)를 현재 캐릭터 스킬ID로 환산한다. 이미 완성 ID(>=100)면 그대로.
-        private static int ResolveSkillId(int idOrNumber)
+        /// <summary>
+        /// 스킬 번호(1~4)를 현재 캐릭터 스킬ID로 환산한다(예: 거너(2) + 3 → 203). 이미 완성 ID(>=100)면 그대로.
+        /// 해금(<see cref="Unlock"/>)과 보상 미리보기 UI가 같은 규칙을 써야 "보여준 스킬 = 해금되는 스킬"이
+        /// 보장되므로, 환산은 이 함수 하나로만 한다.
+        /// </summary>
+        /// <param name="idOrNumber">스킬 번호(1~4) 또는 완성 스킬 ID</param>
+        /// <returns>현재 캐릭터 기준 스킬 ID. 캐릭터를 모르면 입력을 그대로 돌려준다.</returns>
+        public static int ResolveSkillId(int idOrNumber)
         {
             if (idOrNumber >= 100) return idOrNumber;
 

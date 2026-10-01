@@ -58,6 +58,10 @@ namespace ProjectS.UI
         private Action<ShopItemCard> onClick;
         private int unitPrice;
 
+        // 프리팹에 지정된 이름 색. 등급 행을 못 찾을 때(테이블 로딩 전 등) 되돌릴 기본값으로, 처음 칠하기 직전에 한 번만 저장한다.
+        // Awake가 아니라 첫 Bind에서 잡는 이유: 비활성 부모 아래 생성되면 Awake보다 Bind가 먼저 불려 등급색을 기본값으로 잡아 버린다.
+        private Color? defaultNameColor;
+
         /// <summary>이 카드가 거래하는 대상. 구입=<see cref="ShopItemEntry"/>, 판매=ItemStack 또는 EquipmentInstance.</summary>
         public object Payload { get; private set; }
 
@@ -102,7 +106,14 @@ namespace ProjectS.UI
             MaxCount = Mathf.Max(1, maxCount);
             Count = 1;   // 재사용된 카드에 옛 수량이 남지 않게 항상 1로 되돌린다
 
-            if (nameText != null) nameText.text = item != null ? item.Name : string.Empty;
+            if (nameText != null)
+            {
+                nameText.text = item != null ? item.Name : string.Empty;
+
+                // 카드는 풀에서 재사용되므로 매 Bind마다 색을 다시 칠한다(안 하면 이전 카드의 등급색이 남는다).
+                defaultNameColor ??= nameText.color;
+                nameText.color = ItemGradeStyle.ColorOf(item, defaultNameColor.Value);
+            }
             if (infoText != null) infoText.text = item != null ? item.Description : string.Empty;
 
             RefreshCounter();
