@@ -202,9 +202,12 @@ namespace ProjectS.UI
         private async void LoadRewardIcon(QuestRewardData reward, NpcRewardSlot slot, int generation)
         {
             string address = ResolveRewardIconAddress(reward);
+            Debug.Log($"[QuestDetail] {reward.Type} {reward.TargetId} → 주소 '{address}'");
             if (string.IsNullOrEmpty(address)) return;
 
             Sprite sprite = await ItemIconLoader.LoadAsync(address);
+            Debug.Log($"[QuestDetail] '{address}' 로드 결과 {(sprite != null ? sprite.name : "null")}, " +
+                      $"세대 {generation}/{rewardGeneration}, 슬롯 {(slot != null ? slot.name : "null")}");
 
             if (generation != rewardGeneration || slot == null) return;
 
