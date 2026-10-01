@@ -5938,8 +5938,8 @@ Transform:
   m_GameObject: {fileID: 440635696514903447}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: 0}
-  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_LocalPosition: {x: 0, y: 2.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 9035250790285344273}
@@ -21375,6 +21375,7 @@ GameObject:
   - component: {fileID: 7492403399004123236}
   - component: {fileID: 5482364037084802205}
   - component: {fileID: 1426980044352267544}
+  - component: {fileID: 991862076063465450}
   m_Layer: 6
   m_Name: Hecaton_Phase2_DualBlades
   m_TagString: Untagged
@@ -22251,6 +22252,22 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+--- !u!114 &991862076063465450
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890781944157325120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73d96130da23c2d4e9f5759a97d60beb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectAnchor
+  bone: {fileID: 6290876417369496047}
+  offset: {x: 0, y: 0, z: 0}
+  gizmoColor: {r: 1, g: 0.3, b: 0.1, a: 1}
+  gizmoRadius: 0.12
 --- !u!1 &920807242309128139
 GameObject:
   m_ObjectHideFlags: 0

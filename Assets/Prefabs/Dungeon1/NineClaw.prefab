@@ -132666,7 +132666,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 1, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5752631224902396709}
@@ -295524,6 +295524,7 @@ GameObject:
   - component: {fileID: 1825296611090735698}
   - component: {fileID: 8950386701845422420}
   - component: {fileID: 5127632916717018684}
+  - component: {fileID: 6500150258845261459}
   m_Layer: 6
   m_Name: NineClaw
   m_TagString: Untagged
@@ -296188,6 +296189,22 @@ MonoBehaviour:
     hitStopTimeScale: 0
     hitStopRecoverDuration: 1
     hitStopRecoverSharpness: 1
+--- !u!114 &6500150258845261459
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7472919723033611258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73d96130da23c2d4e9f5759a97d60beb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Effects.HitEffectAnchor
+  bone: {fileID: 5298824415735061414}
+  offset: {x: 0, y: 0, z: 0}
+  gizmoColor: {r: 1, g: 0.3, b: 0.1, a: 1}
+  gizmoRadius: 0.12
 --- !u!1 &7554937935565755612
 GameObject:
   m_ObjectHideFlags: 0
