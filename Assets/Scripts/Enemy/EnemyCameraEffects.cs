@@ -65,6 +65,22 @@ namespace ProjectS.Enemies
 
             /// <summary>멈추는 동안의 시간 배율. 0=완전 정지, 0.05 같은 작은 값=슬로우모션 느낌.</summary>
             [Range(0f, 1f)] public float hitStopTimeScale;
+
+            /// <summary>
+            /// 히트스톱이 끝난 뒤 정상 속도(1)로 되돌아오는 데 걸리는 시간(초, 실제 시간).
+            /// 0이면 즉시 원복한다(평타 타격감용 기본 동작).
+            /// 값을 주면 "완전 정지 → 서서히 복귀"가 되어, 그로기처럼 멈춤 자체를 연출로 쓰는 곳에 맞는다.
+            /// 멈춰 있는 시간은 이 값이 아니라 <see cref="hitStopDuration"/>이 정한다.
+            /// </summary>
+            [Min(0f)] public float hitStopRecoverDuration;
+
+            /// <summary>
+            /// 복귀 곡선의 가속 정도. 1이면 등속으로 돌아오고, 클수록 <b>느린 구간에 오래 머물다가
+            /// 끝에서 확 정상 속도로 튀어오른다</b>(슬로우가 풀리는 순간을 강조하는 연출).
+            /// 3 근처면 복귀 시간의 절반을 원래 배속의 12%쯤에서 보낸다.
+            /// <see cref="hitStopRecoverDuration"/>이 0이면 복귀 자체가 즉시라 이 값은 쓰이지 않는다.
+            /// </summary>
+            [Min(1f)] public float hitStopRecoverSharpness = 3f;
         }
 
         [SerializeField] private CameraEffectSlot[] effects;
@@ -136,7 +152,7 @@ namespace ProjectS.Enemies
             }
 
             if (slot.hitStopDuration > 0f)
-                StartHitStop(slot.hitStopDuration, slot.hitStopTimeScale);
+                StartHitStop(slot.hitStopDuration, slot.hitStopTimeScale, slot.hitStopRecoverDuration, slot.hitStopRecoverSharpness);
         }
 
         /// <summary>
@@ -215,19 +231,34 @@ namespace ProjectS.Enemies
             return Vector3.Slerp(baseDirection, UnityEngine.Random.onUnitSphere, jitter).normalized;
         }
 
-        private void StartHitStop(float duration, float timeScale)
+        private void StartHitStop(float duration, float timeScale, float recoverDuration, float recoverSharpness)
         {
             if (hitStopRoutine != null) StopCoroutine(hitStopRoutine);
-            hitStopRoutine = StartCoroutine(HitStopRoutine(duration, Mathf.Clamp01(timeScale)));
+            hitStopRoutine = StartCoroutine(HitStopRoutine(duration, Mathf.Clamp01(timeScale), recoverDuration, recoverSharpness));
         }
 
-        private IEnumerator HitStopRoutine(float duration, float timeScale)
+        private IEnumerator HitStopRoutine(float duration, float timeScale, float recoverDuration, float recoverSharpness)
         {
             Time.timeScale = timeScale;
 
             // ★ 반드시 Realtime(unscaled) 대기. timeScale=0에서 일반 WaitForSeconds는
             //   시간이 안 흘러 영영 안 풀려 게임이 멈춘다.
             yield return new WaitForSecondsRealtime(duration);
+
+            // 복귀 램프. recoverDuration이 0이면 루프를 통째로 건너뛰어 기존처럼 즉시 원복된다.
+            // ★ 진행도는 unscaledDeltaTime으로 잰다. timeScale이 0인 동안 deltaTime은 0이라,
+            //   스케일된 시간으로 재면 램프가 시작되지 못하고 게임이 영영 멈춘 채로 남는다.
+            // 보간에 t^sharpness를 먹여 앞구간을 눌러 둔다 → 한참 느리게 기다가 끝에서 확 풀린다.
+            // 등속(Lerp)으로 두면 "슬로우가 풀리는 순간"이 없어 밋밋하게 미끄러진다.
+            float sharpness = Mathf.Max(1f, recoverSharpness);
+            float elapsed = 0f;
+            while (elapsed < recoverDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / recoverDuration);
+                Time.timeScale = Mathf.Lerp(timeScale, 1f, Mathf.Pow(t, sharpness));
+                yield return null;
+            }
 
             Time.timeScale = 1f;
             hitStopRoutine = null;
