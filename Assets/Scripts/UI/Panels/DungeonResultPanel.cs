@@ -3,6 +3,7 @@ using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ProjectS.Data;
 using ProjectS.Items;
@@ -14,13 +15,15 @@ using ProjectS.UI.Framework;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 던전 결과창의 1·2페이즈 — 성과 화면과 보상 화면. 기획서 5-1(UI_RS_001~003) ·
-    /// 5-2(UI_RS_011~014)에 해당한다. 3페이즈(퇴장 선택)는 <see cref="DungeonExitPopup"/>이 맡는다.
+    /// 던전 결과창의 1페이즈 — 성과와 클리어 보상을 한 화면에 보여 준다. 기획서 5-1(UI_RS_001~003) ·
+    /// 5-2(UI_RS_011~014)에 해당한다. 2페이즈(퇴장 선택)는 <see cref="DungeonExitPopup"/>이 맡는다.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>한 프리팹에 페이지 둘.</b> 두 페이즈는 하단 3분할(좌 정보 · 중앙 원형 · 우 정보) 골격이 같고
-    /// 배경 연출도 공유한다. 패널을 두 벌로 나누면 그 골격과 연출을 두 번 만들게 된다.
+    /// <b>2페이즈 진행(2026-10-01 단축).</b> 원래 성과 → 보상 → 퇴장 선택의 3페이즈였으나 성과·보상을 한
+    /// 페이지로 합쳤다. 넘기는 입력 없이, 퍼포먼스 게이지의 잠금 연출이 끝나는 즉시
+    /// (<see cref="PerformanceGaugeView.LockFinished"/>) 퇴장 선택창이 뜬다. 선택창은 이 화면 위에 얹히므로
+    /// 성과·보상은 그대로 보인다.
     /// </para>
     /// <para>
     /// <b>반드시 <see cref="Open"/>으로 연다.</b> 이 패널은 <c>ClearPanelStack</c> 뒤에 열려
@@ -37,11 +40,13 @@ namespace ProjectS.UI
     public class DungeonResultPanel : BasePanel
     {
         [Header("페이지")]
-        [SerializeField] private GameObject pageScore;      // 1페이즈
-        [SerializeField] private GameObject pageReward;     // 2페이즈
+        [Tooltip("성과·보상이 함께 들어 있는 페이지(1페이즈).")]
+        [FormerlySerializedAs("pageScore")]
+        [SerializeField] private GameObject page;
 
-        [Tooltip("페이지 전체를 덮는 투명 버튼. 화면 아무 곳이나 눌러 다음으로 넘어가는 용도.")]
-        [SerializeField] private Button advanceButton;
+        [Tooltip("페이지 전체를 덮는 투명 버튼. 화면 아무 곳이나 눌러 연출을 건너뛰는 용도.")]
+        [FormerlySerializedAs("advanceButton")]
+        [SerializeField] private Button skipButton;
 
         [Header("성과 — 좌 (UI_RS_001)")]
         [SerializeField] private ScoreCountUpFx playScoreNum;
@@ -53,11 +58,6 @@ namespace ProjectS.UI
         [Tooltip("원형 퍼포먼스 게이지 프리팹 인스턴스. 안쪽 조각은 뷰가 들고 있어 여기선 참조 하나만 잡는다.")]
         [SerializeField] private PerformanceGaugeView performanceGauge;
 
-        [Header("성과 — 우 (UI_RS_003)")]
-        [SerializeField] private TMP_Text dungeonNameText;
-        [SerializeField] private SegmentGaugeView achieveBar;
-        [SerializeField] private TMP_Text achieveNum;
-
         [Header("보상 — 좌 (UI_RS_011)")]
         [Tooltip("보상 슬롯들이 생성될 부모. Layout Group을 붙이면 자동 정렬된다.")]
         [SerializeField] private RectTransform root;
@@ -68,13 +68,14 @@ namespace ProjectS.UI
         [Header("보상 — 우 (UI_RS_013 · 014)")]
         [SerializeField] private TMP_Text expNum;
         [SerializeField] private TMP_Text goldNum;
-        [SerializeField] private Button closeButton;
 
-        [Header("3페이즈")]
+        [Header("2페이즈")]
         [SerializeField] private DungeonExitPopup exitPopup;
 
         private DungeonResultData data;
-        private int page;
+
+        // 이번에 열린 동안 퇴장 선택창을 이미 띄웠는지. 선택 후 씬이 넘어가기 전의 입력이 창을 다시 열지 않게 한다.
+        private bool exitRequested;
 
         // 동적으로 생성한 보상 슬롯. 재열림 때 재사용하고(매번 생성/파괴 회피), 필요한 개수만 활성화한다.
         private readonly List<ResultRewardSlot> spawnedSlots = new();
@@ -101,8 +102,7 @@ namespace ProjectS.UI
 
         protected override void OnInit()
         {
-            if (advanceButton != null) advanceButton.onClick.AddListener(Advance);
-            if (closeButton != null) closeButton.onClick.AddListener(Advance);
+            if (skipButton != null) skipButton.onClick.AddListener(SkipFx);
         }
 
         protected override void OnShow()
@@ -116,11 +116,25 @@ namespace ProjectS.UI
             //   (BGM을 결과 화면용으로 바꾸거나 잠깐 낮출지도 함께 결정. 실패/전멸 결과가 생기면 SFX_GameOver로 분기.)
             BindScore();
             BindReward();
-            GoToPage(0);
+
+            exitRequested = false;
+            if (page != null) page.SetActive(true);
+
+            // 구독을 재생보다 먼저 건다 — 재생할 연출이 없으면 PlayLock이 그 자리에서 LockFinished를 발행한다.
+            if (performanceGauge != null) performanceGauge.LockFinished += OpenExitPopup;
+
+            if (playScoreNum != null) playScoreNum.Play(data.playScore);
+
+            // 게이지 채움·숫자는 잠금 애니메이션이 몬다(fill은 클립, 숫자는 뷰가 미러링). 여기선 재생만 건다.
+            // 게이지가 없으면 기다릴 연출이 없으므로 바로 선택창으로 넘어간다.
+            if (performanceGauge != null) performanceGauge.PlayLock();
+            else OpenExitPopup();
         }
 
         protected override void OnHide()
         {
+            if (performanceGauge != null) performanceGauge.LockFinished -= OpenExitPopup;
+
             // 커서 잠금·플레이어 입력을 플레이 상태로 되돌린다(마을 복귀·재도전으로 이 패널이 닫힐 때).
             SetResultInteraction(false);
 
@@ -152,23 +166,11 @@ namespace ProjectS.UI
         {
             if (!IsVisible) return;
 
-            // 3페이즈가 떠 있으면 그쪽이 입력의 주인이다. 여기서 또 받으면 팝업 뒤에서 페이지가 넘어간다.
-            if (UIManager.Instance != null && UIManager.Instance.IsPopupOpen<DungeonExitPopup>()) return;
-
-            if (!AdvancePressed()) return;
-
-            // 첫 입력은 굴러가는 점수를 끊는 데 쓴다(연출 건너뛰기). 그다음 입력부터 페이지가 넘어간다.
-            if (page == 0 && playScoreNum != null && playScoreNum.IsCounting)
-            {
-                playScoreNum.Skip();
-                return;
-            }
-
-            Advance();
+            if (SkipPressed()) SkipFx();
         }
 
         // ESC는 UIManager의 뒤로가기로도 흘러가지만, 이 패널이 스택의 마지막 하나라 그쪽은 아무 일도 하지 않는다.
-        private static bool AdvancePressed()
+        private static bool SkipPressed()
         {
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null) return false;
@@ -178,37 +180,27 @@ namespace ProjectS.UI
                 || keyboard.escapeKey.wasPressedThisFrame;
         }
 
-        private void Advance()
+        /// <summary>
+        /// 점수 카운트업과 게이지 잠금 연출을 끝으로 건너뛴다(화면 클릭 · 스페이스/엔터/ESC).
+        /// 게이지 연출이 끝나면 선택창이 뜨므로, 결과적으로 곧장 2페이즈로 넘어간다.
+        /// </summary>
+        private void SkipFx()
         {
-            if (page == 0)
-            {
-                GoToPage(1);
-                return;
-            }
+            // 선택창이 이미 떴으면 그쪽이 입력의 주인이다.
+            if (exitRequested) return;
 
-            OpenExitPopup();
+            if (playScoreNum != null) playScoreNum.Skip();
+
+            // SkipLock이 LockFinished를 발행해 선택창을 연다. 연출 종료를 못 잡은 경우(State 설정 실수 등)에도
+            // 결과 화면에 갇히지 않도록, 재생 중이 아니면 직접 연다.
+            if (performanceGauge != null && performanceGauge.IsLockPlaying) performanceGauge.SkipLock();
+            else OpenExitPopup();
         }
 
-        private void GoToPage(int index)
-        {
-            page = index;
-
-            if (pageScore != null) pageScore.SetActive(index == 0);
-            if (pageReward != null) pageReward.SetActive(index == 1);
-
-            // 성과 페이지에 들어설 때마다 점수 카운트업과 게이지 잠금 연출을 처음부터 돌린다.
-            if (index != 0) return;
-
-            if (playScoreNum != null) playScoreNum.Play(data.playScore);
-            // 게이지 채움·숫자는 잠금 애니메이션이 몬다(fill은 클립, 숫자는 뷰가 미러링). 여기선 재생만 건다.
-            if (performanceGauge != null) performanceGauge.PlayLock();
-        }
-
+        // 2페이즈. 성과·보상 페이지는 그대로 두고 그 위에 선택창만 얹는다.
         private void OpenExitPopup()
         {
-            // 3페이즈에서는 하단 정보 블록이 사라지고, 뒤의 클리어 연출 위에 선택창만 남는다.
-            if (pageScore != null) pageScore.SetActive(false);
-            if (pageReward != null) pageReward.SetActive(false);
+            if (exitRequested) return;
 
             if (exitPopup == null || UIManager.Instance == null)
             {
@@ -216,6 +208,7 @@ namespace ProjectS.UI
                 return;
             }
 
+            exitRequested = true;
             UIManager.Instance.ShowPopup<DungeonExitPopup>();
         }
 
@@ -229,15 +222,9 @@ namespace ProjectS.UI
             SetStatRow(3, "최대 콤보", data.maxCombo.ToString(CultureInfo.InvariantCulture));
 
             // 등급 내용만 여기서 세팅한다(노출 타이밍은 잠금 애니메이션이 맡음).
-            // 게이지 채움은 즉시 세팅하지 않고, 페이지 진입 시 PlayRise로 0→목표까지 서서히 올린다.
+            // 게이지 채움은 즉시 세팅하지 않고, OnShow의 PlayLock(잠금 애니메이션)이 0→목표까지 올린다.
             if (performanceGauge != null) performanceGauge.SetRank(data.grade);
 
-            if (dungeonNameText != null)
-                dungeonNameText.text = string.IsNullOrEmpty(data.dungeonName) ? "-" : data.dungeonName;
-
-            float achieve = Mathf.Clamp01(data.achieveRatio);
-            if (achieveBar != null) achieveBar.SetRatio(achieve);
-            if (achieveNum != null) achieveNum.text = $"{Mathf.RoundToInt(achieve * 100f)}%";
         }
 
         private void BindReward()
@@ -309,6 +296,7 @@ namespace ProjectS.UI
 
             if (slot == null) return;   // 로딩 중 패널이 닫혀 슬롯이 파괴된 경우
             slot.Set(icon, itemName, item.count, false);
+            slot.SetGradeItem(row);   // 등급 표시(배경색·이펙트). 슬롯 프리팹에 ItemSlotGradeView가 없으면 no-op.
         }
 
         private void SetStatRow(int index, string label, string value)

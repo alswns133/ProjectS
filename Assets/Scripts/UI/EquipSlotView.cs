@@ -34,6 +34,8 @@ namespace ProjectS.UI
 
         private int currentItemId;   // 아이콘 async 로드 stale 판정용
         private GameObject dragGhost;   // 드래그 동안 커서를 따라다니는 반투명 아이콘
+        private ItemSlotGradeView gradeView;   // 등급 표현(선택). 안 붙어 있으면 null이고 등급 표시는 생략된다.
+        private bool gradeViewResolved;
 
         /// <summary>이 슬롯의 부위.</summary>
         public EquipSlot Slot => slot;
@@ -42,6 +44,14 @@ namespace ProjectS.UI
         public void Refresh()
         {
             EquipmentInstance eq = InventoryManager.Instance != null ? InventoryManager.Instance.GetEquipped(slot) : null;
+
+            // 등급 표시(배경색·이펙트). 장비창이 슬롯의 Awake보다 먼저 Refresh를 부를 수 있어 여기서 늦게 찾는다.
+            if (!gradeViewResolved)
+            {
+                gradeView = GetComponent<ItemSlotGradeView>();
+                gradeViewResolved = true;
+            }
+            if (gradeView != null) gradeView.SetItem(eq?.Item);
 
             if (eq?.Item == null)
             {

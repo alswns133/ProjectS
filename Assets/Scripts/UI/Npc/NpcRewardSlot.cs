@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using ProjectS.Data;
 
 namespace ProjectS.UI
 {
@@ -10,6 +11,13 @@ namespace ProjectS.UI
         [SerializeField] private Image icon;
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text amountText;
+
+        private ItemSlotGradeView gradeView;   // 등급 표현(선택). 프리팹에 안 붙어 있으면 null이고 등급 표시는 생략된다.
+
+        private void Awake()
+        {
+            gradeView = GetComponent<ItemSlotGradeView>();
+        }
 
         /// <summary>보상 한 개를 채운다.</summary>
         /// <param name="rewardName">보상 이름(골드/경험치/아이템 등)</param>
@@ -26,6 +34,17 @@ namespace ProjectS.UI
             }
 
             SetIcon(iconSprite);
+
+            // 칸은 풀링으로 재사용되므로, 이전에 담겼던 아이템의 등급 표시가 남지 않게 매번 지운다.
+            // 아이템 보상이면 호출 쪽이 이어서 SetGradeItem으로 다시 채운다.
+            SetGradeItem(null);
+        }
+
+        /// <summary>이 칸의 보상이 아이템일 때 등급 표시(배경색·이펙트)를 입힌다. Bind 뒤에 호출한다.</summary>
+        /// <param name="item">보상 아이템(아이템이 아닌 보상이면 null → 등급 표시 끔)</param>
+        public void SetGradeItem(ItemData item)
+        {
+            if (gradeView != null) gradeView.SetItem(item);
         }
 
         /// <summary>아이콘만 갈아끼운다(아이템 보상 아이콘의 비동기 로드가 늦게 끝났을 때 덮어쓰기용).</summary>
