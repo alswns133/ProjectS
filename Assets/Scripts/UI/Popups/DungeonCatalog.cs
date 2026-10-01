@@ -38,7 +38,7 @@ namespace ProjectS.UI
         [Tooltip("목록 왼쪽 헥사곤 배지 그림. 비우면 라벨(EP.N / Lv.N)만 보인다.")]
         [SerializeField] private Sprite hexIcon;
 
-        [Tooltip("선택 시 사이드 패널에 뜨는 던전 이미지.")]
+        [Tooltip("선택 시 사이드 패널에 뜨는 던전 이미지. 비우면 로딩 화면(LoadingPanel) 목적지 표의 지역 일러스트 첫 장을 쓴다.")]
         [SerializeField] private Sprite previewImage;
 
         [Tooltip("이미지 아래 한 줄 요약. 비우면 캡션 칸이 숨는다.")]
@@ -59,7 +59,7 @@ namespace ProjectS.UI
         /// <summary>목록 헥사곤 배지 그림. null이면 라벨만 표시한다.</summary>
         public Sprite HexIcon => hexIcon;
 
-        /// <summary>사이드 패널에 띄울 던전 이미지. null이면 이미지 칸이 비워진다.</summary>
+        /// <summary>사이드 패널에 띄울 던전 전용 이미지. null이면 입장 화면이 로딩 화면의 지역 일러스트로 대신한다.</summary>
         public Sprite PreviewImage => previewImage;
 
         /// <summary>이미지 아래 한 줄 요약.</summary>

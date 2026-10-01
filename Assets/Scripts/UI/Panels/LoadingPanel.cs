@@ -230,6 +230,28 @@ namespace ProjectS.UI
             ShowIllustration(null, null);
         }
 
+        /// <summary>
+        /// 씬의 대표 일러스트(후보 첫 장)를 돌려준다. 던전 입장 화면(<see cref="DungeonEntryPopup"/>)이 미리보기 이미지로 쓴다 —
+        /// 같은 지역 그림을 두 곳에 따로 등록하면 한쪽만 바뀌어 어긋나기 쉬워, 로딩 화면의 목적지 표를 원천으로 삼는다.
+        /// </summary>
+        /// <remarks>
+        /// 무작위가 아니라 첫 장으로 고정한다. 입장 화면에서 에피소드를 오갈 때마다 그림이 바뀌면 깜빡거려 보이기 때문이다.
+        /// 로딩 화면 자체의 "직전과 다른 그림" 기록(<see cref="lastIllustrationIndex"/>)도 건드리지 않는다.
+        /// </remarks>
+        /// <param name="sceneName">씬 이름(씬 클래스 이름)</param>
+        /// <returns>대표 일러스트. 표에 없거나 그림이 없으면 null</returns>
+        public Sprite GetIllustration(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName) || destinations == null) return null;
+
+            foreach (Destination d in destinations)
+            {
+                if (d.sceneName != sceneName) continue;
+                return d.illustrations != null && d.illustrations.Length > 0 ? d.illustrations[0] : null;
+            }
+            return null;
+        }
+
         /// <summary>팁 본문을 바꾼다.</summary>
         public void SetTIPText(string tipText)
         {
