@@ -45,11 +45,33 @@ namespace ProjectS.UI
         // 마지막으로 숫자에 반영한 퍼센트. 값이 바뀔 때만 TMP 텍스트를 갱신해 매 프레임 재빌드를 피한다.
         private int shownPercent = -1;
 
+        // 잠금 연출 종료 감시. Play 직후에는 Animator가 아직 평가 전이라 이전 재생의 normalizedTime(>= 1)이
+        // 그대로 읽힌다. 그래서 "Lock State가 1 미만으로 도는 것"을 한 번 확인(lockArmed)한 뒤에만 종료로 친다.
+        private bool lockPlaying;
+        private bool lockArmed;
+
+        /// <summary>
+        /// 잠금 연출이 끝났을 때(또는 <see cref="SkipLock"/>으로 건너뛰었을 때) 발행한다.
+        /// 결과 화면이 이 시점에 퇴장 선택창을 띄운다. 재생할 연출이 없으면 <see cref="PlayLock"/>에서 바로 발행한다.
+        /// </summary>
+        public event System.Action LockFinished;
+
+        /// <summary>잠금 연출이 재생 중인지.</summary>
+        public bool IsLockPlaying => lockPlaying;
+
+        // 비활성화되면 Update가 멈춰 종료를 못 잡는다. 플래그만 남아 IsLockPlaying이 영원히 true가 되지 않게 내린다.
+        private void OnDisable()
+        {
+            lockPlaying = false;
+        }
+
         // 게이지 채움(fill.fillAmount)은 잠금 애니메이션 클립이 직접 몬다(프레임 단위로 애니와 완벽히 동기화).
         // 숫자(%)는 커브로 만들 수 없는 TMP 텍스트라, 여기서 매 프레임 fill 값을 읽어 그대로 따라 적는다.
         // 이렇게 두면 채움도 숫자도 애니메이션 하나가 원천이라 속도가 어긋나지 않는다.
         private void Update()
         {
+            UpdateLockProgress();
+
             if (fill == null || num == null) return;
 
             int percent = Mathf.RoundToInt(fill.fillAmount * 100f);
@@ -70,18 +92,69 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 잠금 연출을 처음부터 재생한다. 결과 화면이 성과 페이지에 들어설 때 부른다.
+        /// 잠금 연출을 처음부터 재생한다. 결과 화면이 열릴 때 부른다.
         /// </summary>
         /// <remarks>
         /// 컨트롤러가 없으면 아무 일도 하지 않는다. Animator에 컨트롤러가 없는 상태로 Play를 부르면
         /// 콘솔에 경고만 쌓이고 화면은 그대로라, 클립 작업 전 단계에서 로그가 지저분해진다.
+        /// 재생할 수 없는 경우(컨트롤러·State 없음, 비활성)에는 <see cref="LockFinished"/>를 바로 발행한다 —
+        /// 안 그러면 연출 종료를 기다리는 결과 화면이 선택창을 영영 못 띄운다.
         /// </remarks>
         public void PlayLock()
         {
-            if (lockAnimator == null || lockAnimator.runtimeAnimatorController == null) return;
-            if (string.IsNullOrEmpty(lockStateName)) return;
+            if (!CanPlayLock())
+            {
+                lockPlaying = false;
+                LockFinished?.Invoke();
+                return;
+            }
 
             lockAnimator.Play(lockStateName, 0, 0f);
+            lockPlaying = true;
+            lockArmed = false;
+        }
+
+        /// <summary>
+        /// 재생 중인 잠금 연출을 마지막 프레임으로 끊고 <see cref="LockFinished"/>를 발행한다(플레이어가 연출을 건너뛸 때).
+        /// </summary>
+        public void SkipLock()
+        {
+            if (!lockPlaying) return;
+
+            lockAnimator.Play(lockStateName, 0, 1f);
+            FinishLock();
+        }
+
+        private bool CanPlayLock()
+        {
+            if (!isActiveAndEnabled) return false;
+            if (lockAnimator == null || lockAnimator.runtimeAnimatorController == null) return false;
+            if (string.IsNullOrEmpty(lockStateName)) return false;
+
+            return lockAnimator.HasState(0, Animator.StringToHash(lockStateName));
+        }
+
+        private void UpdateLockProgress()
+        {
+            if (!lockPlaying) return;
+
+            AnimatorStateInfo info = lockAnimator.GetCurrentAnimatorStateInfo(0);
+            bool running = info.IsName(lockStateName) && info.normalizedTime < 1f;
+
+            if (running)
+            {
+                lockArmed = true;
+                return;
+            }
+
+            // 클립이 끝까지 갔거나(normalizedTime >= 1), 전이로 Lock State를 벗어났으면 끝난 것이다.
+            if (lockArmed) FinishLock();
+        }
+
+        private void FinishLock()
+        {
+            lockPlaying = false;
+            LockFinished?.Invoke();
         }
     }
 }

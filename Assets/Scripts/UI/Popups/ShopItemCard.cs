@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using ProjectS.Data;
+using ProjectS.Enhance;
 using ProjectS.Items;
 using ProjectS.UI.Framework;
 
@@ -22,7 +23,13 @@ namespace ProjectS.UI
     /// </summary>
     public class ShopItemCard : MonoBehaviour, IPointerClickHandler
     {
+        [Tooltip("카드 자체 아이콘. 아이템 슬롯(itemSlot)이 있으면 슬롯이 아이콘을 그리므로 쓰지 않는다.")]
         [SerializeField] private Image icon;
+
+        [Tooltip("카드 안의 아이템 슬롯(InventoryItemSlot 프리팹). 아이콘·+N/수량·등급 표시 전용이며 조작은 전부 막힌다. " +
+                 "비워두면 자식에서 자동으로 찾는다.")]
+        [SerializeField] private InventoryItemSlot itemSlot;
+
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text infoText;
         [SerializeField] private TMP_Text priceText;
@@ -68,6 +75,9 @@ namespace ProjectS.UI
         // Bind에서 걸면 클릭 한 번에 수량이 여러 칸씩 뛴다.
         private void Awake()
         {
+            if (itemSlot == null) itemSlot = GetComponentInChildren<InventoryItemSlot>(true);
+            if (itemSlot != null) MakeSlotDisplayOnly();
+
             if (increaseButton != null) increaseButton.onClick.AddListener(() => Step(1));
             if (decreaseButton != null) decreaseButton.onClick.AddListener(() => Step(-1));
 
@@ -108,7 +118,44 @@ namespace ProjectS.UI
 
             RefreshCounter();
             SetSelected(false);
-            LoadIcon(item);
+
+            if (itemSlot != null) FillSlot(item, payload);
+            else LoadIcon(item);
+        }
+
+        // 카드 안 슬롯을 표시 전용으로 만든다. 슬롯의 클릭(우클릭 메뉴·더블클릭 강화 선택)·드래그·드롭·툴팁은
+        // 전부 포인터 이벤트로 시작하므로, 레이캐스트를 끊으면 슬롯 코드를 건드리지 않고 한 번에 막힌다.
+        // 끊긴 클릭은 뒤의 카드 본체로 떨어져, 아이콘 위를 눌러도 카드가 선택된다.
+        // 프리팹 설정이 아니라 코드로 거는 이유는, 슬롯 프리팹을 인벤과 공유하므로 카드 쪽에서 빠뜨릴 수 없게 하기 위함이다.
+        private void MakeSlotDisplayOnly()
+        {
+            if (!itemSlot.TryGetComponent(out CanvasGroup group))
+                group = itemSlot.gameObject.AddComponent<CanvasGroup>();
+
+            group.blocksRaycasts = false;
+        }
+
+        // 슬롯에 거래 대상을 그린다. 판매는 실제 인벤 내용물(스택 수량·장비 +N)을 그대로, 구입은 아이템 정의만 보여준다.
+        private void FillSlot(ItemData item, object payload)
+        {
+            // 카드 자체 아이콘은 슬롯과 겹치지 않게 끈다. 슬롯을 채우기 "전에" 꺼야 한다 — icon이 슬롯의
+            // 아이콘 Image를 가리키도록 연결돼 있어도, 이어지는 슬롯의 아이콘 로드가 다시 켜 준다.
+            if (icon != null) { icon.sprite = null; icon.enabled = false; }
+
+            switch (payload)
+            {
+                case EquipmentInstance equipment:
+                    itemSlot.SetEquipment(equipment);
+                    break;
+                case ItemStack stack:
+                    itemSlot.SetStack(stack);
+                    break;
+                default:
+                    // 구입 목록은 인스턴스가 없으므로 표시용 1개짜리 스택을 만들어 넘긴다(수량 1은 라벨이 숨는다).
+                    if (item != null) itemSlot.SetStack(new ItemStack(item, null));
+                    else itemSlot.SetEmpty();
+                    break;
+            }
         }
 
         /// <summary>선택 하이라이트를 켜고 끈다(호스트가 선택 변경 시 호출).</summary>

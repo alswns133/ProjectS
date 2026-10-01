@@ -10,7 +10,7 @@ using ProjectS.UI.Framework;
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 던전 결과창의 3페이즈 — 클리어 후 다음 행동을 고르는 선택창. 기획서 5-3의
+    /// 던전 결과창의 2페이즈 — 클리어 후 다음 행동을 고르는 선택창. 기획서 5-3의
     /// UI_RS_ReturnBtn · UI_RS_RetryBtn · UI_RS_022에 해당한다.
     /// </summary>
     /// <remarks>
