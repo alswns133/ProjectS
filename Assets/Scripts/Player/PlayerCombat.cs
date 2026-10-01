@@ -625,7 +625,7 @@ namespace ProjectS.Players
                     if (damageRelay != null && damageRelay.TryReportBossHit(buffer[i], slot.skillId, result.Amount, attack.GroggyDamage))
                     {
                         Vector3 relayHitPoint = buffer[i].ClosestPoint(box.position);
-                        CombatEvents.FirePlayerHitLanded(relayHitPoint, relayHitPoint - box.position, key);
+                        CombatEvents.FirePlayerHitLanded(relayHitPoint, relayHitPoint - box.position, key, HitEffectAnchor.Resolve(buffer[i]));
                         TargetHit?.Invoke(gaugeGain);
                         continue;
                     }
@@ -645,8 +645,9 @@ namespace ProjectS.Players
                     // key를 함께 보내 공격마다 다른 타격 이펙트를 고를 수 있게 한다.
                     // 방향은 히트박스 중심 → 접점(때린 쪽에서 맞은 부위로). 방향 연출을 쓰는
                     // 이펙트(oriented)만 이 값을 회전으로 쓰고, 나머지는 무시한다.
+                    // 대상 기준점(HitEffectAnchor, 없으면 콜라이더 중심)도 함께 보내, 스포너가 "대상 중앙" 기준이면 거기에 띄운다.
                     Vector3 hitPoint = buffer[i].ClosestPoint(box.position);
-                    CombatEvents.FirePlayerHitLanded(hitPoint, hitPoint - box.position, key);
+                    CombatEvents.FirePlayerHitLanded(hitPoint, hitPoint - box.position, key, HitEffectAnchor.Resolve(buffer[i]));
 
                     // 적중 1회당 1번 발행 → 광역 다수 적중이면 게이지도 그만큼 회복된다.
                     // ★ 설계 수치 시트에는 우클릭 SG가 "+20 / 사용당"으로 적혀 있지만,

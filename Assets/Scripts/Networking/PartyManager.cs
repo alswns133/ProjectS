@@ -247,8 +247,9 @@ namespace ProjectS.Networking
             // 재검증(틀 — 주석 풀고 채운다): 초대 발송~수락 사이에 한쪽이 다른 파티를 맺었을 수 있다.
             // 성립 직전 양쪽이 여전히 무소속(PartyId == 0)인지 다시 본다.
             // (this=수락자(대상). 초대자 프레즌스는 inviterIdentity에서 꺼낸다.)
-            bool targetFree = TryGetComponent(out PlayerPresence myPresence) && myPresence.PartyId == 0;
-            bool inviterFree = inviterIdentity.TryGetComponent(out PlayerPresence inviterPresence) && inviterPresence.PartyId == 0;
+            // 던전 진행 여부도 함께 본다 — 초대를 받아 둔 채 던전에 들어갔다가 그 안에서 수락하는 경우를 막는다.
+            bool targetFree = TryGetComponent(out PlayerPresence myPresence) && myPresence.PartyId == 0 && !myPresence.InDungeon;
+            bool inviterFree = inviterIdentity.TryGetComponent(out PlayerPresence inviterPresence) && inviterPresence.PartyId == 0 && !inviterPresence.InDungeon;
             if (!targetFree || !inviterFree)
             {
                 inviterParty.TargetInviteEnded(inviterConn, false);   // 초대자 대기 풀기(대상 팝업은 이미 닫힘)
@@ -701,6 +702,10 @@ namespace ProjectS.Networking
 
             // 7. (권장) 대상이 이미 다른 보류 초대 중인가 — "먼저 온 것 우선"이면 거부
             if (pendingByTarget.ContainsKey(targetNetId)) return false;
+
+            // 8. 양쪽 다 던전(레이드 포함) 밖인가. 초대 목록의 "던전 진행중" 회색 처리는 UI 차단일 뿐이라 여기서 실제로 막는다.
+            //    초대자 쪽도 보는 이유: 지금은 초대창이 마을에서만 열리지만, 던전 안에서 파티가 맺어지면 입장 흐름이 꼬인다.
+            if (myPresence.InDungeon || targetPresence.InDungeon) return false;
 
             return true;
         }

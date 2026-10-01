@@ -13,6 +13,8 @@ namespace ProjectS.Effects
     /// 씬에 이 스포너를 방향별로 하나씩 두고 각각 다른 프리팹을 할당한다.
     /// OnDamageDealt가 아닌 접점 이벤트를 구독하는 이유: 전자의 좌표는 데미지 텍스트용
     /// 머리 위 고정 높이라, 맞은 부위에 붙어야 하는 피격 이펙트에는 접점 좌표가 필요하다.
+    /// 위치 기준(2026-10): 접점은 콜라이더 표면이라 이펙트가 몸 가장자리에 붙어 보여, 기본값을 "맞은 대상
+    /// 중앙"으로 바꿨다. 중앙은 몬스터마다 붙인 HitEffectAnchor(기즈모로 보임)가 정하고, 없으면 콜라이더 중심이다.
     ///
     /// ★ 공격마다 다른 이펙트(2026-08, 민준 제안): PooledSpawner(프리팹 하나 고정)에서
     ///   KeyedPooledSpawner(프리팹별로 풀을 나눠 관리하는 기존 베이스, ProjectileSpawner와 동일)로
@@ -37,6 +39,27 @@ namespace ProjectS.Effects
         }
 
         [SerializeField] private HitSource source = HitSource.PlayerAttack;
+
+        // 이펙트를 어디를 기준으로 띄울지(2026-10 추가).
+        // 접점은 콜라이더 표면이라 몸 가장자리에 붙어 보이고, 중앙은 맞은 콜라이더의 bounds 중심이다.
+        private enum HitAnchor
+        {
+            Contact,        // 맞은 콜라이더 표면의 접점(기존 동작)
+            TargetCenter,   // 맞은 콜라이더의 중심(몸 한가운데)
+        }
+
+        // 몬스터마다 위치를 맞추는 건 여기가 아니라 각 몬스터의 HitEffectAnchor에서 한다
+        // (몬스터 크기가 제각각이라 스포너 하나의 공통 보정값으로는 다 맞출 수 없다).
+        [Header("Position")]
+        [Tooltip("Contact: 콜라이더 표면 접점 / TargetCenter: 대상의 HitEffectAnchor(없으면 콜라이더 중심).")]
+        [SerializeField] private HitAnchor anchor = HitAnchor.TargetCenter;
+
+        // 플레이 중 실제로 이펙트가 생성된 위치를 Scene 뷰에 표시한다(튜닝용).
+        // 노란 십자 = 생성 위치, 회색 선 = 접점에서 생성 위치까지. Game 뷰에선 Gizmos 버튼을 켜야 보인다.
+        [Header("Debug")]
+        [Tooltip("플레이 중 이펙트 생성 위치를 Scene 뷰에 십자로 표시.")]
+        [SerializeField] private bool debugDrawSpawnPoint;
+        [SerializeField] private float debugDrawDuration = 1f;
 
         // 키가 비었거나 목록에 없을 때 재생할 이펙트. 비워 두면 그 타격은 연출 없이 지나간다
         // (기존 동작을 유지하려면 예전에 쓰던 단일 프리팹을 여기로 옮겨 연결할 것).
@@ -105,7 +128,7 @@ namespace ProjectS.Effects
             else CombatEvents.OnEnemyHitLanded -= OnHitLanded;
         }
 
-        private void OnHitLanded(Vector3 hitPos, Vector3 hitDir, string key)
+        private void OnHitLanded(Vector3 hitPos, Vector3 hitDir, string key, Vector3 targetCenter)
         {
             ResolvePrefab(key, out HitEffect prefab, out bool oriented);
             if (prefab == null)
@@ -113,11 +136,27 @@ namespace ProjectS.Effects
 
             HitEffect effect = GetFromPool(prefab);
 
+            // 중심을 모르는 발행처는 접점을 그대로 실어 보내므로(CombatEvents 참조) TargetCenter여도 안전하다.
+            Vector3 contact = hitPos;
+            hitPos = anchor == HitAnchor.TargetCenter ? targetCenter : hitPos;
+
+            if (debugDrawSpawnPoint)
+                DrawDebugCross(hitPos, contact);
+
             // 방향이 없는 구 호출부/특수 연출은 회전을 건드리지 않아 기존 프리팹 설정을 보존한다.
             if (oriented && hitDir.sqrMagnitude > 0.0001f)
                 effect.Play(hitPos, Quaternion.LookRotation(hitDir), GetReturnCallback(prefab));
             else
                 effect.Play(hitPos, GetReturnCallback(prefab));
+        }
+
+        private void DrawDebugCross(Vector3 pos, Vector3 contact)
+        {
+            const float size = 0.25f;
+            Debug.DrawLine(pos - Vector3.right * size, pos + Vector3.right * size, Color.yellow, debugDrawDuration);
+            Debug.DrawLine(pos - Vector3.up * size, pos + Vector3.up * size, Color.yellow, debugDrawDuration);
+            Debug.DrawLine(pos - Vector3.forward * size, pos + Vector3.forward * size, Color.yellow, debugDrawDuration);
+            Debug.DrawLine(contact, pos, Color.gray, debugDrawDuration);
         }
 
         // 키로 등록된 이펙트를 찾고, 없으면 기본 이펙트로 대체한다.

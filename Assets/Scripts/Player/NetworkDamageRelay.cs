@@ -1,6 +1,7 @@
 ﻿using Mirror;
 using ProjectS.Core;
 using ProjectS.Data;
+using ProjectS.Effects;
 using ProjectS.Enemies;
 using ProjectS.Managers;
 using ProjectS.Networking;
@@ -32,6 +33,10 @@ namespace ProjectS.Players
             showHitFeedback = TryReportBossHit(hitCollider, skillId, result.Amount, result.GroggyDamage);
             return showHitFeedback;
         }
+
+        /// <inheritdoc/>
+        /// <remarks>플레이어 투사체의 대상(몬스터·보스)은 자기 방어도가 그대로 맞는 값이다. 보스 히트는 어차피 서버가 재계산한다.</remarks>
+        public float ResolveDefense(Collider hitCollider, IDamageable target) => target.Defense;
 
         // ── 투사체 보이기 전용 복제(오너 → 서버 → 다른 화면) ─────────────────────
         // 투사체는 네트워크 오브젝트가 아닌 로컬 풀링 오브젝트라 쏜 사람 화면에만 존재한다. 발사 순간의 위치·방향만 보내
@@ -167,9 +172,19 @@ namespace ProjectS.Players
 
         private Player player;
 
+        // 히트 이펙트를 "대상 중앙"에 띄울 때 쓰는 기준점(앵커 우선, 없으면 몸 콜라이더 중심).
+        // 서버가 중심을 RPC로 보내지 않는 이유: 맞은 대상이 곧 이 컴퓨터의 내 캐릭터라 여기서 바로 알 수 있다.
+        private HitEffectAnchor hitAnchor;
+        private Collider bodyCollider;
+
         private void Awake()
         {
             player = GetComponentInChildren<Player>(true);
+            if (player != null)
+            {
+                hitAnchor = player.GetComponentInParent<HitEffectAnchor>();
+                bodyCollider = player.GetComponent<Collider>();
+            }
         }
 
         /// <summary>
@@ -196,8 +211,13 @@ namespace ProjectS.Players
             DamageResult result = new DamageResult { Amount = amount, IsCritical = critical, GroggyDamage = groggy };
 
             // PlayerStats.TakeDamage가 이 컴퓨터의 실제 무적(구르기) 상태로 판정한다. 들어갔을 때만 히트 이펙트를 낸다.
+            // 꺼진 콜라이더(보스 잡기 중 등)는 bounds가 원점이라 중심 대신 접점으로 대체한다(null → 접점).
             if (player.Stats.TakeDamage(in result))
-                ProjectS.Events.CombatEvents.FireEnemyHitLanded(hitPoint, hitDirection);
+            {
+                Vector3? center = hitAnchor != null ? hitAnchor.Position
+                    : bodyCollider != null && bodyCollider.enabled ? bodyCollider.bounds.center : (Vector3?)null;
+                ProjectS.Events.CombatEvents.FireEnemyHitLanded(hitPoint, hitDirection, "", center);
+            }
         }
 
         /// <summary>
@@ -267,7 +287,23 @@ namespace ProjectS.Players
             }
         }
 
-        /// <summary>서버에서 본 이 아바타의 방어력(잡기 데미지 계산용). 서버 쪽 사본 기준이라 근사값이다.</summary>
-        public float ServerDefense => player != null && player.Stats != null ? player.Stats.Defense : 0f;
+        /// <summary>
+        /// 서버에서 본 이 원격 플레이어의 방어력. 몬스터 타격·투사체·잡기 데미지를 서버가 계산할 때 쓴다(<see cref="EnemyHitRouter.ResolveDefense"/>).
+        /// </summary>
+        /// <remarks>
+        /// 서버 쪽 아바타 사본의 <c>PlayerStats</c>에는 장비·패시브가 없어 기본 방어만 나온다. 그 값으로 계산하면 원격 클라만
+        /// 방어구 방어력이 안 먹었다(2026-10-01). 그래서 세이브로 도출한 권위 스탯(<see cref="NetworkCombatStats"/>)을 먼저 쓰고,
+        /// 권위 스탯이 없을 때(개발 모드 무토큰 접속 등)만 사본 값으로 폴백한다.
+        /// </remarks>
+        public float ServerDefense
+        {
+            get
+            {
+                if (NetworkCombatStats.TryGetForConnection(connectionToClient, out CombatStatBlock block, out bool authoritative) && authoritative)
+                    return block.Defense;
+
+                return player != null && player.Stats != null ? player.Stats.Defense : 0f;
+            }
+        }
     }
 }
