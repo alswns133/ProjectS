@@ -36,6 +36,23 @@ namespace ProjectS.Data
         /// <summary>완료 보상 재화(재니 = 골드).</summary>
         public int Gold;
 
+        /// <summary>
+        /// 랭크 산정의 시간 만점 기준(초). 이 시간 이내에 클리어하면 시간 점수가 만점이다.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="LimitTime"/>과 한 쌍이며, 둘 다 0이거나 역전되면(Limit ≤ Target) 시간 점수가 0이 된다
+        /// (<c>DungeonRankScorer.ScoreTime</c>). 랭크를 매기는 던전이라면 반드시 채워야 하는 값이다.
+        /// 콤보 쪽 기준은 던전별 값이 필요 없다 — 그 판의 총 유효타 수에서 나온다.
+        /// </remarks>
+        public float TargetTime;
+
+        /// <summary>랭크 산정의 시간 0점 기준(초). 이 시간을 넘기면 시간 점수가 0이다.</summary>
+        /// <remarks>
+        /// 레이드(던전 ID 99)는 <see cref="RaidTable"/>에 제한 시간이 이미 있으므로 그 값을 그대로 적고
+        /// <see cref="TargetTime"/>을 그 절반쯤으로 두면 된다. 두 값 사이는 선형 보간이다.
+        /// </remarks>
+        public float LimitTime;
+
         /// <summary>기본 보상(항상 확정 지급). 결과 화면 슬롯0.</summary>
         public List<RewardItemEntry> BaseRewards = new();
 
@@ -63,6 +80,12 @@ namespace ProjectS.Data
 
             if (Exp < 0) Exp = 0;
             if (Gold < 0) Gold = 0;
+
+            // 랭크 기준 시간: 음수는 오타로 보고 0으로 내린다. 역전(Limit ≤ Target)은 여기서 고치지 않고
+            // 그대로 둔다 — 산정기가 0점으로 처리하며 Reporter가 경고를 남기므로, 조용히 보정해
+            // "값을 넣었는데 왜 점수가 안 나오나"를 숨기는 쪽이 더 나쁘다.
+            if (TargetTime < 0f) TargetTime = 0f;
+            if (LimitTime < 0f) LimitTime = 0f;
 
             NormalizeCounts(BaseRewards);
             NormalizeCounts(FixedRewards);

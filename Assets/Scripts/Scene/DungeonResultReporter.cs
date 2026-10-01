@@ -43,6 +43,12 @@ namespace ProjectS.Scenes
 
         private int maxCombo;   // 이번 판 최대 콤보
 
+        // 이번 판 총 유효타 수. 콤보 점수의 분모라서, 이 값이 0이면 콤보 점수가 항상 0이 된다.
+        private int totalHits;
+
+        // 마지막으로 받은 히트 콤보 값. 콤보 이벤트는 "누적 수"를 보내므로 증가분을 뽑으려면 이전 값이 필요하다.
+        private int lastHitCombo;
+
         /// <summary>
         /// 이 판의 "클리어로 칠 최종 보스"를 등록한다. 스폰 권위(<see cref="EnemyRoom.SetEndBoss"/> 경유)가
         /// 최종 보스 인스턴스를 실제로 만든 직후 호출한다 — 인스펙터로 미리 물릴 수 없는 런타임 스폰이라 이 통로로 받는다.
@@ -62,6 +68,13 @@ namespace ProjectS.Scenes
         private void OnEnable()
         {
             runStartTime = Time.time;
+
+            // 재도전은 씬 리로드로 새 인스턴스가 되지만, 같은 인스턴스가 다시 켜지는 경로가 생겨도
+            // 지난 판의 집계가 섞이지 않게 여기서 함께 비운다.
+            maxCombo = 0;
+            totalHits = 0;
+            lastHitCombo = 0;
+
             BossEvents.OnBossDisappeared += OnBossDisappeared;
             PlayerEvents.OnHitComboChanged += OnHitCombo;
 
@@ -105,8 +118,16 @@ namespace ProjectS.Scenes
             DungeonResultPanel.Open(data);
         }
 
+        // 히트 콤보 이벤트 하나로 두 값을 모은다 — 최대 콤보(랭크의 분자)와 총 유효타 수(분모).
+        // 이벤트는 "현재 누적 콤보 수"를 보내므로, 올라간 만큼만 더해야 총 유효타가 된다.
+        // 콤보가 끊겨 0으로 리셋될 때는 음수 증가분이 되므로 ★ 늘어난 경우만 더한다(빠지면 총 유효타가 깎인다).
         private void OnHitCombo(int hitCount)
-            => maxCombo = Mathf.Max(maxCombo, hitCount);
+        {
+            if (hitCount > lastHitCombo) totalHits += hitCount - lastHitCombo;
+            lastHitCombo = hitCount;
+
+            maxCombo = Mathf.Max(maxCombo, hitCount);
+        }
 
         /// <summary>
         /// 이번 판의 결과 스냅샷을 만든다. 채워진 값과 아직 placeholder인 값이 섞여 있다.
@@ -119,25 +140,33 @@ namespace ProjectS.Scenes
         /// <item>최대 콤보 → OnHitCombo 누적 (완료)</item>
         /// <item>던전 이름 → 입장 시 <see cref="GameSession.SelectedDungeonName"/>에 실림 (완료)</item>
         /// <item>단계(stage) → 난이도와 별개 슬롯, 기획상 의미 미정 (보류)</item>
-        /// <item>점수·등급·달성률·퍼포먼스 비율 → 산정 규칙 확정 후 (기획 미결, 문서 6장)</item>
+        /// <item>점수·등급·달성률 → <see cref="DungeonRankScorer"/> (완료)</item>
+        /// <item>클리어 점수(clearScore) → 두 축 모델에 해당 항목이 없어 미사용 (아래 주석 참고)</item>
         /// <item>보상 exp·gold·아이템 → DungeonRewardTable에서 조회·지급 (완료)</item>
         /// </list>
         /// </remarks>
         private DungeonResultData BuildResult(DungeonRewardTable reward, bool hasRandom, DungeonRewardDisplayItem rolled)
         {
+            float clearTime = Time.time - runStartTime;   // 판 시작(OnEnable)~클리어 경과 시간
+            DungeonRankResult rank = EvaluateRank(reward, clearTime);
+
             return new DungeonResultData
             {
                 // ── 채워진 값 ─────────────────────────────
                 difficulty = DungeonContext.Difficulty,   // ID 뒷자리라 DungeonContext에서 바로 나온다
-                clearTime = Time.time - runStartTime,     // 판 시작(OnEnable)~클리어 경과 시간
+                clearTime = clearTime,
                 maxCombo = this.maxCombo,                 // OnHitCombo가 누적한 이번 판 최고 콤보
                 dungeonName = GameSession.SelectedDungeonName,   // 입장 시 세션에 실린 표시 이름(없으면 패널이 "-")
 
-                // ── 아직 placeholder(소스 미정/기획 미결) ──
-                playScore = 0,                // TODO: 점수 산정(기획 미결)
-                clearScore = 0,               // TODO
-                achieveRatio = 0f,            // TODO: 달성현황 비율
-                grade = string.Empty,         // TODO: 등급 산정(기획 미결)
+                // ── 랭크 산정(DungeonRankScorer) ──────────
+                playScore = rank.totalScore,
+                achieveRatio = rank.ratio,
+                grade = rank.grade,
+
+                // TODO(UI): 두 축(시간·콤보) 모델에는 "클리어 점수"에 해당하는 항목이 없다. 패널의 스탯 행 0이
+                //   이 값을 "클리어 점수"로 표시하므로 지금은 0이 뜬다. 그 행을 "시간 점수"로 바꿔 rank.timeScore를
+                //   넣을지, 행 자체를 다른 항목으로 교체할지 결정이 필요하다(라벨은 DungeonResultPanel.BindScore).
+                clearScore = 0,
 
                 // 보상 — 던전 보상 테이블(DungeonRewardTable)에서 이 던전의 경험치·골드·아이템을 읽는다.
                 // 행이 없으면(테이블 미등록·미정의 던전) 0·빈 배열로 둔다.
@@ -147,6 +176,40 @@ namespace ProjectS.Scenes
                 hasRandomReward = hasRandom,          // 랜덤 슬롯: 뽑혔으면 공개, 아니면 패널이 '?'
                 randomReward = rolled,
             };
+        }
+
+        /// <summary>
+        /// 이번 판의 집계값과 던전별 기준 시간을 <see cref="DungeonRankScorer"/>에 넘겨 점수·등급을 받는다.
+        /// </summary>
+        /// <remarks>
+        /// 기준 시간은 보상 행과 같은 테이블·같은 키(던전 ID)에서 온다. 행이 없거나 기준 시간이 비어 있으면
+        /// 시간 축이 0점이 되어 랭크가 실제 실력보다 낮게 나오므로, 조용히 넘기지 않고 경고를 남긴다.
+        /// 콤보 축은 던전별 기준값이 필요 없어(그 판의 총 유효타 수가 분모) 테이블 없이도 정상 동작한다.
+        /// </remarks>
+        /// <param name="reward">이 던전의 테이블 행(null 허용 — 기준 시간 없음으로 처리)</param>
+        /// <param name="clearTime">클리어까지 걸린 시간(초)</param>
+        /// <returns>축별 점수·총점·등급·달성 비율</returns>
+        private DungeonRankResult EvaluateRank(DungeonRewardTable reward, float clearTime)
+        {
+            float targetTime = reward != null ? reward.TargetTime : 0f;
+            float limitTime = reward != null ? reward.LimitTime : 0f;
+
+            if (limitTime <= targetTime)
+            {
+                Debug.LogWarning(
+                    $"[DungeonResultReporter] 던전 {DungeonContext.CurrentDungeonId}의 랭크 기준 시간이 유효하지 않아" +
+                    $" 시간 점수를 0으로 둔다(TargetTime {targetTime:0}초 · LimitTime {limitTime:0}초)." +
+                    " DungeonRewardTable 행에 두 값을 채워야 한다.", this);
+            }
+
+            return DungeonRankScorer.Evaluate(new DungeonRankInput
+            {
+                clearTime = clearTime,
+                targetTime = targetTime,
+                limitTime = limitTime,
+                maxCombo = maxCombo,
+                totalHits = totalHits,
+            });
         }
 
         /// <summary>
