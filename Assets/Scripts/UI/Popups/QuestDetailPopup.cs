@@ -184,6 +184,7 @@ namespace ProjectS.UI
                     rewardSlots[i].gameObject.SetActive(true);
                     QuestRewardData reward = rewards[i];
                     rewardSlots[i].Bind(RewardName(reward), RewardAmount(reward), RewardIcon(reward.Type));
+                    rewardSlots[i].SetGradeItem(ResolveRewardItem(reward));
 
                     // 어드레서블 아이콘이 있는 보상은 실제 아이콘을 로드해 기본(정적) 아이콘을 덮어쓴다.
                     // (주소가 없는 골드·경험치 등은 no-op — 기본 아이콘 그대로.)
@@ -219,14 +220,16 @@ namespace ProjectS.UI
         {
             if (!string.IsNullOrEmpty(reward.IconAddress)) return reward.IconAddress;
 
-            if (reward.Type == QuestRewardType.Item || reward.Type == QuestRewardType.ClassWeapon)
-            {
-                int itemId = ResolveRewardItemId(reward);
-                ItemData item = JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(itemId) : null;
-                return item != null ? item.IconAddress : null;
-            }
+            ItemData item = ResolveRewardItem(reward);
+            return item != null ? item.IconAddress : null;
+        }
 
-            return null;
+        // 보상이 가리키는 아이템 행(아이템·직업무기만). 그 외 보상이나 테이블 로딩 전이면 null.
+        private static ItemData ResolveRewardItem(QuestRewardData reward)
+        {
+            if (reward.Type != QuestRewardType.Item && reward.Type != QuestRewardType.ClassWeapon) return null;
+
+            return JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(ResolveRewardItemId(reward)) : null;
         }
 
         // 아이템 아이콘/이름 조회에 쓸 실제 아이템 ID. 직업무기는 현재 캐릭터 직업에 맞는 무기로 먼저 변환한다.
