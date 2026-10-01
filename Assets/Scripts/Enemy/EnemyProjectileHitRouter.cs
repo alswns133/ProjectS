@@ -27,5 +27,9 @@ namespace ProjectS.Enemies
             relay.ServerSendEnemyHit(in result, point, direction);
             return true;
         }
+
+        /// <inheritdoc/>
+        public float ResolveDefense(Collider hitCollider, IDamageable target)
+            => EnemyHitRouter.ResolveDefense(hitCollider, target);
     }
 }

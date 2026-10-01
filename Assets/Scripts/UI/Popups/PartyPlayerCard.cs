@@ -185,6 +185,7 @@ namespace ProjectS.UI
             {
                 case PartyInviteState.InParty:      return "파티중";
                 case PartyInviteState.NotAccepting: return "초대 거부";
+                case PartyInviteState.InDungeon:    return "던전 진행중";
                 default:                            return "초대 가능";
             }
         }

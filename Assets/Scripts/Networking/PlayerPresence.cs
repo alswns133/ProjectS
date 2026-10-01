@@ -4,6 +4,7 @@ using Mirror;
 using ProjectS.Data;
 using ProjectS.Events;
 using ProjectS.Managers;
+using ProjectS.Scenes;
 using UnityEngine;
 
 namespace ProjectS.Networking
@@ -77,6 +78,11 @@ namespace ProjectS.Networking
         [SyncVar(hook = nameof(OnPartyDungeonTextChanged))] private string partyDungeonName = string.Empty;
         [SyncVar(hook = nameof(OnPartyDungeonTextChanged))] private string partyDifficultyLabel = string.Empty;
 
+        // 던전(레이드 포함)을 진행 중인지. 초대 목록에 "던전 진행중"으로 뜨고 초대를 막는다.
+        // ★ 서버가 아니라 본인 클라가 보고한다 — 솔로 던전은 로컬 씬 전환이라 서버가 입장을 모르기 때문이다
+        //   (DungeonContext.OnChanged → CmdSetInDungeon). 위조해도 "내가 초대를 받느냐"만 바뀌어 acceptsInvites와 같은 수준이다.
+        [SyncVar(hook = nameof(OnInDungeonChanged))] private bool inDungeon;
+
         // ── 파티원 상태 HUD용 생명/자원 비율 ─────────────────────────
         // 파티원 상태 HUD(PartyStatusView)가 그릴 "원격 플레이어의 HP/SG"다. 비율(0~1)만 복제한다 —
         // 슬롯은 게이지와 % 표기만 그려 cur/max 원본이 필요 없고, 비율이면 트래픽도 최소다.
@@ -99,6 +105,11 @@ namespace ProjectS.Networking
         private float lastSentHpRatio = -1f;
         private float lastSentSgRatio = -1f;
 
+        // 마지막으로 서버에 올린 던전 진행 여부. SyncVar(inDungeon)가 아니라 이걸 비교 기준으로 쓴다 —
+        // 입장 직후 곧바로 복귀하면 복제가 돌아오기 전이라 SyncVar가 아직 옛 값이어서, 복귀 보고가 씹힌다.
+        // 기본값 false는 서버 기본값과 같다.
+        private bool lastSentInDungeon;
+
         /// <summary>목록에 그릴 닉네임.</summary>
         public string DisplayName => displayName;
 
@@ -113,6 +124,9 @@ namespace ProjectS.Networking
 
         /// <summary>이미 파티에 속해 있는지. 정원 2인이라 소속=만석=초대 불가.</summary>
         public bool InParty => partyId != 0;
+
+        /// <summary>던전(레이드 포함)을 진행 중인지. 진행 중이면 초대 불가("던전 진행중").</summary>
+        public bool InDungeon => inDungeon;
 
         /// <summary>소속 파티 id(0=무소속). PartyManager가 대상 파티를 찾을 때 쓴다.</summary>
         public uint PartyId => partyId;
@@ -163,6 +177,7 @@ namespace ProjectS.Networking
                 PlayerEvents.OnHpChanged -= OnLocalHpChanged;
                 PlayerEvents.OnSGChanged -= OnLocalSgChanged;
                 PlayerEvents.OnLevelChanged -= OnLocalLevelChanged;
+                DungeonContext.OnChanged -= OnLocalDungeonChanged;
             }
             OnAnyChanged?.Invoke();
         }
@@ -199,6 +214,10 @@ namespace ProjectS.Networking
 
             // 레벨은 등록 때 한 번만 올라가서, 파티 중 레벨업이 파티원 카드에 반영되지 않았다(2026-09-28). 바뀔 때마다 올린다.
             PlayerEvents.OnLevelChanged += OnLocalLevelChanged;
+
+            // 던전 진행 여부도 바뀔 때마다 올린다. 이미 던전 안에서 스폰될 수 있으니(재접속 등) 현재 값을 한 번 먼저 보낸다.
+            DungeonContext.OnChanged += OnLocalDungeonChanged;
+            OnLocalDungeonChanged();
 
             // 구독 직전에 이미 발행됐을 현재 스탯을 다시 받아 첫 값을 밀어 올린다(HudPresenter와 같은 통로).
             PlayerEvents.FireStatsRefreshRequested();
@@ -261,6 +280,28 @@ namespace ProjectS.Networking
         private void CmdSetLevel(int lv)
         {
             if (lv > level) level = lv;
+        }
+
+        // ── 로컬 → 서버: 던전 진행 여부 ─────────────────────────────
+        // 솔로·파티(호스트/원격) 입장과 마을 복귀가 모두 DungeonContext를 거치므로 이 한 곳에서 보고한다.
+        private void OnLocalDungeonChanged()
+        {
+            bool now = DungeonContext.IsInDungeon;
+            if (now == lastSentInDungeon) return;   // 이미 올린 값이면 보내지 않는다
+
+            lastSentInDungeon = now;
+            CmdSetInDungeon(now);
+        }
+
+        /// <summary>
+        /// 내가 던전(레이드 포함)을 진행 중인지 서버에 반영한다. 다른 클라의 초대 목록에 "던전 진행중"으로 뜨고,
+        /// 서버 초대 판정(<c>PartyManager.ServerCanInvite</c>)이 이 값을 보고 초대를 막는다.
+        /// </summary>
+        /// <param name="value">던전 안이면 true, 마을로 돌아왔으면 false</param>
+        [Command]
+        private void CmdSetInDungeon(bool value)
+        {
+            inDungeon = value;
         }
 
         // ── 로컬 → 서버: 내 HP/SG 밀어 올리기 ──────────────────────────
@@ -381,6 +422,7 @@ namespace ProjectS.Networking
         private void OnTypeChanged(int _, int __)          => OnAnyChanged?.Invoke();
         private void OnAcceptsChanged(bool _, bool __)     => OnAnyChanged?.Invoke();
         private void OnPartyIdChanged(uint _, uint __)     => OnAnyChanged?.Invoke();
+        private void OnInDungeonChanged(bool _, bool __)   => OnAnyChanged?.Invoke();
         private void OnPartyDungeonIdChanged(int _, int __)        => OnAnyChanged?.Invoke();   // partyDungeonId
         private void OnPartyDungeonTextChanged(string _, string __) => OnAnyChanged?.Invoke();  // partyDungeonName·partyDifficultyLabel 공용(같은 시그니처라 오버로드 아님)
 

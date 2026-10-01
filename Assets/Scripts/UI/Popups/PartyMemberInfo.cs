@@ -19,6 +19,12 @@ namespace ProjectS.UI
 
         /// <summary>본인이 파티 초대를 거부로 설정해 두었다.</summary>
         NotAccepting = 2,
+
+        /// <summary>
+        /// 던전(레이드 포함)을 진행 중이다. 파티 소속보다 먼저 판정해, 파티 레이드 중이어도 이 상태로 뜬다.
+        /// 값을 끝에 붙인 것은 인스펙터(더미 소스)에 정수로 저장된 기존 값이 밀리지 않게 하기 위함이다.
+        /// </summary>
+        InDungeon = 3,
     }
 
     /// <summary>

@@ -24,5 +24,13 @@ namespace ProjectS.Effects
         /// 플레이어가 보스를 맞힌 경우는 손맛을 위해 즉시 내고, 원격 플레이어로 보낸 경우는 그쪽이 적용 여부를 정하므로 내지 않는다.</param>
         /// <returns>보냈으면 true(투사체는 그 자리 적용을 건너뛴다).</returns>
         bool TryRoute(Collider hitCollider, in DamageResult result, int skillId, Vector3 point, Vector3 direction, out bool showHitFeedback);
+
+        /// <summary>
+        /// 이 적중의 데미지 계산에 쓸 피격자 방어도. 원격 클라 플레이어는 서버 사본에 장비가 없어 <c>target.Defense</c>가
+        /// 틀리므로, 쏜 쪽 통로가 맞는 값을 알려 준다(<c>EnemyHitRouter.ResolveDefense</c>).
+        /// </summary>
+        /// <param name="hitCollider">맞은 콜라이더.</param>
+        /// <param name="target">그 콜라이더의 피격 대상.</param>
+        float ResolveDefense(Collider hitCollider, IDamageable target);
     }
 }

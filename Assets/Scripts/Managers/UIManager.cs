@@ -74,12 +74,14 @@ namespace ProjectS.Managers
                 }
                 panelMap[panel.GetType()] = panel;
                 basePanels.Add(panel);
+                panel.gameObject.SetActive(false);  // Awake 시점에 켜져 있으면 OnInit이 두 번 돌고, 스택에 없는 패널이 켜진다.
             }
 
             foreach (var popup in GetComponentsInChildren<BasePopup>(true))
             {
                 popupMap[popup.GetType()] = popup;
                 basePopups.Add(popup);
+                popup.gameObject.SetActive(false); // Awake 시점에 켜져 있으면 OnInit이 두 번 돌고, 스택에 없는 팝업이 켜진다.
             }
         }
 

@@ -115,7 +115,9 @@ namespace ProjectS.Cameras
         }
 
         /// <summary>
-        /// 던전이 레이드 일 경우 카메라 줌아웃 한계를 늘림 (레이드 몹 같은 경우 크기가 일반 몹보다 크기 때문에)
+        /// 던전이 레이드 일 경우 카메라 줌아웃 한계를 늘림 (레이드 몹 같은 경우 크기가 일반 몹보다 크기 때문에).
+        /// 한계를 바꾸면서 현재 줌도 그 씬의 최대 줌으로 리셋한다 — 씬마다 같은 시야에서 시작하게 하기 위함.
+        /// 씬 전환 중(로딩 화면이 덮인 동안) 호출되므로 거리가 즉시 바뀌어도 유저에게 보이지 않는다.
         /// </summary>
         /// <param name="baseScene">현재 씬</param>
         public void SetZoomOutDistance(BaseScene baseScene)
@@ -131,7 +133,7 @@ namespace ProjectS.Cameras
             else
                 maxDistance = originMaxDistance;
 
-            distance = Mathf.Min(distance, maxDistance);   // 한계가 줄면 현재 줌도 눌러줌
+            distance = maxDistance;   // 씬 진입 시 항상 그 씬의 최대 줌에서 시작
         }
 
         /// <summary>
@@ -139,11 +141,13 @@ namespace ProjectS.Cameras
         /// GameSceneManager가 씬 진입 시 1회 부르는 <see cref="SetZoomOutDistance"/>를 못 받는다
         /// (그 시점엔 아바타가 아직 없음) → 프리팹 기본 max(10) 그대로 남는다. 레이드 전용 아바타이므로
         /// 소유 아바타 스폰 시 OwnerGate가 이 메서드로 레이드 한계를 직접 건다.
+        /// <see cref="SetZoomOutDistance"/>와 같이 현재 줌도 레이드 최대 줌으로 리셋한다
+        /// (스폰 시점엔 레이드 대기 화면이 덮고 있어 유저에게 보이지 않는다).
         /// </summary>
         public void ApplyRaidZoomOut()
         {
             maxDistance = raidMaxDistance;
-            distance = Mathf.Min(distance, maxDistance);
+            distance = maxDistance;   // 레이드 최대 줌에서 시작
         }
 
         /// <summary>

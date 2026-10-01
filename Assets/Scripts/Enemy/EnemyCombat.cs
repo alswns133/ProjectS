@@ -407,14 +407,15 @@ namespace ProjectS.Enemies
                 // 이번 돌진에 이미 때린 대상이면 건너뛴다(Add가 false면 이미 들어 있던 것).
                 if (!chargeHitTargets.Add(target)) continue;
 
-                DamageResult result = DamageCalculator.Calculate(in attackContext, target.Defense, target.IsBoss);
+                // 방어도는 EnemyHitRouter가 정한다(원격 플레이어는 서버 사본에 장비가 없어 target.Defense가 틀림).
+                DamageResult result = DamageCalculator.Calculate(in attackContext, EnemyHitRouter.ResolveDefense(buffer[i], target), target.IsBoss);
 
                 // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다(구르기 무적에 씹힌 스침에 이펙트가 나오지 않게).
                 // 방향은 히트박스 중심 → 접점. oriented 이펙트만 회전으로 쓴다.
                 // 원격 클라의 플레이어면 EnemyHitRouter가 그 컴퓨터로 보내고, 적용·이펙트는 그쪽이 한다.
                 Vector3 chargeHitPoint = buffer[i].ClosestPoint(currentAttack.hitBox.position);
                 if (EnemyHitRouter.Apply(buffer[i], target, in result, chargeHitPoint, chargeHitPoint - currentAttack.hitBox.position))
-                    CombatEvents.FireEnemyHitLanded(chargeHitPoint, chargeHitPoint - currentAttack.hitBox.position);
+                    CombatEvents.FireEnemyHitLanded(chargeHitPoint, chargeHitPoint - currentAttack.hitBox.position, "", HitEffectAnchor.Resolve(buffer[i]));
             }
         }
 
@@ -531,7 +532,8 @@ namespace ProjectS.Enemies
                 // 현재 프로젝트 규칙: 피격 레이어 콜라이더와 IDamageable은 같은 루트 GameObject에 둔다.
                 if (buffer[i].TryGetComponent<IDamageable>(out var target))
                 {
-                    DamageResult result = DamageCalculator.Calculate(in attackContext, target.Defense, target.IsBoss);
+                    // 방어도는 EnemyHitRouter가 정한다(원격 플레이어는 서버 사본에 장비가 없어 target.Defense가 틀림).
+                    DamageResult result = DamageCalculator.Calculate(in attackContext, EnemyHitRouter.ResolveDefense(buffer[i], target), target.IsBoss);
 
                     // 데미지가 실제로 들어갔을 때만 히트 이펙트를 낸다.
                     // 구르기 무적에 씹힌 공격에도 이펙트가 나오면 플레이어가 맞은 것으로 오인한다.
@@ -539,7 +541,7 @@ namespace ProjectS.Enemies
                     // 원격 클라의 플레이어면 EnemyHitRouter가 그 컴퓨터로 보내고, 적용·이펙트는 그쪽이 한다.
                     Vector3 hitPoint = buffer[i].ClosestPoint(hitBox.position);
                     if (EnemyHitRouter.Apply(buffer[i], target, in result, hitPoint, hitPoint - hitBox.position))
-                        CombatEvents.FireEnemyHitLanded(hitPoint, hitPoint - hitBox.position);
+                        CombatEvents.FireEnemyHitLanded(hitPoint, hitPoint - hitBox.position, "", HitEffectAnchor.Resolve(buffer[i]));
                 }
             }
         }

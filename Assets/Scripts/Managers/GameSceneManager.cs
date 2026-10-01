@@ -209,7 +209,8 @@ namespace ProjectS.Managers
                 BaseScene entered = sceneDic[next];
                 entered.Enter();
 
-                // 카메라 줌아웃 한계를 씬에 맞춰 조정(레이드=넓게, 그 외=원래대로).
+                // 카메라 줌아웃 한계를 씬에 맞춰 조정(레이드=넓게, 그 외=원래대로)하고 현재 줌도 그 최대치로 리셋.
+                // 로딩 화면이 덮인 동안이라 거리가 즉시 바뀌어도 보이지 않는다.
                 // CameraRig는 플레이어 리그와 함께 상주하므로 있으면 갱신, 초기 씬(로그인 등)엔 없어 null 가드.
                 CameraRig rig = FindFirstObjectByType<CameraRig>();
                 if (rig != null) rig.SetZoomOutDistance(entered);
