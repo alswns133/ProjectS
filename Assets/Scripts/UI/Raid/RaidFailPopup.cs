@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Events;
@@ -139,7 +139,6 @@ namespace ProjectS.UI
             RaidFailEvents.OnRetryCancelled -= OnRetryCancelled;
 
             mode = Mode.None;
-            SetCursorFree(false);
         }
 
         private void Update()

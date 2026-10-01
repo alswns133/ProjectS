@@ -1,11 +1,12 @@
-using System;
+﻿using System;
 
 namespace ProjectS.Data
 {
     /// <summary>
-    /// 아이템 옵션의 등급별·레벨별 기준값. 한 행이 기획 시트의 한 행과 1:1로 대응한다.
-    /// (등급 × 옵션 × 레벨)을 전부 펴면 231행이 되고 밸런스 조정 때마다 흩어진 칸을 고쳐야 하므로,
-    /// 레벨 축만 배열로 접어 33행(11옵션 × 3등급)으로 유지한다.
+    /// 아이템 옵션의 등급별 후보값. 한 행이 기획 시트의 한 행과 1:1로 대응한다(33행 = 11옵션 × 3등급).
+    /// 옵션 값은 아이템 레벨과 무관하고 등급으로만 갈린다 — 같은 등급이면 Lv1 장비든 Lv35 장비든
+    /// 같은 후보에서 뽑는다. (예전에는 8칸을 레벨 1~35 슬롯으로 읽어 Lv35 장비가 늘 마지막 칸,
+    /// 즉 최대치만 받았다. 8칸은 레벨 축이 아니라 추첨 후보다.)
     /// </summary>
     [Serializable]
     public class ItemOptionData : IDataRow
@@ -25,14 +26,19 @@ namespace ProjectS.Data
         /// <summary>true면 값이 퍼센트다. 표시 포맷과 계산 방식(곱연산) 모두 이 값으로 갈린다.</summary>
         public bool IsPercent;
 
-        /// <summary>레벨 슬롯 8칸. 순서는 ItemLevelTier.Levels와 같다.</summary>
+        /// <summary>
+        /// 이 등급 옵션의 추첨 후보 8칸. 드랍 시 한 칸을 균등하게 뽑는다.
+        /// 같은 값을 여러 칸에 적으면 그 값이 더 자주 나온다 — 기획이 칸 배치로 확률 가중치를 준다
+        /// (예: [1,1,2,2,3,3,5,6]이면 1·2·3이 각 25%, 5·6이 각 12.5%). 순서는 의미가 없다.
+        /// </summary>
         public float[] Values;
 
         int IDataRow.Index => Index;
 
         /// <summary>
-        /// 배열 길이가 어긋나면 조회할 때마다 엉뚱한 레벨의 값이 나오거나 예외가 난다.
-        /// 조용히 틀린 수치를 쓰는 것보다 행을 빼는 편이 낫다.
+        /// 후보 칸 수가 시트와 어긋나면(칸 누락·밀림) 기획이 의도한 확률 가중치가 조용히 틀어진다.
+        /// 틀린 분포로 드랍되는 것보다 행을 빼는 편이 낫다.
+        /// (길이 기준으로 ItemLevelTier.SlotCount를 쓰는 건 시트 칸 수가 우연히 8로 같아서다 — 레벨과는 무관.)
         /// </summary>
         /// <param name="error">탈락 사유(통과 시 null)</param>
         /// <returns>사용 가능한 행이면 true</returns>
@@ -57,18 +63,18 @@ namespace ProjectS.Data
         }
 
         /// <summary>
-        /// 해당 레벨의 기준값을 돌려준다. 실제 아이템 수치는 여기에 드랍 시 랜덤(0.95~1.05)을 곱한 값이다.
+        /// <see cref="Values"/> 후보 중 한 칸을 균등하게 뽑아 옵션 값을 돌려준다. 새 드랍 시
+        /// <see cref="ProjectS.Items.ItemOptionRoller"/>만 호출하며, 세이브 복원은 저장된 값을 쓰므로 다시 굴리지 않는다.
         /// 퍼센트 옵션의 테이블 값은 퍼센트 포인트(예: 2 = 2%)로 적혀 있지만, 런타임 소비자
         /// (툴팁 표시·<see cref="ProjectS.Items.EquipmentStatCalculator"/> 곱연산)는 모두 0~1 비율을
         /// 기대하므로 여기서 /100 해 비율로 맞춘다. 이 변환을 빼면 2%가 200%로 적용된다.
         /// </summary>
-        /// <param name="level">아이템 레벨(5단위)</param>
-        /// <returns>기준값. 퍼센트 옵션이면 비율(0~1), 정의되지 않은 레벨이면 0</returns>
-        public float GetBaseValue(int level)
+        /// <returns>뽑힌 옵션 값. 퍼센트 옵션이면 비율(0~1), 후보가 없으면 0</returns>
+        public float GetRollValue()
         {
-            int slot = ItemLevelTier.ToSlot(level);
-            if (slot < 0) return 0f;
-            return IsPercent ? Values[slot] / 100f : Values[slot];
+            if (Values == null || Values.Length == 0) return 0f;
+            int index = UnityEngine.Random.Range(0, Values.Length);
+            return IsPercent ? Values[index] / 100f : Values[index];
         }
     }
 }
