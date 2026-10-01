@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace ProjectS.Scenes
@@ -12,6 +13,19 @@ namespace ProjectS.Scenes
     {
         /// <summary>현재 던전 ID. 0이면 마을 등 던전 밖.</summary>
         public static int CurrentDungeonId { get; private set; }
+
+        /// <summary>지금 던전(레이드 포함) 안인지. 파티 초대 목록의 "던전 진행중" 표시 기준이다.</summary>
+        public static bool IsInDungeon => CurrentDungeonId != 0;
+
+        /// <summary>
+        /// <see cref="CurrentDungeonId"/>가 바뀌었다. 같은 값으로 다시 세팅하면 발행하지 않는다.
+        /// </summary>
+        /// <remarks>
+        /// 솔로 던전은 로컬 씬 전환이라 서버가 입장을 모른다. 그래서 내 프레즌스(<c>PlayerPresence</c>)가 이 신호를 받아
+        /// "던전 진행중"을 서버에 직접 보고한다. 솔로·파티(호스트/원격)·복귀 경로가 모두 Set/Clear를 거치므로
+        /// 입장 경로마다 따로 보고하지 않아도 된다.
+        /// </remarks>
+        public static event Action OnChanged;
 
         /// <summary>현재 던전의 던전 번호(ID 앞자리). 던전 밖이면 0. 씬이 갈리는 축이다.</summary>
         public static int DungeonNumber => CurrentDungeonId / 10;
@@ -67,13 +81,26 @@ namespace ProjectS.Scenes
 
         /// <summary>던전 씬 진입 시 그 던전 ID로 세팅한다.</summary>
         /// <param name="dungeonId">진입한 던전 ID</param>
-        public static void SetDungeon(int dungeonId) => CurrentDungeonId = dungeonId;
+        public static void SetDungeon(int dungeonId) => Apply(dungeonId);
 
         /// <summary>던전 밖(마을 등)으로 나갈 때 0으로 되돌린다.</summary>
-        public static void ClearDungeon() => CurrentDungeonId = 0;
+        public static void ClearDungeon() => Apply(0);
+
+        // 값이 실제로 바뀔 때만 알린다. 던전 씬 Enter가 라우터와 같은 값을 한 번 더 세팅해도 신호가 겹치지 않게 하기 위함이다.
+        private static void Apply(int dungeonId)
+        {
+            if (CurrentDungeonId == dungeonId) return;
+
+            CurrentDungeonId = dungeonId;
+            OnChanged?.Invoke();
+        }
 
         // 플레이 모드 리로드 후 이전 플레이 값이 남지 않게 초기화한다(static 리셋 방침).
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void Reset() => CurrentDungeonId = 0;
+        private static void Reset()
+        {
+            CurrentDungeonId = 0;
+            OnChanged = null;
+        }
     }
 }

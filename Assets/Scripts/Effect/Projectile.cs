@@ -288,7 +288,9 @@ namespace ProjectS.Effects
         private bool ApplyHit(Collider hitCollider, IDamageable target, Vector3 point, Vector3 direction)
         {
             // 방어 경감은 맞는 쪽 방어도로 계산하므로 적중 대상마다 따로 굴린다.
-            DamageResult result = DamageCalculator.Calculate(in attack, target.Defense, target.IsBoss);
+            // 원격 클라 플레이어는 서버 사본에 장비가 없어 target.Defense가 틀리므로, 통로가 있으면 통로에 묻는다.
+            float defense = hitRouter != null ? hitRouter.ResolveDefense(hitCollider, target) : target.Defense;
+            DamageResult result = DamageCalculator.Calculate(in attack, defense, target.IsBoss);
 
             // 멀티: 서버 권위 보스·원격 플레이어면 그 자리 적용 대신 통로로 보낸다(근접 타격과 같은 경로).
             bool showHitFeedback;
@@ -309,8 +311,9 @@ namespace ProjectS.Effects
                 // 내면 플레이어가 적중시킨 것으로 오인한다.
                 // 방향은 직격이면 투사체 진행 방향, 폭발이면 발사 지점→대상 방향(둘 다 쏜 쪽 기준).
                 // 맞은 부위에서 날아온 방향으로 세워 재생할 이펙트가 쓴다(구독자가 oriented일 때만).
-                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey);
-                else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey);
+                Vector3 center = HitEffectAnchor.Resolve(hitCollider);
+                if (owner == ProjectileOwner.Player) CombatEvents.FirePlayerHitLanded(point, direction, sourceKey, center);
+                else CombatEvents.FireEnemyHitLanded(point, direction, sourceKey, center);
 
                 onTargetHit?.Invoke(gaugeGain);
             }

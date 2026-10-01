@@ -47,6 +47,22 @@ namespace ProjectS.Enemies
         }
 
         /// <summary>
+        /// 데미지 계산에 쓸 피격자 방어도. 원격 클라 아바타면 서버의 권위 스탯 방어도, 그 외에는 대상 자신의 방어도.
+        /// </summary>
+        /// <remarks>
+        /// 몬스터 판정은 서버에서 방어 경감까지 끝낸 값을 오너에게 보내고, 오너는 그 값을 그대로 적용한다. 그래서 여기서
+        /// <c>target.Defense</c>(서버 사본, 장비 없음)를 쓰면 원격 클라만 방어구가 안 먹는다. 데미지를 계산하는 곳은
+        /// <c>target.Defense</c> 대신 반드시 이걸 거친다.
+        /// </remarks>
+        /// <param name="hitCollider">판정에 걸린 콜라이더.</param>
+        /// <param name="target">그 콜라이더의 피격 대상.</param>
+        public static float ResolveDefense(Component hitCollider, IDamageable target)
+        {
+            if (TryGetRemoteAvatar(hitCollider, out NetworkDamageRelay relay)) return relay.ServerDefense;
+            return target.Defense;
+        }
+
+        /// <summary>
         /// 이 콜라이더가 <b>서버에서 본 원격 클라 소유 아바타</b>인지. 호스트 자신·싱글 캐릭터·몬스터는 false.
         /// </summary>
         /// <param name="hitCollider">판정에 걸린 콜라이더.</param>

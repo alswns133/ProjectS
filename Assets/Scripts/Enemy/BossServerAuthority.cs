@@ -50,6 +50,40 @@ namespace ProjectS.Enemies
                 if (b) b.enabled = false;
         }
 
+        /// <summary>
+        /// 보스를 지정 위치·방향으로 즉시 옮긴다. 네트워크 스폰된 서버 인스턴스면 클라에도 "순간이동"으로 확정 전달한다.
+        /// 연출 시작·종료 지점(startPoint/endPoint)처럼 <b>한 번 놓고 끝나는</b> 배치에 쓴다.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// ★ <b>transform 대입만으로는 클라 방향이 어긋날 수 있다(2026-10-01 "페이즈 전환 연출에서 2페이즈만 보는 방향이 다름").</b>
+        /// NetworkTransform(onlySyncOnChange)은 바뀐 값만 한 번 보내고, 클라는 빠진 값을 마지막 값으로 채운다.
+        /// 그런데 연출 중 서버의 보스 회전은 다시 바뀌지 않는다(EnemyMovement.OnAnimatorMove가 회전 루트모션을 버림).
+        /// 2페이즈는 "1페이즈가 보던 방향으로 스폰 → 같은 프레임에 시작 지점으로 회전 → 곧바로 활성화 트랙이 껐다 켬"을 겪는데,
+        /// NetworkTransform은 껐다 켤 때 받아 둔 값을 비우므로(ResetState) 그 한 번의 회전이 적용 전에 사라지면 다시 오지 않는다.
+        /// 위치는 루트모션으로 계속 바뀌어 계속 오니, 위치는 맞고 방향만 스폰 때 방향으로 굳는다.
+        /// </para>
+        /// <para>
+        /// ServerTeleport는 신뢰 채널 RPC로 클라 transform에 직접 쓰고(오브젝트가 꺼져 있어도 적용) 받아 둔 값을 비운다.
+        /// 이후 위치만 오는 동기화도 회전을 현재 transform(= 순간이동한 방향)으로 채우므로 방향이 유지된다.
+        /// 싱글(netId 0)·순수 클라에서는 transform 대입만 한다.
+        /// </para>
+        /// </remarks>
+        /// <param name="boss">옮길 보스(루트에 NetworkTransform이 있는 레이드 보스. 없으면 대입만 한다).</param>
+        /// <param name="position">월드 위치.</param>
+        /// <param name="rotation">월드 회전.</param>
+        public static void PlaceAt(Component boss, Vector3 position, Quaternion rotation)
+        {
+            if (boss == null) return;
+
+            boss.transform.SetPositionAndRotation(position, rotation);
+
+            if (!NetworkServer.active) return;
+            if (!boss.TryGetComponent(out NetworkIdentity identity) || identity.netId == 0) return;
+
+            if (boss.TryGetComponent(out NetworkTransformBase sync)) sync.ServerTeleport(position, rotation);
+        }
+
         // 자기(또는 자식)에 붙은 컴포넌트를 찾아 서버 전용 목록에 담는다. 없으면 조용히 건너뛴다.
         private void Add<T>() where T : Behaviour
         {

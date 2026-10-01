@@ -200,6 +200,13 @@ namespace ProjectS.Scenes
         // 로컬로 쌓지 않는다). 포즈는 로컬 타임라인이 그리므로, 서버 애니메이터 상태를 덮어쓰는 NetworkAnimator만 멈춘다.
         private readonly List<Behaviour> pausedSync = new();
 
+        // 관찰자 클라가 따르는 연출 시작 시각(Clock 기준). NaN이면 관찰자가 아니거나 아직 시작 전 — 드리프트 보정을 하지 않는다.
+        private double observerStartTime = double.NaN;
+
+        // 관찰자 타임라인이 네트워크 시계와 이만큼 넘게 벌어지면 되돌린다(초). 작으면 자주 보정해 포즈가 떨리고,
+        // 크면 발 미끄러짐이 다시 보인다. 시스템 튜닝 값이라 상수로 둔다.
+        private const double ObserverDriftTolerance = 0.05;
+
         // 서버 쪽에서 연출 동안 애니메이터 컬링을 끈 대상. 보스 프리팹이 Cull Update Transforms라, 렌더링 카메라가 없는
         // 전용 서버에서는 루트모션 이동 자체가 생략돼 보스가 제자리에 선다. 연출 동안만 Always Animate로 바꾼다.
         // 전환 연출은 두 보스(나가는/등장하는 페이즈)를 함께 돌려 여러 개를 기억한다.
@@ -380,13 +387,37 @@ namespace ProjectS.Scenes
 
             if (double.IsNaN(startTime)) startTime = Clock();
 
-            // 관찰자는 보스 위치를 보간 버퍼만큼 늦게 받는다. 포즈도 그만큼 늦춰 발과 위치가 어긋나지 않게 한다.
-            double localStart = startTime + (IsNetworkObserver(appearedBoss) ? NetworkClient.bufferTime : 0.0);
+            // ★ 관찰자도 bufferTime을 더하지 않는다(2026-10-01 "클라만 발 미끄러짐" 원인).
+            //   클라의 NetworkTime.time은 이미 NetworkClient.localTimeline(= 서버 시각 − bufferTime)이고,
+            //   NetworkTransform도 같은 시각으로 보간한다. 즉 Clock() 기준 같은 startTime에 시작하면 포즈와 위치가 맞는다.
+            //   예전처럼 bufferTime을 한 번 더 더하면 포즈만 그만큼(실측 0.24초+) 늦어, 몸이 다리보다 먼저 나가 미끄러져 보였다.
+            if (IsNetworkObserver(appearedBoss)) observerStartTime = startTime;
 
-            while (!finished && Clock() < localStart) yield return null;
+            while (!finished && Clock() < startTime) yield return null;
             if (finished) yield break;
 
-            StartGraph(Clock() - localStart);
+            StartGraph(Clock() - startTime);
+        }
+
+        /// <summary>
+        /// 관찰자 클라 전용: 타임라인 진행을 네트워크 시계(<see cref="Clock"/>)에 다시 맞춘다. 매 프레임 <see cref="Update"/>가 부른다.
+        /// </summary>
+        /// <remarks>
+        /// 타임라인은 게임 시간(Time.deltaTime)으로 흐르지만, 클라의 네트워크 시계(localTimeline)는 서버를 따라잡거나 늦추려고
+        /// 배속(localTimescale)이 조금씩 바뀐다. 그래서 시작을 정확히 맞춰도 연출이 길면 포즈가 위치(NT)와 벌어진다
+        /// (실측 약 17초 동안 0.1초). 허용치를 넘을 때만 되돌려, 평소엔 건드리지 않아 포즈가 튀지 않게 한다.
+        /// 관찰자에선 타임라인 루트모션이 위치를 옮기지 않으므로(위치는 NT) 시간을 옮겨도 위치는 그대로다.
+        /// 서버·싱글에는 쓰지 않는다 — 거기선 시간을 옮기면 루트모션이 위치에 튀어 반영된다.
+        /// </remarks>
+        private void CorrectObserverDrift()
+        {
+            if (double.IsNaN(observerStartTime) || finished || !graphStarted) return;
+            if (director == null || director.state != PlayState.Playing) return;
+
+            double target = Clock() - observerStartTime;
+            if (target < 0.0 || target >= director.duration) return;   // 끝 처리는 타임라인 자연 종료/서버 ForceEnd에 맡긴다
+
+            if (System.Math.Abs(director.time - target) > ObserverDriftTolerance) director.time = target;
         }
 
         private void StartGraph(double elapsed)
@@ -693,8 +724,9 @@ namespace ProjectS.Scenes
                 // ResumeAI의 착지(NavMesh Warp)가 현재 위치를 기준으로 하므로, 반드시 그 전에 스폰 자리로 돌려놓는다.
                 // Finish는 시간 초과·씬 이탈 경로에서도 돌므로, endPoint가 비었다고 여기서 예외가 나면 보스가 영영 안 깨어난다.
                 // 비어 있으면 옮기지 않고 연출이 끝난 자리에서 깨운다.
+                // 서버에선 순간이동으로 클라에 확정 전달한다(대입만 하면 클라에서 회전이 유실될 수 있다 — BossServerAuthority.PlaceAt 참고).
                 if (endPoint != null)
-                    suspendedBoss.transform.SetPositionAndRotation(endPoint.transform.position, endPoint.transform.rotation);
+                    BossServerAuthority.PlaceAt(suspendedBoss, endPoint.transform.position, endPoint.transform.rotation);
 
                 suspendedBoss.ResumeAI();
                 suspendedBoss = null;
@@ -1075,6 +1107,8 @@ namespace ProjectS.Scenes
 
         private void Update()
         {
+            CorrectObserverDrift();
+
             if (graphStarted || externalPlayWarned || director == null) return;
             if (director.state != PlayState.Playing) return;
 

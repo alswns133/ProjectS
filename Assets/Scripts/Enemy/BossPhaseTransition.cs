@@ -145,13 +145,14 @@ namespace ProjectS.Enemies
             // 플레이어를 보던 각도 그대로 연출이 재생된다(Timeline Track Offset은 EnemyMovement.OnAnimatorMove가
             // 루트모션을 가로채 transform에 닿지 않는다 — 회전은 아예 적용되지 않는다).
             // ★ 반드시 SuspendAI 뒤에 — SuspendAI가 NavMeshAgent를 꺼야 transform 대입이 다음 프레임에 덮이지 않는다.
-            // ★ 관찰자 클라에서는 이 컴포넌트가 BossServerAuthority로 꺼져 있으므로 서버에서만 놓이고,
-            //   각 클라에는 NetworkTransform으로 복제된다.
+            // ★ 관찰자 클라에서는 이 컴포넌트가 BossServerAuthority로 꺼져 있으므로 서버에서만 놓인다.
+            //   클라에는 transform 대입(NetworkTransform 일반 동기화)이 아니라 순간이동으로 확정 전달한다 — 2페이즈는 1페이즈 방향으로
+            //   스폰된 직후라, 일반 동기화로는 클라에서 이 회전이 유실돼 연출 내내 스폰 때 방향으로 굳는다(BossServerAuthority.PlaceAt 참고).
             Transform start = cutscene.StartPoint;
             if (start != null)
             {
-                boss.transform.SetPositionAndRotation(start.position, start.rotation);
-                next.transform.SetPositionAndRotation(start.position, start.rotation);
+                BossServerAuthority.PlaceAt(boss, start.position, start.rotation);
+                BossServerAuthority.PlaceAt(next, start.position, start.rotation);
             }
 
             // 연출 동안 두 페이즈 모두 피해를 받지 않게 한다. 2페이즈는 1페이즈와 같은 자리에 미리 떠 있어, 하한이 없는

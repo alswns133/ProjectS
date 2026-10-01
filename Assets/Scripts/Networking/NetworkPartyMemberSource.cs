@@ -149,9 +149,11 @@ namespace ProjectS.Networking
             // recentCache는 위 TODO(최근 파티)가 붙기 전까지 비워 둔다.
         }
 
-        // 초대 가능 여부를 프레즌스 상태에서 판정한다. 우선순위: 이미 파티중 > 초대 거부 > 초대 가능.
+        // 초대 가능 여부를 프레즌스 상태에서 판정한다. 우선순위: 던전 진행중 > 이미 파티중 > 초대 거부 > 초대 가능.
+        // 던전을 파티보다 먼저 보는 이유: 파티 레이드 중인 사람도 "파티중"이 아니라 "던전 진행중"으로 보여야 한다.
         private static PartyInviteState MapState(PlayerPresence p)
         {
+            if (p.InDungeon) return PartyInviteState.InDungeon;
             if (p.InParty) return PartyInviteState.InParty;
             if (!p.AcceptsInvites) return PartyInviteState.NotAccepting;
 
