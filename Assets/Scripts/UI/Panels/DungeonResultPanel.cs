@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using TMPro;
 using UnityEngine;
@@ -72,7 +73,25 @@ namespace ProjectS.UI
         [Header("2페이즈")]
         [SerializeField] private DungeonExitPopup exitPopup;
 
+        [Header("보상 — 슬롯 등장 연출")]
+        [Tooltip("슬롯이 나타날 때 재생할 컨트롤러(TV_PowerOn). 슬롯 프리팹에 Animator가 없으면 생성 시 붙여 준다. " +
+                 "비워 두면 연출 없이 순서대로 켜지기만 한다.")]
+        [SerializeField] private RuntimeAnimatorController slotAppearController;
+
+        [Tooltip("결과창이 열린 뒤 첫 슬롯이 나타나기까지의 시간(초).")]
+        [SerializeField, Min(0f)] private float slotRevealDelay = 0.3f;
+
+        [Tooltip("슬롯이 하나씩 나타나는 간격(초).")]
+        [SerializeField, Min(0f)] private float slotRevealInterval = 0.08f;
+
         private DungeonResultData data;
+
+        // 이번 판에 보여줄 보상 슬롯 수와, 그것들을 하나씩 켜는 코루틴.
+        private int rewardSlotCount;
+        private Coroutine revealRoutine;
+
+        // 보상 슬롯 부모(root)를 감싸는 스크롤뷰. OnInit에서 한 번 찾아 둔다.
+        private ScrollRect rewardScroll;
 
         // 이번에 열린 동안 퇴장 선택창을 이미 띄웠는지. 선택 후 씬이 넘어가기 전의 입력이 창을 다시 열지 않게 한다.
         private bool exitRequested;
@@ -103,6 +122,7 @@ namespace ProjectS.UI
         protected override void OnInit()
         {
             if (skipButton != null) skipButton.onClick.AddListener(SkipFx);
+            if (root != null) rewardScroll = root.GetComponentInParent<ScrollRect>(true);
         }
 
         protected override void OnShow()
@@ -119,6 +139,10 @@ namespace ProjectS.UI
 
             exitRequested = false;
             if (page != null) page.SetActive(true);
+            ResetRewardScroll();
+
+            StopReveal();
+            revealRoutine = StartCoroutine(RevealSlotsRoutine());
 
             // 구독을 재생보다 먼저 건다 — 재생할 연출이 없으면 PlayLock이 그 자리에서 LockFinished를 발행한다.
             if (performanceGauge != null) performanceGauge.LockFinished += OpenExitPopup;
@@ -134,12 +158,58 @@ namespace ProjectS.UI
         protected override void OnHide()
         {
             if (performanceGauge != null) performanceGauge.LockFinished -= OpenExitPopup;
+            StopReveal();
 
             // 커서 잠금·플레이어 입력을 플레이 상태로 되돌린다(마을 복귀·재도전으로 이 패널이 닫힐 때).
             SetResultInteraction(false);
 
             // 다음에 열 때 이전 판의 카운트업이 이어지지 않게 끊는다.
             if (playScoreNum != null) playScoreNum.SetImmediate(0);
+        }
+
+        // 보상 목록을 맨 위로 되돌린다. 패널을 재사용하므로 안 돌리면 이전 판에서 내려 둔 위치와 관성이 그대로 남는다.
+        // 레이아웃을 먼저 확정해야 한다 — 뷰포트 크기가 잡히기 전에 넣은 위치는 다음 리빌드에서 다시 밀린다.
+        private void ResetRewardScroll()
+        {
+            if (rewardScroll == null) return;
+
+            Canvas.ForceUpdateCanvases();
+            rewardScroll.StopMovement();
+            rewardScroll.verticalNormalizedPosition = 1f;
+        }
+
+        // 보상 슬롯을 앞에서부터 하나씩 켠다. 등장 모션은 슬롯의 Animator가 맡는다 — 기본 State가 TV_PowerOn이라
+        // 오브젝트가 켜지는 순간 처음부터 재생되므로, 여기서는 켜는 타이밍만 잡는다.
+        // 꺼진 슬롯은 GridLayoutGroup이 건너뛰지만 앞에서부터 순서대로 켜므로 이미 나온 슬롯의 자리는 밀리지 않는다.
+        private IEnumerator RevealSlotsRoutine()
+        {
+            if (slotRevealDelay > 0f) yield return new WaitForSecondsRealtime(slotRevealDelay);
+
+            var interval = new WaitForSecondsRealtime(slotRevealInterval);
+            for (int i = 0; i < rewardSlotCount; i++)
+            {
+                if (spawnedSlots[i] != null) spawnedSlots[i].gameObject.SetActive(true);
+                yield return interval;
+            }
+
+            revealRoutine = null;
+        }
+
+        // 남은 슬롯을 한꺼번에 켠다(연출 건너뛰기). 이미 켜진 슬롯은 건드리지 않아 모션이 다시 돌지 않는다.
+        private void RevealAllSlots()
+        {
+            StopReveal();
+
+            for (int i = 0; i < rewardSlotCount; i++)
+                if (spawnedSlots[i] != null) spawnedSlots[i].gameObject.SetActive(true);
+        }
+
+        private void StopReveal()
+        {
+            if (revealRoutine == null) return;
+
+            StopCoroutine(revealRoutine);
+            revealRoutine = null;
         }
 
         /// <summary>
@@ -190,6 +260,7 @@ namespace ProjectS.UI
             if (exitRequested) return;
 
             if (playScoreNum != null) playScoreNum.Skip();
+            RevealAllSlots();
 
             // SkipLock이 LockFinished를 발행해 선택창을 연다. 연출 종료를 못 잡은 경우(State 설정 실수 등)에도
             // 결과 화면에 갇히지 않도록, 재생 중이 아니면 직접 연다.
@@ -257,8 +328,8 @@ namespace ProjectS.UI
         }
 
         /// <summary>
-        /// 슬롯을 정확히 <paramref name="count"/>개 활성화한다. 모자라면 <see cref="slotPrefab"/>으로 만들어
-        /// <see cref="spawnedSlots"/>에 쌓고, 남으면 비활성화한다 — 재열림 때 재사용해 매번 생성/파괴를 피한다.
+        /// 슬롯을 <paramref name="count"/>개 이상 확보한다. 모자라면 <see cref="slotPrefab"/>으로 만들어
+        /// <see cref="spawnedSlots"/>에 쌓는다 — 재열림 때 재사용해 매번 생성/파괴를 피한다.
         /// </summary>
         private void EnsureSlotCount(int count)
         {
@@ -269,11 +340,25 @@ namespace ProjectS.UI
                 if (slot == null)
                     Debug.LogWarning($"{name}: 슬롯 프리팹에 ResultRewardSlot이 없어 보상을 못 그린다.", this);
 
+                AttachAppearAnimator(go);
                 spawnedSlots.Add(slot);   // null이어도 자리를 채워 인덱스가 어긋나지 않게 한다
             }
 
+            // 전부 꺼 둔다. 이번 판에 쓸 count개는 RevealSlotsRoutine이 하나씩 켠다.
+            rewardSlotCount = count;
             for (int i = 0; i < spawnedSlots.Count; i++)
-                if (spawnedSlots[i] != null) spawnedSlots[i].gameObject.SetActive(i < count);
+                if (spawnedSlots[i] != null) spawnedSlots[i].gameObject.SetActive(false);
+        }
+
+        // 슬롯에 등장 연출용 Animator를 붙인다. 프리팹에 이미 Animator가 있으면 그쪽 설정을 존중해 건드리지 않는다.
+        // 결과 화면은 timeScale이 떨어진 중에도 뜨므로 unscaled로 돌린다(ScoreCountUpFx와 같은 이유).
+        private void AttachAppearAnimator(GameObject slot)
+        {
+            if (slotAppearController == null || slot.TryGetComponent(out Animator _)) return;
+
+            Animator animator = slot.AddComponent<Animator>();
+            animator.runtimeAnimatorController = slotAppearController;
+            animator.updateMode = AnimatorUpdateMode.UnscaledTime;
         }
 
         /// <summary>
