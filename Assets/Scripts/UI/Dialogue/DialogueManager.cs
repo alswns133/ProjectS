@@ -484,7 +484,13 @@ namespace ProjectS.UI
 
                     // 아이템 보상은 아이템 데이터(ItemData)의 아이콘 주소로 실제 스프라이트를 로드해 덮어쓴다.
                     if (reward.Type == QuestRewardType.Item)
+                    {
                         LoadItemRewardIcon(reward.TargetId, rewardSlots[i]);
+
+                        // 등급 표시(배경색·이펙트). 슬롯 프리팹에 ItemSlotGradeView가 없으면 no-op.
+                        if (JsonManager.Instance != null)
+                            rewardSlots[i].SetGradeItem(JsonManager.Instance.Get<ItemData>(reward.TargetId));
+                    }
                 }
                 else
                 {
