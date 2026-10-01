@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Enhance;
+using ProjectS.UI.Framework;
 
 namespace ProjectS.UI
 {
@@ -31,7 +32,10 @@ namespace ProjectS.UI
             onClick = callback;
 
             if (nameText != null && equip != null && equip.Item != null)
+            {
                 nameText.text = $"{equip.Item.Name} +{equip.EnhanceStep}";
+                nameText.color = ItemGradeStyle.ColorOf(equip.Item, nameText.color);
+            }
 
             if (button != null)
             {
