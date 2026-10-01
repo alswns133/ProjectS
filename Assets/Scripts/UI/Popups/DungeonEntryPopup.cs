@@ -152,7 +152,6 @@ namespace ProjectS.UI
 
         protected override void OnHide()
         {
-            SetCursorFree(false);
             SetPlayerInputEnabled(true);
         }
 
@@ -453,7 +452,7 @@ namespace ProjectS.UI
                 return;
             }
 
-            // 먼저 팝업을 닫아 커서·입력을 원복(OnHide)하고, 그 다음 전환을 요청한다.
+            // 먼저 팝업을 닫아 입력(OnHide)·커서(UIManager.ClosePopup)를 원복하고, 그 다음 전환을 요청한다.
             RequestClose();
 
             // 어느 씬으로 가는지는 이 화면이 알 필요가 없다 — 세션에 싣는 것도 씬을 고르는 것도 라우터가 한다.
