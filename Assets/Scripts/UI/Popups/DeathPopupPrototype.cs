@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using ProjectS.Managers;
@@ -118,8 +118,6 @@ namespace ProjectS.UI
             BeginReturn();
         }
 
-        protected override void OnHide() => SetCursorFree(false);
-
         private void Update()
         {
             if (!isReturning) return;
@@ -152,7 +150,7 @@ namespace ProjectS.UI
 
             RefreshCountView();
 
-            // 팝업을 먼저 닫아 커서를 원복(OnHide)한 뒤 부활시킨다.
+            // 팝업을 먼저 닫아 커서를 원복(UIManager.ClosePopup)한 뒤 부활시킨다.
             // 반대 순서면 살아난 첫 프레임에 커서가 아직 풀려 있어 시점이 튄다.
             RequestClose();
             player.Revive();

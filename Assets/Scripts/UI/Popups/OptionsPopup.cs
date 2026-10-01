@@ -113,9 +113,6 @@ namespace ProjectS.UI
         // 드롭다운 인덱스 → 실제 해상도. Screen.resolutions는 주사율별로 같은 해상도가 중복돼 따로 추린다.
         private readonly List<Vector2Int> resolutions = new List<Vector2Int>();
 
-        // 창을 열기 전 커서 상태. 닫을 때 TPS(잠금) 모드였으면 되돌려 준다.
-        private bool wasMouseMode;
-
         private Tab currentTab = Tab.Game;
 
         // 리스너 연결은 최초 1회만. BasePopup이 OnInit을 한 번만 호출해 주므로 중복 구독이 쌓이지 않는다.
@@ -183,8 +180,8 @@ namespace ProjectS.UI
             currentTab = (Tab)Mathf.Clamp(PlayerPrefs.GetInt(TabPrefKey, (int)Tab.Game), 0, (int)Tab.Sound);
             ApplyTabVisual();
 
-            // 옵션 창은 마우스로 조작하므로 커서를 풀어 준다. 원래 TPS 모드였으면 닫을 때 되돌린다.
-            wasMouseMode = Cursor.lockState != CursorLockMode.Locked;
+            // 옵션 창은 마우스로 조작하므로 커서를 풀어 준다.
+            // 닫을 때 다시 잠그는 건 UIManager.ClosePopup이 맡는다(마지막 팝업이고 HUD만 떠 있을 때만).
             SetMouseMode(true);
         }
 
@@ -193,8 +190,6 @@ namespace ProjectS.UI
             // 슬라이더로 미리보기만 한 값을 여기서 확정한다(ESC로 닫아도 이 경로를 탄다).
             if (hasPendingPreview) GameSettings.Apply(draft);
             hasPendingPreview = false;
-
-            if (!wasMouseMode) SetMouseMode(false);
         }
 
         // ── 탭 ────────────────────────────────────────────────
