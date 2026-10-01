@@ -29,6 +29,9 @@ namespace ProjectS.UI.Framework
 
         private GameObject dragGhost;
 
+        // 프리팹에 지정된 이름 색. 등급 행을 못 찾을 때 되돌릴 기본값(처음 칠하기 직전에 한 번만 저장).
+        private Color? defaultNameColor;
+
         /// <summary>슬롯을 장비로 채운다.</summary>
         /// <param name="equip">표시할 장비 인스턴스</param>
         public void Set(EquipmentInstance equip)
@@ -36,7 +39,13 @@ namespace ProjectS.UI.Framework
             Instance = equip;
 
             if (nameText != null && equip != null && equip.Item != null)
+            {
                 nameText.text = $"{equip.Item.Name} +{equip.EnhanceStep}";
+
+                // 슬롯 재사용 시 이전 장비의 등급색이 남지 않게 매번 다시 칠한다.
+                defaultNameColor ??= nameText.color;
+                nameText.color = ItemGradeStyle.ColorOf(equip.Item, defaultNameColor.Value);
+            }
 
             // TODO: 아이콘 스프라이트는 equip.Item.IconAddress로 어드레서블 로드해 넣는다. 지금은 자리만.
         }

@@ -11,6 +11,7 @@ using ProjectS.Data;
 using ProjectS.Managers;
 using ProjectS.Players;
 using ProjectS.Items;
+using ProjectS.Skills;
 using ProjectS.Debugging;
 
 namespace ProjectS.UI
@@ -482,9 +483,9 @@ namespace ProjectS.UI
                     QuestRewardData reward = rewardPreview[i];
                     rewardSlots[i].Bind(RewardName(reward), RewardAmount(reward), RewardIcon(reward.Type));
 
-                    // 아이템 보상은 아이템 데이터(ItemData)의 아이콘 주소로 실제 스프라이트를 로드해 덮어쓴다.
-                    if (reward.Type == QuestRewardType.Item)
-                        LoadItemRewardIcon(reward.TargetId, rewardSlots[i]);
+                    // 어드레서블 아이콘이 있는 보상(아이템·직업무기·스킬 해금)은 실제 아이콘을 로드해
+                    // 기본(정적) 아이콘을 덮어쓴다. 주소가 없는 골드·경험치는 no-op.
+                    LoadRewardIcon(ResolveRewardIconAddress(reward), rewardSlots[i]);
                 }
                 else
                 {
@@ -493,35 +494,32 @@ namespace ProjectS.UI
             }
         }
 
-        // 이번 대화의 아이템 보상 아이콘을 미리 캐시에 데운다(대화 시작 시 1회). 아이템 미보유 유저라도
+        // 이번 대화의 보상 아이콘을 미리 캐시에 데운다(대화 시작 시 1회). 아이템 미보유 유저라도
         // 마지막 줄에서 콜드 로드로 팝인되지 않도록, 인벤 예열과 무관하게 여기서 예열을 보장한다.
         private void PreloadRewardIcons()
         {
-            if (rewardPreview == null || JsonManager.Instance == null) return;
+            if (rewardPreview == null) return;
 
             List<string> addresses = null;
             foreach (QuestRewardData reward in rewardPreview)
             {
-                if (reward.Type != QuestRewardType.Item) continue;
+                string address = ResolveRewardIconAddress(reward);
+                if (string.IsNullOrEmpty(address)) continue;
 
-                ItemData item = JsonManager.Instance.Get<ItemData>(reward.TargetId);
-                if (item == null || string.IsNullOrEmpty(item.IconAddress)) continue;
-
-                (addresses ??= new List<string>()).Add(item.IconAddress);
+                (addresses ??= new List<string>()).Add(address);
             }
 
             if (addresses != null) ItemIconLoader.Preload(addresses);
         }
 
-        // 아이템 보상 아이콘을 캐싱 로더(ItemIconLoader)로 로드해 슬롯에 덮어쓴다. 로더가 주소별로 핸들을
+        // 보상 아이콘을 캐싱 로더(ItemIconLoader)로 로드해 슬롯에 덮어쓴다. 로더가 주소별로 핸들을
         // 1개만 잡아 여러 UI와 공유하므로(참조 카운트 분열 방지), 여기선 핸들을 직접 관리하지 않는다.
-        // 예열(PreloadRewardIcons)이 끝나 있으면 캐시 히트로 즉시 반영된다.
-        private async void LoadItemRewardIcon(int itemId, NpcRewardSlot slot)
+        // 예열(PreloadRewardIcons)이 끝나 있으면 캐시 히트로 즉시 반영된다. 주소가 없으면 조용히 빠져나간다.
+        private async void LoadRewardIcon(string address, NpcRewardSlot slot)
         {
-            ItemData item = JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(itemId) : null;
-            if (item == null || string.IsNullOrEmpty(item.IconAddress)) return;
+            if (string.IsNullOrEmpty(address)) return;
 
-            Sprite sprite = await ItemIconLoader.LoadAsync(item.IconAddress);
+            Sprite sprite = await ItemIconLoader.LoadAsync(address);
 
             // 로드 중 대화가 끝났거나 슬롯이 사라졌으면 반영하지 않는다.
             if (!IsPlaying || slot == null) return;
@@ -529,7 +527,46 @@ namespace ProjectS.UI
             if (sprite != null)
                 slot.SetIcon(sprite);
             else
-                DevLog.Warning($"[Dialogue] 아이템 {itemId} 보상 아이콘 로드 실패: {item.IconAddress}");
+                DevLog.Warning($"[Dialogue] 보상 아이콘 로드 실패: {address}");
+        }
+
+        // 보상 아이콘의 어드레서블 주소를 정한다(QuestDetailPopup과 같은 우선순위).
+        //   1) 보상이 직접 지정한 IconAddress (보상별 오버라이드)
+        //   2) 아이템/직업무기면 아이템 테이블의 아이콘(직업무기는 현재 직업 무기로 변환 후)
+        //   3) 스킬 해금이면 현재 캐릭터 스킬의 아이콘(SkillGrowthTable) — 스킬북 같은 아이템이 따로 없어
+        //      해금될 스킬 자체의 아이콘으로 보여준다. 스킬창·해금 배너와 같은 소스.
+        //   4) 그 외(골드·경험치)는 정적 기본 아이콘만 쓰므로 null
+        private static string ResolveRewardIconAddress(QuestRewardData reward)
+        {
+            if (!string.IsNullOrEmpty(reward.IconAddress)) return reward.IconAddress;
+
+            JsonManager json = JsonManager.Instance;
+            if (json == null) return null;
+
+            if (reward.Type == QuestRewardType.Item || reward.Type == QuestRewardType.ClassWeapon)
+            {
+                ItemData item = json.Get<ItemData>(ResolveRewardItemId(reward));
+                return item != null ? item.IconAddress : null;
+            }
+
+            if (reward.Type == QuestRewardType.SkillUnlock)
+            {
+                SkillGrowthTable row = json.Get<SkillGrowthTable>(SkillState.ResolveSkillId(reward.TargetId));
+                return row != null ? row.IconAddress : null;
+            }
+
+            return null;
+        }
+
+        // 아이템 아이콘/이름 조회에 쓸 실제 아이템 ID. 직업무기는 TargetId가 검 ID로 저작돼 있어,
+        // 이걸 그대로 쓰면 거너에게 검 아이콘이 보인다. 지급(QuestRewardGranter)과 같은 함수로 변환해
+        // 미리보기와 실제로 받는 무기가 어긋나지 않게 한다. QuestDetailPopup과 같은 규칙.
+        private static int ResolveRewardItemId(QuestRewardData reward)
+        {
+            if (reward.Type != QuestRewardType.ClassWeapon) return reward.TargetId;
+
+            int charType = PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0;
+            return QuestRewardData.ResolveClassWeaponId(reward.TargetId, charType);
         }
 
         private static string RewardName(QuestRewardData reward) => reward.Type switch
@@ -537,6 +574,7 @@ namespace ProjectS.UI
             QuestRewardType.Gold => "골드",
             QuestRewardType.Exp => "경험치",
             QuestRewardType.Item => ResolveItemName(reward.TargetId),
+            QuestRewardType.ClassWeapon => ResolveItemName(ResolveRewardItemId(reward)),
             QuestRewardType.SkillUnlock => ResolveSkillName(reward.TargetId),
             _ => reward.Type.ToString(),
         };
@@ -547,22 +585,39 @@ namespace ProjectS.UI
                 ? item.Name
                 : $"아이템 {itemId}";
 
-        // 스킬 이름을 테이블에서 조회한다(없거나 로딩 전이면 ID로 폴백).
-        private static string ResolveSkillName(int skillId)
-            => JsonManager.Instance != null
-               && JsonManager.Instance.SkillDict.TryGetValue(skillId, out SkillTable skill)
-               && !string.IsNullOrEmpty(skill.NameKey)
-                ? skill.NameKey
-                : $"스킬 {skillId}";
+        // 스킬 해금 보상의 이름. TargetId가 스킬 번호(2·3·4)일 수 있어 현재 캐릭터 스킬로 환산한 뒤
+        // (SkillState.Unlock과 같은 규칙), 표시용 이름은 SkillGrowthTable에서 가져온다
+        // (SkillTable의 NameKey는 "SW_SKILL_2" 같은 내부 키라 표시에 부적합). 없으면 NameKey→ID로 폴백.
+        // QuestDetailPopup과 같은 규칙이라 두 화면의 스킬 보상 표기가 일치한다.
+        private static string ResolveSkillName(int targetId)
+        {
+            JsonManager json = JsonManager.Instance;
+            if (json == null) return $"스킬 {targetId}";
 
+            int skillId = SkillState.ResolveSkillId(targetId);
+
+            if (json.SkillGrowthDict.TryGetValue(skillId, out SkillGrowthTable row) && !string.IsNullOrEmpty(row.Name))
+                return row.Name;
+
+            if (json.SkillDict.TryGetValue(skillId, out SkillTable skill) && !string.IsNullOrEmpty(skill.NameKey))
+                return skill.NameKey;
+
+            return $"스킬 {skillId}";
+        }
+
+        // 스킬 해금·직업무기는 개수 개념이 없어 비운다(칸에서 자동으로 숨겨진다). QuestDetailPopup과 같은 표기.
         private static string RewardAmount(QuestRewardData reward)
-            => reward.Type == QuestRewardType.SkillUnlock ? string.Empty : $"x{reward.Amount}";
+            => reward.Type == QuestRewardType.SkillUnlock || reward.Type == QuestRewardType.ClassWeapon
+                ? string.Empty
+                : $"x{reward.Amount}";
 
+        // 종류별 기본 아이콘(아이템·직업무기는 실제 아이콘 로드 전까지 이 아이콘을 보인다).
         private Sprite RewardIcon(QuestRewardType type) => type switch
         {
             QuestRewardType.Gold => goldIcon,
             QuestRewardType.Exp => expIcon,
             QuestRewardType.Item => itemIcon,
+            QuestRewardType.ClassWeapon => itemIcon,
             QuestRewardType.SkillUnlock => skillIcon,
             _ => null,
         };

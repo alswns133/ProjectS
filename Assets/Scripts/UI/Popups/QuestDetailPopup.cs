@@ -8,6 +8,7 @@ using ProjectS.Data;
 using ProjectS.UI.Framework;
 using ProjectS.Managers;
 using ProjectS.Items;
+using ProjectS.Skills;
 
 namespace ProjectS.UI
 {
@@ -18,7 +19,6 @@ namespace ProjectS.UI
     /// <see cref="QuestTrackerHud"/>가 UIManager.RegisterPopup으로 등록시키기 때문이다
     /// (UIManager는 자기 자식만 수집해서, 나중에 로드되는 씬의 팝업은 스스로 등록해야 한다).
     /// 여는 쪽은 <see cref="Setup"/>으로 내용을 먼저 채운 뒤 ShowPopup을 부른다.
-    ///
     /// 보상은 텍스트가 아니라 아이콘 칸(<see cref="NpcRewardSlot"/>)으로 표시한다 — 대화창 보상 미리보기
     /// (<c>DialogueManager</c>)와 같은 방식이라, 아이콘·이름·수량 표기가 두 화면에서 일관된다.
     /// </summary>
@@ -215,18 +215,28 @@ namespace ProjectS.UI
         }
 
         // 보상 아이콘의 어드레서블 주소를 정한다. 우선순위:
-        //   1) 보상이 직접 지정한 IconAddress (스킬처럼 테이블에 아이콘이 없는 종류의 유일한 소스이자 보상별 오버라이드)
+        //   1) 보상이 직접 지정한 IconAddress (보상별 오버라이드)
         //   2) 아이템/직업무기면 아이템 테이블의 정본 아이콘 주소
-        //   3) 그 외(골드·경험치·주소 없는 스킬)는 정적 기본 아이콘만 쓰므로 null
+        //   3) 스킬 해금이면 현재 캐릭터 스킬의 아이콘(SkillGrowthTable) — 스킬북 같은 아이템이 따로 없어
+        //      해금될 스킬 자체의 아이콘으로 보여준다. 스킬창·해금 배너와 같은 소스.
+        //   4) 그 외(골드·경험치)는 정적 기본 아이콘만 쓰므로 null
         private static string ResolveRewardIconAddress(QuestRewardData reward)
         {
             if (!string.IsNullOrEmpty(reward.IconAddress)) return reward.IconAddress;
 
+            JsonManager json = JsonManager.Instance;
+            if (json == null) return null;
+
             if (reward.Type == QuestRewardType.Item || reward.Type == QuestRewardType.ClassWeapon)
             {
-                int itemId = ResolveRewardItemId(reward);
-                ItemData item = JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(itemId) : null;
+                ItemData item = json.Get<ItemData>(ResolveRewardItemId(reward));
                 return item != null ? item.IconAddress : null;
+            }
+
+            if (reward.Type == QuestRewardType.SkillUnlock)
+            {
+                SkillGrowthTable row = json.Get<SkillGrowthTable>(SkillState.ResolveSkillId(reward.TargetId));
+                return row != null ? row.IconAddress : null;
             }
 
             return null;
@@ -269,7 +279,7 @@ namespace ProjectS.UI
             JsonManager json = JsonManager.Instance;
             if (json == null) return $"스킬 {targetId}";
 
-            int skillId = ResolveSkillId(targetId);
+            int skillId = SkillState.ResolveSkillId(targetId);
 
             if (json.SkillGrowthDict.TryGetValue(skillId, out SkillGrowthTable row) && !string.IsNullOrEmpty(row.Name))
                 return row.Name;
@@ -278,14 +288,6 @@ namespace ProjectS.UI
                 return skill.NameKey;
 
             return $"스킬 {skillId}";
-        }
-
-        // 스킬 번호(1~4)면 현재 캐릭터 스킬ID로 환산한다(예: 거너(2) + 3 → 203). 완성 ID(>=100)면 그대로.
-        private static int ResolveSkillId(int idOrNumber)
-        {
-            if (idOrNumber >= 100) return idOrNumber;
-            int charId = PlayerManager.Instance != null ? PlayerManager.Instance.CurrentCharacterId : 0;
-            return charId > 0 ? charId * 100 + idOrNumber : idOrNumber;
         }
 
         // 수량 표기. 스킬 해금·직업무기는 개수 개념이 없어 비운다(칸에서 자동으로 숨겨진다).
