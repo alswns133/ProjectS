@@ -6,6 +6,7 @@ using ProjectS.Scenes;
 using ProjectS.Data;
 using ProjectS.Events;
 using ProjectS.Debugging;
+using ProjectS.UI;
 using System;
 
 namespace ProjectS.Tutorials
@@ -14,7 +15,7 @@ namespace ProjectS.Tutorials
     /// 튜토리얼 종료 처리. 지정한 '마지막 튜토리얼 퀘스트'(finalQuestId)가 반납 완료되면
     /// QuestEvents.OnQuestCompleted를 받아 캐릭터 상태를 확정 저장하고 마을 씬으로 돌려보낸다.
     /// QuestRewardGranter와 같은 완료 구독 패턴이며, 씬(튜토리얼)의 관리자 오브젝트에 붙인다.
-    /// 건너뛰기 버튼은 SkipAndReturn을 onClick에 연결한다.
+    /// 건너뛰기 버튼은 Start에서 코드로 연결하며, 누르면 ConfirmDialog로 한 번 확인받은 뒤 건너뛴다.
     /// </summary>
     public class TutorialCompleter : MonoBehaviour
     {
@@ -23,6 +24,9 @@ namespace ProjectS.Tutorials
 
         [Tooltip("건너뛰기 버튼")]
         [SerializeField] Button skipButton;
+
+        [Tooltip("건너뛰기 확인 문구(ConfirmDialog에 표시).")]
+        [SerializeField, TextArea] private string skipConfirmMessage = "튜토리얼을 건너뛸까요?\n건너뛰면 다시 진행할 수 없습니다.";
 
         private void Awake()
         {
@@ -36,7 +40,7 @@ namespace ProjectS.Tutorials
             if(skipButton != null)
             {
                 skipButton.gameObject.SetActive(true);  // 건너뛰기 버튼은 튜토리얼 시작 시점에 켠다. 인스펙터에서 꺼두면 안 됨.
-                skipButton.onClick.AddListener(SkipAndReturn);  // 버튼 클릭 시 튜토리얼 건너뛰기
+                skipButton.onClick.AddListener(OnSkipClicked);  // 버튼 클릭 시 확인창 → 튜토리얼 건너뛰기
             }
         }
 
@@ -59,6 +63,21 @@ namespace ProjectS.Tutorials
             if (quest == null || quest.QuestId != finalQuestId) return;
 
             Finish(TutorialState.Completed);
+        }
+
+        // 건너뛰기는 되돌릴 수 없으므로 한 번 확인받는다. 흐름은 QuitGameButton과 맞췄다.
+        private void OnSkipClicked()
+        {
+            if (finished) return;
+
+            // 대화상자가 없는 씬(단독 테스트)에서는 확인 없이 진행한다 — 버튼이 먹통으로 보이는 편이 더 나쁘다.
+            if (ConfirmDialog.Instance == null)
+            {
+                SkipAndReturn();
+                return;
+            }
+
+            ConfirmDialog.Instance.Show(skipConfirmMessage, SkipAndReturn);
         }
 
         // 튜토리얼을 건너뜀으로 확정하고 마을로 보낸다.

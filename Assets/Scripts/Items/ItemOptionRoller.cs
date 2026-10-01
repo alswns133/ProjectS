@@ -8,8 +8,9 @@ namespace ProjectS.Items
 {
     /// <summary>
     /// 새 장비 드랍 시 인스턴스별 주 스탯·옵션을 랜덤으로 굴려 <see cref="EquipmentInstance"/>를 만든다.
-    /// 주 스탯은 MainStatBase에, 옵션은 <see cref="ItemOptionData.GetBaseValue"/>에 드랍 랜덤(0.95~1.05)을 곱한다.
-    /// 옵션 종류는 아이템 등급에 해당하는 옵션 풀에서 중복 없이 <see cref="EquipmentData.OptionCount"/>개를 뽑는다.
+    /// 주 스탯은 MainStatBase에 드랍 랜덤(0.95~1.05)을 곱한다.
+    /// 옵션 종류는 아이템 등급에 해당하는 옵션 풀에서 중복 없이 <see cref="EquipmentData.OptionCount"/>개를 뽑고,
+    /// 값은 그 행의 후보 칸 중 하나를 뽑는다(<see cref="ItemOptionData.GetRollValue"/>, 레벨 무관·배율 없음).
     /// (세이브 복원은 롤하지 않고 저장된 값으로 EquipmentInstance 생성자를 직접 부른다.)
     /// </summary>
     public static class ItemOptionRoller
@@ -54,7 +55,7 @@ namespace ProjectS.Items
             for (int i = 0; i < take; i++)
             {
                 ItemOptionData od = pool[i];
-                float value = od.GetBaseValue(item.Level);
+                float value = od.GetRollValue();
                 result.Add(new ItemOption(od.OptionType, value, od.IsPercent, od.Label));
             }
             return result;

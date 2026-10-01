@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using ProjectS.Managers;
@@ -168,12 +168,11 @@ namespace ProjectS.UI
             RaidFailFlow.ReportDown(true);
         }
 
-        // 닫힐 때(부활/마을 복귀 모두) 커서를 다시 잠가 플레이 조작으로 복귀시킨다.
-        // 진행 중이던 카운트다운도 함께 내린다 — 남겨 두면 다음에 열릴 때 이전 타이머가 이어서 돈다.
+        // 닫힐 때 진행 중이던 카운트다운을 내린다 — 남겨 두면 다음에 열릴 때 이전 타이머가 이어서 돈다.
+        // (커서 재잠금은 UIManager.ClosePopup이 맡는다. 다른 팝업이 떠 있으면 잠그지 않아야 해서 여기서 하지 않는다.)
         protected override void OnHide()
         {
             pending = Pending.None;
-            SetCursorFree(false);
         }
 
         private void Update()
@@ -236,7 +235,7 @@ namespace ProjectS.UI
             }
         }
 
-        // 죽은 자리에서 부활. 팝업을 먼저 닫아 커서를 원복(OnHide)한 뒤 살린다.
+        // 죽은 자리에서 부활. 팝업을 먼저 닫아 커서를 원복(UIManager.ClosePopup)한 뒤 살린다.
         // 반대 순서면 살아난 첫 프레임에 커서가 아직 풀려 있어 시점이 튄다.
         private void ReviveNow()
         {

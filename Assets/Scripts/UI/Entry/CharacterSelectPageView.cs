@@ -21,17 +21,14 @@ namespace ProjectS.UI
         [Header("슬롯 (씬 고정 6칸)")]
         [SerializeField] private CharacterSlotView[] slots;
 
+        // 게임 종료 버튼은 여기서 참조하지 않는다 — 버튼에 붙은 QuitGameButton이 확인·저장·종료를 전담한다.
         [Header("하단 바")]
-        [SerializeField] private Button quitButton;
         [SerializeField] private Button optionButton;
         [SerializeField] private TMP_Text versionText;
         [SerializeField] private Button logoutButton;
 
         /// <summary>슬롯 카드 목록. 인덱스가 곧 슬롯 번호다.</summary>
         public IReadOnlyList<CharacterSlotView> Slots => slots;
-
-        /// <summary>게임 종료 버튼.</summary>
-        public Button QuitButton => quitButton;
 
         /// <summary>환경설정 버튼.</summary>
         public Button OptionButton => optionButton;

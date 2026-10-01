@@ -170,7 +170,6 @@ namespace ProjectS.UI
 
         private void OnEnable()
         {
-            selectPage.QuitButton.onClick.AddListener(HandleQuit);
             if (selectPage.LogoutButton != null) selectPage.LogoutButton.onClick.AddListener(HandleLogoutRequested);
 
             foreach (CharacterSlotView slot in selectPage.Slots)
@@ -197,7 +196,6 @@ namespace ProjectS.UI
 
         private void OnDisable()
         {
-            selectPage.QuitButton.onClick.RemoveListener(HandleQuit);
             if (selectPage.LogoutButton != null) selectPage.LogoutButton.onClick.RemoveListener(HandleLogoutRequested);
 
             foreach (CharacterSlotView slot in selectPage.Slots)
@@ -587,15 +585,6 @@ namespace ProjectS.UI
             GameSession.Clear();
 
             SceneManager.LoadSceneAsync(loginSceneName);
-        }
-
-        private void HandleQuit()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            Application.Quit();
-#endif
         }
 
         private static string TypeName(int characterType)
