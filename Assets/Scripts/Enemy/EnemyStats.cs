@@ -84,6 +84,16 @@ namespace ProjectS.Enemies
         /// <summary>스폰한 쪽이 지정한 던전 ID. 0이면 미지정. 다음 페이즈 보스에 같은 값을 넘길 때 쓴다.</summary>
         public int DungeonIdOverride => dungeonIdOverride;
 
+        /// <summary>
+        /// 이 몬스터의 난이도(1=노말 · 2=하드 · 3=매니악, 레이드는 9). 몬스터 ID의 둘째 자리에서 읽는다.
+        /// </summary>
+        /// <remarks>
+        /// ★ <see cref="IsStatsReady"/> 이후에만 믿을 수 있다. 그 전에는 프리팹의 base ID(노말)라 항상 1이 나온다.
+        /// 테이블 행(<c>MonsterStatTable.Difficulty</c>) 대신 ID에서 읽는 이유: 행이 없어 인스펙터 폴백을 쓰는 경우에도
+        /// 스탯 조회·킬 집계와 <b>같은 ID</b>를 기준으로 삼아, 외형 난이도와 스탯 난이도가 갈리지 않게 하기 위함이다.
+        /// </remarks>
+        public int Difficulty => ProjectS.Scenes.DungeonRouter.DifficultyOf(monsterId / 100);
+
         /// <summary>HP가 0 이하인지(<see cref="ProjectS.Core.IDamageable"/>).</summary>
         public bool IsDead => currentHp <= 0;
 
