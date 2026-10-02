@@ -18,8 +18,11 @@ namespace ProjectS.UI.Framework
     ///  - 공통(장비·소모품 모두): 이름 · 아이콘 · 등급 · 설명 · 판매가.
     ///  - 장비 전용 섹션: 직업/요구레벨(equipMeta) · 주스탯(mainStat).
     ///  - 소모품 전용 섹션: 효과(consumable, 회복량/쿨다운).
-    /// 스샷에 있으나 아직 데이터가 없는 항목(귀속·세트효과·옵션 실제값)은 이번엔 배제한다
-    /// (인스턴스 옵션 롤·세트 데이터가 생기면 섹션을 추가한다).
+    /// 스샷에 있으나 아직 데이터가 없는 항목(귀속·세트효과)은 이번엔 배제한다(세트 데이터가 생기면 섹션을 추가한다).
+    ///
+    /// 진입점은 셋이다: 보유 장비(<see cref="ShowEquipment"/>), 보유 스택(<see cref="ShowStack"/>),
+    /// 아직 받지 않은 아이템 정의(<see cref="ShowDefinition"/> — 상점 구입 목록·퀘스트 보상 미리보기).
+    /// 정의는 롤 전이라 주 스탯은 범위, 옵션은 개수로만 보여준다.
     ///
     /// 위치 규칙: 커서 지점에 <b>딱 붙되</b>, 커서가 화면 4구역 중 어디에 있느냐에 따라 화면 중앙 쪽으로 펼친다
     /// (가까운 화면 가장자리 반대로 → 화면 밖으로 잘리지 않게). 한 번 뜨면 그 자리에 고정(마우스를 따라가지 않음).
@@ -131,7 +134,40 @@ namespace ProjectS.UI.Framework
 
             // 장비는 같은 부위 착용 중인 아이템을 옆에 나란히 띄워 비교하게 한다.
             // (비교 패널 자신은 isComparePanel이라 여기서 또 비교를 띄우지 않아 재귀가 없다.)
-            if (!isComparePanel) UpdateCompare(equip);
+            if (!isComparePanel) UpdateCompare(equip.Equipment, equip);
+        }
+
+        /// <summary>
+        /// 인스턴스가 없는 아이템 정의만으로 정보를 띄운다. 상점 구입 목록·퀘스트 보상 미리보기처럼
+        /// "아직 받지 않은 아이템"을 보여줄 때 쓴다. 장비는 롤 전이라 주 스탯은 범위로, 옵션은 개수로만 보여주고,
+        /// 장비가 아니면(소비품·재료) <see cref="ShowStack"/>과 같은 화면이 된다.
+        /// </summary>
+        /// <param name="item">표시할 아이템 행</param>
+        /// <param name="screenPos">커서 스크린 좌표(PointerEventData.position)</param>
+        /// <param name="owner">툴팁을 띄운 슬롯. 그 슬롯이 비활성될 때만 닫히게 한다</param>
+        public void ShowDefinition(ItemData item, Vector2 screenPos, Component owner = null)
+        {
+            if (item == null) return;
+            if (DragSuppressed) return;
+
+            JsonManager json = JsonManager.Instance;
+            EquipmentData equip = json != null ? json.Get<EquipmentData>(item.Index) : null;
+
+            // 장비가 아니면 스택 화면을 그대로 쓴다. 소비품 행이 있으면 회복/쿨다운까지 뜨고, 재료는 null이라 효과 섹션이 꺼진다.
+            if (equip == null)
+            {
+                ConsumableData consumable = json != null ? json.Get<ConsumableData>(item.Index) : null;
+                ShowStack(new ItemStack(item, consumable), screenPos, owner);
+                return;
+            }
+
+            this.owner = owner;
+
+            FillEquipmentPreview(item, equip);
+            ShowAt(screenPos);
+
+            // 상점에서 가장 쓸모 있는 정보라 미리보기에도 착용 중 장비 비교를 띄운다(비교할 인스턴스는 없으므로 null).
+            if (!isComparePanel) UpdateCompare(equip, null);
         }
 
         // 장비 내용을 프레임에 채운다(위치는 잡지 않음). 메인 툴팁과 비교 패널이 공용으로 쓴다.
@@ -142,22 +178,10 @@ namespace ProjectS.UI.Framework
             ItemData item = equip.Item;
             EquipmentData e = equip.Equipment;
 
-            FillCommon(item);
-
-            // 장비 섹션 ON, 소모품 섹션 OFF.
-            SetActiveSafe(equipMetaSection, true);
-            SetActiveSafe(mainStatSection, e != null);
-            SetActiveSafe(consumableSection, false);
-
-            // 장비는 회복 효과가 없다. effectText가 소모품 섹션 밖에 배치돼 있어도 확실히 끈다
-            // (섹션 토글만 믿으면 프리팹 배치에 따라 "회복: 0 (즉시)"가 장비 툴팁에 그대로 남는다).
-            SetActiveSafe(effectText != null ? effectText.gameObject : null, false);
+            FillEquipmentFrame(item, e);
 
             if (e != null)
             {
-                if (classText != null) classText.text = ClassLabel(e.EquipSlot, e.WeaponType);
-                if (reqLevelText != null) reqLevelText.text = $"요구 레벨 {item.Level}";
-
                 // 롤값(+0 기준)이 아니라 강화 보너스까지 반영한 실제 주 스탯을 보여준다
                 // (전투 스탯·강화창과 같은 EquipmentStatCalculator 경로 — 강화하면 이 값이 오른다).
                 if (mainStatText != null) mainStatText.text = $"{MainStatLabel(e.MainStatType)} {EquipmentStatCalculator.MainStat(equip)}";
@@ -173,6 +197,46 @@ namespace ProjectS.UI.Framework
 
             FillOptions(equip.Options);
             FillChain(equip);
+        }
+
+        // 롤 전 장비(정의)를 프레임에 채운다. 실제 장비와 프레임은 같고, 롤에 따라 달라지는 칸만 미리보기 표기로 바꾼다.
+        // 강화 수치는 FillCommon이 이미 꺼 두므로(미리보기는 항상 +0) 여기서 다시 켜지 않는다.
+        private void FillEquipmentPreview(ItemData item, EquipmentData e)
+        {
+            EnsureInit();
+
+            FillEquipmentFrame(item, e);
+
+            // 주 스탯은 드랍 시 랜덤이라 한 값을 찍으면 "산 것과 다르다"는 오해가 생긴다. 나올 수 있는 범위를 보여준다.
+            if (mainStatText != null)
+            {
+                ItemOptionRoller.MainStatRange(e, out int min, out int max);
+                string label = MainStatLabel(e.MainStatType);
+                mainStatText.text = min == max ? $"{label} {min}" : $"{label} {min} ~ {max}";
+            }
+
+            FillOptionPreview(e.OptionCount);
+            FillChainPreview(item.Index);
+        }
+
+        // 실제 장비와 미리보기가 공유하는 장비 프레임: 공통 칸 + 장비 섹션 ON/소모품 섹션 OFF + 직업·요구 레벨.
+        private void FillEquipmentFrame(ItemData item, EquipmentData e)
+        {
+            FillCommon(item);
+
+            // 장비 섹션 ON, 소모품 섹션 OFF.
+            SetActiveSafe(equipMetaSection, true);
+            SetActiveSafe(mainStatSection, e != null);
+            SetActiveSafe(consumableSection, false);
+
+            // 장비는 회복 효과가 없다. effectText가 소모품 섹션 밖에 배치돼 있어도 확실히 끈다
+            // (섹션 토글만 믿으면 프리팹 배치에 따라 "회복: 0 (즉시)"가 장비 툴팁에 그대로 남는다).
+            SetActiveSafe(effectText != null ? effectText.gameObject : null, false);
+
+            if (e == null) return;
+
+            if (classText != null) classText.text = ClassLabel(e.EquipSlot, e.WeaponType);
+            if (reqLevelText != null) reqLevelText.text = $"요구 레벨 {item.Level}";
         }
 
         /// <summary>스택형 아이템(소비품·재료) 정보를 커서 지점에 띄운다.</summary>
@@ -298,6 +362,32 @@ namespace ProjectS.UI.Framework
                 : $"{opt.Label} +{Mathf.RoundToInt(opt.Value)}";
         }
 
+        // 롤 전 장비의 옵션 칸. 어떤 옵션이 붙을지는 드랍 때 정해지므로 개수만 보여준다.
+        // 개수는 등급 상한(ItemGradeData.MaxOptionCount)이 아니라 아이템별 실제 개수(EquipmentData.OptionCount)다 —
+        // 상한을 쓰면 "옵션 없는 Lv30 유물 무기" 같은 예외가 옵션 4개로 거짓 표기된다(롤러도 OptionCount만큼 뽑는다).
+        // 실제 장비(FillOptions)와 달리 0개여도 섹션을 켜서 "옵션 없음"을 보여준다 — 사기 전에 알아야 하는 정보라서다.
+        private void FillOptionPreview(int optionCount)
+        {
+            SetActiveSafe(optionSection, true);
+            if (optionText == null) return;
+
+            optionText.text = optionCount > 0 ? $"랜덤 옵션 {optionCount}개" : "옵션 없음";
+        }
+
+        // 롤 전 장비의 온체인 칸. 토큰 ID·소유자 주소는 롤값으로 만드는데(FillChain) 미리보기엔 롤값이 없으므로,
+        // 대상 여부(레이드 보상인지)만 알리고 값은 획득 후 보이게 한다.
+        private void FillChainPreview(int itemId)
+        {
+            bool show = chainSection != null && IsRaidReward(itemId);
+            SetActiveSafe(chainSection, show);
+            if (!show || chainText == null) return;
+
+            chainText.text =
+                "온체인 아이템 (보기 전용)\n" +
+                "획득하면 토큰 ID가 부여됩니다\n" +
+                $"네트워크  {chainNetwork}";
+        }
+
         // ── 블록체인 표시 (보기 전용 목업) ─────────────────────────────────────
         // 실제 지갑·RPC·컨트랙트 호출은 전혀 없다. 시연용으로 "이 장비가 온체인 자산이라면 이렇게 보인다"만 보여준다.
         // 토큰 ID·소유자 주소는 인스턴스의 롤값(아이템 Index·주스탯·옵션)에서 결정적으로 만든다 —
@@ -421,12 +511,13 @@ namespace ProjectS.UI.Framework
         }
 
         // 호버한 장비와 같은 부위에 착용 중인 장비가 있으면 비교 패널에 띄운다. 같은 인스턴스(장비창에서 착용품 hover)면
-        // 비교할 게 없어 닫는다. 비교 대상은 인벤/장비창 어디서 hover하든 항상 "지금 그 부위에 착용 중인 것"이다.
-        private void UpdateCompare(EquipmentInstance hovered)
+        // 비교할 게 없어 닫는다. 비교 대상은 인벤/장비창/상점 어디서 hover하든 항상 "지금 그 부위에 착용 중인 것"이다.
+        // 부위는 장비 행(e)으로 정하고, hovered는 "같은 인스턴스인가" 판정에만 쓴다 — 미리보기(상점·보상)는
+        // 인스턴스가 없어 null을 넘기며, 그때는 착용품이 있으면 늘 비교를 띄운다.
+        private void UpdateCompare(EquipmentData e, EquipmentInstance hovered)
         {
             if (comparePanel == null) return;
 
-            EquipmentData e = hovered.Equipment;
             EquipmentInstance equipped = (e != null && InventoryManager.Instance != null)
                 ? InventoryManager.Instance.GetEquipped(e.EquipSlot)
                 : null;

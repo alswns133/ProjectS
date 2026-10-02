@@ -99,6 +99,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1431891964811748687}
   - component: {fileID: 7666510343847116869}
+  - component: {fileID: 8584567878724194362}
+  - component: {fileID: 2319322242331308507}
   m_Layer: 5
   m_Name: QuestRewardSlot
   m_TagString: Untagged
@@ -135,6 +137,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2887265772418536267}
   m_CullTransparentMesh: 1
+--- !u!114 &8584567878724194362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2887265772418536267}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c1be9af1563e434cb2c405dd3103355, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.NpcRewardSlot
+  icon: {fileID: 7232959866542306585}
+  nameText: {fileID: 0}
+  amountText: {fileID: 2055564376151288891}
+--- !u!114 &2319322242331308507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2887265772418536267}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d03eaed424a44fd45bc21c21d03cdb16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.ItemSlotGradeView
+  style: {fileID: 11400000, guid: 39c53a089fdb7934c873910cf93a9342, type: 2}
+  frame: {fileID: 3022021052017466974}
+  innerLight: {fileID: 8074369610688196887}
+  special: {fileID: 848076999004726238}
 --- !u!1 &4867061805880499587
 GameObject:
   m_ObjectHideFlags: 0
@@ -371,12 +404,10 @@ GameObject:
   m_Component:
   - component: {fileID: 4929844526211548833}
   - component: {fileID: 5617401583072124393}
-  - component: {fileID: 3016401193883908147}
-  - component: {fileID: 1780243111436854023}
-  - component: {fileID: 3879401723763360761}
-  - component: {fileID: 7561800180323672241}
+  - component: {fileID: 999950517237875515}
+  - component: {fileID: 2510920842590527316}
   m_Layer: 5
-  m_Name: QuestRewardSlot
+  m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -414,7 +445,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5951285814248350849}
   m_CullTransparentMesh: 1
---- !u!114 &3016401193883908147
+--- !u!114 &999950517237875515
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -444,7 +475,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 4.9
---- !u!114 &1780243111436854023
+--- !u!114 &2510920842590527316
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -457,37 +488,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Mask
   m_ShowMaskGraphic: 1
---- !u!114 &3879401723763360761
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5951285814248350849}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c1be9af1563e434cb2c405dd3103355, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.NpcRewardSlot
-  icon: {fileID: 0}
-  nameText: {fileID: 0}
-  amountText: {fileID: 0}
---- !u!114 &7561800180323672241
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5951285814248350849}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d03eaed424a44fd45bc21c21d03cdb16, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.ItemSlotGradeView
-  style: {fileID: 11400000, guid: 39c53a089fdb7934c873910cf93a9342, type: 2}
-  frame: {fileID: 0}
-  innerLight: {fileID: 0}
-  special: {fileID: 0}
 --- !u!1 &8083460984934853004
 GameObject:
   m_ObjectHideFlags: 0
