@@ -26,5 +26,13 @@
 
         /// <summary>메시지 본문.</summary>
         public string text;
+
+        /// <summary>
+        /// 내가 보낸 메시지인지(닉네임 색 구분용). <b>네트워크로 보내지 않는 로컬 값</b>이다 —
+        /// 받은 클라의 ChatManager가 수신 시점에 채운다(Rpc가 보낸 사람 오브젝트 위에서 실행되므로 isLocalPlayer로 판정).
+        /// 서버가 고른 오브젝트로 판정하니 위조할 수 없고, 이름 비교처럼 동명·대체 이름("Player")에 흔들리지 않는다.
+        /// NonSerialized라 Mirror Weaver가 직렬화에서 뺀다(전송량 0).
+        /// </summary>
+        [System.NonSerialized] public bool isMine;
     }
 }
