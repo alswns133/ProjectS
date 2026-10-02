@@ -1,7 +1,8 @@
+﻿using ProjectS.Data;
+using ProjectS.Managers;
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
-using ProjectS.Data;
 
 namespace ProjectS.UI
 {

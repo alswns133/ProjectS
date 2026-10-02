@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -112,7 +112,6 @@ namespace ProjectS.UI
 
                 // 카드는 풀에서 재사용되므로 매 Bind마다 색을 다시 칠한다(안 하면 이전 카드의 등급색이 남는다).
                 defaultNameColor ??= nameText.color;
-                nameText.color = ItemGradeStyle.ColorOf(item, defaultNameColor.Value);
             }
             if (infoText != null) infoText.text = item != null ? item.Description : string.Empty;
 

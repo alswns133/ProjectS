@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -34,7 +34,6 @@ namespace ProjectS.UI
             if (nameText != null && equip != null && equip.Item != null)
             {
                 nameText.text = $"{equip.Item.Name} +{equip.EnhanceStep}";
-                nameText.color = ItemGradeStyle.ColorOf(equip.Item, nameText.color);
             }
 
             if (button != null)
