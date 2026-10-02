@@ -29,6 +29,20 @@ namespace ProjectS.Items
             return new EquipmentInstance(item, equip, 0, mainStat, options);
         }
 
+        /// <summary>
+        /// 이 장비가 드랍될 때 나올 수 있는 주 스탯 범위(+0강 기준)를 돌려준다. 상점·보상 미리보기처럼
+        /// 아직 롤되지 않은 장비를 보여줄 때 쓴다. 범위 계산을 롤러 안에 두는 이유는, 드랍 배율(MinRoll/MaxRoll)을
+        /// 바꿨을 때 미리보기 표기가 실제 롤과 어긋나지 않게 규칙을 한 곳에만 두기 위함이다.
+        /// </summary>
+        /// <param name="equip">장비 고유 행</param>
+        /// <param name="min">나올 수 있는 최솟값</param>
+        /// <param name="max">나올 수 있는 최댓값</param>
+        public static void MainStatRange(EquipmentData equip, out int min, out int max)
+        {
+            min = Mathf.RoundToInt(equip.MainStatBase * MinRoll);
+            max = Mathf.RoundToInt(equip.MainStatBase * MaxRoll);
+        }
+
         // 등급 풀에서 중복 없이 OptionCount개를 뽑아 값까지 롤한다.
         private static List<ItemOption> RollOptions(ItemData item, EquipmentData equip)
         {

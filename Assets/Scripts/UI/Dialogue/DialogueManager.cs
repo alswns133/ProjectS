@@ -483,6 +483,9 @@ namespace ProjectS.UI
                     QuestRewardData reward = rewardPreview[i];
                     rewardSlots[i].Bind(RewardName(reward), RewardAmount(reward), RewardIcon(reward.Type));
 
+                    // 아이템 보상이면 등급 표시를 입히고 hover 정보창 대상으로 넘긴다(골드·경험치·스킬은 null → 표시 없음).
+                    rewardSlots[i].SetGradeItem(ResolveRewardItem(reward));
+
                     // 어드레서블 아이콘이 있는 보상(아이템·직업무기·스킬 해금)은 실제 아이콘을 로드해
                     // 기본(정적) 아이콘을 덮어쓴다. 주소가 없는 골드·경험치는 no-op.
                     LoadRewardIcon(ResolveRewardIconAddress(reward), rewardSlots[i]);
@@ -556,6 +559,16 @@ namespace ProjectS.UI
             }
 
             return null;
+        }
+
+        // 보상이 아이템(아이템·직업무기)이면 실제로 받게 될 아이템 행을, 아니면(골드·경험치·스킬) null을 돌려준다.
+        // 직업무기는 ResolveRewardItemId로 현재 직업 무기로 바꾼 뒤 조회해, 정보창도 실제 받을 무기를 보여주게 한다.
+        private static ItemData ResolveRewardItem(QuestRewardData reward)
+        {
+            if (reward.Type != QuestRewardType.Item && reward.Type != QuestRewardType.ClassWeapon) return null;
+
+            JsonManager json = JsonManager.Instance;
+            return json != null ? json.Get<ItemData>(ResolveRewardItemId(reward)) : null;
         }
 
         // 아이템 아이콘/이름 조회에 쓸 실제 아이템 ID. 직업무기는 TargetId가 검 ID로 저작돼 있어,

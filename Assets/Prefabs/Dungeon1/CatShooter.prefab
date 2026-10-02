@@ -976,6 +976,7 @@ GameObject:
   - component: {fileID: 6984088890891120930}
   - component: {fileID: 4478511139837194643}
   - component: {fileID: 1770678322595461979}
+  - component: {fileID: 5361183124807718291}
   m_Layer: 6
   m_Name: CatShooter
   m_TagString: Untagged
@@ -1407,6 +1408,35 @@ MonoBehaviour:
   offset: {x: 0, y: 0, z: 0}
   gizmoColor: {r: 1, g: 0.3, b: 0.1, a: 1}
   gizmoRadius: 0.12
+--- !u!114 &5361183124807718291
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2843590090099249915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e467ae8880ef09d4f843f1b17884c68c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyDifficultyMaterials
+  slots:
+  - targetRenderer: {fileID: 6761498816292450145}
+    materialIndex: 0
+    hard: {fileID: 2100000, guid: 51e4b2f6fa9cae3479eb728d9cf867d6, type: 2}
+    maniac: {fileID: 2100000, guid: 875fa9885a95dae45af434ec1d95655b, type: 2}
+  - targetRenderer: {fileID: 7926308669217713584}
+    materialIndex: 0
+    hard: {fileID: 2100000, guid: 51e4b2f6fa9cae3479eb728d9cf867d6, type: 2}
+    maniac: {fileID: 2100000, guid: 875fa9885a95dae45af434ec1d95655b, type: 2}
+  - targetRenderer: {fileID: 7926308669217713584}
+    materialIndex: 1
+    hard: {fileID: 2100000, guid: 51e4b2f6fa9cae3479eb728d9cf867d6, type: 2}
+    maniac: {fileID: 2100000, guid: 875fa9885a95dae45af434ec1d95655b, type: 2}
+  - targetRenderer: {fileID: 2215732762278111427}
+    materialIndex: 1
+    hard: {fileID: 2100000, guid: 51e4b2f6fa9cae3479eb728d9cf867d6, type: 2}
+    maniac: {fileID: 2100000, guid: 875fa9885a95dae45af434ec1d95655b, type: 2}
 --- !u!1 &2921730447785920778
 GameObject:
   m_ObjectHideFlags: 0
@@ -3148,7 +3178,7 @@ PrefabInstance:
     - target: {fileID: -7121139102431027685, guid: 696fd43e1038d0345b69df55b7f51ebd, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 0cb44352831fc1a439a0ecff245686a4, type: 2}
+      objectReference: {fileID: 2100000, guid: 7c3f1a5b9d2e4f6a8b0c1d2e3f4a5b66, type: 2}
     - target: {fileID: -4544760733400451397, guid: 696fd43e1038d0345b69df55b7f51ebd, type: 3}
       propertyPath: m_Layer
       value: 6
@@ -3498,6 +3528,11 @@ MonoBehaviour:
   hitFxFadeOutDuration: 0.1
   hitFxColor: {r: 1, g: 1, b: 1, a: 1}
   hitFxRadius: 0.5
+--- !u!137 &2215732762278111427 stripped
+SkinnedMeshRenderer:
+  m_CorrespondingSourceObject: {fileID: -7121139102431027685, guid: 696fd43e1038d0345b69df55b7f51ebd, type: 3}
+  m_PrefabInstance: {fileID: 257686501741852376}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2350266504890361541
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3748,11 +3783,11 @@ PrefabInstance:
     - target: {fileID: -7511558181221131132, guid: e34b90debcdfb44498ced20eea86382d, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 7c3f1a5b9d2e4f6a8b0c1d2e3f4a5b67, type: 2}
+      objectReference: {fileID: 2100000, guid: 7c3f1a5b9d2e4f6a8b0c1d2e3f4a5b66, type: 2}
     - target: {fileID: -7511558181221131132, guid: e34b90debcdfb44498ced20eea86382d, type: 3}
       propertyPath: 'm_Materials.Array.data[1]'
       value: 
-      objectReference: {fileID: 2100000, guid: 7c3f1a5b9d2e4f6a8b0c1d2e3f4a5b67, type: 2}
+      objectReference: {fileID: 2100000, guid: 7c3f1a5b9d2e4f6a8b0c1d2e3f4a5b66, type: 2}
     - target: {fileID: 919132149155446097, guid: e34b90debcdfb44498ced20eea86382d, type: 3}
       propertyPath: m_Name
       value: SM_Chr_Attach_Helmet_Cat_Female_01
@@ -3773,6 +3808,11 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 6943064712566911172}
   m_SourcePrefab: {fileID: 100100000, guid: e34b90debcdfb44498ced20eea86382d, type: 3}
+--- !u!23 &7926308669217713584 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: -7511558181221131132, guid: e34b90debcdfb44498ced20eea86382d, type: 3}
+  m_PrefabInstance: {fileID: 8808603388224778548}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &8574602784806898789 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: e34b90debcdfb44498ced20eea86382d, type: 3}
