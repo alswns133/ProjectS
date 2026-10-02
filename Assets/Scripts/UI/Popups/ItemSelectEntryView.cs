@@ -34,7 +34,7 @@ namespace ProjectS.UI
             if (nameText != null && equip != null && equip.Item != null)
             {
                 nameText.text = $"{equip.Item.Name} +{equip.EnhanceStep}";
-                nameText.color = ItemGradeStyle.ColorOf(equip.Item, nameText.color);
+                nameText.color = ItemGradeColors.ColorOf(equip.Item, nameText.color);
             }
 
             if (button != null)
