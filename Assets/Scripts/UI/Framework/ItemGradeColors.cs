@@ -10,7 +10,7 @@ namespace ProjectS.UI.Framework
     /// 색 4개를 코드·인스펙터에 복제하는 곳이 생겨 톤을 바꿀 때 한 곳씩 빠뜨리게 된다. 등급으로 색이 갈리는
     /// UI(이름 텍스트, 이후 테두리 등)는 이 클래스를 거친다.
     /// </summary>
-    public static class ItemGradeStyle
+    public static class ItemGradeColors
     {
         /// <summary>
         /// 등급 행을 조회한다. 로딩 전(IsReady 이전)이거나 행이 없으면 null을 돌려주고, 호출측이 폴백을 정한다.

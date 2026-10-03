@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -20,11 +20,8 @@ namespace ProjectS.UI
     /// 수량(ItemCounter)은 카드가 스스로 관리한다 — 호스트는 Bind에서 상한(maxCount)만 알려주고,
     /// 거래 시점에 <see cref="Count"/>를 읽어 간다. 상한이 1이면 카운터는 통째로 숨는다(장비 등).
     /// 수량은 화살표(±1) 외에 입력칸(countInput)에 숫자를 직접 쳐서 정할 수도 있다(1 ~ MaxCount로 잘림).
-    ///
-    /// 아이템 정보창(<see cref="ItemTooltip"/>)은 카드 본체가 hover로 띄운다. 카드 안 슬롯은 조작을 막으려
-    /// 레이캐스트를 끊어 두어(<see cref="MakeSlotDisplayOnly"/>) 슬롯 자신의 툴팁이 뜨지 않기 때문이다.
     /// </summary>
-    public class ShopItemCard : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
+    public class ShopItemCard : MonoBehaviour, IPointerClickHandler
     {
         [Tooltip("카드 자체 아이콘. 아이템 슬롯(itemSlot)이 있으면 슬롯이 아이콘을 그리므로 쓰지 않는다.")]
         [SerializeField] private Image icon;
@@ -109,16 +106,13 @@ namespace ProjectS.UI
             MaxCount = Mathf.Max(1, maxCount);
             Count = 1;   // 재사용된 카드에 옛 수량이 남지 않게 항상 1로 되돌린다
 
-            // 구입·판매 후 목록이 다시 그려지면 카드가 다른 아이템으로 재바인딩된다. 이 카드가 띄운 정보창이
-            // 남아 있으면 옛 아이템 정보가 계속 보이므로 닫는다(다른 카드가 띄운 정보창은 건드리지 않는다).
-            ItemTooltip.Instance?.Hide(this);
-
             if (nameText != null)
             {
                 nameText.text = item != null ? item.Name : string.Empty;
 
                 // 카드는 풀에서 재사용되므로 매 Bind마다 색을 다시 칠한다(안 하면 이전 카드의 등급색이 남는다).
                 defaultNameColor ??= nameText.color;
+                nameText.color = ItemGradeColors.ColorOf(item, defaultNameColor.Value);
             }
             if (infoText != null) infoText.text = item != null ? item.Description : string.Empty;
 
@@ -181,35 +175,6 @@ namespace ProjectS.UI
 
         /// <summary>카드를 클릭하면 호스트에 자기를 알린다(선택 교체는 호스트가 처리).</summary>
         public void OnPointerClick(PointerEventData eventData) => onClick?.Invoke(this);
-
-        /// <summary>
-        /// 마우스를 올리면 거래 대상의 정보창을 띄운다. 판매 목록은 실제 보유품이라 롤된 옵션·+N까지 그대로,
-        /// 구입 목록은 아직 롤 전이라 정의 미리보기(주 스탯 범위·옵션 개수)로 보여준다.
-        /// </summary>
-        public void OnPointerEnter(PointerEventData eventData)
-        {
-            if (currentItem == null || ItemTooltip.Instance == null) return;
-
-            // owner로 this를 넘겨, 상점이 닫혀 카드가 비활성될 때(OnDisable)만 이 정보창이 닫히게 한다.
-            switch (Payload)
-            {
-                case EquipmentInstance equipment:
-                    ItemTooltip.Instance.ShowEquipment(equipment, eventData.position, this);
-                    break;
-                case ItemStack stack:
-                    ItemTooltip.Instance.ShowStack(stack, eventData.position, this);
-                    break;
-                default:
-                    ItemTooltip.Instance.ShowDefinition(currentItem, eventData.position, this);
-                    break;
-            }
-        }
-
-        /// <summary>마우스가 벗어나면 정보창을 숨긴다.</summary>
-        public void OnPointerExit(PointerEventData eventData) => ItemTooltip.Instance?.Hide();
-
-        // 상점이 닫혀 카드가 꺼지면 이 카드가 띄운 정보창을 닫는다(마우스가 안 움직여 Exit가 안 와도).
-        private void OnDisable() => ItemTooltip.Instance?.Hide(this);
 
         // 화살표 한 번 = ±1. 수량을 만지면 그 카드가 선택되게 호스트에도 알린다
         // (화살표는 자기 Button이 클릭을 먹어 카드 본체의 OnPointerClick까지 올라오지 않는다).

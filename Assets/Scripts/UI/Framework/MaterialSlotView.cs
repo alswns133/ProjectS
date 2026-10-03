@@ -56,7 +56,7 @@ namespace ProjectS.UI.Framework
                 // 이름은 문자열로 받지만 itemId로 등급을 찾을 수 있다. 못 찾으면(itemId 0 등) 프리팹 기본색.
                 ItemData item = itemId > 0 && JsonManager.Instance != null ? JsonManager.Instance.Get<ItemData>(itemId) : null;
                 defaultNameColor ??= nameText.color;
-                nameText.color = ItemGradeStyle.ColorOf(item, defaultNameColor.Value);
+                nameText.color = ItemGradeColors.ColorOf(item, defaultNameColor.Value);
             }
 
             if (countText != null)

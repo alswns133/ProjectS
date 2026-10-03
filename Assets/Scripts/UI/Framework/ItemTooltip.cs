@@ -303,7 +303,7 @@ namespace ProjectS.UI.Framework
             currentItem = item;
 
             // 등급 표기와 색은 같은 행에서 나오므로 조회는 한 번만 한다.
-            ItemGradeData gradeRow = ItemGradeStyle.Row(item.Grade);
+            ItemGradeData gradeRow = ItemGradeColors.Row(item.Grade);
             Color gradeColor = gradeRow != null ? gradeRow.DisplayColor : Color.white;
 
             if (nameText != null)
