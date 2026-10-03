@@ -45,6 +45,15 @@ namespace ProjectS.Players
                 ResetHitCombo();
         }
 
+        private void OnDisable()
+        {
+            // 씬 이탈로 숨겨지거나(PlayerManager.Hide) 멀티 아바타가 파괴될 때, 콤보를 쌓던 주체가 사라지는 순간 비운다.
+            // 이게 없으면 0 이벤트가 안 나가 HUD에 지난 콤보가 남고(멀티 아바타는 영영), 꺼진 동안 감쇠도 멈춰
+            // 다음 판 첫 타가 지난 콤보에 이어 붙는다. 나가는 경로(던전/레이드 Exit, 호스트 복귀, 아바타 파괴)마다
+            // 리셋을 넣는 대신 여기 한 곳에 둬서, 새 이탈 경로가 생겨도 빠지지 않게 한다.
+            ResetHitCombo();
+        }
+
         /// <summary>
         /// 유효타 1회를 콤보에 더한다. PlayerCombat.TargetHit 구독 지점에서 호출된다.
         /// 광역으로 여러 마리를 맞히면 그만큼 여러 번 호출되어 마리당 +1로 쌓인다(게이지 회복과 동일 규약).
@@ -61,7 +70,7 @@ namespace ProjectS.Players
         }
 
         /// <summary>
-        /// 히트 콤보를 0으로 되돌린다. 시간 초과, 피격(PlayerHitState 진입 등), 사망/씬 전환에서 호출한다.
+        /// 히트 콤보를 0으로 되돌린다. 시간 초과, 피격(PlayerHitState 진입 등), 사망, 컴포넌트 비활성(씬 이탈·아바타 파괴)에서 호출한다.
         /// </summary>
         public void ResetHitCombo()
         {
