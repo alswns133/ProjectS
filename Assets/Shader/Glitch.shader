@@ -4,6 +4,11 @@ Shader "UI/CRT_Glitch"
     {
         _MainTex ("Texture", 2D) = "white" {}
 
+        // 색상 (텍스처에 곱해지는 틴트. 기본 흰색 = 원본 색 그대로)
+        _Color        ("Tint Color",     Color) = (1, 1, 1, 1)
+        // 0 = 곱하기(원본 색조 유지, 파란 텍스처엔 효과 미미), 1 = 원본 밝기만 남기고 색조를 Tint Color로 교체
+        _TintStrength ("Tint Replace",   Range(0, 1))   = 0
+
         // 고스팅
         _GhostOffset  ("Ghost Offset",   Range(0, 0.1)) = 0.03
         _GhostAlpha   ("Ghost Alpha",    Range(0, 1))   = 0.4
@@ -83,6 +88,9 @@ Shader "UI/CRT_Glitch"
             float4    _MainTex_ST;
             float4    _ClipRect;
 
+            fixed4 _Color;
+            float  _TintStrength;
+
             float _GhostOffset;
             float _GhostAlpha;
             float _ScanSpeed;
@@ -143,6 +151,14 @@ Shader "UI/CRT_Glitch"
                 float2 ghostUV = uv + float2(_GhostOffset, 0.0);
                 fixed4 ghost   = tex2D(_MainTex, ghostUV);
                 col.rgb = lerp(col.rgb, ghost.rgb, _GhostAlpha * col.a);
+
+                // ── 색상 틴트 ─────────────────────────────────
+                // 스캔라인 밝기를 더하기 전에 곱해, 틴트가 글리치 효과 자체를 덮지 않게 한다.
+                // 곱하기만으론 파란 텍스처의 R·G 채널이 0에 가까워 다른 색이 나올 수 없다.
+                // _TintStrength로 텍스처의 최대 채널(밝기)만 남기고 색조를 통째로 교체할 수 있게 한다.
+                fixed3 replaced = max(col.r, max(col.g, col.b)) * _Color.rgb;
+                col.rgb = lerp(col.rgb * _Color.rgb, replaced, _TintStrength);
+                col.a  *= _Color.a;
 
                 // ── 스캔라인 밝기 ─────────────────────────────
                 col.rgb += onScan * 0.15;

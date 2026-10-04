@@ -58,6 +58,16 @@ namespace ProjectS.UI
         [Tooltip("캐릭터 시작 시 로딩 전에 재생할 연출(카메라 회전 + 문 열림). 비우면 바로 로딩한다.")]
         [SerializeField] private CharacterStartTransition startTransition;
 
+        [Header("페이지별 스테이지 카메라 (선택)")]
+        [Tooltip("프리뷰 RT를 찍는 StageCamera. 비우면 페이지가 바뀌어도 카메라를 건드리지 않는다.")]
+        [SerializeField] private Camera stageCamera;
+
+        [Tooltip("캐릭터 선택 페이지의 카메라 포즈. 'Use'를 꺼 두면 씬에 놓인 그대로 둔다.")]
+        [SerializeField] private CameraPose selectPose;
+
+        [Tooltip("캐릭터 생성(클래스 선택 + 이름 입력) 페이지의 카메라 포즈.")]
+        [SerializeField] private CameraPose createPose;
+
         [Header("진입 연출")]
         [Tooltip("Firebase 준비 + 로스터 로드가 끝날 때까지 화면을 덮는 베일. 로그인 씬의 베일과 모양을 맞춘다.")]
         [SerializeField] private EntryVeil veil;
@@ -81,6 +91,18 @@ namespace ProjectS.UI
         [SerializeField] private string connectingMessage = "접속 중...";
         [SerializeField] private string loadingRosterMessage = "캐릭터 정보를 불러오는 중...";
         [SerializeField] private string returningToLoginMessage = "로그인 화면으로 돌아갑니다...";
+
+        /// <summary>페이지 하나에서 StageCamera가 가질 위치·회전·FOV. 로컬 좌표 기준(StageCamera는 리그 자식).</summary>
+        [System.Serializable]
+        private struct CameraPose
+        {
+            [Tooltip("끄면 이 페이지에서는 카메라를 움직이지 않는다(기존 씬이 그대로 동작).")]
+            public bool use;
+
+            public Vector3 localPosition;
+            public Vector3 localEuler;
+            [Range(10f, 120f)] public float fieldOfView;
+        }
 
         // characterType(검사=1/거너=2 …)과 씬에 놓인 프리뷰 모델을 짝짓는다. 클래스가 늘면 항목만 추가.
         [System.Serializable]
@@ -493,7 +515,54 @@ namespace ProjectS.UI
             if (selectPage != null) selectPage.gameObject.SetActive(selectPage.gameObject == page);
             if (classSelectPage != null) classSelectPage.gameObject.SetActive(classSelectPage.gameObject == page);
             if (createPage != null) createPage.gameObject.SetActive(createPage.gameObject == page);
+
+            // 클래스 선택은 생성 흐름의 일부라 이름 입력과 같은 포즈를 쓴다.
+            bool isCreateFlow = page != null &&
+                (page == createPage?.gameObject || page == classSelectPage?.gameObject);
+            bool isSelect = page != null && page == selectPage?.gameObject;
+
+            if (isSelect) ApplyPose(selectPose);
+            else if (isCreateFlow) ApplyPose(createPose);
         }
+
+        // ── 페이지별 카메라 포즈 ───────────────────────────────────────
+
+        // 보간 없이 즉시 맞춘다. 페이지 전환 때 카메라가 미끄러지는 연출을 의도적으로 두지 않는다.
+        private void ApplyPose(CameraPose pose)
+        {
+            if (stageCamera == null || !pose.use) return;
+
+            Transform t = stageCamera.transform;
+            t.localPosition = pose.localPosition;
+            t.localRotation = Quaternion.Euler(pose.localEuler);
+            stageCamera.fieldOfView = pose.fieldOfView;
+        }
+
+#if UNITY_EDITOR
+        // 씬 뷰/인스펙터에서 StageCamera를 원하는 구도로 맞춘 뒤 우클릭 메뉴로 저장한다.
+        [ContextMenu("현재 카메라를 '선택 페이지' 포즈로 저장")]
+        private void CaptureSelectPose() => CapturePose(ref selectPose);
+
+        [ContextMenu("현재 카메라를 '생성 페이지' 포즈로 저장")]
+        private void CaptureCreatePose() => CapturePose(ref createPose);
+
+        private void CapturePose(ref CameraPose pose)
+        {
+            if (stageCamera == null)
+            {
+                Debug.LogWarning("[EntryFlowController] stageCamera가 비어 있어 포즈를 저장할 수 없습니다.", this);
+                return;
+            }
+
+            UnityEditor.Undo.RecordObject(this, "Capture Stage Camera Pose");
+            Transform t = stageCamera.transform;
+            pose.use = true;
+            pose.localPosition = t.localPosition;
+            pose.localEuler = t.localEulerAngles;
+            pose.fieldOfView = stageCamera.fieldOfView;
+            UnityEditor.EditorUtility.SetDirty(this);
+        }
+#endif
 
         // ── 삭제 흐름 (확인 팝업 → 서버 삭제 → 갱신) ─────────────────
 

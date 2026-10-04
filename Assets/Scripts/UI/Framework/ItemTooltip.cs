@@ -354,12 +354,19 @@ namespace ProjectS.UI.Framework
             optionText.text = sb.ToString();
         }
 
+        // 옵션 텍스트 색(#FFC030). 인스펙터 색이 아니라 TMP 리치텍스트로 입히는 이유: 옵션 칸의 기본 글자색은
+        // 프리팹 쪽에 두고, "옵션 줄만" 강조해 "옵션 없음" 같은 안내 문구와 구분하기 위함이다.
+        private const string OptionColorHex = "FFC030";
+
+        private static string ColorizeOption(string text) => $"<color=#{OptionColorHex}>{text}</color>";
+
         // 옵션 한 줄 표기. 퍼센트 옵션 값은 비율(0.05)이라 100을 곱해 "5%"로, 정수 옵션은 반올림해 보여준다.
         private static string FormatOption(ItemOption opt)
         {
-            return opt.IsPercent
+            string line = opt.IsPercent
                 ? $"{opt.Label} +{opt.Value * 100f:0.#}%"
                 : $"{opt.Label} +{Mathf.RoundToInt(opt.Value)}";
+            return ColorizeOption(line);
         }
 
         // 롤 전 장비의 옵션 칸. 어떤 옵션이 붙을지는 드랍 때 정해지므로 개수만 보여준다.
@@ -371,7 +378,7 @@ namespace ProjectS.UI.Framework
             SetActiveSafe(optionSection, true);
             if (optionText == null) return;
 
-            optionText.text = optionCount > 0 ? $"랜덤 옵션 {optionCount}개" : "옵션 없음";
+            optionText.text = optionCount > 0 ? ColorizeOption($"랜덤 옵션 {optionCount}개") : "옵션 없음";
         }
 
         // 롤 전 장비의 온체인 칸. 토큰 ID·소유자 주소는 롤값으로 만드는데(FillChain) 미리보기엔 롤값이 없으므로,
