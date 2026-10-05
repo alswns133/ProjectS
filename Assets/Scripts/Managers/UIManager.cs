@@ -36,6 +36,11 @@ namespace ProjectS.Managers
         [SerializeField] private List<BasePanel> basePanels;
         [SerializeField] private List<BasePopup> basePopups;
 
+        [Header("전환 연출 (선택)")]
+        [Tooltip("화면 전체를 사선으로 덮었다 걷는 와이프(PageWipeView). UIManager 자식으로 두면 씬이 바뀌어도 살아남아 " +
+                 "마을 씬의 오브젝트(던전 입구 등)도 PlayWipe로 쓸 수 있다. 비우면 PlayWipe는 와이프 없이 바로 동작을 실행한다.")]
+        [SerializeField] private PageWipeView pageWipe;
+
         private LoadingPanel loadingPanel;
 
         // 패널은 스택으로 (뒤로가기 처리)
@@ -434,6 +439,20 @@ namespace ProjectS.Managers
 
             Back();
             DevLog.Log("[UIManager] Back");
+        }
+
+        /// <summary>
+        /// 화면을 와이프로 덮고, 완전히 덮인 순간 <paramref name="onCovered"/>를 실행한 뒤 걷어 낸다.
+        /// 팝업 열기·페이지 교체처럼 "뚝 바뀌면 어색한" 변화를 덮인 순간에 하게 하려는 용도다.
+        /// 와이프 오브젝트가 없거나 꺼져 있으면 연출 없이 <paramref name="onCovered"/>를 바로 실행하므로, 호출부는 와이프 유무를 몰라도 된다.
+        /// </summary>
+        /// <param name="onCovered">화면이 완전히 덮인 순간 실행할 동작(와이프가 없으면 즉시)</param>
+        public void PlayWipe(Action onCovered)
+        {
+            if (pageWipe != null && pageWipe.isActiveAndEnabled)
+                pageWipe.Play(onCovered);
+            else
+                onCovered?.Invoke();
         }
 
         /// <summary>

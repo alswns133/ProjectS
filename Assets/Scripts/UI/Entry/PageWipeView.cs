@@ -28,6 +28,11 @@ namespace ProjectS.UI
         [Tooltip("걷는 데 걸리는 시간(초)")]
         [SerializeField, Min(0.01f)] private float revealSeconds = 0.35f;
 
+        [Header("그리기 순서")]
+        [Tooltip("이 와이프가 전용 Canvas(와이프만 들어 있는 캔버스)에 있을 때 그 캔버스에 줄 Sorting Order. 팝업·로딩 화면(100 안팎)보다 커야 " +
+                 "덮인 순간 켜지는 팝업 위로 와이프가 걷히는 모습이 보인다. 다른 UI와 캔버스를 같이 쓰면 건드리지 않는다.")]
+        [SerializeField] private int nestedCanvasSortingOrder = 500;
+
         private static readonly int ProgressId = Shader.PropertyToID("_Progress");
         private static readonly int AspectId = Shader.PropertyToID("_Aspect");
 
@@ -45,6 +50,8 @@ namespace ProjectS.UI
             graphic = GetComponent<Graphic>();
             graphic.raycastTarget = true;
 
+            EnsureOnTop();
+
             // 머티리얼이 비어 있으면 Graphic은 기본 UI 머티리얼을 돌려준다 — 그러면 와이프가 그냥 흰 사각형이 된다.
             if (graphic.material == null || graphic.material == graphic.defaultMaterial)
             {
@@ -58,6 +65,28 @@ namespace ProjectS.UI
 
             SetProgress(0f);
             graphic.enabled = false;
+        }
+
+        // Canvas끼리는 형제 순서가 아니라 Sorting Order로 그려지는 순서가 갈린다. 와이프가 자기 전용 캔버스에 들어 있으면
+        // 그 안의 SetAsLastSibling은 소용이 없어, 캔버스 자체를 팝업·로딩 화면보다 위로 올려야 한다.
+        // Bootstrap의 UIManager는 Canvas가 없는 일반 오브젝트라 그 자식 캔버스들이 전부 "루트" 캔버스다 —
+        // 루트냐 중첩이냐로 가르면 정작 이 경우를 놓친다(실제로 놓쳐서 걷히는 연출이 팝업 뒤에 가려졌다).
+        // 그래서 "이 캔버스가 와이프 전용인가"(와이프가 직계 자식이고 형제가 없음)로 가른다. 캐릭터 선택 씬처럼
+        // 페이지들과 한 캔버스를 쓰는 경우는 그 캔버스 전체의 순서를 바꾸게 되므로 건드리지 않는다.
+        // 레이캐스터가 없으면 클릭을 막지 못하므로(와이프 도중 아래 UI가 눌림) 함께 보장한다.
+        private void EnsureOnTop()
+        {
+            Canvas canvas = GetComponentInParent<Canvas>();
+            if (canvas == null) return;
+
+            bool dedicated = transform.parent == canvas.transform && canvas.transform.childCount == 1;
+            if (!dedicated) return;
+
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = nestedCanvasSortingOrder;
+
+            if (!canvas.TryGetComponent<GraphicRaycaster>(out _))
+                canvas.gameObject.AddComponent<GraphicRaycaster>();
         }
 
         private void OnDestroy()
@@ -100,9 +129,21 @@ namespace ProjectS.UI
             hasCovered = true;
             Action callback = pendingCovered;
             pendingCovered = null;
-            callback?.Invoke();
 
-            // 콜백에서 켠 페이지가 한 프레임 그려진 뒤에 걷기 시작한다.
+            // 콜백이 예외를 던져도 와이프가 덮인 채로 멈추지 않게 한다. 코루틴 안의 예외는 코루틴을 그대로 끝내 버려
+            // 걷기 단계에 영영 못 가고 화면이 가려진 채 남는다.
+            try
+            {
+                callback?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e, this);
+            }
+
+            // 콜백에서 켠 페이지가 그려지고, 콜백이 만든 프레임 지연(팝업 초기화 등)이 지나간 뒤에 걷기 시작한다.
+            // 두 프레임을 기다리는 이유: 콜백이 도는 프레임은 길어지고, 그 길이가 바로 다음 프레임의 deltaTime에 실린다.
+            yield return null;
             yield return null;
             if (holdSeconds > 0f) yield return new WaitForSecondsRealtime(holdSeconds);
 
@@ -113,12 +154,16 @@ namespace ProjectS.UI
             routine = null;
         }
 
+        // 프레임 하나가 이만큼(초)보다 길어도 이만큼만 진행으로 친다. 팝업 열기·페이지 교체처럼 무거운 작업이 한 프레임을 길게 만들면
+        // deltaTime이 수백 ms가 되고, 그대로 더하면 걷기(0.35초)가 첫 프레임에 끝나 "덮였다가 바로 사라지는" 것처럼 보인다.
+        private const float MaxStepSeconds = 1f / 30f;
+
         private IEnumerator Tween(float from, float to, float seconds)
         {
             float elapsed = 0f;
             while (elapsed < seconds)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += Mathf.Min(Time.unscaledDeltaTime, MaxStepSeconds);
                 SetProgress(Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / seconds)));
                 yield return null;
             }
