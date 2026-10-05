@@ -427,6 +427,7 @@ namespace ProjectS.Managers
             if (equipmentTab) SwapCells(equipGrid, from, to);
             else if (!TryMergeStacks(from, to)) SwapCells(consumeGrid, from, to);   // 같은 소모품이면 병합, 아니면 자리 교환
 
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_ItemMove);
             InventoryEvents.FireInventoryChanged();
             PlayerSaveService.MarkDirty();
         }
@@ -534,6 +535,7 @@ namespace ProjectS.Managers
 
             equipped[slot] = instance;
 
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_ItemMove);
             InventoryEvents.FireItemEquipped(instance.Item);
             InventoryEvents.FireInventoryChanged();   // 가방 격자 변경(착용분 제거/기존분 복귀)
             RecomputeEquipmentStats();
@@ -585,6 +587,8 @@ namespace ProjectS.Managers
                 InventoryEvents.FireItemUnequipped(instance.Item);
             }
 
+            // 스왑/해제 두 분기 공통. "가방 가득 → 해제 불가" return 뒤라서 실패 시에는 울리지 않는다.
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_ItemMove);
             InventoryEvents.FireInventoryChanged();
             RecomputeEquipmentStats();
             PlayerSaveService.SaveNow();   // 해제·스왑은 의도적 행동 → 즉시 커밋
@@ -898,7 +902,7 @@ namespace ProjectS.Managers
             if(stack.Count <= 0)
                 RemoveFromGrid(consumeGrid, stack); // 기존 private 헬퍼 재사용
 
-            // TODO(sound): 아이템 판매음(코인/거래 성사) — SoundManager.Instance.PlaySFX(<판매 SFX>);
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_Trade);
             AddGold(payout);
             InventoryEvents.FireItemRemoved(stack.Item);
             InventoryEvents.FireInventoryChanged();
@@ -914,6 +918,7 @@ namespace ProjectS.Managers
             if (instance?.Item == null) return false;
             if(!RemoveFromGrid(equipGrid, instance)) return false;   // 가방에 없음(착용 중/이미 사라짐)
 
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_Trade);
             AddGold(instance.Item.SellPrice);
             InventoryEvents.FireItemRemoved(instance.Item);
             InventoryEvents.FireInventoryChanged();

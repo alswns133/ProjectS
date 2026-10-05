@@ -1,4 +1,6 @@
 ﻿using UnityEngine;
+using ProjectS.Core;
+using ProjectS.Managers;
 
 namespace ProjectS.Enemies
 {
@@ -52,6 +54,12 @@ namespace ProjectS.Enemies
 
             // 진행 중이던 오라·장판 잔상을 걷어낸다(무방비 연출이 지속 이펙트에 묻히지 않게).
             enemy.Effects?.StopAll();
+
+            // 그로기 돌입음. 무력화가 실제로 시작된 이 지점(0프레임)에서 그로기 이펙트와 함께 울린다.
+            // 3D(PlaySFX3D)가 아니라 2D로 재생하는 이유: "이 순간을 알리는" 연출음이라 보스와의 거리에
+            // 따라 작아지면 안 된다. 3D로 두면 기본 감쇠(Logarithmic/minDistance 1)에 걸려
+            // 10m 거리에서 볼륨이 1/10로 떨어져 사실상 들리지 않는다.
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_BossGroggy);
         }
 
         /// <summary>지속시간이 끝나면 게이지를 리필하고 회복 모션을 시작하며, 회복 모션이 끝나 "Groggy" 태그를 벗어나면 전투로 복귀한다.</summary>
