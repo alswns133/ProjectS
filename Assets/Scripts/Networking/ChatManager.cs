@@ -144,20 +144,27 @@ namespace ProjectS.Networking
 
         // ── 서버 → 클라 ─────────────────────────────────────────────
 
-        /// <summary>서버가 전원에게 뿌리는 일반 채팅.</summary>
+        /// <summary>
+        /// 서버가 전원에게 뿌리는 일반 채팅.
+        /// Rpc는 "보낸 사람의 ChatManager"(CmdSend를 받은 오브젝트) 사본 위에서 실행되므로,
+        /// 이 오브젝트가 내 로컬 플레이어면 곧 내가 보낸 메시지다 → isMine으로 UI에 알린다.
+        /// </summary>
         [ClientRpc]
         private void RpcReceive(ChatMessage message)
         {
             Debug.Log($"[Chat] RpcReceive(클라 수신) → FireMessageReceived: {message.sender}: {message.text}");
+            message.isMine = isLocalPlayer;
             ChatEvents.FireMessageReceived(message);
         }
 
         /// <summary>
         /// (예정) 특정 커넥션에게만 보내는 파티 채팅. PartyManager가 대상 커넥션을 넘겨준다.
+        /// TargetRpc도 보낸 사람 오브젝트의 사본 위에서 실행되므로 isMine 판정은 <see cref="RpcReceive"/>와 같다.
         /// </summary>
         [TargetRpc]
         private void TargetReceive(NetworkConnectionToClient target, ChatMessage message)
         {
+            message.isMine = isLocalPlayer;
             ChatEvents.FireMessageReceived(message);
         }
     }

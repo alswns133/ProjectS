@@ -60,6 +60,16 @@ namespace ProjectS.UI
         [Tooltip("페이드 시간(초). 0이면 즉시 전환.")]
         [SerializeField] private float fadeDuration = 0.25f;
 
+        [Header("색 (닉네임=나/남 구분, 말머리·본문=채널 구분)")]
+        [Tooltip("내가 보낸 채팅의 닉네임 색. 남의 채팅과 한눈에 구분하기 위함.")]
+        [SerializeField] private Color myNameColor = new Color32(0x4F, 0xC3, 0xF7, 0xFF);   // 밝은 파랑
+        [Tooltip("다른 사람이 보낸 채팅의 닉네임 색.")]
+        [SerializeField] private Color otherNameColor = new Color32(0xB3, 0x9D, 0xDB, 0xFF); // 밝은 보라
+        [Tooltip("파티 채팅의 말머리·본문 색. 전체 채팅과 섞여도 파티원끼리 한 말을 가려내기 위함.")]
+        [SerializeField] private Color partyColor = new Color32(0xFF, 0xB7, 0x4D, 0xFF);     // 주황
+        [Tooltip("파티 채팅 줄 앞에 붙는 말머리.")]
+        [SerializeField] private string partyPrefix = "[파티]";
+
         [Header("진단 로그 → 시스템 알림 (디버그, 체크 끄면 빠짐)")]
         [SerializeField] private bool showDiagnosticsInChat = true;
         [SerializeField] private string diagnosticPrefix = "[진단]";
@@ -230,7 +240,7 @@ namespace ProjectS.UI
                 }
                 else
                 {
-                    ReuseLine($"<color=blue><noparse>{safeSender}</noparse></color>: <noparse>{safeText}</noparse>");
+                    ReuseLine(FormatChatLine(message, safeSender, safeText));
                 }
 
             }
@@ -243,6 +253,25 @@ namespace ProjectS.UI
             }
 
             BumpVisible();
+        }
+
+        // 유저 채팅 한 줄의 서식. 두 축을 겹치지 않게 나눈다 —
+        //  - 닉네임 색 = 나/남(isMine). 누가 말했는지.
+        //  - 말머리·본문 색 = 채널. 전체는 말머리 없이 기본색, 파티만 말머리+색을 붙인다.
+        //    (마을에서 대부분인 전체 채팅 줄마다 [전체]가 붙으면 로그가 시끄러워져, 드문 쪽만 표시한다.)
+        // 색 태그는 우리 인스펙터 값이라 <noparse> 바깥에 두고, 네트워크로 온 이름·본문만 noparse로 보호한다.
+        private string FormatChatLine(ChatMessage message, string safeSender, string safeText)
+        {
+            string nameHex = ColorUtility.ToHtmlStringRGB(message.isMine ? myNameColor : otherNameColor);
+            string name = $"<color=#{nameHex}><noparse>{safeSender}</noparse></color>";
+
+            if (message.channel == ChatChannel.Party)
+            {
+                string partyHex = ColorUtility.ToHtmlStringRGB(partyColor);
+                return $"<color=#{partyHex}>{partyPrefix} </color>{name}<color=#{partyHex}>: <noparse>{safeText}</noparse></color>";
+            }
+
+            return $"{name}: <noparse>{safeText}</noparse>";
         }
 
         /// <summary>
