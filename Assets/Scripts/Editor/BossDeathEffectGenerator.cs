@@ -53,8 +53,15 @@ namespace ProjectS.EditorTools
         private const string TextureDir = "Assets/Textures/Effect";
         private const string MaterialDir = "Assets/Materials/Effect";
 
-        /// <summary>보스·레이드보스가 함께 쓰는 단 하나의 사망 이펙트.</summary>
-        private const string PrefabPath = "Assets/Effect/Boss/BossDeath.prefab";
+        /// <summary>
+        /// 보스·레이드보스가 함께 쓰는 단 하나의 사망 이펙트.
+        /// <para>
+        /// ★ 프리팹을 다른 폴더로 옮기면 이 값도 같이 바꿔야 한다. 생성은 '경로로 덮어쓰기'라
+        /// 경로가 어긋나면 옛 자리에 또 하나가 생기고, 보스에 물려 둔 쪽은 갱신되지 않은 채
+        /// 둘로 갈린다(Attach도 이 경로에서 원본을 찾는다).
+        /// </para>
+        /// </summary>
+        private const string PrefabPath = "Assets/Effect/BossDeath.prefab";
 
         /// <summary>EnemyEffects 슬롯 키. 사망 클립의 Animation Event 인자와 같아야 한다.</summary>
         private const string DeathSlotKey = "Death";
