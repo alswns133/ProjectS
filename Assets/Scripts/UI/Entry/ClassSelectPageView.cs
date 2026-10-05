@@ -72,6 +72,32 @@ namespace ProjectS.UI
         [Tooltip("이동 진행 커브(가로 0~1 = 시간, 세로 0~1 = 이동 비율).")]
         [SerializeField] private AnimationCurve selectIllustMoveCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
+        [Header("전사 카드 확장")]
+        [Tooltip("전사 카드 루트(IllustWarrior). 전사를 고르면 가로가 늘어난다. 비우면 확장하지 않는다. " +
+            "레이아웃 그룹 자식이면 sizeDelta가 덮어써지므로 쓸 수 없다.")]
+        [SerializeField] private RectTransform warriorCard;
+
+        [Tooltip("전사를 골랐을 때 카드 가로를 늘리는 양(px). 선택을 풀거나 거너를 고르면 원래 폭으로 돌아온다.")]
+        [SerializeField, Min(0f)] private float warriorSelectExtraWidth = 220f;
+
+        [Tooltip("늘어나는 방향. -1 = 왼쪽으로(오른쪽 가장자리 고정), 0 = 피벗 기준(피벗이 0.5면 양쪽으로 똑같이), " +
+            "1 = 오른쪽으로(왼쪽 가장자리 고정).")]
+        [SerializeField, Range(-1, 1)] private int warriorWidenDirection;
+
+        [Header("거너 카드 확장")]
+        [Tooltip("거너 카드 루트(IllustGunner). 거너를 고르면 가로가 늘어난다. 비우면 확장하지 않는다.")]
+        [SerializeField] private RectTransform gunnerCard;
+
+        [Tooltip("거너를 골랐을 때 카드 가로를 늘리는 양(px).")]
+        [SerializeField, Min(0f)] private float gunnerSelectExtraWidth = 220f;
+
+        [Tooltip("늘어나는 방향. -1 = 왼쪽으로(오른쪽 가장자리 고정), 0 = 피벗 기준, 1 = 오른쪽으로(왼쪽 가장자리 고정).")]
+        [SerializeField, Range(-1, 1)] private int gunnerWidenDirection;
+
+        [Header("배경 연출 (선택)")]
+        [Tooltip("클래스를 고르는 순간 링을 한 번 터뜨리는 배경 이미지(PulseRingsBurst). 비우면 터지지 않는다.")]
+        [SerializeField] private PulseRingsBurst ringBurst;
+
         [Header("소개 패널")]
         [Tooltip("전사를 골랐을 때 패널이 갈 자리(= 거너 쪽). 레이아웃 컴포넌트를 붙이면 안 된다.")]
         [SerializeField] private RectTransform introSlotRight;
@@ -109,10 +135,30 @@ namespace ProjectS.UI
         private Vector2 gunnerSelectRestPosition;
         private Coroutine selectIllustRoutine;
 
+        // 전사 카드의 평소 크기·위치. 확장은 항상 이 값 기준으로 계산해, 연타·선택 전환에도 값이 누적되지 않게 한다.
+        private Vector2 warriorCardRestSize;
+        private Vector2 warriorCardRestPosition;
+        private Coroutine warriorCardRoutine;
+        private Vector2 gunnerCardRestSize;
+        private Vector2 gunnerCardRestPosition;
+        private Coroutine gunnerCardRoutine;
+
         private void Awake()
         {
             if (warriorSelectIllust != null) warriorSelectRestPosition = warriorSelectIllust.anchoredPosition;
             if (gunnerSelectIllust != null) gunnerSelectRestPosition = gunnerSelectIllust.anchoredPosition;
+
+            if (warriorCard != null)
+            {
+                warriorCardRestSize = warriorCard.sizeDelta;
+                warriorCardRestPosition = warriorCard.anchoredPosition;
+            }
+
+            if (gunnerCard != null)
+            {
+                gunnerCardRestSize = gunnerCard.sizeDelta;
+                gunnerCardRestPosition = gunnerCard.anchoredPosition;
+            }
 
             ClearSelection();
         }
@@ -183,6 +229,19 @@ namespace ProjectS.UI
                 HideSelectIllust(warriorSelectIllust, warriorBaseIllust);
             }
 
+            // 같은 클래스를 다시 눌러도 위의 early return으로 여기까지 오지 않으므로, 연타해도 링이 다시 터지지 않는다.
+            if (ringBurst != null)
+            {
+                RectTransform pickedCard = warriorSelected ? warriorCard : gunnerCard;
+                if (pickedCard == null) pickedCard = (warriorSelected ? warriorButton : gunnerButton).transform as RectTransform;
+                ringBurst.Burst(pickedCard);
+            }
+
+            AnimateCard(warriorCard, ref warriorCardRoutine, warriorCardRestSize, warriorCardRestPosition,
+                warriorSelected ? warriorSelectExtraWidth : 0f, warriorWidenDirection);
+            AnimateCard(gunnerCard, ref gunnerCardRoutine, gunnerCardRestSize, gunnerCardRestPosition,
+                warriorSelected ? 0f : gunnerSelectExtraWidth, gunnerWidenDirection);
+
             selectButton.interactable = true;
         }
 
@@ -206,6 +265,65 @@ namespace ProjectS.UI
 
             HideSelectIllust(warriorSelectIllust, warriorBaseIllust);
             HideSelectIllust(gunnerSelectIllust, gunnerBaseIllust);
+
+            // 선택이 풀리면 연출 없이 바로 평소 폭으로 되돌린다(페이지를 떠나거나 다시 열 때 늘어난 채 남지 않게).
+            ResetCard(warriorCard, ref warriorCardRoutine, warriorCardRestSize, warriorCardRestPosition, warriorWidenDirection);
+            ResetCard(gunnerCard, ref gunnerCardRoutine, gunnerCardRestSize, gunnerCardRestPosition, gunnerWidenDirection);
+        }
+
+        private void ResetCard(RectTransform card, ref Coroutine routine, Vector2 restSize, Vector2 restPosition, int direction)
+        {
+            if (card == null) return;
+
+            if (routine != null)
+            {
+                StopCoroutine(routine);
+                routine = null;
+            }
+
+            ApplyCardWidth(card, restSize, restPosition, 0f, direction);
+        }
+
+        // 고른 쪽 카드는 늘리고, 안 고른 쪽(extra = 0)은 평소 폭으로 되돌린다. 선택 일러스트와 같은 시간·커브를 쓴다.
+        // 종료한 코루틴 참조는 따로 비우지 않는다 — 이터레이터는 ref를 받을 수 없고, 끝난 코루틴에 StopCoroutine을 불러도 무해하다.
+        private void AnimateCard(RectTransform card, ref Coroutine routine, Vector2 restSize, Vector2 restPosition,
+            float targetExtra, int direction)
+        {
+            if (card == null) return;
+
+            if (routine != null) StopCoroutine(routine);
+
+            routine = StartCoroutine(WidenCard(card, restSize, restPosition, targetExtra, direction));
+        }
+
+        private IEnumerator WidenCard(RectTransform card, Vector2 restSize, Vector2 restPosition, float targetExtra, int direction)
+        {
+            float from = card.sizeDelta.x - restSize.x;
+            float elapsed = 0f;
+
+            while (elapsed < selectIllustMoveDuration)
+            {
+                elapsed += Time.deltaTime;
+                float n = Mathf.Clamp01(elapsed / selectIllustMoveDuration);
+                float t = selectIllustMoveCurve != null ? selectIllustMoveCurve.Evaluate(n) : n;
+                ApplyCardWidth(card, restSize, restPosition, Mathf.LerpUnclamped(from, targetExtra, t), direction);
+                yield return null;
+            }
+
+            ApplyCardWidth(card, restSize, restPosition, targetExtra, direction);
+        }
+
+        // 평소 폭에 extra만큼 더한다. 피벗이 어디든 늘어나는 방향이 인스펙터 설정대로 나오도록 위치를 함께 보정한다:
+        // 가장자리는 피벗 비율(px)만큼 왼쪽/나머지(1-px)만큼 오른쪽으로 벌어지므로, 한쪽을 고정하려면 그 몫을 위치로 되돌린다.
+        private static void ApplyCardWidth(RectTransform card, Vector2 restSize, Vector2 restPosition, float extra, int direction)
+        {
+            float pivotX = card.pivot.x;
+            float shift = direction > 0 ? pivotX * extra
+                : direction < 0 ? -(1f - pivotX) * extra
+                : 0f;
+
+            card.sizeDelta = new Vector2(restSize.x + extra, restSize.y);
+            card.anchoredPosition = restPosition + new Vector2(shift, 0f);
         }
 
         // 골라진 쪽 일러스트를 켜고, x축으로 밀린 자리에서 제자리(rest)까지 밀려 들어오게 한다.

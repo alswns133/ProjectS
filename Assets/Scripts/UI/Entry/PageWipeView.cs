@@ -1,0 +1,144 @@
+using System;
+using System.Collections;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace ProjectS.UI
+{
+    /// <summary>
+    /// 페이지 전환용 사선 와이프. 화면을 우상단에서 좌하단으로 덮고(cover), 덮인 순간 호출부가 페이지를 바꾸게 한 뒤,
+    /// 같은 방향으로 걷어 낸다(reveal). 덮인 동안 페이지·카메라가 바뀌므로 교체 순간이 보이지 않는다.
+    ///
+    /// 전체 화면 <see cref="Graphic"/>(Image/RawImage) 한 장에 부착하고, 그 머티리얼은 <c>ProjectS/UI Page Wipe</c> 셰이더로 만든다.
+    /// 에셋 머티리얼을 직접 쓰면 <c>_Progress</c> 값이 에셋에 저장되므로 Awake에서 인스턴스를 만들어 그쪽에만 쓴다.
+    ///
+    /// 재생 중에는 이 오브젝트가 레이캐스트를 받아 아래 페이지의 버튼 입력을 막는다(와이프 도중 두 번 눌리는 것 방지).
+    /// 시간은 unscaled로 돈다 — 로딩·일시정지 중 timeScale이 0이어도 멈추지 않게 하기 위함이다.
+    /// </summary>
+    [RequireComponent(typeof(Graphic))]
+    public class PageWipeView : MonoBehaviour
+    {
+        [Header("시간")]
+        [Tooltip("덮는 데 걸리는 시간(초)")]
+        [SerializeField, Min(0.01f)] private float coverSeconds = 0.35f;
+
+        [Tooltip("완전히 덮인 채 유지하는 시간(초). 페이지가 켜지고 한 프레임 그려질 여유")]
+        [SerializeField, Min(0f)] private float holdSeconds = 0.05f;
+
+        [Tooltip("걷는 데 걸리는 시간(초)")]
+        [SerializeField, Min(0.01f)] private float revealSeconds = 0.35f;
+
+        private static readonly int ProgressId = Shader.PropertyToID("_Progress");
+        private static readonly int AspectId = Shader.PropertyToID("_Aspect");
+
+        private Graphic graphic;
+        private Material runtimeMaterial;
+        private Coroutine routine;
+        private Action pendingCovered;
+        private bool hasCovered;
+
+        /// <summary>와이프가 재생 중인지(덮는 중·유지·걷는 중 모두 포함).</summary>
+        public bool IsPlaying => routine != null;
+
+        private void Awake()
+        {
+            graphic = GetComponent<Graphic>();
+            graphic.raycastTarget = true;
+
+            // 머티리얼이 비어 있으면 Graphic은 기본 UI 머티리얼을 돌려준다 — 그러면 와이프가 그냥 흰 사각형이 된다.
+            if (graphic.material == null || graphic.material == graphic.defaultMaterial)
+            {
+                Debug.LogWarning("[PageWipeView] 머티리얼이 'ProjectS/UI Page Wipe' 셰이더로 만든 것이 아닙니다. 와이프가 제대로 그려지지 않습니다.", this);
+            }
+            else
+            {
+                runtimeMaterial = new Material(graphic.material);
+                graphic.material = runtimeMaterial;
+            }
+
+            SetProgress(0f);
+            graphic.enabled = false;
+        }
+
+        private void OnDestroy()
+        {
+            if (runtimeMaterial != null) Destroy(runtimeMaterial);
+        }
+
+        /// <summary>
+        /// 와이프를 재생한다. 화면이 완전히 덮인 순간 <paramref name="onCovered"/>가 호출되므로 페이지·카메라 교체는 여기서 한다.
+        /// 이미 재생 중이면 새로 시작하지 않는다: 아직 덮이기 전이면 콜백을 이어 붙여 같은 덮임 순간에 모두 실행하고(등록 순서대로,
+        /// 마지막 요청이 최종 상태), 이미 걷는 중이면 즉시 실행한다.
+        /// </summary>
+        /// <param name="onCovered">화면이 완전히 덮인 순간 실행할 동작</param>
+        public void Play(Action onCovered)
+        {
+            if (routine != null)
+            {
+                if (hasCovered) onCovered?.Invoke();
+                else pendingCovered += onCovered;
+                return;
+            }
+
+            // 씬에서 형제 순서가 어디에 있든 페이지·팝업 위에 그려지게 한다. 첫 자식으로 저장돼 있으면
+            // 와이프가 모든 UI 뒤에서 재생돼 "아무 연출도 안 나오는" 것처럼 보인다.
+            transform.SetAsLastSibling();
+
+            UpdateAspect();
+
+            pendingCovered = onCovered;
+            routine = StartCoroutine(Run());
+        }
+
+        private IEnumerator Run()
+        {
+            hasCovered = false;
+            graphic.enabled = true;
+
+            yield return Tween(0f, 1f, coverSeconds);
+
+            hasCovered = true;
+            Action callback = pendingCovered;
+            pendingCovered = null;
+            callback?.Invoke();
+
+            // 콜백에서 켠 페이지가 한 프레임 그려진 뒤에 걷기 시작한다.
+            yield return null;
+            if (holdSeconds > 0f) yield return new WaitForSecondsRealtime(holdSeconds);
+
+            yield return Tween(1f, 2f, revealSeconds);
+
+            SetProgress(0f);
+            graphic.enabled = false;
+            routine = null;
+        }
+
+        private IEnumerator Tween(float from, float to, float seconds)
+        {
+            float elapsed = 0f;
+            while (elapsed < seconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                SetProgress(Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / seconds)));
+                yield return null;
+            }
+
+            SetProgress(to);
+        }
+
+        // 헥사곤 셀이 해상도와 무관하게 정육각형으로 보이도록 화면 비율을 셰이더에 알린다. 재생 때마다 갱신해
+        // 창 크기·해상도가 바뀐 뒤에도 맞는다.
+        private void UpdateAspect()
+        {
+            if (runtimeMaterial == null) return;
+
+            Rect rect = ((RectTransform)transform).rect;
+            if (rect.height > 0f) runtimeMaterial.SetFloat(AspectId, rect.width / rect.height);
+        }
+
+        private void SetProgress(float value)
+        {
+            if (runtimeMaterial != null) runtimeMaterial.SetFloat(ProgressId, value);
+        }
+    }
+}

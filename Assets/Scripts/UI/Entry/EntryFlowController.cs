@@ -58,6 +58,10 @@ namespace ProjectS.UI
         [Tooltip("캐릭터 시작 시 로딩 전에 재생할 연출(카메라 회전 + 문 열림). 비우면 바로 로딩한다.")]
         [SerializeField] private CharacterStartTransition startTransition;
 
+        [Header("페이지 전환 와이프 (선택)")]
+        [Tooltip("페이지가 바뀔 때 재생할 사선 와이프. 비우면 와이프 없이 즉시 전환한다.")]
+        [SerializeField] private PageWipeView pageWipe;
+
         [Header("페이지별 스테이지 카메라 (선택)")]
         [Tooltip("프리뷰 RT를 찍는 StageCamera. 비우면 페이지가 바뀌어도 카메라를 건드리지 않는다.")]
         [SerializeField] private Camera stageCamera;
@@ -434,14 +438,20 @@ namespace ProjectS.UI
         // 빈 카드("+ 신규 캐릭터") 클릭 → 클래스 선택 페이지로. 빈 칸에서만 오므로 슬롯이 남았다는 뜻.
         private void HandleCreateRequested(int index) => GoToClassSelect();
 
-        private void GoToSelect() => ShowOnly(selectPage != null ? selectPage.gameObject : null);
+        // 버튼 리스너(PrevButton)로도 쓰이므로 void로 둔다. 전환이 끝나길 기다려야 하면 GoToSelectAsync를 쓴다.
+        private void GoToSelect() => _ = GoToSelectAsync();
+
+        private Task GoToSelectAsync() => ShowOnly(selectPage != null ? selectPage.gameObject : null);
 
         private void GoToClassSelect()
         {
-            pendingClassType = 0;
-            if (classSelectPage != null) classSelectPage.ClearSelection();
-            HideAllModels();
-            ShowOnly(classSelectPage != null ? classSelectPage.gameObject : null);
+            // 상태 초기화·모델 숨김은 와이프가 화면을 덮은 순간에 한다. 지금 하면 덮이기 전에 모델이 먼저 사라져 튄다.
+            ShowOnly(classSelectPage != null ? classSelectPage.gameObject : null, () =>
+            {
+                pendingClassType = 0;
+                if (classSelectPage != null) classSelectPage.ClearSelection();
+                HideAllModels();
+            });
         }
 
         // 일러스트를 눌러 클래스를 골랐다 → 반대편에 소개 패널을 열고 프리뷰 모델을 켠다(확정 전 미리보기).
@@ -461,8 +471,7 @@ namespace ProjectS.UI
         {
             if (pendingClassType == 0) return;   // 아무 클래스도 안 골랐으면 무시(SelectButton은 그때 꺼져 있음)
 
-            createPage.ClearName();
-            ShowOnly(createPage.gameObject);
+            ShowOnly(createPage.gameObject, createPage.ClearName);
         }
 
         // 이름 확정 → 서버에 생성 요청. 성공이면 목록으로 돌아가 갱신, 실패면 힌트로 이유를 인라인 표시.
@@ -482,7 +491,11 @@ namespace ProjectS.UI
 
             if (result == CreateCharacterResult.Success)
             {
-                GoToSelect();
+                // 목록 페이지가 켜진 뒤에 갱신한다. 와이프가 덮이는 동안 Refresh가 먼저 돌면
+                // 아직 화면에 있는 생성 페이지 모델을 갱신 도중 꺼 버려 덮이기 전에 사라진다.
+                await GoToSelectAsync();
+                if (this == null) return;
+
                 await Refresh();
                 return;
             }
@@ -509,9 +522,40 @@ namespace ProjectS.UI
             }
         }
 
-        // 한 페이지만 켜고 나머지는 끈다. null 페이지(아직 미배선)는 건너뛰어 slice 1만 쓰던 씬도 안전.
-        private void ShowOnly(GameObject page)
+        // 현재 화면에 켜 둔 페이지. 같은 페이지로의 전환에 와이프를 걸지 않고, 진입 첫 표시(null)를 가르는 기준이다.
+        private GameObject currentPage;
+
+        // 페이지를 바꾼다. 와이프가 있으면 화면이 덮인 순간 onSwap → 페이지·카메라 교체 순으로 실행하고,
+        // 없거나 첫 표시·같은 페이지면 와이프 없이 즉시 바꾼다(첫 표시는 EntryVeil이 이미 덮고 있다).
+        // 반환 Task는 실제 교체가 끝난 시점에 완료된다 — 교체 직후 상태를 읽는 호출부가 기다릴 수 있게 한다.
+        private Task ShowOnly(GameObject page, System.Action onSwap = null)
         {
+            // 와이프 재생 중에는 currentPage가 아직 옛 값이라도 반드시 Play를 거친다(대기 중인 교체와 순서를 맞추기 위함).
+            bool useWipe = pageWipe != null && pageWipe.isActiveAndEnabled && currentPage != null
+                && (page != currentPage || pageWipe.IsPlaying);
+
+            if (!useWipe)
+            {
+                onSwap?.Invoke();
+                ApplyPage(page);
+                return Task.CompletedTask;
+            }
+
+            TaskCompletionSource<bool> swapped = new TaskCompletionSource<bool>();
+            pageWipe.Play(() =>
+            {
+                onSwap?.Invoke();
+                ApplyPage(page);
+                swapped.TrySetResult(true);
+            });
+            return swapped.Task;
+        }
+
+        // 한 페이지만 켜고 나머지는 끈다. null 페이지(아직 미배선)는 건너뛰어 slice 1만 쓰던 씬도 안전.
+        private void ApplyPage(GameObject page)
+        {
+            currentPage = page;
+
             if (selectPage != null) selectPage.gameObject.SetActive(selectPage.gameObject == page);
             if (classSelectPage != null) classSelectPage.gameObject.SetActive(classSelectPage.gameObject == page);
             if (createPage != null) createPage.gameObject.SetActive(createPage.gameObject == page);
