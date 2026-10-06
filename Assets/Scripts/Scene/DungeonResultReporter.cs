@@ -25,8 +25,10 @@ namespace ProjectS.Scenes
     /// 보스가 사라질 때까지 바가 남았다가 결과창과 함께 사라진다.
     /// </para>
     /// <para>
-    /// 집계 진행: 클리어 시간·최대 콤보는 이 컴포넌트가 판 단위로 직접 모은다.
-    /// 점수·등급·달성률·보상은 아직 소스(산정 규칙·드랍 테이블)가 없어 placeholder다.
+    /// 집계 진행: 클리어 시간 · 최대 콤보(표시용) · 콤보 유지 시간 · 피격 횟수 · 사망 횟수를 판 단위로
+    /// 직접 모아 <see cref="DungeonRankScorer"/>에 넘긴다. 피격·사망은 static 이벤트가 아니라
+    /// 조작 중인 아바타의 <c>PlayerStats</c> 인스턴스를 보고 센다 — 멀티에서 다른 플레이어의 피격까지
+    /// 세어 내 랭크가 깎이는 것을 막기 위함이다.
     /// </para>
     /// </remarks>
     public class DungeonResultReporter : MonoBehaviour
@@ -41,13 +43,28 @@ namespace ProjectS.Scenes
 
         private float runStartTime; //판 시작 시각
 
-        private int maxCombo;   // 이번 판 최대 콤보
+        private int maxCombo;   // 이번 판 최대 콤보 (점수에는 안 쓰고 결과창 표시용으로만 남는다)
 
-        // 이번 판 총 유효타 수. 콤보 점수의 분모라서, 이 값이 0이면 콤보 점수가 항상 0이 된다.
-        private int totalHits;
+        // 콤보가 살아 있던 누적 시간. 콤보 점수의 분자다(DungeonRankScorer.ScoreCombo).
+        private float comboUptime;
 
-        // 마지막으로 받은 히트 콤보 값. 콤보 이벤트는 "누적 수"를 보내므로 증가분을 뽑으려면 이전 값이 필요하다.
-        private int lastHitCombo;
+        // 첫 유효타 시각. 콤보 점수의 분모인 '전투 시간'을 여기서부터 잰다 — 판 시작부터 재면
+        // 방 사이를 걸어 다닌 시간이 분모에 들어가 넓은 던전이 구조적으로 불리해진다.
+        // -1이면 아직 한 번도 때리지 않은 상태(전투 시간 0 → 콤보 0점).
+        private float firstHitTime;
+
+        // 실제로 적용된 피격 횟수. 생존 점수의 분자다.
+        private int hitsTaken;
+
+        // 이번 판 사망 횟수. ReviveBudget.MaxPerRun이 1이라 결과창까지 오는 판은 0 또는 1이다.
+        private int deaths;
+
+        // 피격·사망을 세는 대상(조작 중인 아바타의 스탯). PlayerStats.Damaged가 static이 아니라
+        // 인스턴스 이벤트라서 "지금 누구를 보고 있는지"를 들고 있어야 한다.
+        private PlayerStats damageSource;
+
+        // 직전 프레임의 사망 여부. IsDead가 false→true로 바뀐 순간만 사망 1회로 센다.
+        private bool wasDead;
 
         /// <summary>
         /// 이 판의 "클리어로 칠 최종 보스"를 등록한다. 스폰 권위(<see cref="EnemyRoom.SetEndBoss"/> 경유)가
@@ -72,8 +89,11 @@ namespace ProjectS.Scenes
             // 재도전은 씬 리로드로 새 인스턴스가 되지만, 같은 인스턴스가 다시 켜지는 경로가 생겨도
             // 지난 판의 집계가 섞이지 않게 여기서 함께 비운다.
             maxCombo = 0;
-            totalHits = 0;
-            lastHitCombo = 0;
+            comboUptime = 0f;
+            firstHitTime = -1f;
+            hitsTaken = 0;
+            deaths = 0;
+            wasDead = false;
 
             BossEvents.OnBossDisappeared += OnBossDisappeared;
             PlayerEvents.OnHitComboChanged += OnHitCombo;
@@ -84,6 +104,76 @@ namespace ProjectS.Scenes
         {
             BossEvents.OnBossDisappeared -= OnBossDisappeared;
             PlayerEvents.OnHitComboChanged -= OnHitCombo;
+
+            // 피격 구독은 플레이어 인스턴스에 직접 걸려 있으므로 여기서 짝을 맞춰 떼어 낸다.
+            // 빠지면 씬을 다시 들어왔을 때 지난 판의 Reporter가 계속 피격을 세어 같은 피격이 두 번 집계된다.
+            if (damageSource != null) damageSource.Damaged -= OnPlayerDamaged;
+            damageSource = null;
+        }
+
+        /// <remarks>
+        /// 매 프레임 하는 일 두 가지다.
+        /// <list type="number">
+        /// <item><b>콤보 유지 시간 누적</b> — 히트 카운트가 1 이상인 프레임만 더한다. 끊김 유예
+        /// (<c>PlayerHitCombo</c>의 comboResetDelay)는 그쪽이 관리하므로 여기서 그 값을 알 필요가 없다.
+        /// 값이 한 곳에만 있어 유예 시간을 조정해도 집계가 따라온다.</item>
+        /// <item><b>피격·사망 집계 대상 갱신</b> — <c>PlayerStats.Damaged</c>는 인스턴스 이벤트라
+        /// 플레이어가 생긴 뒤에 붙어야 한다. 던전 씬이 켜지는 시점엔 아직 없을 수 있고(부트스트랩 워프 전),
+        /// 멀티 레이드에선 네트워크 아바타가 늦게 스폰되거나 교체되므로 매 프레임 대상을 확인한다.</item>
+        /// </list>
+        /// 결과를 이미 보고했으면(<c>reported</c>) 아무것도 하지 않는다 — 결과창이 열린 뒤의 시간이
+        /// 집계에 섞이지 않게 한다.
+        /// </remarks>
+        private void Update()
+        {
+            if (reported) return;
+
+            Player player = LocalPlayer.Current;   // 멀티 레이드에선 마을 캐릭터가 아니라 조작 중인 아바타
+
+            BindDamageSource(player);
+            CountDeathTransition();
+
+            if (player == null || player.HitCombo == null) return;
+
+            if (player.HitCombo.HitCount > 0) comboUptime += Time.deltaTime;
+        }
+
+        // 피격을 세는 대상을 "지금 조작 중인 아바타"로 맞춘다. 대상이 바뀌면 이전 구독을 떼고 새로 붙인다.
+        // static 이벤트(PlayerEvents)를 쓰지 않는 이유: 멀티에서 다른 플레이어의 피격·사망까지 받아
+        // 내 랭크가 깎인다.
+        private void BindDamageSource(Player player)
+        {
+            PlayerStats stats = player != null ? player.Stats : null;
+
+            if (stats == damageSource) return;   // 둘 다 null인 경우도 여기서 걸러진다
+
+            if (damageSource != null) damageSource.Damaged -= OnPlayerDamaged;
+
+            damageSource = stats;
+            if (damageSource != null) damageSource.Damaged += OnPlayerDamaged;
+
+            // 새 아바타로 갈아탔으면 사망 판정 기준도 그 아바타 기준으로 다시 잡는다.
+            // 안 비우면 교체 직후 한 프레임이 false→true로 보여 사망이 한 번 더 세어질 수 있다.
+            wasDead = damageSource != null && damageSource.IsDead;
+        }
+
+        // 사망 횟수는 IsDead의 false→true 전이로 센다. PlayerStats가 사망을 발행하는 경로는
+        // static(PlayerEvents.OnPlayerDied)뿐이라, 인스턴스 기준으로 세려면 상태 변화를 직접 봐야 한다.
+        private void CountDeathTransition()
+        {
+            bool isDead = damageSource != null && damageSource.IsDead;
+
+            if (isDead && !wasDead) deaths++;
+            wasDead = isDead;
+        }
+
+        // 실제로 적용된 피격 1회. PlayerStats.Damaged는 무적으로 씹힌 공격과 사망 타격을 제외하고 발행되므로
+        // (사망은 OnPlayerDied가 담당) 이 카운트와 deaths가 겹치지 않는다.
+        private void OnPlayerDamaged()
+        {
+            if (reported) return;
+
+            hitsTaken++;
         }
 
         private void OnBossDisappeared(Boss boss)
@@ -118,13 +208,14 @@ namespace ProjectS.Scenes
             DungeonResultPanel.Open(data);
         }
 
-        // 히트 콤보 이벤트 하나로 두 값을 모은다 — 최대 콤보(랭크의 분자)와 총 유효타 수(분모).
-        // 이벤트는 "현재 누적 콤보 수"를 보내므로, 올라간 만큼만 더해야 총 유효타가 된다.
-        // 콤보가 끊겨 0으로 리셋될 때는 음수 증가분이 되므로 ★ 늘어난 경우만 더한다(빠지면 총 유효타가 깎인다).
+        // 히트 콤보 이벤트로 두 값을 모은다 — 결과창에 띄울 최대 콤보와, 전투 시간의 시작점(첫 유효타 시각).
+        // 콤보 유지 시간 자체는 이벤트가 아니라 Update에서 센다(이벤트는 적중 순간에만 오므로 '유지'를 알 수 없다).
+        // 리셋이 쏘는 0은 둘 다에 영향이 없다 — maxCombo는 Max 누적이고, 첫 타 시각은 한 번만 찍는다.
         private void OnHitCombo(int hitCount)
         {
-            if (hitCount > lastHitCombo) totalHits += hitCount - lastHitCombo;
-            lastHitCombo = hitCount;
+            if (hitCount <= 0) return;
+
+            if (firstHitTime < 0f) firstHitTime = Time.time;
 
             maxCombo = Mathf.Max(maxCombo, hitCount);
         }
@@ -137,11 +228,11 @@ namespace ProjectS.Scenes
         /// <list type="bullet">
         /// <item>난이도 → <see cref="DungeonContext"/> (완료)</item>
         /// <item>클리어 시간 → 판 시작~클리어 타이머 (완료)</item>
-        /// <item>최대 콤보 → OnHitCombo 누적 (완료)</item>
+        /// <item>최대 콤보 → OnHitCombo 누적 (완료 — 표시 전용. 점수에는 쓰이지 않는다)</item>
         /// <item>던전 이름 → 입장 시 <see cref="GameSession.SelectedDungeonName"/>에 실림 (완료)</item>
         /// <item>단계(stage) → 난이도와 별개 슬롯, 기획상 의미 미정 (보류)</item>
         /// <item>점수·등급·달성률 → <see cref="DungeonRankScorer"/> (완료)</item>
-        /// <item>클리어 점수(clearScore) → 두 축 모델에 해당 항목이 없어 미사용 (아래 주석 참고)</item>
+        /// <item>클리어 점수(clearScore) → 세 축 모델에 해당 항목이 없어 미사용 (아래 주석 참고)</item>
         /// <item>보상 exp·gold·아이템 → DungeonRewardTable에서 조회·지급 (완료)</item>
         /// </list>
         /// </remarks>
@@ -163,9 +254,10 @@ namespace ProjectS.Scenes
                 achieveRatio = rank.ratio,
                 grade = rank.grade,
 
-                // TODO(UI): 두 축(시간·콤보) 모델에는 "클리어 점수"에 해당하는 항목이 없다. 패널의 스탯 행 0이
-                //   이 값을 "클리어 점수"로 표시하므로 지금은 0이 뜬다. 그 행을 "시간 점수"로 바꿔 rank.timeScore를
-                //   넣을지, 행 자체를 다른 항목으로 교체할지 결정이 필요하다(라벨은 DungeonResultPanel.BindScore).
+                // TODO(UI): 세 축(시간·콤보·생존) 모델에는 "클리어 점수"에 해당하는 항목이 없다. 패널의 스탯 행 0이
+                //   이 값을 "클리어 점수"로 표시하므로 지금은 0이 뜬다. 그 행을 "시간 점수"(rank.timeScore)나
+                //   "생존 점수"(rank.survivalScore)로 바꿀지, 행 자체를 다른 항목으로 교체할지 결정이 필요하다
+                //   (라벨은 DungeonResultPanel.BindScore). 생존 점수는 등급에는 반영되지만 아직 화면에 안 뜬다.
                 clearScore = 0,
 
                 // 보상 — 던전 보상 테이블(DungeonRewardTable)에서 이 던전의 경험치·골드·아이템을 읽는다.
@@ -179,20 +271,23 @@ namespace ProjectS.Scenes
         }
 
         /// <summary>
-        /// 이번 판의 집계값과 던전별 기준 시간을 <see cref="DungeonRankScorer"/>에 넘겨 점수·등급을 받는다.
+        /// 이번 판의 집계값과 던전별 기준값을 <see cref="DungeonRankScorer"/>에 넘겨 점수·등급을 받는다.
         /// </summary>
         /// <remarks>
-        /// 기준 시간은 보상 행과 같은 테이블·같은 키(던전 ID)에서 온다. 행이 없거나 기준 시간이 비어 있으면
-        /// 시간 축이 0점이 되어 랭크가 실제 실력보다 낮게 나오므로, 조용히 넘기지 않고 경고를 남긴다.
-        /// 콤보 축은 던전별 기준값이 필요 없어(그 판의 총 유효타 수가 분모) 테이블 없이도 정상 동작한다.
+        /// 기준값(기준 시간·피격 허용치)은 보상 행과 같은 테이블·같은 키(던전 ID)에서 온다. 행이 없거나
+        /// 기준 시간이 비어 있으면 시간 축이 0점이 되어 랭크가 실제 실력보다 낮게 나오므로, 조용히 넘기지 않고
+        /// 경고를 남긴다. 피격 허용치가 비면 산정기가 기본값으로 폴백하므로 점수는 나오지만, 난이도별 튜닝이
+        /// 빠진 상태라는 뜻이라 함께 경고한다.
+        /// 콤보 축은 던전별 기준값이 필요 없다 — 그 판의 전투 시간이 분모라서 테이블 없이도 정상 동작한다.
         /// </remarks>
-        /// <param name="reward">이 던전의 테이블 행(null 허용 — 기준 시간 없음으로 처리)</param>
+        /// <param name="reward">이 던전의 테이블 행(null 허용 — 기준값 없음으로 처리)</param>
         /// <param name="clearTime">클리어까지 걸린 시간(초)</param>
         /// <returns>축별 점수·총점·등급·달성 비율</returns>
         private DungeonRankResult EvaluateRank(DungeonRewardTable reward, float clearTime)
         {
             float targetTime = reward != null ? reward.TargetTime : 0f;
             float limitTime = reward != null ? reward.LimitTime : 0f;
+            int hitLimit = reward != null ? reward.HitLimit : 0;
 
             if (limitTime <= targetTime)
             {
@@ -202,13 +297,28 @@ namespace ProjectS.Scenes
                     " DungeonRewardTable 행에 두 값을 채워야 한다.", this);
             }
 
+            if (hitLimit <= 0)
+            {
+                Debug.LogWarning(
+                    $"[DungeonResultReporter] 던전 {DungeonContext.CurrentDungeonId}에 피격 허용치(HitLimit)가 없어" +
+                    $" 기본값 {DungeonRankScorer.DefaultHitLimit}회로 생존 점수를 낸다." +
+                    " 난이도별로 다른 값이라 DungeonRewardTable 행에 채워야 한다.", this);
+            }
+
+            // 전투 시간은 '첫 유효타 ~ 클리어'다. 한 번도 때리지 않았으면(firstHitTime < 0) 0으로 넘겨
+            // 콤보 축을 0점으로 만든다 — 산정기가 0 나눗셈을 막는다.
+            float combatTime = firstHitTime >= 0f ? Time.time - firstHitTime : 0f;
+
             return DungeonRankScorer.Evaluate(new DungeonRankInput
             {
                 clearTime = clearTime,
                 targetTime = targetTime,
                 limitTime = limitTime,
-                maxCombo = maxCombo,
-                totalHits = totalHits,
+                comboUptime = comboUptime,
+                combatTime = combatTime,
+                hitsTaken = hitsTaken,
+                deaths = deaths,
+                hitLimit = hitLimit,
             });
         }
 
