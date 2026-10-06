@@ -307,6 +307,11 @@ namespace ProjectS.Players
             Animation.UseDungeonController();
             Movement.UseDungeonSpeed();
 
+            // 던전/레이드는 매 판 쿨타임 없이 시작한다(기획: 재도전 시 초기화). 재도전은 마을을 거치지 않으므로
+            // EnterVillage의 초기화를 못 받는다 → 판의 시작인 여기서 지운다. 마을에서 들어올 땐 이미 0이라 무해하다.
+            Combat.ResetCooldowns();
+            PlayerEvents.FireSkillCooldownsReset();
+
             // HUD 스킬 슬롯의 흐림 표시를 원래대로(사용 가능) 되돌리도록 알린다.
             PlayerEvents.FireCombatZoneChanged(combatEnabled);
         }
