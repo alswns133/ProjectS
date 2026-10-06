@@ -111,8 +111,11 @@ namespace ProjectS.UI
 
         // 접힘 상태 복원이 끝나기 전에는 저장하지 않기 위한 가드. window(ExpandableScrollList)의 OnEnable이
         // 매번 SetCollapsed(startCollapsed)를 부르는데, 그게 OnWindowCollapsedChanged를 통해 저장을 건드려
-        // 지난 세션 값을 기본값으로 덮어쓰는 것을 막는다. Start에서 복원을 마친 뒤에만 true가 된다.
+        // 지난 세션 값을 기본값으로 덮어쓰는 것을 막는다. 켜질 때마다 false로 내려가고 복원을 마친 뒤에만 true가 된다.
         private bool prefsReady;
+
+        // 켜진 뒤 아직 접힘 상태를 복원하지 않았는지. 복원은 이번 프레임 LateUpdate에서 한 번 한다(OnEnable 주석 참고).
+        private bool pendingCollapseRestore;
 
         // 나침반 방위각 계산용 카메라. 씬 전환으로 파괴되면 Unity가 null로 만들어 다음 프레임에 다시 잡는다.
         private Camera navCamera;
@@ -135,23 +138,33 @@ namespace ProjectS.UI
             toggleAction.Enable();
             toggleAction.started += OnToggleShortcut;
 
-            // 이 트래커는 씬마다 새로 생성되는 씬 오브젝트라, 켜질 때 이미 진행 중인 퀘스트를 다시 그려 넣는다.
-            // 카드를 이벤트(수락/진행/완료)로만 만들어서, 이전 씬에서 수락한 퀘스트는 이 복원이 없으면
-            // 씬 전환 후 목록에서 사라진다(이벤트가 다시 오지 않기 때문). 커서/접힘 상태를 맞추기 전에 카드를 채운다.
+            // 켜질 때 이미 진행 중인 퀘스트를 다시 그려 넣는다. 카드를 이벤트(수락/진행/완료)로만 만들어서,
+            // 이전 씬에서 수락한 퀘스트는 이 복원이 없으면 씬 전환 후 목록에서 사라진다(이벤트가 다시 오지 않기 때문).
+            // 씬마다 새로 생기는 트래커든, Bootstrap HUD처럼 꺼졌다 켜지는 상주 트래커든 같다.
+            // 커서/접힘 상태를 맞추기 전에 카드를 채운다.
             RebuildActiveQuests();
 
             // Player가 커서 상태를 알리기 전이므로 실제 커서로 초기 상태를 잡는다.
             ApplyMouseMode(Cursor.lockState != CursorLockMode.Locked);
             // 카드 표시는 여기서 한 번 맞춘다. 트래커 접힘 복원은 window의 OnEnable(SetCollapsed(startCollapsed))보다
-            // 확실히 뒤에 돌아야 해서 Start로 미룬다(아래 Start 참고).
+            // 확실히 뒤에 돌아야 해서 이번 프레임 LateUpdate로 미룬다(RestoreCollapsedState 참고).
             ApplyCollapsedView();
+
+            // 복원 전까지는 window의 강제 접힘이 저장을 덮어쓰지 않게 막는다.
+            prefsReady = false;
+            pendingCollapseRestore = true;
         }
 
-        // 트래커 접힘 복원은 Start에서 한다. window(ExpandableScrollList)의 OnEnable이 SetCollapsed(startCollapsed)로
-        // 표시를 되돌리는데, 이 컴포넌트의 OnEnable과의 실행 순서가 보장되지 않아 OnEnable에서 복원하면 그 뒤에
-        // 덮어써질 수 있다. Start는 모든 OnEnable 뒤에 한 번 도므로, 복원이 최종값이 된다.
-        private void Start()
+        // 트래커 접힘을 PlayerPrefs 값으로 복원한다. 켜질 때마다(OnEnable 뒤 첫 LateUpdate) 한 번 돈다.
+        //
+        // Start(수명 중 1회)가 아니라 매 활성화마다 하는 이유: Bootstrap의 트래커는 UIManager 아래 HUD에 상주해
+        // 씬 전환 때 파괴되지 않고 꺼졌다 켜지기만 한다(ClearPanelStack → HUD 재표시). 그때마다 window의 OnEnable이
+        // SetCollapsed(startCollapsed)로 접어 버려, Start에서만 복원하면 두 번째 씬부터 트래커가 접힌 채 남았다.
+        // LateUpdate는 같은 프레임의 모든 OnEnable 뒤, 렌더 전에 돌아서 실행 순서 문제도 깜빡임도 없다.
+        private void RestoreCollapsedState()
         {
+            pendingCollapseRestore = false;
+
             // 이 SetCollapsed가 OnWindowCollapsedChanged를 쏘지만 prefsReady가 아직 false라 저장은 건너뛴다
             // (막 읽은 값을 그대로 다시 쓰는 것을 피한다). 표시 갱신은 그 이벤트 경로로 처리된다.
             if (window != null) window.SetCollapsed(PlayerPrefs.GetInt(TrackerCollapsedKey, 0) == 1);
@@ -196,6 +209,8 @@ namespace ProjectS.UI
         // 여기서는 회전·거리 갱신만 한다(가벼움). 목표 해석은 QuestNavResolver가, 표시는 카드의 QuestCompassEntry가 맡는다.
         private void LateUpdate()
         {
+            if (pendingCollapseRestore) RestoreCollapsedState();
+
             if (Time.unscaledTime >= nextOrphanSweep)
             {
                 nextOrphanSweep = Time.unscaledTime + OrphanSweepInterval;
