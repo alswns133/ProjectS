@@ -365,6 +365,8 @@ GameObject:
   m_Component:
   - component: {fileID: 8676283078577823670}
   - component: {fileID: 6782654719897032639}
+  - component: {fileID: 7760764037023966792}
+  - component: {fileID: 7607338018091875877}
   m_Layer: 6
   m_Name: Boss2_Intro
   m_TagString: Untagged
@@ -412,6 +414,42 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &7760764037023966792
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 778062110802943390}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b594eff9ecd28c4db0b171aa905cfad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyStats
+  monsterId: 1101
+  maxHp: 100
+  attackPower: 10
+  defense: 0
+  isBoss: 0
+  damageTextHeight: 0.5
+  hpBarHeight: 2
+--- !u!114 &7607338018091875877
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 778062110802943390}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e467ae8880ef09d4f843f1b17884c68c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.Enemies.EnemyDifficultyMaterials
+  slots:
+  - targetRenderer: {fileID: 5822789916995203121}
+    materialIndex: 0
+    hard: {fileID: 2100000, guid: dd4fe1356aeb1ab48b89c2e48f6359d4, type: 2}
+    maniac: {fileID: 2100000, guid: ddf62c987c5b66e4683cf04a8b092684, type: 2}
 --- !u!1 &807821722884543359
 GameObject:
   m_ObjectHideFlags: 0
