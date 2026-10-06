@@ -58,7 +58,23 @@ namespace ProjectS.UI
                 if (entry.button == null) continue;
                 ShopCategory category = entry.category;   // 클로저 캡처용 지역 복사
                 entry.button.onClick.AddListener(() => Select(category));
+                NeutralizeStateTint(entry.button);
             }
+        }
+
+        // 탭 선택 표시는 UpdateVisual이 이미지 색으로 직접 한다. 그런데 버튼 Transition(Color Tint)의 Normal/Selected 색은
+        // 그 이미지 색에 "곱해져서", 아무것도 선택 안 된 첫 오픈(Normal 0.55)엔 선택 탭도 어둡게 보이고, 클릭해 EventSystem
+        // 선택이 생겨야(Selected 1.0) 제 색이 나왔다. 창 밖을 클릭해 선택이 풀리면 다시 어두워진다.
+        // Normal/Selected 틴트를 흰색(×1)으로 맞춰 우리 색이 그대로 보이게 하고, 마우스 올림·누름 틴트는 피드백으로 남긴다.
+        // 인스펙터에서 Transition을 None으로 바꿔도 되지만, 코드로 걸어 두면 탭 버튼을 새로 만들 때 빠뜨릴 일이 없다.
+        private static void NeutralizeStateTint(Button button)
+        {
+            if (button.transition != Selectable.Transition.ColorTint) return;
+
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.selectedColor = Color.white;
+            button.colors = colors;
         }
 
         /// <summary>

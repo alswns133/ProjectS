@@ -14,13 +14,17 @@ namespace ProjectS.UI
     /// <item>인벤 슬롯을 좌클릭 드래그해 놓으면 → 호스트에 "올려 달라" 요청(<see cref="OnDrop"/>)</item>
     /// <item>우클릭 → 슬롯에서 빼기</item>
     /// <item>좌클릭 드래그로 인벤토리 위에 놓으면 → 슬롯에서 빼기(<see cref="OnEndDrag"/>)</item>
+    /// <item>마우스를 올리면 → 아이템 툴팁(인벤 슬롯과 같은 <see cref="ItemTooltip"/>)</item>
     /// </list>
+    /// 등급 표시는 같은 오브젝트의 <see cref="ItemSlotGradeView"/>(선택)에 맡긴다. 이 칸은 InventoryItemSlot이 아니라
+    /// 등급 뷰가 스스로 따라오지 못하므로, 내용이 바뀔 때마다 <see cref="ItemSlotGradeView.SetItem"/>을 직접 부른다.
     /// 실제 추가/제거·합계 계산은 호스트가 하고, 이 칸은 표시와 입력 전달만 한다(InventoryItemSlot과 같은 결).
     /// 인벤→판매 드롭 판정을 여기 두는 이유: InventoryItemSlot(기반층)은 화면층(상점)을 알 수 없으므로,
     /// 화면층인 이 칸이 드롭을 받아 소스 슬롯을 읽는다(EquipSlotView의 드래그 해제와 같은 방향).
     /// </summary>
     public class ShopSellSlot : MonoBehaviour,
-        IDropHandler, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
+        IDropHandler, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler,
+        IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private Image icon;
         [Tooltip("판매 개수 표시(장비·1개면 숨김).")]
@@ -28,6 +32,7 @@ namespace ProjectS.UI
 
         private ShopSellView host;
         private GameObject dragGhost;
+        private ItemSlotGradeView gradeView;   // 등급 표현(선택). 프리팹에 안 붙어 있으면 null이고 등급 표시는 생략된다.
 
         /// <summary>이 칸에 올라간 항목. 비어 있으면 null.</summary>
         public ShopSellEntry Entry { get; private set; }
@@ -36,7 +41,16 @@ namespace ProjectS.UI
         public bool IsEmpty => Entry == null;
 
         /// <summary>호스트 연결(ShopSellView가 슬롯 생성 시 1회).</summary>
-        public void Init(ShopSellView owner) => host = owner;
+        /// <remarks>
+        /// 등급 뷰 캐싱을 Awake가 아니라 여기서 하는 이유: 호스트가 Instantiate 직후 Init → Set(null)을 부르는데,
+        /// 부모가 꺼진 상태에서 생성되면 Awake가 Set보다 늦게 돌아 첫 표시에서 등급 뷰를 못 찾는다.
+        /// Init은 생성 시 정확히 1회라 GetComponent 캐싱 규칙(1회)도 지킨다.
+        /// </remarks>
+        public void Init(ShopSellView owner)
+        {
+            host = owner;
+            gradeView = GetComponent<ItemSlotGradeView>();
+        }
 
         /// <summary>항목을 표시한다. null이면 빈칸.</summary>
         public void Set(ShopSellEntry entry)
@@ -50,7 +64,14 @@ namespace ProjectS.UI
                 countText.gameObject.SetActive(showCount);
             }
 
-            LoadIcon(ItemOf(entry));
+            ItemData item = ItemOf(entry);
+            if (gradeView != null) gradeView.SetItem(item);   // 빈칸이면 null → 등급 표시 끔
+
+            // 마우스를 올린 채 내용이 바뀌면(우클릭으로 빼기·당겨 정렬) 옛 아이템 툴팁이 남으므로 닫는다.
+            // 주인 지정 Hide라 다른 슬롯이 띄운 툴팁은 건드리지 않는다.
+            ItemTooltip.Instance?.Hide(this);
+
+            LoadIcon(item);
         }
 
         // 항목의 아이템 정의(장비/스택 공통). 빈칸이면 null.
@@ -72,6 +93,20 @@ namespace ProjectS.UI
             icon.sprite = sprite;
             icon.enabled = sprite != null;
         }
+
+        /// <summary>마우스를 올리면 이 칸의 아이템 정보를 커서 지점에 툴팁으로 띄운다(빈칸이면 무시).</summary>
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (IsEmpty || ItemTooltip.Instance == null) return;
+
+            // 인벤 슬롯과 같은 툴팁을 쓴다 — 장비는 실제 인스턴스(+N·옵션·착용품 비교), 스택은 아이템 정보.
+            // 주인(this)을 넘겨, 이 칸이 꺼지거나 내용이 바뀔 때 자기 툴팁만 닫을 수 있게 한다.
+            if (Entry.Equipment != null) ItemTooltip.Instance.ShowEquipment(Entry.Equipment, eventData.position, this);
+            else if (Entry.Stack != null) ItemTooltip.Instance.ShowStack(Entry.Stack, eventData.position, this);
+        }
+
+        /// <summary>마우스가 벗어나면 이 칸이 띄운 툴팁을 닫는다.</summary>
+        public void OnPointerExit(PointerEventData eventData) => ItemTooltip.Instance?.Hide(this);
 
         /// <summary>인벤 슬롯을 좌클릭 드래그해 이 칸에 놓으면 호스트에 추가를 요청한다.</summary>
         public void OnDrop(PointerEventData eventData)
@@ -150,6 +185,9 @@ namespace ProjectS.UI
         // 드래그 도중 판매 화면이 꺼지면(모드 전환·창 닫기) OnEndDrag가 안 올 수 있으니 고스트를 여기서도 치운다.
         private void OnDisable()
         {
+            // 판매 화면이 꺼지면(모드 전환·창 닫기) 마우스가 안 움직여 PointerExit가 안 와도 내 툴팁을 닫는다.
+            ItemTooltip.Instance?.Hide(this);
+
             // 내 드래그가 진행 중일 때만 정리한다 — 42칸이 함께 꺼지므로, 무조건 풀면 다른 슬롯의 드래그 억제까지 풀린다.
             if (dragGhost == null) return;
 

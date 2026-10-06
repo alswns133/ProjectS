@@ -91,6 +91,7 @@ namespace ProjectS.UI
         public bool TryAddFromInventory(InventoryItemSlot source)
         {
             if (source == null || source.IsEmpty) return false;
+            if (source.PreviewOnly) return false;   // 상점 구매 목록의 미리보기 칸은 내 아이템이 아니다(이중 안전장치)
 
             // 수량 팝업이 떠 있는 동안 들어온 입력은 먹기만 한다(팝업 뒤에서 다른 아이템이 끼어들지 않게).
             if (countDialog != null && countDialog.IsOpen) return true;

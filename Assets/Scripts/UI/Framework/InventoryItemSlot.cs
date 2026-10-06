@@ -51,6 +51,18 @@ namespace ProjectS.UI.Framework
         /// <summary>이 슬롯이 표시 중인 스택형 아이템(장비/빈칸이면 null).</summary>
         public ItemStack Stack => stack;
 
+        /// <summary>
+        /// 미리보기 전용 모드(상점 구매 목록처럼 "아직 내 것이 아닌 아이템"을 보여주는 칸). 켜면 클릭·드래그·드롭을 막고,
+        /// 마우스를 올렸을 때만 정의 기준 정보창(<see cref="ItemTooltip.ShowDefinition"/>)을 띄운다.
+        /// 기본값 false라 인벤·장비창 등 기존 슬롯 동작은 그대로다. 호스트가 생성 직후 한 번 켠다.
+        /// </summary>
+        /// <remarks>
+        /// 레이캐스트를 통째로 끊지 않고 이 모드를 두는 이유: 끊으면 툴팁까지 막힌다. 반대로 그냥 열어 두면
+        /// 이 칸을 끌어다 HUD 포션칸·판매 슬롯·장비창에 놓을 수 있게 된다(그쪽은 출발지가 인벤 슬롯이면 받아 준다).
+        /// 그래서 툴팁만 살리고, 드래그는 시작 단계에서 부모(스크롤)로 넘겨 드롭 자체가 일어나지 않게 한다.
+        /// </remarks>
+        public bool PreviewOnly { get; set; }
+
         /// <summary>표시 중인 내용이 없는 빈칸인지.</summary>
         public bool IsEmpty => equipment == null && stack == null;
 
@@ -182,7 +194,7 @@ namespace ProjectS.UI.Framework
         /// </summary>
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (IsEmpty) return;
+            if (IsEmpty || PreviewOnly) return;   // 미리보기 칸은 우클릭 메뉴·더블클릭 선택 없음
 
             if (eventData.button == PointerEventData.InputButton.Right)
             {
@@ -206,6 +218,14 @@ namespace ProjectS.UI.Framework
         /// <summary>좌클릭 드래그 시작: 아이템 아이콘을 고스트로 띄우고 hover 툴팁을 억제한다(빈 슬롯·우클릭 드래그는 무시).</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
+            // 미리보기 칸은 아이템을 집지 않는다. 드래그를 부모(상점 목록 스크롤)에 넘겨, 아이콘 위에서 끌어도
+            // 목록이 스크롤되게 하고, 이 칸이 출발지인 드롭(포션칸 등록·판매 슬롯 올리기)은 아예 생기지 않게 한다.
+            if (PreviewOnly)
+            {
+                PassDragToParent(eventData);
+                return;
+            }
+
             // 좌클릭 드래그만 아이템 집기. 우클릭 드래그는 컨텍스트 메뉴용이라 무시한다
             // (막지 않으면 우클릭을 끌 때도 고스트가 뜨고, 놓는 위치에 따라 의도치 않은 이동/교환이 일어난다).
             if (eventData.button != PointerEventData.InputButton.Left) return;
@@ -233,6 +253,17 @@ namespace ProjectS.UI.Framework
 
             ((RectTransform)dragGhost.transform).sizeDelta = icon.rectTransform.sizeDelta;
             dragGhost.transform.position = eventData.position;
+        }
+
+        // 드래그 대상을 부모 쪽 드래그 핸들러(ScrollRect 등)로 바꾼다. EventSystem은 이후 OnDrag/OnEndDrag/OnDrop을
+        // pointerDrag 기준으로 보내므로, 여기서 바꾸면 이 칸은 더 이상 드래그 출발지가 아니다(없으면 null → 드래그 없음).
+        private void PassDragToParent(PointerEventData eventData)
+        {
+            Transform parent = transform.parent;
+            GameObject handler = parent != null ? ExecuteEvents.GetEventHandler<IBeginDragHandler>(parent.gameObject) : null;
+
+            eventData.pointerDrag = handler;
+            if (handler != null) ExecuteEvents.Execute(handler, eventData, ExecuteEvents.beginDragHandler);
         }
 
         /// <summary>드래그 중 고스트를 포인터 위치로 옮긴다.</summary>
@@ -285,6 +316,7 @@ namespace ProjectS.UI.Framework
             // 좌클릭 드래그의 드롭만 이동/교환으로 받는다. EventSystem은 우클릭 드래그에도 pointerDrag·dragging을
             // 세팅해 OnDrop을 호출하므로, 여기서 버튼을 가르지 않으면 우클릭 드래그가 그대로 이동을 일으킨다.
             if (eventData.button != PointerEventData.InputButton.Left) return;
+            if (PreviewOnly) return;   // 미리보기 칸은 아이템을 받지 않는다
 
             InventoryItemSlot source = eventData.pointerDrag != null
                 ? eventData.pointerDrag.GetComponent<InventoryItemSlot>()
@@ -298,6 +330,14 @@ namespace ProjectS.UI.Framework
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (IsEmpty || ItemTooltip.Instance == null) return;
+
+            // 미리보기 칸은 실제 인스턴스가 아니라(표시용 임시 스택) 정의 기준으로 띄운다 —
+            // 장비면 주 스탯 범위·옵션 개수 미리보기 + 착용품 비교, 소비품이면 회복 효과까지 나온다.
+            if (PreviewOnly)
+            {
+                ItemTooltip.Instance.ShowDefinition(CurrentItem, eventData.position, this);
+                return;
+            }
 
             // owner로 this를 넘겨, 이 슬롯이 속한 창이 닫힐 때(OnDisable)만 이 툴팁이 닫히게 한다.
             if (equipment != null) ItemTooltip.Instance.ShowEquipment(equipment, eventData.position, this);
