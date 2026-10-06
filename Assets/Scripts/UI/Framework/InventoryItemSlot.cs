@@ -34,6 +34,9 @@ namespace ProjectS.UI.Framework
 
         private GameObject dragGhost;
 
+        // 예약(상점 판매 슬롯에 올라감) 표시용 아이콘 투명도. 회색 처리 대신 알파를 낮춰 등급 테두리·배경색은 그대로 둔다.
+        private const float ReservedAlpha = 0.35f;
+
         /// <summary>이 슬롯이 표시 중인 장비(스택/빈칸이면 null).</summary>
         public EquipmentInstance Equipment => equipment;
 
@@ -99,6 +102,38 @@ namespace ProjectS.UI.Framework
             Apply(itemStack?.Item, label);
         }
 
+        /// <summary>
+        /// 이 칸의 아이템 중 다른 곳(상점 판매 슬롯 등)에 예약된 개수를 표시에 반영한다. 데이터는 바꾸지 않는다.
+        /// 장비는 예약되면 흐리게, 스택은 남은 수량(보유 − 예약)을 표시하고 전부 예약되면 흐리게 한다.
+        /// Set*로 다시 채우면 예약 표시는 풀리므로, 호스트는 Set* 다음에 호출한다.
+        /// 기반층이 상점을 알지 않도록 "몇 개가 예약됐나"라는 숫자만 받는다.
+        /// </summary>
+        /// <param name="reservedCount">예약된 개수(장비는 0 또는 1).</param>
+        public void SetReservedCount(int reservedCount)
+        {
+            if (IsEmpty || reservedCount <= 0) return;
+
+            int owned = stack != null ? stack.Count : 1;
+            int remaining = Mathf.Max(0, owned - reservedCount);
+
+            if (stack != null && countText != null)
+            {
+                // 남은 수량을 보여준다(0개 남아도 "0"을 띄워 다 올렸음을 알린다).
+                countText.text = remaining.ToString();
+                countText.gameObject.SetActive(true);
+            }
+
+            if (remaining <= 0) SetIconAlpha(ReservedAlpha);
+        }
+
+        private void SetIconAlpha(float alpha)
+        {
+            if (icon == null) return;
+            Color c = icon.color;
+            c.a = alpha;
+            icon.color = c;
+        }
+
         /// <summary>슬롯을 빈칸으로 만든다. 아이콘/수량을 지운다.</summary>
         public void SetEmpty()
         {
@@ -123,6 +158,8 @@ namespace ProjectS.UI.Framework
                 icon.sprite = null;
                 icon.enabled = false;
             }
+
+            SetIconAlpha(1f);   // 재사용된 슬롯에 이전 예약 표시(흐림)가 남지 않게 매번 되돌린다
 
             if (item != null) LoadIcon(item);
         }
@@ -221,7 +258,8 @@ namespace ProjectS.UI.Framework
 
         // 활성 캔버스 중 sortingOrder가 가장 높은 루트 캔버스를 찾는다(없으면 fallback).
         // 드래그 고스트를 여기 얹어 어떤 창보다도 위에 그려지게 한다. 드래그 시작 1회라 스캔 비용은 무시할 만하다.
-        private static Canvas TopmostCanvas(Canvas fallback)
+        // internal: 상점 판매 슬롯(ShopSellSlot)도 같은 규칙으로 고스트를 띄우려고 연다(복사본을 두면 규칙이 갈린다).
+        internal static Canvas TopmostCanvas(Canvas fallback)
         {
             Canvas top = fallback;
             int bestOrder = fallback != null ? fallback.sortingOrder : int.MinValue;

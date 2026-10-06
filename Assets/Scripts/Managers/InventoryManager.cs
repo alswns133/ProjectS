@@ -384,6 +384,45 @@ namespace ProjectS.Managers
             PlayerSaveService.MarkDirty();
         }
 
+        /// <summary>
+        /// 아이템 count개를 지금 가방에 전부 넣을 수 있는지. <see cref="AddItem"/>은 꽉 차면 초과분을 버리므로
+        /// 구매처럼 대가를 먼저 치르는 경로는 이걸로 자리부터 확인한다. 계산 규칙은 AddItem/AddToStacks와 같다
+        /// (장비=빈 셀 하나에 한 개, 스택=같은 아이템의 여유분 먼저 + 남으면 빈 셀마다 MaxStack개).
+        /// </summary>
+        /// <param name="itemId">아이템 테이블 ID.</param>
+        /// <param name="count">넣을 개수.</param>
+        /// <returns>전부 들어가면 true. 정의가 없거나 테이블 준비 전이면 false.</returns>
+        public bool CanAddItem(int itemId, int count)
+        {
+            if (count <= 0) return true;
+
+            JsonManager json = JsonManager.Instance;
+            ItemData item = json != null && json.IsReady ? json.Get<ItemData>(itemId) : null;
+            if (item == null) return false;
+
+            if (item.Category == ItemCategory.Weapon || item.Category == ItemCategory.Armor)
+                return CountEmpty(equipGrid) >= count;
+
+            int maxStack = Mathf.Max(1, item.MaxStack);
+            int space = CountEmpty(consumeGrid) * maxStack;
+
+            foreach (ItemStack stack in consumeGrid)
+            {
+                if (stack == null || stack.Item.Index != item.Index || stack.IsFull) continue;
+                space += maxStack - stack.Count;
+            }
+
+            return space >= count;
+        }
+
+        private static int CountEmpty<T>(T[] grid) where T : class
+        {
+            int empty = 0;
+            for (int i = 0; i < grid.Length; i++)
+                if (grid[i] == null) empty++;
+            return empty;
+        }
+
         // 스택형 아이템을 담는다. 같은 아이템의 여유 스택부터 채우고, 남으면 빈 셀에 새 스택(MaxStack 단위)을 만든다.
         private void AddToStacks(ItemData item, ConsumableData consumable, int count)
         {
@@ -925,6 +964,69 @@ namespace ProjectS.Managers
             PlayerSaveService.SaveNow();   // 판매는 의도적 행동 → 즉시 커밋
 
             return true;
+        }
+
+        /// <summary>
+        /// 상점 판매 슬롯의 항목들을 한 번에 판다(판매 UI의 [판매하기]).
+        /// 항목마다 <see cref="SellStack"/>/<see cref="SellEquipment"/>를 부르면 저장·골드 이벤트·효과음이 항목 수만큼
+        /// 반복되므로(42칸이면 Firebase 저장 42번), 제거는 항목별로 하고 골드 지급·이벤트·저장은 끝에 한 번만 한다.
+        /// 판매 직전에 항목이 아직 가방에 있는지·수량이 충분한지 다시 확인하고, 안 되는 항목은 건너뛴다.
+        /// </summary>
+        /// <param name="entries">판매 예정 항목들.</param>
+        /// <returns>하나라도 팔렸으면 true.</returns>
+        public bool SellBatch(IReadOnlyList<ShopSellEntry> entries)
+        {
+            if (entries == null || entries.Count == 0) return false;
+
+            int payout = 0;
+            int sold = 0;
+
+            foreach (ShopSellEntry entry in entries)
+            {
+                if (entry == null) continue;
+
+                if (entry.Equipment != null)
+                {
+                    EquipmentInstance instance = entry.Equipment;
+                    if (instance.Item == null) continue;
+                    if (!RemoveFromGrid(equipGrid, instance)) continue;   // 가방에 없음(착용 중/이미 사라짐)
+
+                    payout += instance.Item.SellPrice;
+                    InventoryEvents.FireItemRemoved(instance.Item);
+                    sold++;
+                }
+                else if (entry.Stack != null)
+                {
+                    ItemStack stack = entry.Stack;
+                    int count = entry.Count;
+                    if (stack.Item == null || count <= 0 || stack.Count < count) continue;
+                    if (!ContainsInGrid(consumeGrid, stack)) continue;     // 예약 후 가방에서 사라진 스택
+
+                    payout += stack.Item.SellPrice * count;
+                    stack.Remove(count);
+                    if (stack.Count <= 0) RemoveFromGrid(consumeGrid, stack);
+
+                    InventoryEvents.FireItemRemoved(stack.Item);
+                    sold++;
+                }
+            }
+
+            if (sold == 0) return false;
+
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_Trade);   // 묶음 판매는 효과음 1회
+            AddGold(payout);
+            InventoryEvents.FireInventoryChanged();
+            PlayerSaveService.SaveNow();   // 판매는 의도적 행동 → 즉시 커밋(묶음당 1회)
+
+            return true;
+        }
+
+        // 격자에 그 인스턴스가 들어 있는지(참조 비교).
+        private static bool ContainsInGrid<T>(T[] grid, T item) where T : class
+        {
+            for (int i = 0; i < grid.Length; i++)
+                if (ReferenceEquals(grid[i], item)) return true;
+            return false;
         }
     }
 }

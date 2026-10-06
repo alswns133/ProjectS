@@ -42,6 +42,9 @@ namespace ProjectS.Managers
                  "마을 씬의 오브젝트(던전 입구 등)도 PlayWipe로 쓸 수 있다. 비우면 PlayWipe는 와이프 없이 바로 동작을 실행한다.")]
         [SerializeField] private PageWipeView pageWipe;
 
+        [Header("오버레이 캔버스 (선택)")]
+        [SerializeField] private GameObject overlayCanvas;
+
         private LoadingPanel loadingPanel;
 
         // 패널은 스택으로 (뒤로가기 처리)
@@ -89,6 +92,8 @@ namespace ProjectS.Managers
                 basePopups.Add(popup);
                 popup.gameObject.SetActive(false); // Awake 시점에 켜져 있으면 OnInit이 두 번 돌고, 스택에 없는 팝업이 켜진다.
             }
+
+            overlayCanvas.gameObject.SetActive(true); // 오버레이 캔버스는 항상 켜진 상태로 유지함.
         }
 
         private void OnEnable()

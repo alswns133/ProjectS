@@ -50,12 +50,16 @@ namespace ProjectS.UI
         [Tooltip("수량 -1 (ItemCounter/DownArrow).")]
         [SerializeField] private Button decreaseButton;
 
+        [Tooltip("카드별 [구매] 버튼. 누르면 이 카드의 현재 수량(Count)으로 구매를 요청한다.")]
+        [SerializeField] private Button buyButton;
+
         [Tooltip("켜면 가격 칸에 단가 대신 '단가 × 수량' 합계를 표시한다.")]
         [SerializeField] private bool showTotalPrice = true;
 
         // 늦게 온 아이콘을 버리기 위한 현재 아이템(그리드 재사용 중 다른 아이템으로 재바인딩 대비).
         private ItemData currentItem;
         private Action<ShopItemCard> onClick;
+        private Action<ShopItemCard> onBuy;
         private int unitPrice;
 
         // 프리팹에 지정된 이름 색. 등급 행을 못 찾을 때(테이블 로딩 전 등) 되돌릴 기본값으로, 처음 칠하기 직전에 한 번만 저장한다.
@@ -80,6 +84,7 @@ namespace ProjectS.UI
 
             if (increaseButton != null) increaseButton.onClick.AddListener(() => Step(1));
             if (decreaseButton != null) decreaseButton.onClick.AddListener(() => Step(-1));
+            if (buyButton != null) buyButton.onClick.AddListener(() => onBuy?.Invoke(this));
 
             if (countInput != null)
             {
@@ -157,6 +162,13 @@ namespace ProjectS.UI
                     break;
             }
         }
+
+        /// <summary>
+        /// 카드의 [구매] 버튼 콜백을 건다(호스트가 Bind 직후 호출). 리스너는 Awake에서 한 번만 걸고
+        /// 여기선 대상 콜백만 바꾼다 — 풀 재사용 중 Bind마다 AddListener하면 한 번 눌러 여러 번 사진다.
+        /// </summary>
+        /// <param name="handler">구매 요청 콜백. null이면 버튼이 아무것도 하지 않는다.</param>
+        public void SetBuyHandler(Action<ShopItemCard> handler) => onBuy = handler;
 
         /// <summary>선택 하이라이트를 켜고 끈다(호스트가 선택 변경 시 호출).</summary>
         /// <param name="on">선택 상태면 true</param>

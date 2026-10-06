@@ -3,158 +3,176 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ProjectS.Data;
-using ProjectS.Enhance;
 using ProjectS.Events;
-using ProjectS.Items;
 using ProjectS.Managers;
 using ProjectS.UI.Framework;
 
 namespace ProjectS.UI
 {
     /// <summary>
-    /// 상점 창(순수 View). 구입/판매 탭을 전환하며 카드 그리드를 그린다 — 구입 탭은 ShopManager.CurrentShop의
-    /// 판매목록, 판매 탭은 보유 아이템(스택 + 장비)을 <see cref="ShopItemCard"/>로 나열한다. 카드 하나를 선택한 뒤
-    /// 하단 구입/판매 버튼으로 거래를 확정한다. 수량은 카드의 ItemCounter로 고르며(구입=스택 한도·소지금,
-    /// 판매=보유량이 상한), 확정 시 <see cref="ShopItemCard.Count"/>를 읽어 넘긴다. 장비는 인스턴스 단위라 낱개다.
+    /// 상점 창(순수 View). 한 창 안에서 <b>구매 화면</b>과 <b>판매 화면</b>을 하단 버튼 하나로 전환한다.
+    /// <list type="bullet">
+    /// <item>구매 화면: 상단 카테고리 바(<see cref="ShopCategoryBar"/>)로 거른 판매목록 카드 그리드. 카드마다 [구매] 버튼.</item>
+    /// <item>판매 화면: <see cref="ShopSellView"/>(판매 슬롯 격자 + 예상 골드 + [판매하기]).</item>
+    /// </list>
+    /// 하단 모드 버튼은 구매 화면에선 "판매", 판매 화면에선 "상점"으로 텍스트·아이콘을 바꿔 단다(버튼 하나 재사용).
+    /// ? 버튼은 아이템 등급 안내를 토글한다. 상점을 열면 인벤토리도 같이 연다 — 판매는 인벤에서 아이템을 끌어오기 때문.
     ///
-    /// 하단 버튼은 <b>탭 겸 확정</b>이다 — 지금 탭이 아니면 그 탭으로 전환하고, 이미 그 탭이면 선택한 카드를 거래한다
-    /// (스크린샷처럼 하단에 구입/판매 두 버튼만 있는 구성에 맞춘 것). 별도 탭 버튼을 두고 싶으면 그 버튼에서
-    /// <see cref="SetTab"/>을 부르고 구입/판매 버튼은 확정만 하도록 갈라도 된다.
-    ///
-    /// 소유·재화 변경은 InventoryManager/ShopManager가 맡고, 이 창은 표시와 입력 전달만 한다(InventoryPopup과 같은 결).
+    /// 소유·재화 변경은 InventoryManager/ShopManager가 맡고, 이 창은 표시와 입력 전달만 한다.
     /// </summary>
     public class ShopPopup : BasePopup
     {
-        private enum Tab { Buy, Sell }
+        private enum Mode { Buy, Sell }
 
-        [Header("그리드")]
+        [Header("구매 화면")]
+        [Tooltip("구매 화면 루트(카테고리 바 + 카드 그리드). 판매 화면일 때 끈다.")]
+        [SerializeField] private GameObject buyRoot;
+        [SerializeField] private ShopCategoryBar categoryBar;
         [SerializeField] private Transform cardRoot;
         [SerializeField] private ShopItemCard cardPrefab;
         [SerializeField] private ScrollRect scrollRect;
 
-        [Header("탭 선택 표시(선택 — 구입/판매 버튼 이미지)")]
-        [SerializeField] private Image buyTabImage;
-        [SerializeField] private Image sellTabImage;
-        [SerializeField] private Color tabNormalColor = new Color(0.4f, 0.42f, 0.5f, 1f);
-        [SerializeField] private Color tabSelectedColor = Color.white;
+        [Header("판매 화면")]
+        [Tooltip("판매 화면. 이 오브젝트를 켜고 끄는 것으로 화면을 전환한다(켜질 때 ShopSellView.Active 등록).")]
+        [SerializeField] private ShopSellView sellView;
 
-        [Header("버튼")]
-        [Tooltip("구입: 구입 탭이 아니면 전환, 이미 구입 탭이면 선택 카드 구매.")]
-        [SerializeField] private Button buyButton;
-        [Tooltip("판매: 판매 탭이 아니면 전환, 이미 판매 탭이면 선택 카드 판매.")]
-        [SerializeField] private Button sellButton;
-        [SerializeField] private Button closeButton;
+        [Header("모드 전환 버튼 (하단 버튼 하나)")]
+        [SerializeField] private Button modeButton;
+        [SerializeField] private TMP_Text modeButtonText;
+        [SerializeField] private Image modeButtonIcon;
+        [Tooltip("구매 화면일 때 버튼 표시(→ 판매 화면으로 감).")]
+        [SerializeField] private string toSellLabel = "판매";
+        [SerializeField] private Sprite toSellIcon;
+        [Tooltip("판매 화면일 때 버튼 표시(→ 구매 화면으로 감).")]
+        [SerializeField] private string toBuyLabel = "상점";
+        [SerializeField] private Sprite toBuyIcon;
+
+        [Header("도움말 (? 버튼)")]
+        [SerializeField] private Button helpButton;
+        [Tooltip("아이템 등급 안내 패널. 시작은 꺼 둔다.")]
+        [SerializeField] private GameObject helpPanel;
 
         [Header("기타")]
-        [SerializeField] private TMP_Text goldText;
+        [SerializeField] private Button closeButton;
 
-        // 카드 풀. 필요한 만큼 만들어 재사용하고, 남는 카드는 숨긴다(탭/갱신마다 파괴·재생성하지 않음).
+        [Header("문구")]
+        [SerializeField] private string notEnoughGoldMessage = "골드가 부족합니다.";
+        [SerializeField] private string bagFullMessage = "인벤토리 공간이 부족합니다.";
+
+        // 카드 풀. 필요한 만큼 만들어 재사용하고, 남는 카드는 숨긴다(카테고리/갱신마다 파괴·재생성하지 않음).
         private readonly List<ShopItemCard> cards = new();
-        private Tab currentTab = Tab.Buy;
-        private ShopItemCard selectedCard;
+        private Mode currentMode = Mode.Buy;
+
+        // 이 상점이 인벤을 대신 열었는지. 닫을 때 원래 열려 있던 인벤까지 닫지 않기 위해 기억한다.
+        private bool openedInventory;
 
         protected override void OnInit()
         {
             // 버튼 배선은 최초 1회만(OnInit은 SetActive 이전 1회 — BasePopup.Show 참고).
-            // 인스펙터에선 Button 참조만 연결하면 되고 onClick은 코드가 건다.
-            if (buyButton != null) buyButton.onClick.AddListener(OnBuyButton);
-            if (sellButton != null) sellButton.onClick.AddListener(OnSellButton);
+            if (modeButton != null) modeButton.onClick.AddListener(ToggleMode);
+            if (helpButton != null) helpButton.onClick.AddListener(ToggleHelp);
             if (closeButton != null) closeButton.onClick.AddListener(() => RequestClose());
+            if (categoryBar != null) categoryBar.OnCategorySelected += _ => RebuildBuy();
         }
 
         protected override void OnShow()
         {
-            PlayerEvents.OnGoldChanged += SetGold;
-            InventoryEvents.OnInventoryChanged += Rebuild;   // 판매 후 보유목록 갱신
-            PlayerEvents.FireStatsRefreshRequested();        // 골드 스냅샷(인벤과 동일 경로)
+            InventoryEvents.OnInventoryChanged += RebuildBuy;   // 소지금·보유 변화로 카드 수량 상한이 바뀐다
+            PlayerEvents.OnGoldChanged += OnGoldChanged;
 
-            currentTab = Tab.Buy;
-            UpdateTabVisual();
-            Rebuild();
+            OpenInventoryAlongside();
+
+            if (helpPanel != null) helpPanel.SetActive(false);
+
+            // 카테고리(상점 종류별 탭 정리 + 전체 선택)를 먼저 정하고, SetMode가 그 카테고리로 목록을 그린다.
+            // 순서가 반대면 첫 목록이 지난번 상점의 카테고리로 한 번 그려진다.
+            ShopTable shop = ShopManager.Instance != null ? ShopManager.Instance.CurrentShop : null;
+            if (categoryBar != null && shop != null) categoryBar.Setup(shop.ShopType);
+
+            SetMode(Mode.Buy);
             ResetScroll();
         }
 
         protected override void OnHide()
         {
-            PlayerEvents.OnGoldChanged -= SetGold;
-            InventoryEvents.OnInventoryChanged -= Rebuild;
+            InventoryEvents.OnInventoryChanged -= RebuildBuy;
+            PlayerEvents.OnGoldChanged -= OnGoldChanged;
+
+            // 판매 화면을 끄면 ShopSellView.OnDisable이 예약 목록·수량 팝업을 정리한다.
+            if (sellView != null) sellView.gameObject.SetActive(false);
+
+            CloseInventoryAlongside();
             ShopManager.Instance?.OnShopClosed();
-            ClearSelection();
         }
 
-        // 구입 버튼: 구입 탭이 아니면 구입 탭으로 전환, 이미 구입 탭이면 선택한 카드를 산다.
-        private void OnBuyButton()
-        {
-            if (currentTab != Tab.Buy) { SetTab(Tab.Buy); return; }
+        // ---------- 모드 전환 ----------
 
-            if (selectedCard?.Payload is ShopItemEntry entry)
-                ShopManager.Instance?.Buy(entry, selectedCard.Count);   // 실패(골드 부족·자리 없음)는 조용히 무시 — 피드백은 TODO
+        private void ToggleMode() => SetMode(currentMode == Mode.Buy ? Mode.Sell : Mode.Buy);
+
+        // 화면 루트를 켜고 끄고, 하단 버튼을 "반대편으로 가는" 표시로 바꿔 단다.
+        private void SetMode(Mode mode)
+        {
+            currentMode = mode;
+
+            if (buyRoot != null) buyRoot.SetActive(mode == Mode.Buy);
+            if (sellView != null) sellView.gameObject.SetActive(mode == Mode.Sell);
+
+            // 버튼은 "지금 화면"이 아니라 "누르면 갈 화면"을 보여준다: 구매 화면에선 [판매], 판매 화면에선 [상점].
+            bool toSell = mode == Mode.Buy;
+            if (modeButtonText != null) modeButtonText.text = toSell ? toSellLabel : toBuyLabel;
+
+            Sprite icon = toSell ? toSellIcon : toBuyIcon;
+            if (modeButtonIcon != null && icon != null) modeButtonIcon.sprite = icon;   // 스프라이트 미지정이면 프리팹 아이콘 유지
+
+            // 구매 화면으로 돌아올 땐 보던 카테고리·스크롤을 그대로 둔다(판매하고 와서 다시 찾지 않게).
+            // 판매 화면에 있던 동안 소지금이 바뀌어 카드 수량 상한이 달라졌을 수 있으니 목록만 다시 그린다.
+            if (mode == Mode.Buy) RebuildBuy();
         }
 
-        // 판매 버튼: 판매 탭이 아니면 판매 탭으로 전환, 이미 판매 탭이면 선택한 것을 판다.
-        private void OnSellButton()
-        {
-            if (currentTab != Tab.Sell) { SetTab(Tab.Sell); return; }
-            if (selectedCard == null) return;
+        // ---------- 도움말 ----------
 
-            if (selectedCard.Payload is ItemStack stack)
-                ShopManager.Instance?.SellStack(stack, selectedCard.Count);
-            else if (selectedCard.Payload is EquipmentInstance eq)
-                ShopManager.Instance?.SellEquipment(eq);
-            // 판매 성공 시 InventoryEvents.OnInventoryChanged → Rebuild로 목록이 갱신된다.
+        // ? 버튼: 등급 안내를 켜고/끈다(같은 버튼으로 토글).
+        private void ToggleHelp()
+        {
+            if (helpPanel != null) helpPanel.SetActive(!helpPanel.activeSelf);
         }
 
-        private void SetTab(Tab tab)
+        // ---------- 인벤토리 동시 표시 ----------
+
+        // 판매는 인벤에서 아이템을 끌어/우클릭해 오므로 상점과 인벤을 같이 띄운다.
+        private void OpenInventoryAlongside()
         {
-            currentTab = tab;
-            UpdateTabVisual();
-            Rebuild();
-            ResetScroll();
+            UIManager ui = UIManager.Instance;
+            if (ui == null) return;
+
+            openedInventory = !ui.IsPopupOpen<InventoryPopup>();
+            if (openedInventory) ui.ShowPopup<InventoryPopup>();
         }
 
-        private void UpdateTabVisual()
+        private void CloseInventoryAlongside()
         {
-            if (buyTabImage != null) buyTabImage.color = currentTab == Tab.Buy ? tabSelectedColor : tabNormalColor;
-            if (sellTabImage != null) sellTabImage.color = currentTab == Tab.Sell ? tabSelectedColor : tabNormalColor;
+            // 상점이 대신 연 인벤만 같이 닫는다. 유저가 원래 열어 둔 인벤은 그대로 둔다(유저가 연 창을 상점이 닫지 않게).
+            // 인벤을 먼저(ESC 등으로) 닫았으면 ClosePopup은 아무것도 하지 않는다.
+            if (openedInventory) UIManager.Instance?.ClosePopup<InventoryPopup>();
+            openedInventory = false;
         }
 
-        // 현재 탭의 소스를 카드로 그린다. 카드는 풀에서 재사용되고 Bind가 선택·수량을 초기화하므로,
-        // 거래 직후 재빌드에서도 같은 대상을 계속 고르고 있도록 선택을 payload 기준으로 되살린다
-        // (안 하면 5개 사고 나서 5개 더 사려면 카드를 다시 클릭해야 한다).
-        private void Rebuild()
+        // ---------- 구매 화면 ----------
+
+        // 현재 카테고리에 맞는 판매목록을 카드로 그린다.
+        private void RebuildBuy()
         {
-            if (!IsVisible) return;
+            if (!IsVisible || currentMode != Mode.Buy) return;
             if (cardRoot == null || cardPrefab == null) return;
 
-            object keep = selectedCard != null ? selectedCard.Payload : null;
-            ClearSelection();
-
-            int used = currentTab == Tab.Buy ? BuildBuyCards() : BuildSellCards();
+            int used = BuildBuyCards();
 
             // 남는 카드는 숨긴다(풀 재사용).
             for (int i = used; i < cards.Count; i++)
                 cards[i].gameObject.SetActive(false);
-
-            RestoreSelection(keep, used);
         }
 
-        // 재빌드 전에 고르고 있던 대상이 목록에 그대로 있으면 그 카드를 다시 선택한다.
-        // 다 팔아 없어졌으면(스택 소진 등) 선택 없음으로 남는다.
-        private void RestoreSelection(object payload, int used)
-        {
-            if (payload == null) return;
-
-            for (int i = 0; i < used; i++)
-            {
-                if (!ReferenceEquals(cards[i].Payload, payload)) continue;
-
-                selectedCard = cards[i];
-                selectedCard.SetSelected(true);
-                return;
-            }
-        }
-
-        // 구입 탭: 현재 상점의 판매목록. 정의가 사라진 아이템(ItemData 없음)은 건너뛴다.
+        // 구매 목록: 현재 상점 판매목록 중 선택 카테고리에 속하는 것만. 정의가 사라진 아이템은 건너뛴다.
         private int BuildBuyCards()
         {
             ShopTable shop = ShopManager.Instance != null ? ShopManager.Instance.CurrentShop : null;
@@ -167,13 +185,39 @@ namespace ProjectS.UI
                 ItemData item = json.Get<ItemData>(entry.ItemId);
                 if (item == null) continue;
 
-                GetCard(i).Bind(item, entry.BuyPrice, entry, OnCardClicked, BuyableCount(item, entry.BuyPrice));
+                // 카테고리 필터. 장비 부위·무기 종류는 EquipmentData에 있으므로 장비일 때만 함께 넘긴다.
+                if (categoryBar != null)
+                {
+                    bool isEquipment = item.Category == ItemCategory.Weapon || item.Category == ItemCategory.Armor;
+                    EquipmentData equipment = isEquipment ? json.Get<EquipmentData>(entry.ItemId) : null;
+                    if (!ShopCategoryBar.Matches(categoryBar.Current, item, equipment, categoryBar.ShopType)) continue;
+                }
+
+                ShopItemCard card = GetCard(i);
+                card.Bind(item, entry.BuyPrice, entry, null, BuyableCount(item, entry.BuyPrice));
+                card.SetBuyHandler(OnCardBuy);
                 i++;
             }
             return i;
         }
 
-        // 구입 탭에서 한 번에 살 수 있는 최대 개수. 스택 한도와 지금 소지금 중 작은 쪽으로 자른다
+        // 카드의 [구매] 버튼.
+        private void OnCardBuy(ShopItemCard card)
+        {
+            if (card?.Payload is not ShopItemEntry entry) return;
+
+            ShopManager shop = ShopManager.Instance;
+            if (shop == null || shop.Buy(entry, card.Count)) return;
+
+            // 실패 사유 안내. Buy는 bool만 돌려주므로 같은 조건을 여기서 다시 봐 문구를 고른다(검사 순서도 Buy와 같게).
+            InventoryManager inv = InventoryManager.Instance;
+            if (inv == null) return;
+
+            if (!inv.CanAfford(entry.BuyPrice * card.Count, 0, 0)) UIEvents.FireToast(notEnoughGoldMessage);
+            else if (!inv.CanAddItem(entry.ItemId, card.Count)) UIEvents.FireToast(bagFullMessage);
+        }
+
+        // 한 번에 살 수 있는 최대 개수. 스택 한도와 지금 소지금 중 작은 쪽으로 자른다
         // (ShopManager.Buy도 골드를 다시 검사하지만, 카운터가 살 수 없는 수량까지 올라가면 UI가 거짓말을 한다).
         // 살 돈이 아예 없으면 1을 돌려 카운터를 숨긴다 — 구매 자체는 Buy에서 실패로 막힌다.
         private static int BuyableCount(ItemData item, int price)
@@ -185,43 +229,8 @@ namespace ProjectS.UI
             return Mathf.Clamp(inv.Gold / price, 1, limit);
         }
 
-        // 판매 탭: 보유 스택(소비품 + 재료) + 보유 장비. 판매가 = ItemData.SellPrice.
-        private int BuildSellCards()
-        {
-            InventoryManager inv = InventoryManager.Instance;
-            if (inv == null) return 0;
-
-            int i = 0;
-            foreach (ItemStack stack in inv.StackItems)
-            {
-                if (stack?.Item == null) continue;
-                GetCard(i).Bind(stack.Item, stack.Item.SellPrice, stack, OnCardClicked, stack.Count);
-                i++;
-            }
-            foreach (EquipmentInstance eq in inv.OwnedEquipment)
-            {
-                if (eq?.Item == null) continue;
-                GetCard(i).Bind(eq.Item, eq.Item.SellPrice, eq, OnCardClicked);   // 장비는 인스턴스마다 +N이 달라 낱개 거래(카운터 숨김)
-                i++;
-            }
-            return i;
-        }
-
-        // 카드 클릭 → 선택 교체(이전 선택 해제).
-        private void OnCardClicked(ShopItemCard card)
-        {
-            if (selectedCard == card) return;
-
-            selectedCard?.SetSelected(false);
-            selectedCard = card;
-            selectedCard.SetSelected(true);
-        }
-
-        private void ClearSelection()
-        {
-            selectedCard?.SetSelected(false);
-            selectedCard = null;
-        }
+        // 골드가 바뀌면 카드 수량 상한(BuyableCount)이 달라지므로 다시 그린다.
+        private void OnGoldChanged(int _) => RebuildBuy();
 
         // 인덱스 위치의 카드를 얻는다(모자라면 생성). 활성화해 돌려준다(풀 재사용).
         private ShopItemCard GetCard(int index)
@@ -233,17 +242,12 @@ namespace ProjectS.UI
             return cards[index];
         }
 
-        private void SetGold(int gold)
-        {
-            if (goldText != null) goldText.text = gold.ToString();
-        }
-
-        // 탭 전환·재오픈처럼 목록이 통째로 바뀔 때 스크롤을 맨 위로 되돌린다.
+        // 카테고리 전환·재오픈처럼 목록이 통째로 바뀔 때 스크롤을 맨 위로 되돌린다.
         // ForceUpdateCanvases로 Size Fitter가 새 콘텐츠 높이를 먼저 반영하게 한 뒤 위치를 잡아야 정확하다.
         private void ResetScroll()
         {
             if (scrollRect == null) return;
-            scrollRect.StopMovement();  // 관성 제거(안 하면 리셋 후 다시 흘러
+            scrollRect.StopMovement();  // 관성 제거(안 하면 리셋 후 다시 흘러감)
 
             Canvas.ForceUpdateCanvases();
             scrollRect.verticalNormalizedPosition = 1f; // 1=맨 위

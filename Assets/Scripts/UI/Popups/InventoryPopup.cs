@@ -82,6 +82,8 @@ namespace ProjectS.UI
             // 강화로 +N이 바뀌면 그리드의 강화 배지가 stale해진다(재료 소모 없이 골드만 드는 단계도 있어
             // 아이템 제거 이벤트만으로는 못 잡는다) → 강화 완료 시 다시 그린다.
             EnhanceEvents.OnEnhanced += HandleEnhanced;
+            // 상점 판매 슬롯에 올리고 뺄 때마다 예약 표시(흐림·남은 수량)를 다시 그린다.
+            UIEvents.OnSellReservationChanged += HandleInventoryChanged;
 
             // 골드 소유자(InventoryManager)에게 현재 값 재발행을 요청한다(HUD와 같은 스냅샷 경로).
             PlayerEvents.FireStatsRefreshRequested();
@@ -99,6 +101,7 @@ namespace ProjectS.UI
             InventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
             PlayerEvents.OnGoldChanged -= SetGold;
             EnhanceEvents.OnEnhanced -= HandleEnhanced;
+            UIEvents.OnSellReservationChanged -= HandleInventoryChanged;
 
             // 툴팁은 여기서 무조건 닫지 않는다 — 그러면 인벤을 닫을 때 장비창에서 띄운 툴팁까지 사라진다.
             // 대신 슬롯의 OnDisable이 "자기가 주인인 툴팁만" 닫는다(InventoryItemSlot.OnDisable → ItemTooltip.Hide(this)).
@@ -160,16 +163,27 @@ namespace ProjectS.UI
                     continue;
                 }
 
+                // 상점 판매 화면이 떠 있으면 거기 올라간 만큼을 예약 표시한다(데이터는 판매 확정 전까지 그대로).
+                ShopSellView sell = ShopSellView.Active;
+
                 if (currentTab == Tab.Equipment)
                 {
                     var equip = inv.GetEquipmentAt(i);
-                    if (equip != null) slots[i].SetEquipment(equip);
+                    if (equip != null)
+                    {
+                        slots[i].SetEquipment(equip);
+                        if (sell != null && sell.IsReserved(equip)) slots[i].SetReservedCount(1);
+                    }
                     else slots[i].SetEmpty();
                 }
                 else
                 {
                     var stack = inv.GetStackAt(i);
-                    if (stack != null) slots[i].SetStack(stack);
+                    if (stack != null)
+                    {
+                        slots[i].SetStack(stack);
+                        if (sell != null) slots[i].SetReservedCount(sell.GetReservedCount(stack));
+                    }
                     else slots[i].SetEmpty();
                 }
             }
@@ -202,6 +216,10 @@ namespace ProjectS.UI
         // 재료(비소비 스택)는 아직 메뉴가 없다. (좌클릭은 슬롯이 드래그로 처리)
         private void OnSlotRightClicked(InventoryItemSlot slot, PointerEventData eventData)
         {
+            // 상점 판매 화면이 떠 있으면 우클릭 = 판매 슬롯에 바로 올리기(컨텍스트 메뉴 대신).
+            // 판매 화면이 처리했다면(꽉 참 토스트 포함) 메뉴를 띄우지 않는다.
+            if (ShopSellView.Active != null && ShopSellView.Active.TryAddFromInventory(slot)) return;
+
             if (slot.Equipment != null)
                 ItemContextMenu.Instance?.Show(slot.Equipment, eventData.position);
             else if (slot.Stack != null && slot.Stack.IsConsumable)
