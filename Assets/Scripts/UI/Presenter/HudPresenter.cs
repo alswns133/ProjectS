@@ -34,6 +34,8 @@ namespace ProjectS.UI
             // 숨겨져(비활성) 구독이 끊긴 사이 바뀐 스탯을 다시 받는다(예: 상호작용 중 받은 보상).
             PlayerEvents.FireStatsRefreshRequested();
 
+            SyncSkillCooldowns();
+
             if (PlayerManager.Instance != null)
             {
                 int chatid = PlayerManager.Instance.CurrentCharacterId;
@@ -78,6 +80,20 @@ namespace ProjectS.UI
 
         private void OnSkillCooldownsReset()
             => view.ClearSkillCooldowns();
+
+        // HUD가 꺼지면(재도전 로딩·씬 전환 등) 슬롯 카운트다운 코루틴이 같이 죽어 게이지가 그 자리에 굳고,
+        // 꺼진 동안엔 OnSkillUsed/OnSkillCooldownsReset도 못 받는다. 그래서 다시 켜질 때 판정 원천(PlayerCombat)의
+        // 남은 시간으로 표시를 맞춘다. 멀티 레이드에선 스킬을 쓰는 쪽이 아바타라 LocalPlayer.Current를 읽는다.
+        private void SyncSkillCooldowns()
+        {
+            var player = LocalPlayer.Current;
+
+            for (int n = 1; n <= view.SkillSlotCount; n++)
+            {
+                float remaining = player != null && player.Combat != null ? player.Combat.GetRemainingCooldown(n) : 0f;
+                view.SyncSkillCooldown(n, remaining);
+            }
+        }
 
         private void OnHitComboChanged(int hitCount)
             => view.SetHitCombo(hitCount);

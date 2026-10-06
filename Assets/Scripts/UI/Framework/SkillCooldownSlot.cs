@@ -22,6 +22,9 @@ namespace ProjectS.UI.Framework
         private MonoBehaviour runner;   // 코루틴을 대신 돌려줄 주인(FillGauge와 동일 패턴)
         private Coroutine routine;
 
+        // 마지막으로 시작한 쿨타임의 전체 길이. Sync로 도중부터 다시 그릴 때 게이지 비율의 분모로 쓴다.
+        private float totalDuration;
+
         /// <summary>초기화. 쿨타임 없음 상태로 표시를 정리한다.</summary>
         public void Init(MonoBehaviour runner)
         {
@@ -38,10 +41,38 @@ namespace ProjectS.UI.Framework
             if (overlay == null || runner == null) return;
             if (duration <= 0f) return;
 
+            totalDuration = duration;
+            Run(duration);
+        }
+
+        /// <summary>
+        /// 남은 시간 기준으로 표시를 다시 맞춘다. 0 이하면 쿨타임 없음으로 정리한다.
+        /// HUD가 꺼졌다 켜질 때(재도전 로딩 등) 부른다 — 꺼지는 순간 카운트다운 코루틴이 같이 죽어
+        /// 게이지가 그 자리에 굳기 때문이다.
+        /// </summary>
+        /// <param name="remaining">남은 쿨타임(초). 판정 원천(PlayerCombat)의 값을 넘긴다.</param>
+        public void Sync(float remaining)
+        {
+            if (remaining <= 0f)
+            {
+                Clear();
+                return;
+            }
+
+            if (overlay == null || runner == null) return;
+
+            // 전체 길이를 모르면(이 슬롯으로 시작한 적 없음) 남은 시간을 분모로 써서 가득 찬 게이지부터 그린다.
+            if (totalDuration < remaining) totalDuration = remaining;
+            Run(remaining);
+        }
+
+        private void Run(float remaining)
+        {
+            // 꺼지면서 이미 죽은 코루틴이어도 StopCoroutine은 무해하다.
             if (routine != null)
                 runner.StopCoroutine(routine);
 
-            routine = runner.StartCoroutine(CooldownRoutine(duration));
+            routine = runner.StartCoroutine(CooldownRoutine(remaining));
         }
 
         /// <summary>
@@ -56,15 +87,14 @@ namespace ProjectS.UI.Framework
             SetIdle();
         }
 
-        private IEnumerator CooldownRoutine(float duration)
+        private IEnumerator CooldownRoutine(float remaining)
         {
-            float remaining = duration;
             overlay.enabled = true;
             if (remainText != null) remainText.enabled = true;
 
             while (remaining > 0f)
             {
-                overlay.fillAmount = remaining / duration;
+                overlay.fillAmount = remaining / totalDuration;
 
                 // 1초 이상은 정수(3, 2, 1), 1초 미만은 소수 한 자리(0.9…)로 긴박감을 준다.
                 if (remainText != null)

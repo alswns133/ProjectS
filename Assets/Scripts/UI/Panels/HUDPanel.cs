@@ -383,6 +383,22 @@ namespace ProjectS.UI
             skillSlots[index]?.StartCooldown(duration);
         }
 
+        /// <summary>스킬 슬롯 수. HUDPresenter가 쿨타임 표시를 다시 맞출 때 순회 범위로 쓴다.</summary>
+        public int SkillSlotCount => skillSlots.Length;
+
+        /// <summary>
+        /// 스킬 슬롯 하나의 쿨타임 표시를 남은 시간 기준으로 다시 맞춘다. HUD가 다시 켜질 때 HUDPresenter가 호출한다.
+        /// </summary>
+        /// <param name="skillNumber">스킬 번호(1~)</param>
+        /// <param name="remaining">남은 쿨타임(초). 0이면 표시를 걷어낸다.</param>
+        public void SyncSkillCooldown(int skillNumber, float remaining)
+        {
+            int index = skillNumber - 1;
+            if (index < 0 || index >= skillSlots.Length) return;
+
+            skillSlots[index]?.Sync(remaining);
+        }
+
         /// <summary>
         /// 모든 스킬 슬롯의 쿨타임 표시를 즉시 걷어낸다. HUDPresenter가 OnSkillCooldownsReset을 받아 호출한다.
         /// </summary>
