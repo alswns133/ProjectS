@@ -29,6 +29,10 @@ namespace ProjectS.UI.Framework
         [SerializeField] private GameObject descSection;
         [SerializeField] private TMP_Text descText;
 
+        // 스킬 이름 색(#7D00D7). 스킬은 SG를 소모하므로 HUD·파티창의 SG 게이지 채움색과 같은 값으로 맞춘다.
+        // 게이지 색을 바꾸면 이 값도 함께 바꿔야 한다.
+        private static readonly Color SkillNameColor = new Color(0.4901961f, 0f, 0.8431373f, 1f);
+
         private RectTransform parentRect;
         private Canvas canvas;
         private bool initialized;
@@ -77,7 +81,11 @@ namespace ProjectS.UI.Framework
             this.owner = owner;
             currentSkillId = skillId;
 
-            if (nameText != null) nameText.text = row.Name;
+            if (nameText != null)
+            {
+                nameText.text = row.Name;
+                nameText.color = SkillNameColor;
+            }
             if (levelText != null) levelText.text = $"Lv. {SkillState.GetLevel(skillId)} / {row.MaxLevel}";
 
             bool hasDesc = !string.IsNullOrWhiteSpace(row.Description);

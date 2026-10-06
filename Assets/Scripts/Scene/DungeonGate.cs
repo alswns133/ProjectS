@@ -44,6 +44,9 @@ namespace ProjectS.Scenes
         // 팝업을 이미 열었는지. 진입/이탈이 짝을 이루므로 중복 ShowPopup(활성 목록 중복 등록)을 막는다.
         private bool popupOpen;
 
+        // 와이프가 덮이길 기다리는 중(팝업은 아직 안 열림). popupOpen이 true인 구간의 앞부분이다.
+        private bool openPending;
+
         // 이 입구가 여는 던전 번호마다 하나씩 만든 나침반 웨이포인트. OnEnable에서 등록, OnDisable에서 해제한다.
         private readonly List<GateWaypoint> questWaypoints = new();
 
@@ -151,16 +154,36 @@ namespace ProjectS.Scenes
                 return;
             }
 
+            // 와이프가 화면을 덮는 동안에도 "이미 요청함"으로 친다 — 덮이기 전에 트리거를 또 밟아도 팝업·와이프가 겹치지 않게 한다.
+            popupOpen = true;
+            openPending = true;
+
+            // 입구에 들어서는 순간 팝업이 툭 뜨지 않고, 와이프가 화면을 덮은 뒤 그 순간에 팝업을 연다.
+            // 와이프가 씬에 없으면 UIManager가 연출 없이 바로 실행하므로 이 호출은 예전과 같이 즉시 열린다.
+            UIManager.Instance.PlayWipe(() => OpenPopupCovered(popup));
+        }
+
+        // 와이프가 완전히 덮은 순간 호출된다. 그 사이 플레이어가 입구를 벗어났다면(CloseGatePopup이 요청을 취소함) 열지 않는다.
+        private void OpenPopupCovered(DungeonEntryPopup popup)
+        {
+            if (!openPending || this == null || UIManager.Instance == null) return;
+
+            openPending = false;
             popup.SetMode(mode, catalog);
             UIManager.Instance.ShowPopup<DungeonEntryPopup>();
-            popupOpen = true;
         }
 
         private void CloseGatePopup()
         {
             if (!popupOpen) return;
 
-            if (UIManager.Instance != null) UIManager.Instance.ClosePopup<DungeonEntryPopup>();
+            // 와이프가 덮이기 전에 벗어났다면 팝업은 아직 열린 적이 없으므로 닫을 것도 없고, 열기 요청만 취소한다.
+            // 취소하지 않으면 덮인 순간 입구 밖에서 팝업이 열려 버린다.
+            if (openPending)
+                openPending = false;
+            else if (UIManager.Instance != null)
+                UIManager.Instance.ClosePopup<DungeonEntryPopup>();
+
             popupOpen = false;
         }
 
