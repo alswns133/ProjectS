@@ -106,7 +106,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &2694744669929170662
 RectTransform:
   m_ObjectHideFlags: 0
@@ -402,8 +402,6 @@ GameObject:
   - component: {fileID: 7796804724185877394}
   - component: {fileID: 6368089701061299703}
   - component: {fileID: 274935301090962560}
-  - component: {fileID: 4231986891518923186}
-  - component: {fileID: 7380520998489544991}
   m_Layer: 5
   m_Name: QuestRewardSlot
   m_TagString: Untagged
@@ -487,37 +485,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Mask
   m_ShowMaskGraphic: 1
---- !u!114 &4231986891518923186
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3187195484798461572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c1be9af1563e434cb2c405dd3103355, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.NpcRewardSlot
-  icon: {fileID: 0}
-  nameText: {fileID: 0}
-  amountText: {fileID: 0}
---- !u!114 &7380520998489544991
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3187195484798461572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d03eaed424a44fd45bc21c21d03cdb16, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.ItemSlotGradeView
-  style: {fileID: 11400000, guid: 39c53a089fdb7934c873910cf93a9342, type: 2}
-  frame: {fileID: 0}
-  innerLight: {fileID: 0}
-  special: {fileID: 0}
 --- !u!1 &3211241674778564587
 GameObject:
   m_ObjectHideFlags: 0
@@ -583,7 +550,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 392be9dfb1c3022429a87529ad359765, type: 3}
+  m_Sprite: {fileID: 0}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -698,9 +665,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac5856e80d168e64c967ef4fcc7f99ca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectS.UI.ResultRewardSlot
-  icon: {fileID: 0}
+  icon: {fileID: 2885696853783916362}
   itemNameText: {fileID: 0}
-  countNum: {fileID: 0}
+  countNum: {fileID: 8703562487419243412}
   unknownMark: {fileID: 0}
 --- !u!114 &337048094308218247
 MonoBehaviour:
