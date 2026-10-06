@@ -310,8 +310,9 @@ namespace ProjectS.Players
         }
 
         /// <summary>
-        /// 스킬 1~4와 우클릭 강공격의 쿨타임을 모두 즉시 끝낸다. 마을 진입 시 <see cref="Player.EnterVillage"/>가
-        /// 호출한다(기획: 마을에 오면 쿨타임 초기화). 데이터만 지우므로 HUD 카운트다운은
+        /// 스킬 1~4와 우클릭 강공격의 쿨타임을 모두 즉시 끝낸다. 마을 진입(<see cref="Player.EnterVillage"/>)과
+        /// 던전/레이드 진입·재도전(<see cref="Player.EnterDungeon"/>) 때 호출한다(기획: 마을 복귀·재도전 시 쿨타임 초기화).
+        /// 데이터만 지우므로 HUD 카운트다운은
         /// <see cref="PlayerEvents.FireSkillCooldownsReset"/>로 따로 정리해야 한다.
         /// </summary>
         public void ResetCooldowns()
