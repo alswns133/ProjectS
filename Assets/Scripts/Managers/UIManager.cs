@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using ProjectS.Core;
 using ProjectS.Debugging;
 using ProjectS.NPCs;
 using ProjectS.UI.Framework;
@@ -294,7 +295,7 @@ namespace ProjectS.Managers
             }
 
             activePopups.Add(popup);
-            // TODO(sound): 팝업(창) 열기음 — SoundManager.Instance.PlaySFX(SoundID.SFX_MenuOpen);
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_PopupOpen);
             popup.Show();
         }
 
@@ -367,7 +368,7 @@ namespace ProjectS.Managers
         {
             if (!activePopups.Contains(popup)) return;
 
-            // TODO(sound): 팝업(창) 닫기음 — SoundManager.Instance.PlaySFX(<닫기 SFX>);
+            SoundManager.Instance?.PlaySFX(SoundID.SFX_PopupClose);
             popup.Hide();
             activePopups.Remove(popup);
 
