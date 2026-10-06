@@ -42,7 +42,7 @@ namespace ProjectS.Data
         /// <remarks>
         /// <see cref="LimitTime"/>과 한 쌍이며, 둘 다 0이거나 역전되면(Limit ≤ Target) 시간 점수가 0이 된다
         /// (<c>DungeonRankScorer.ScoreTime</c>). 랭크를 매기는 던전이라면 반드시 채워야 하는 값이다.
-        /// 콤보 쪽 기준은 던전별 값이 필요 없다 — 그 판의 총 유효타 수에서 나온다.
+        /// 콤보 쪽 기준은 던전별 값이 필요 없다 — 그 판의 전투 시간에 대한 콤보 유지 시간 비율로 나온다.
         /// </remarks>
         public float TargetTime;
 
@@ -52,6 +52,16 @@ namespace ProjectS.Data
         /// <see cref="TargetTime"/>을 그 절반쯤으로 두면 된다. 두 값 사이는 선형 보간이다.
         /// </remarks>
         public float LimitTime;
+
+        /// <summary>랭크 산정의 생존 축 0점 기준(피격 횟수). 이 횟수를 맞으면 생존 점수가 0이다.</summary>
+        /// <remarks>
+        /// 무피격이면 만점이고 이 값까지 선형으로 깎인다(<c>DungeonRankScorer.ScoreSurvival</c>).
+        /// <b>난이도별로 다르게 둬야 하는 값</b>이다 — 이 테이블의 키가 <c>[던전][난이도]</c>라
+        /// 행이 이미 난이도별로 갈려 있으니, 난이도가 오를수록 허용치를 늘려 준다(적이 강해져 피격이
+        /// 자연히 늘기 때문에, 같은 값을 쓰면 매니악에서 생존 축이 항상 0점이 된다).
+        /// 비워 두면 <c>DungeonRankScorer.DefaultHitLimit</c>으로 폴백하고 Reporter가 경고를 남긴다.
+        /// </remarks>
+        public int HitLimit;
 
         /// <summary>기본 보상(항상 확정 지급). 결과 화면 슬롯0.</summary>
         public List<RewardItemEntry> BaseRewards = new();
@@ -86,6 +96,11 @@ namespace ProjectS.Data
             // "값을 넣었는데 왜 점수가 안 나오나"를 숨기는 쪽이 더 나쁘다.
             if (TargetTime < 0f) TargetTime = 0f;
             if (LimitTime < 0f) LimitTime = 0f;
+
+            // 피격 허용치도 같은 결로 둔다. 음수는 0으로 내려 "미설정"과 같게 만들고(산정기가 기본값으로
+            // 폴백한다), 0을 1 같은 값으로 올려 보정하지는 않는다 — 올려 두면 행을 빠뜨린 것이
+            // "피격 1회에 생존 0점"이라는 가혹한 설정으로 조용히 바뀐다.
+            if (HitLimit < 0) HitLimit = 0;
 
             NormalizeCounts(BaseRewards);
             NormalizeCounts(FixedRewards);
