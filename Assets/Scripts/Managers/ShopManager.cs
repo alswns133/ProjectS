@@ -50,9 +50,7 @@ namespace ProjectS.Managers
         {
             if (feature != NpcHubFeature.Shop) return;
 
-            // TODO shopId 해석: 지금은 임시 상점 하나 → 1 고정.
-            //      NPC마다 다른 상점을 열려면 NpcInteractionController에 shopId를 노출해 npc.ShopId를 쓴다.
-
+            // 상점 ID는 NPC 허브 설정(hubFeatures의 shopId)에서 온다 — NPC마다 다른 상점(잡화/장비)을 연다.
             int shopId = npc.GetShopIdForFeature(feature);
 
             ShopTable shop = JsonManager.Instance != null ?
@@ -86,9 +84,8 @@ namespace ProjectS.Managers
 
             if (inventory == null || ! inventory.CanAfford(total, 0, 0)) return false;
 
-
-            // TODO 가방 여유 확인: AddItem은 꽉 차면 초과분을 버린다(돈은 나감). 넣을 자리부터 확인할 것.
-            //      (장비=빈 셀 count개 / 스택=기존 스택 여유 + 빈 셀 계산)
+            // 가방 여유 확인: AddItem은 꽉 차면 초과분을 버리므로(돈은 이미 나감), 넣을 자리부터 확인한다.
+            if (!inventory.CanAddItem(entry.ItemId, count)) return false;
 
             // 구매 실패(잔액/자리 부족)는 위 return 경로에서 별도 '거부' 음을 낼 수도 있다.
             SoundManager.Instance?.PlaySFX(SoundID.SFX_Trade);
@@ -103,8 +100,6 @@ namespace ProjectS.Managers
         /// <returns>판매에 성공하면 true.</returns>
         public bool SellStack(ProjectS.Items.ItemStack stack, int count = 1)
         {
-            // TODO InventoryManager에 판매 메서드가 아직 없다(아래 2번). 그걸 호출한다.
-
             return InventoryManager.Instance != null
                 && InventoryManager.Instance.SellStack(stack, count);
         }
@@ -115,6 +110,19 @@ namespace ProjectS.Managers
         {
             return InventoryManager.Instance != null
                 && InventoryManager.Instance.SellEquipment(eq);
+        }
+
+        /// <summary>
+        /// 판매 UI의 [판매하기] — 판매 슬롯에 올린 항목 전체를 한 번에 판다.
+        /// 판매 UI는 예약만 하고 인벤을 건드리지 않으므로, 실제 제거·골드 지급은 전부 여기서 일어난다.
+        /// </summary>
+        /// <param name="entries">판매 예정 항목들(빈칸 제외).</param>
+        /// <returns>하나라도 팔렸으면 true.</returns>
+        public bool SellAll(System.Collections.Generic.IReadOnlyList<ProjectS.Items.ShopSellEntry> entries)
+        {
+            // 검증·제거·골드·저장은 소유자인 InventoryManager가 한 번에 한다(저장 1회). 이 매니저는 상점 쪽 진입점만 맡는다.
+            return InventoryManager.Instance != null
+                && InventoryManager.Instance.SellBatch(entries);
         }
     }
 }

@@ -20,13 +20,17 @@ namespace ProjectS.UI
     /// 수량(ItemCounter)은 카드가 스스로 관리한다 — 호스트는 Bind에서 상한(maxCount)만 알려주고,
     /// 거래 시점에 <see cref="Count"/>를 읽어 간다. 상한이 1이면 카운터는 통째로 숨는다(장비 등).
     /// 수량은 화살표(±1) 외에 입력칸(countInput)에 숫자를 직접 쳐서 정할 수도 있다(1 ~ MaxCount로 잘림).
+    ///
+    /// 아이템 슬롯(아이콘 칸) 위에 마우스를 올리면 정보창이 뜬다 — 카드 전체가 아니라 슬롯만.
+    /// 슬롯을 <see cref="InventoryItemSlot.PreviewOnly"/>로 두어 슬롯이 스스로 정의 기준 정보창
+    /// (<see cref="ItemTooltip.ShowDefinition"/>)을 띄우고, 클릭·드래그·드롭은 슬롯이 막는다.
     /// </summary>
     public class ShopItemCard : MonoBehaviour, IPointerClickHandler
     {
         [Tooltip("카드 자체 아이콘. 아이템 슬롯(itemSlot)이 있으면 슬롯이 아이콘을 그리므로 쓰지 않는다.")]
         [SerializeField] private Image icon;
 
-        [Tooltip("카드 안의 아이템 슬롯(InventoryItemSlot 프리팹). 아이콘·+N/수량·등급 표시 전용이며 조작은 전부 막힌다. " +
+        [Tooltip("카드 안의 아이템 슬롯(InventoryItemSlot 프리팹). 아이콘·등급 표시와 hover 정보창만 하고 조작은 막힌다(PreviewOnly). " +
                  "비워두면 자식에서 자동으로 찾는다.")]
         [SerializeField] private InventoryItemSlot itemSlot;
 
@@ -50,12 +54,16 @@ namespace ProjectS.UI
         [Tooltip("수량 -1 (ItemCounter/DownArrow).")]
         [SerializeField] private Button decreaseButton;
 
+        [Tooltip("카드별 [구매] 버튼. 누르면 이 카드의 현재 수량(Count)으로 구매를 요청한다.")]
+        [SerializeField] private Button buyButton;
+
         [Tooltip("켜면 가격 칸에 단가 대신 '단가 × 수량' 합계를 표시한다.")]
         [SerializeField] private bool showTotalPrice = true;
 
         // 늦게 온 아이콘을 버리기 위한 현재 아이템(그리드 재사용 중 다른 아이템으로 재바인딩 대비).
         private ItemData currentItem;
         private Action<ShopItemCard> onClick;
+        private Action<ShopItemCard> onBuy;
         private int unitPrice;
 
         // 프리팹에 지정된 이름 색. 등급 행을 못 찾을 때(테이블 로딩 전 등) 되돌릴 기본값으로, 처음 칠하기 직전에 한 번만 저장한다.
@@ -76,10 +84,13 @@ namespace ProjectS.UI
         private void Awake()
         {
             if (itemSlot == null) itemSlot = GetComponentInChildren<InventoryItemSlot>(true);
-            if (itemSlot != null) MakeSlotDisplayOnly();
+            // 슬롯을 미리보기 전용으로: hover 정보창만 살리고 클릭·드래그·드롭은 슬롯이 막는다.
+            // 프리팹 설정이 아니라 코드로 켜는 이유는, 슬롯 프리팹을 인벤과 공유하므로 카드 쪽에서 빠뜨릴 수 없게 하기 위함이다.
+            if (itemSlot != null) itemSlot.PreviewOnly = true;
 
             if (increaseButton != null) increaseButton.onClick.AddListener(() => Step(1));
             if (decreaseButton != null) decreaseButton.onClick.AddListener(() => Step(-1));
+            if (buyButton != null) buyButton.onClick.AddListener(() => onBuy?.Invoke(this));
 
             if (countInput != null)
             {
@@ -99,6 +110,10 @@ namespace ProjectS.UI
         /// <param name="maxCount">올릴 수 있는 최대 수량. 1이면 카운터를 숨긴다(장비처럼 낱개 거래).</param>
         public void Bind(ItemData item, int price, object payload, Action<ShopItemCard> clickHandler, int maxCount = 1)
         {
+            // 풀 재사용으로 다른 아이템이 들어오면, 슬롯이 띄운 옛 아이템 정보창을 닫는다(정보창 주인은 슬롯).
+            // 같은 아이템 재바인딩(구매 직후 목록 갱신 등)이면 그대로 둔다 — 닫으면 마우스를 올린 채 산 뒤 정보창이 사라진다.
+            if (itemSlot != null && !ReferenceEquals(currentItem, item)) ItemTooltip.Instance?.Hide(itemSlot);
+
             currentItem = item;
             Payload = payload;
             onClick = clickHandler;
@@ -123,18 +138,6 @@ namespace ProjectS.UI
             else LoadIcon(item);
         }
 
-        // 카드 안 슬롯을 표시 전용으로 만든다. 슬롯의 클릭(우클릭 메뉴·더블클릭 강화 선택)·드래그·드롭·툴팁은
-        // 전부 포인터 이벤트로 시작하므로, 레이캐스트를 끊으면 슬롯 코드를 건드리지 않고 한 번에 막힌다.
-        // 끊긴 클릭은 뒤의 카드 본체로 떨어져, 아이콘 위를 눌러도 카드가 선택된다.
-        // 프리팹 설정이 아니라 코드로 거는 이유는, 슬롯 프리팹을 인벤과 공유하므로 카드 쪽에서 빠뜨릴 수 없게 하기 위함이다.
-        private void MakeSlotDisplayOnly()
-        {
-            if (!itemSlot.TryGetComponent(out CanvasGroup group))
-                group = itemSlot.gameObject.AddComponent<CanvasGroup>();
-
-            group.blocksRaycasts = false;
-        }
-
         // 슬롯에 거래 대상을 그린다. 판매는 실제 인벤 내용물(스택 수량·장비 +N)을 그대로, 구입은 아이템 정의만 보여준다.
         private void FillSlot(ItemData item, object payload)
         {
@@ -157,6 +160,13 @@ namespace ProjectS.UI
                     break;
             }
         }
+
+        /// <summary>
+        /// 카드의 [구매] 버튼 콜백을 건다(호스트가 Bind 직후 호출). 리스너는 Awake에서 한 번만 걸고
+        /// 여기선 대상 콜백만 바꾼다 — 풀 재사용 중 Bind마다 AddListener하면 한 번 눌러 여러 번 사진다.
+        /// </summary>
+        /// <param name="handler">구매 요청 콜백. null이면 버튼이 아무것도 하지 않는다.</param>
+        public void SetBuyHandler(Action<ShopItemCard> handler) => onBuy = handler;
 
         /// <summary>선택 하이라이트를 켜고 끈다(호스트가 선택 변경 시 호출).</summary>
         /// <param name="on">선택 상태면 true</param>

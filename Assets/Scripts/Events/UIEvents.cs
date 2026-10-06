@@ -21,6 +21,17 @@ namespace ProjectS.Events
             => OnToast?.Invoke(message);
 
         /// <summary>
+        /// 상점 판매 슬롯의 예약(올린 아이템·개수)이 바뀜. 인벤토리 창이 받아 예약된 아이템을 회색/남은 수량으로 다시 그린다.
+        /// InventoryEvents.OnInventoryChanged를 쓰지 않는 이유: 예약은 인벤 데이터 변화가 아니라서, 그 이벤트로 쏘면
+        /// 판매 화면 자신의 보유량 검증(OnInventoryChanged 구독)이 다시 돌아 서로를 부르는 고리가 생긴다.
+        /// </summary>
+        public static event Action OnSellReservationChanged;
+
+        /// <summary>판매 예약 변경을 알린다(ShopSellView가 추가·제거·비우기 후 호출).</summary>
+        public static void FireSellReservationChanged()
+            => OnSellReservationChanged?.Invoke();
+
+        /// <summary>
         /// 모든 구독을 초기화. 도메인 리로드를 꺼도 플레이 시작 시 깨끗한 상태를 보장한다
         /// (이전 플레이 세션의 죽은 구독자를 들고 있는 것을 방지).
         /// </summary>
@@ -28,6 +39,7 @@ namespace ProjectS.Events
         private static void ResetStatics()
         {
             OnToast = null;
+            OnSellReservationChanged = null;
         }
     }
 }
