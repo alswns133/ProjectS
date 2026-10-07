@@ -53,7 +53,7 @@ namespace ProjectS.UI
         [SerializeField] private TMP_Text headerCountText;
 
         [Header("단축키")]
-        [Tooltip("트래커를 펼치면서 마우스 모드로 함께 전환하는 키. 다시 누르면 접고 커서를 잠근다.")]
+        [Tooltip("트래커 펼침/접힘을 토글하는 키. 커서(마우스 모드)는 바꾸지 않는다.")]
         [SerializeField] private InputAction toggleAction =
             new InputAction("QuestTrackerToggle", InputActionType.Button, "<Keyboard>/j");
 
@@ -269,18 +269,23 @@ namespace ProjectS.UI
 
         // ---------- 단축키 ----------
 
-        // J 단축키 진입점. 실제 동작은 공개 메서드로 빼, HUD 메뉴의 퀘스트 아이콘(HudMenuButton)도 같은 경로를 쓴다.
+        // J 단축키 진입점. 트래커 펼침/접힘만 토글하고 커서는 건드리지 않는다(2026-10-07 변경).
+        // 전투·이동 중 진행도만 확인하려고 J를 누를 때 커서가 튀어나와 TPS 조작이 끊기는 것을 막기 위함이다.
+        // 카드를 눌러 상세를 보려면 Alt로 마우스 모드를 켜거나, HUD 메뉴의 퀘스트 아이콘(ToggleWithCursor)을 쓴다.
         private void OnToggleShortcut(InputAction.CallbackContext _)
         {
-            // 연출로 UI가 숨겨진 동안엔 무시한다 — 안 보이는 트래커가 펼쳐지며 컷신 중에 커서가 풀린다.
+            // 연출로 UI가 숨겨진 동안엔 무시한다 — 안 보이는 트래커가 펼쳐진다.
             if (UIManager.IsHidden) return;
 
-            ToggleWithCursor();
+            // 채팅 등 입력창에 'j'를 치는 중엔 무시한다. 다른 raw 핫키(PopupHotkey 등)와 같은 가드다.
+            if (UiTypingGuard.IsTypingInInputField()) return;
+
+            ToggleCollapsed();
         }
 
         /// <summary>
         /// 트래커를 '창 펼침 + 마우스 모드'로 함께 토글한다. 접혀 있으면 펼치며 커서를 풀고,
-        /// 펼쳐져 있으면 접으며 커서를 잠근다. J 단축키와 HUD 메뉴의 퀘스트 아이콘이 같은 진입점을 쓴다.
+        /// 펼쳐져 있으면 접으며 커서를 잠근다. HUD 메뉴의 퀘스트 아이콘이 쓴다(J 단축키는 커서 없이 펼침만).
         /// </summary>
         /// <remarks>
         /// 펼침과 마우스 모드를 한 번에 처리한다 — 둘을 따로 하면 Alt → 트래커 클릭 → 카드 클릭으로
