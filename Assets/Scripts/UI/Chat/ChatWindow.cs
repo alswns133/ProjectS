@@ -372,6 +372,11 @@ namespace ProjectS.UI
         {
             if (input == null) return;
 
+            // TMP는 Enter 한 번에 onSubmit을 두 번 보낸다 — 입력창의 키 처리와 EventSystem Submit(ISubmitHandler)이 각각 부른다.
+            // 전송은 첫 호출이 글을 비워 두 번째가 빈 입력으로 지나가지만, 글·포커스를 남기는 분기(파티 없음)는 알림이 두 번 뜬다.
+            // 그래서 같은 프레임의 두 번째 호출은 무시한다(아래 모든 분기가 submitFrame을 찍는다).
+            if (Time.frameCount == submitFrame) return;
+
             string text = input.text;
             if (string.IsNullOrWhiteSpace(text))
             {
