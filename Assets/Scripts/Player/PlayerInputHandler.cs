@@ -79,8 +79,10 @@ namespace ProjectS.Players
 
         // 입력 억제를 요청한 주인들. 하나라도 남아 있으면 억제 유지, 모두 빠지면 복구.
         // bool 하나를 컷신·채팅·결과창이 공유하면 마지막에 끄는 쪽이 남의 잠금을 덮어쓴다(채팅이 컷신 잠금을 푸는 버그).
-        // HashSet이라 같은 주인이 중복 요청해도 한 표만 세어져, false 한 번으로 깨끗이 빠진다(짝 안 맞음 방지).
-        private readonly HashSet<object> suspendOwners = new();
+        // 키가 주인이라 같은 주인이 중복 요청해도 한 표만 세어져, false 한 번으로 깨끗이 빠진다(짝 안 맞음 방지).
+        // 값 = 그 주인이 커서 토글(Alt)은 허용하는가. 채팅처럼 "타이핑 중에도 Alt로 마우스를 꺼내 드롭다운·입력칸을
+        // 눌러야 하는" 주인만 true. 주인 중 하나라도 false(컷신 등)면 Alt도 막힌다.
+        private readonly Dictionary<object, bool> suspendOwners = new();
 
         // 구르기는 점프와 같은 '꾹 누르면 연속 발동' 설계라 이벤트가 아닌 RollHeld 폴링으로 처리한다.
         // 이벤트(started) 방식이면 '누른 순간' 1회뿐이라 연속 회피를 만들 수 없다.
@@ -108,15 +110,24 @@ namespace ProjectS.Players
         /// </summary>
         /// <param name="suspended">true=이 주인이 입력 차단 요청, false=이 주인의 요청 해제.</param>
         /// <param name="owner">억제를 요청/해제하는 주인. 인스턴스 참조로 구분한다(보통 this).</param>
-        public void SetInputSuspended(bool suspended, object owner)
+        /// <param name="allowCursorToggle">
+        /// true면 이 주인은 커서 토글(Alt)까지는 막지 않는다(채팅 — 타이핑 중 Alt로 마우스를 꺼내 드롭다운을 누르기 위함).
+        /// 기본 false: 컷신 중 Alt로 커서가 풀리는 것처럼 다른 주인들의 기존 동작은 그대로다.
+        /// </param>
+        public void SetInputSuspended(bool suspended, object owner, bool allowCursorToggle = false)
         {
             bool was = suspendOwners.Count > 0;
 
-            if (suspended) suspendOwners.Add(owner);
+            if (suspended) suspendOwners[owner] = allowCursorToggle;
             else suspendOwners.Remove(owner);
 
             bool now = suspendOwners.Count > 0;
-            if (was == now) return; // 실제 억제 상태가 바뀔 때만 InputAction 토글
+
+            // 커서 토글은 '억제 여부'가 아니라 '막는 주인이 있는가'로 따로 정한다. 억제 상태가 그대로여도
+            // 주인 구성이 바뀌면(채팅 중 컷신 시작 등) 결과가 달라지므로 아래 조기 반환보다 먼저 맞춘다.
+            ApplyCursorToggleState();
+
+            if (was == now) return; // 실제 억제 상태가 바뀔 때만 게임플레이 InputAction 토글
 
             inputSuspended = now;
 
@@ -129,8 +140,25 @@ namespace ProjectS.Players
                 EnableActions();
         }
 
+        // 억제 주인 중 하나라도 Alt를 허용하지 않으면 커서 토글을 막는다. 주인이 없으면 당연히 허용.
+        private bool IsCursorToggleBlocked()
+        {
+            foreach (bool allow in suspendOwners.Values)
+            {
+                if (!allow) return true;
+            }
+            return false;
+        }
+
+        private void ApplyCursorToggleState()
+        {
+            if (IsCursorToggleBlocked()) cursorToggleAction.Disable();
+            else cursorToggleAction.Enable();
+        }
+
         // InputAction은 Enable해야 입력을 받기 시작한다(에셋이 아닌 직접 필드 방식).
         // OnEnable과 입력 재개(SetInputSuspended)에서 함께 쓰려고 한곳에 모았다.
+        // 커서 토글은 주인별 허용 여부가 따로 있어 여기서 빼고 ApplyCursorToggleState가 맡는다.
         private void EnableActions()
         {
             moveAction.Enable();
@@ -140,7 +168,6 @@ namespace ProjectS.Players
             attackAction.Enable();
             strongAttackAction.Enable();
             rollAction.Enable();
-            cursorToggleAction.Enable();
             interactAction.Enable();
         }
 
@@ -153,7 +180,6 @@ namespace ProjectS.Players
             attackAction.Disable();
             strongAttackAction.Disable();
             rollAction.Disable();
-            cursorToggleAction.Disable();
             interactAction.Disable();
         }
 
@@ -161,6 +187,7 @@ namespace ProjectS.Players
         {
             // 컷신으로 입력이 멈춘 채 컴포넌트가 재활성되면 그 상태를 존중한다(멈춘 채로 유지).
             if (!inputSuspended) EnableActions();
+            ApplyCursorToggleState();
 
             moveAction.started += OnMoveStarted;
             moveAction.canceled += OnMoveCanceled;
@@ -184,6 +211,7 @@ namespace ProjectS.Players
             interactAction.started -= OnInteract;
 
             DisableActions();
+            cursorToggleAction.Disable();
         }
 
         private void OnSkill(InputAction.CallbackContext ctx)

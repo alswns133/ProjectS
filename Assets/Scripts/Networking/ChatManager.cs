@@ -135,10 +135,41 @@ namespace ProjectS.Networking
                     break;
 
                 case ChatChannel.Party:
-                    // TODO: PartyManager 도입 후 파티원 커넥션마다 TargetReceive(conn, message) 호출.
-                    //       지금은 파티 채널 미지원 → 일반으로 폴백하거나 무시.
-                    RpcReceive(message);
+                    ServerSendToParty(message);
                     break;
+
+                // System은 로컬 전용 알림 채널이다. 클라가 위조해 올려도 전원에게 '시스템 알림'으로 뿌리지 않는다.
+            }
+        }
+
+        /// <summary>
+        /// 파티 채팅을 보낸 사람과 같은 파티원(본인 포함)에게만 보낸다. 소속이 없으면 버린다.
+        /// </summary>
+        /// <remarks>
+        /// 클라(ChatWindow)도 파티가 없으면 안 보내지만 그건 안내용이다. 조작된 클라가 그냥 올려도
+        /// 여기서 다시 보므로 남의 화면에 파티 채팅이 새지 않는다.
+        /// <para>
+        /// ★ 서버 권위 코드라 <c>PlayerPresence.All</c>(OnStartClient로 채워져 전용 서버에선 빔)이 아니라
+        /// <see cref="NetworkServer.spawned"/>를 훑는다. 소속의 진실은 <see cref="PlayerPresence.PartyId"/> 하나다.
+        /// </para>
+        /// <para>
+        /// ★ TargetReceive는 <b>보낸 사람(this)</b> 오브젝트에서 부른다. TargetRpc는 '불린 오브젝트의 대상 클라 복제본'에서
+        /// 실행되므로, 받는 쪽 화면에선 보낸 사람 사본 위에서 돌아 <c>isLocalPlayer</c>가 곧 "내가 보낸 메시지"가 된다
+        /// (<see cref="RpcReceive"/>와 같은 isMine 판정). 접속자 본체(이 오브젝트)는 레이드 중에도 전원에게 보이므로 대상 누락이 없다.
+        /// </para>
+        /// </remarks>
+        [Server]
+        private void ServerSendToParty(ChatMessage message)
+        {
+            if (!TryGetComponent(out PlayerPresence myPresence) || myPresence.PartyId == 0) return;
+
+            uint pid = myPresence.PartyId;
+            foreach (NetworkIdentity identity in NetworkServer.spawned.Values)
+            {
+                if (identity == null || !identity.TryGetComponent(out PlayerPresence p) || p.PartyId != pid) continue;
+
+                NetworkConnectionToClient conn = identity.connectionToClient;
+                if (conn != null) TargetReceive(conn, message);
             }
         }
 
@@ -158,7 +189,7 @@ namespace ProjectS.Networking
         }
 
         /// <summary>
-        /// (예정) 특정 커넥션에게만 보내는 파티 채팅. PartyManager가 대상 커넥션을 넘겨준다.
+        /// 특정 커넥션에게만 보내는 파티 채팅. <see cref="ServerSendToParty"/>가 파티원 커넥션마다 부른다.
         /// TargetRpc도 보낸 사람 오브젝트의 사본 위에서 실행되므로 isMine 판정은 <see cref="RpcReceive"/>와 같다.
         /// </summary>
         [TargetRpc]
