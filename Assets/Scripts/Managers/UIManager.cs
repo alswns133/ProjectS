@@ -26,6 +26,13 @@ namespace ProjectS.Managers
         /// </summary>
         public static bool IsHidden => Instance != null && Instance.hidden;
 
+        /// <summary>
+        /// HUD 위에 다른 창(팝업·확인창·HUD가 아닌 최상단 패널·NPC 상호작용·대화)이 떠 있는지.
+        /// Enter로 채팅을 여는 것처럼 "창을 보는 중엔 막아야 하는" 전역 단축키가 확인한다 —
+        /// 상점·강화창을 쓰다 Enter를 누르면 채팅 입력창에 포커스가 걸려 게임 입력까지 잠기기 때문이다.
+        /// </summary>
+        public static bool IsAnyWindowOpen => Instance != null && Instance.HasWindowOverHud();
+
         /// <summary>뒤로가기 버튼 (Esc)</summary>
         public InputAction backAction;
 
@@ -274,6 +281,20 @@ namespace ProjectS.Managers
 
             // 채팅 타이핑 중 ESC는 포커스 해제용이다(ChatWindow.Update가 처리하며, 이 콜백보다 늦게 돈다).
             return !IsTextInputFocused();
+        }
+
+        // IsAnyWindowOpen 본체. 패널은 HUD가 최상단이 아니면(결과 화면 등) 창이 떠 있는 것으로 본다.
+        // 스택이 비어 있으면(HUD 없이 직접 띄운 테스트 씬) 막을 창이 없으므로 false.
+        // NPC 허브·대화는 UIManager 스택 밖에서 돌아 따로 본다(CanOpenOptionsByBack과 같은 기준).
+        private bool HasWindowOverHud()
+        {
+            if (activePopups.Count > 0) return true;
+            if (panelStack.Count > 0 && !(panelStack.Peek() is HUDPanel)) return true;
+            if (ConfirmDialog.Instance != null && ConfirmDialog.Instance.IsOpen) return true;
+            if (NpcInteractionController.Active != null) return true;
+
+            DialogueManager dialogue = DialogueManager.Instance;
+            return dialogue != null && dialogue.IsPlaying;
         }
 
         // UiTypingGuard("선택된 게 입력창인가")가 아니라 isFocused로 본다. ESC로 포커스를 풀어도 EventSystem의
