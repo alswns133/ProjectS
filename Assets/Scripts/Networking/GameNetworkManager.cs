@@ -95,7 +95,11 @@ namespace ProjectS.Networking
                 // ★ 헤드리스 서버는 렌더가 없어 프레임 루프가 무제한(수천 FPS)으로 돈다 →
                 //   CPU 코어 100% 스핀 + TempJob이 4프레임 안에 소비 안 돼 "deleting an allocation
                 //   older than 4 frames" 경고가 쏟아진다. 서버 틱레이트를 고정해 둘 다 잡는다.
-                Application.targetFrameRate = 30;   // 서버 시뮬 틱(필요 시 60까지)
+                // ★ NetworkManager sendRate(60)와 맞춘다. Mirror는 프레임당 최대 1회 송신이라, 틱이 30이면 실제 송신이 30Hz로
+                //   깎이는데 클라는 60Hz 기준으로 보간 버퍼(16.7ms×2)를 잡아 여유가 0이 된다 → 서버 프레임이 한 번만
+                //   밀려도 보스·타인이 멈칫/순간이동(2026-10-07 파티 2개 레이드 끊김). 서버 PC가 60을 못 버티면(ServerPerfLog의
+                //   fps가 60 아래로 떨어짐) 30으로 되돌리고 sendRate도 30으로 같이 내린다 — 둘은 항상 짝을 맞춘다.
+                Application.targetFrameRate = 60;   // 서버 시뮬 틱
                 QualitySettings.vSyncCount = 0;     // vSync가 targetFrameRate를 덮지 않게(헤드리스도 명시)
 
                 StartServer();

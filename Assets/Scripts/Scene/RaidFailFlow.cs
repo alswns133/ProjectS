@@ -44,6 +44,10 @@ namespace ProjectS.Scenes
         ///
         /// <para>그래서 파티가 향한 던전(<c>PlayerPresence.PartyDungeonId</c>)을 함께 본다. 서버가 채워
         /// SyncVar로 복제하는 값이라 호스트·원격 클라 어디서나 같다.</para>
+        ///
+        /// <para><b>단, 인스턴스 안일 때만 본다.</b> 그 값은 초대 시점에 확정돼 파티가 마을에 있는 동안에도 남아 있다.
+        /// 인스턴스 여부 없이 보면 레이드를 목표로 파티를 맺고 마을에 서 있기만 해도 레이드 중으로 판정돼,
+        /// 옵션창의 [캐릭터 선택]이 [포기]로 바뀌었다(2026-10-07).</para>
         /// </remarks>
         public static bool IsRaidRun
         {
@@ -54,6 +58,7 @@ namespace ProjectS.Scenes
                 PlayerPresence local = PlayerPresence.Local;
                 return local != null
                        && local.PartyId != 0
+                       && PartyInstanceExit.IsInNetworkInstance
                        && local.PartyDungeonId / 10 == DungeonContext.RaidDungeonNumber;
             }
         }
