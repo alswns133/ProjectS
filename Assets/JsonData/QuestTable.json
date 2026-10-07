@@ -216,7 +216,7 @@
       { "TargetId": 1201, "RequiredCount": 10 }
     ],
     "RequiredLevel": 5,
-    "PrerequisiteQuestId": 501008,
+    "PrerequisiteQuestId": 502003,
     "Rewards": [
       { "Type": "Exp", "TargetId": 0, "Amount": 4650, "IconAddress": "" },
       { "Type": "Gold", "TargetId": 0, "Amount": 1500, "IconAddress": "" },
@@ -450,13 +450,35 @@
     "Rewards": [
       { "Type": "Exp", "TargetId": 0, "Amount": 10350, "IconAddress": "" },
       { "Type": "Gold", "TargetId": 0, "Amount": 3000, "IconAddress": "" },
-      { "Type": "ClassWeapon", "TargetId": 121015, "Amount": 1, "IconAddress": "" }
+      { "Type": "ClassWeapon", "TargetId": 121015, "Amount": 1, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 10, "IconAddress": "" }
     ],
     "IntroDialogueId": 700121,
     "TurnInDialogueId": 700131,
     "Title": "수상한 건물",
     "Description": "던전1 균열 안쪽에서 수상한 건물이 발견됐다. 칼슨이 볼트너클 다섯 기를 정리해 길을 열어 달라고 한다.",
     "TrackerText": "볼트너클 5마리 처치"
+  },
+  {
+    "QuestId": 503018,
+    "QuestType": "Main",
+    "QuestNpc": "게롯",
+    "ObjectiveType": "Enhance",
+    "ObjectiveTargets": [
+      { "TargetId": 7, "RequiredCount": 1 }
+    ],
+    "RequiredLevel": 15,
+    "PrerequisiteQuestId": 503001,
+    "Rewards": [
+      { "Type": "Exp", "TargetId": 0, "Amount": 14000, "IconAddress": "" },
+      { "Type": "Gold", "TargetId": 0, "Amount": 10000, "IconAddress": "" },
+      { "Type": "Item", "TargetId": 402001, "Amount": 8, "IconAddress": "" }
+    ],
+    "IntroDialogueId": 700328,
+    "TurnInDialogueId": 700338,
+    "Title": "레어 무기, 한계 직전",
+    "Description": "칼슨에게 받은 레어 무기를 게롯이 살핀다. 7강부터는 실패율이 급격히 떨어지니 상급 강화석을 넉넉히 챙겨 두라고 한다.",
+    "TrackerText": "무기 +7 강화"
   },
   {
     "QuestId": 503002,
